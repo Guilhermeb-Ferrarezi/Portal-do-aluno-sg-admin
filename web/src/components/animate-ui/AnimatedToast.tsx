@@ -59,7 +59,7 @@ export function AnimatedToast({
           transition={{ type: 'spring', stiffness: 200, damping: 25 }}
           style={{
             position: 'fixed',
-            bottom: '24px',
+            top: '24px',
             left: '24px',
             right: '24px',
             maxWidth: '500px',
