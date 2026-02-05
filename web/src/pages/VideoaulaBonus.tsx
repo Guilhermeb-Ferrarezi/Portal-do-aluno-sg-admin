@@ -5,23 +5,30 @@ import { hasRole } from "../auth/auth";
 import {
   listarTurmas,
   listarAlunos,
+  listarVideoaulas,
+  criarVideoaula,
+  deletarVideoaula,
+  atribuirVideoaulaTurmas,
   type Turma,
   type User,
+  type Videoaula as VideoaulaAPI,
 } from "../services/api";
 import "./VideoaulaBonus.css";
 
 type Videoaula = {
   id: string;
   titulo: string;
-  descricao: string;
+  descricao: string | null;
   modulo: string;
-  duracao?: string;
+  duracao?: string | null;
   tipo: "youtube" | "vimeo" | "arquivo";
-  url?: string;
+  url: string;
   arquivo?: string;
   thumbnail?: string;
   dataAdicionada?: string;
   createdAt?: string;
+  createdBy?: string | null;
+  updatedAt?: string;
   turmas?: Turma[];
 };
 
@@ -93,20 +100,26 @@ export default function VideoaulaBonusPage() {
     },
   ];
 
-  // Carregar videoaulas do localStorage na montagem
+  // Carregar videoaulas da API
   React.useEffect(() => {
-    const saved = localStorage.getItem("videoaulas");
-    if (saved) {
-      try {
-        setVideoaulas(JSON.parse(saved));
-      } catch (e) {
-        setVideoaulas(videoaulasExemplo);
-      }
-    } else {
-      setVideoaulas(videoaulasExemplo);
-      localStorage.setItem("videoaulas", JSON.stringify(videoaulasExemplo));
-    }
+    carregarVideoaulas();
   }, []);
+
+  const carregarVideoaulas = async () => {
+    try {
+      const data = await listarVideoaulas();
+      // Se não houver videoaulas da API, usar exemplos
+      if (data.length === 0) {
+        setVideoaulas(videoaulasExemplo);
+      } else {
+        setVideoaulas(data);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar videoaulas:", err);
+      // Se der erro, usar exemplos locais
+      setVideoaulas(videoaulasExemplo);
+    }
+  };
 
   // Carregar turmas e alunos quando puder fazer upload
   React.useEffect(() => {
@@ -128,7 +141,7 @@ export default function VideoaulaBonusPage() {
     const matchBusca =
       busca === "" ||
       v.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-      v.descricao.toLowerCase().includes(busca.toLowerCase());
+      (v.descricao && v.descricao.toLowerCase().includes(busca.toLowerCase()));
     const matchTurma =
       turmaFiltro === "todas" ||
       (v.turmas && v.turmas.some((t) => t.id === turmaFiltro)) ||
@@ -155,7 +168,7 @@ export default function VideoaulaBonusPage() {
     }
   };
 
-  const handleAddVideoaula = () => {
+  const handleAddVideoaula = async () => {
     if (
       !formData.titulo.trim() ||
       !formData.modulo.trim() ||
@@ -175,57 +188,74 @@ export default function VideoaulaBonusPage() {
       return;
     }
 
-    // Criar nova videoaula
-    const novaVideoaula: Videoaula = {
-      id: Date.now().toString(),
-      titulo: formData.titulo,
-      descricao: formData.descricao,
-      modulo: formData.modulo,
-      duracao: formData.duracao,
-      tipo: formData.tipo,
-      url:
-        formData.tipo === "arquivo"
-          ? formData.arquivo
-            ? URL.createObjectURL(formData.arquivo)
-            : undefined
-          : formData.url,
-      arquivo:
-        formData.tipo === "arquivo" ? formData.arquivo?.name : undefined,
-      thumbnail: "https://via.placeholder.com/320x180?text=Video",
-      dataAdicionada: new Date().toISOString().split("T")[0],
-      turmas: modoAtribuicao === "turma" && turmasSelecionadas.length > 0
-        ? turmasDisponiveis.filter(t => turmasSelecionadas.includes(t.id))
-        : undefined,
-    };
+    try {
+      // Preparar FormData para envio
+      const formDataToSend = new FormData();
+      formDataToSend.append("titulo", formData.titulo);
+      formDataToSend.append("descricao", formData.descricao);
+      formDataToSend.append("modulo", formData.modulo);
+      formDataToSend.append("duracao", formData.duracao);
+      formDataToSend.append("tipo", formData.tipo);
 
-    // Salvar no localStorage
-    const updated = [...videoaulas, novaVideoaula];
-    setVideoaulas(updated);
-    localStorage.setItem("videoaulas", JSON.stringify(updated));
+      if (formData.tipo === "arquivo" && formData.arquivo) {
+        formDataToSend.append("file", formData.arquivo);
+      } else if (formData.tipo === "youtube" || formData.tipo === "vimeo") {
+        formDataToSend.append("url", formData.url);
+      }
 
-    // Resetar formulário
-    setFormData({
-      titulo: "",
-      descricao: "",
-      modulo: "",
-      tipo: "youtube",
-      url: "",
-      arquivo: null,
-      duracao: "",
-    });
-    setTurmasSelecionadas([]);
-    setAlunosSelecionados([]);
-    setModoAtribuicao("turma");
+      // Adicionar turmas se selecionadas
+      if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
+        formDataToSend.append("turma_ids", JSON.stringify(turmasSelecionadas));
+      }
 
-    setModalAberto(false);
-    alert("Videoaula adicionada com sucesso!");
+      // Enviar para API
+      const resultado = await criarVideoaula(formDataToSend);
+
+      // Atribuir turmas se necessário
+      if (turmasSelecionadas.length > 0 && resultado.videoaula?.id) {
+        try {
+          await atribuirVideoaulaTurmas(resultado.videoaula.id, turmasSelecionadas);
+        } catch (err) {
+          console.error("Erro ao atribuir turmas:", err);
+        }
+      }
+
+      // Recarregar lista de videoaulas
+      await carregarVideoaulas();
+
+      // Resetar formulário
+      setFormData({
+        titulo: "",
+        descricao: "",
+        modulo: "",
+        tipo: "youtube",
+        url: "",
+        arquivo: null,
+        duracao: "",
+      });
+      setTurmasSelecionadas([]);
+      setAlunosSelecionados([]);
+      setModoAtribuicao("turma");
+
+      setModalAberto(false);
+      alert("Videoaula adicionada com sucesso!");
+    } catch (err) {
+      console.error("Erro ao adicionar videoaula:", err);
+      alert(`Erro ao adicionar videoaula: ${err instanceof Error ? err.message : "erro desconhecido"}`);
+    }
   };
 
-  const handleDeleteVideoaula = (id: string) => {
+  const handleDeleteVideoaula = async (id: string) => {
     if (confirm("Tem certeza que deseja deletar esta videoaula?")) {
-      const updated = videoaulas.filter((v) => v.id !== id);
-      setVideoaulas(updated);
-      localStorage.setItem("videoaulas", JSON.stringify(updated));
+      try {
+        await deletarVideoaula(id);
+        // Recarregar lista de videoaulas
+        await carregarVideoaulas();
+        alert("Videoaula deletada com sucesso!");
+      } catch (err) {
+        console.error("Erro ao deletar videoaula:", err);
+        alert(`Erro ao deletar videoaula: ${err instanceof Error ? err.message : "erro desconhecido"}`);
+      }
     }
   };
 
