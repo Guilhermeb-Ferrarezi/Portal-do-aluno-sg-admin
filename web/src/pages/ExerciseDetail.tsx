@@ -5,6 +5,11 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import MonacoEditor from "../components/MonacoEditor";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
+import { FadeInUp } from "../components/animate-ui/FadeInUp";
+import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
+import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
+import { ConditionalFieldAnimation } from "../components/animate-ui/ConditionalFieldAnimation";
+import { PulseLoader } from "../components/animate-ui/PulseLoader";
 import {
   obterExercicio,
   enviarSubmissao,
@@ -214,8 +219,7 @@ export default function ExerciseDetail() {
       <DashboardLayout title="Exercício" subtitle="Carregando...">
         <div className="exerciseDetailContainer">
           <div className="loadingState">
-            <div className="spinner" />
-            Carregando exercício...
+            <PulseLoader size="medium" color="var(--red)" text="Carregando exercício..." />
           </div>
         </div>
       </DashboardLayout>
@@ -226,13 +230,18 @@ export default function ExerciseDetail() {
     return (
       <DashboardLayout title="Exercício" subtitle="Erro">
         <div className="exerciseDetailContainer">
-          <div className="exMessage error">
-            <span>❌</span>
-            <span>{erroEx || "Exercício não encontrado"}</span>
-          </div>
-          <button className="btnBack" onClick={() => navigate("/dashboard/exercicios")}>
+          <FadeInUp delay={0.1} duration={0.4}>
+            <div className="exMessage error">
+              <span>❌</span>
+              <span>{erroEx || "Exercício não encontrado"}</span>
+            </div>
+          </FadeInUp>
+          <AnimatedButton
+            className="btnBack"
+            onClick={() => navigate("/dashboard/exercicios")}
+          >
             ← Voltar aos exercícios
-          </button>
+          </AnimatedButton>
         </div>
       </DashboardLayout>
     );
@@ -248,11 +257,15 @@ export default function ExerciseDetail() {
       title={exercicio.titulo}
       subtitle={`${exercicio.modulo} • ${temaTema}`}
     >
-      <div className="exerciseDetailContainer">
-        {/* BOTÃO VOLTAR */}
-        <button className="btnBack" onClick={() => navigate("/dashboard/exercicios")}>
-          ← Voltar aos exercícios
-        </button>
+      <FadeInUp delay={0} duration={0.28}>
+        <div className="exerciseDetailContainer">
+          {/* BOTÃO VOLTAR */}
+          <AnimatedButton
+            className="btnBack"
+            onClick={() => navigate("/dashboard/exercicios")}
+          >
+            ← Voltar aos exercícios
+          </AnimatedButton>
 
         {/* GRID 2 COLUNAS */}
         <div className="exerciseDetailGrid">
@@ -297,88 +310,26 @@ export default function ExerciseDetail() {
             </div>
 
             {/* TENTATIVAS ANTERIORES */}
-            {submissoes.length > 0 && (
+            <ConditionalFieldAnimation isVisible={submissoes.length > 0} duration={0.3}>
               <div className="edCard edTentativas">
                 <h3 className="edSubtitle">📊 Minhas Tentativas ({submissoes.length})</h3>
 
                 <div className="tentativasList">
                   {submissoes.map((sub, idx) => (
-                    <div key={sub.id} className="tentativaItem">
-                      <div className="tentativaNumber">
-                        Tentativa {submissoes.length - idx}
-                        {sub.isLate && (
-                          <span style={{
-                            marginLeft: "8px",
-                            color: "#dc3545",
-                            fontSize: "12px",
-                            fontWeight: "bold",
-                          }}>
-                            ⏰ ATRASADA
-                          </span>
-                        )}
-                      </div>
-
-                      {sub.nota !== null && (
-                        <div className={`tentativaNota ${sub.corrigida ? "corrigida" : ""}`}>
-                          Nota: <strong>{sub.nota}/100</strong>
-                        </div>
-                      )}
-
-                      <div className="tentativaData">
-                        {new Date(sub.createdAt).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-
-                      {sub.verificacaoDescricao !== null && sub.verificacaoDescricao !== undefined && (
-                        <div className="tentativaFeedback">
-                          <strong>Aderencia ao esperado:</strong> {sub.verificacaoDescricao}%
-                        </div>
-                      )}
-
-                      {sub.feedbackProfessor && (
-                        <div className="tentativaFeedback">
-                          <strong>Feedback:</strong> {sub.feedbackProfessor}
-                        </div>
-                      )}
-
-                      <details className="tentativaDetalhes">
-                        <summary>Ver resposta</summary>
-                        <div className="tentativaResposta">
-                          {sub.tipoResposta === "codigo" ? (
-                            <pre>{sub.resposta}</pre>
-                          ) : (
-                            <p>{sub.resposta}</p>
-                          )}
-                        </div>
-                      </details>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {canReview && (
-              <div className="edCard edTentativas">
-                <h3 className="edSubtitle">📝 Respostas dos alunos ({submissoesRecebidas.length})</h3>
-
-                {loadingRecebidas ? (
-                  <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
-                    Carregando respostas...
-                  </div>
-                ) : submissoesRecebidas.length === 0 ? (
-                  <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
-                    Nenhuma resposta enviada ainda.
-                  </div>
-                ) : (
-                  <div className="tentativasList">
-                    {submissoesRecebidas.map((sub) => (
-                      <div key={sub.id} className="tentativaItem">
+                    <FadeInUp key={sub.id} delay={0.05 * (idx + 1)} duration={0.3}>
+                      <div className="tentativaItem">
                         <div className="tentativaNumber">
-                          {sub.alunoNome} <span style={{ opacity: 0.7 }}>@{sub.alunoUsuario}</span>
+                          Tentativa {submissoes.length - idx}
+                          {sub.isLate && (
+                            <span style={{
+                              marginLeft: "8px",
+                              color: "#dc3545",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                            }}>
+                              ⏰ ATRASADA
+                            </span>
+                          )}
                         </div>
 
                         {sub.nota !== null && (
@@ -419,10 +370,78 @@ export default function ExerciseDetail() {
                           </div>
                         </details>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </FadeInUp>
+                  ))}
+                </div>
               </div>
+            </ConditionalFieldAnimation>
+
+            {canReview && (
+              <ConditionalFieldAnimation isVisible={true} duration={0.3}>
+                <div className="edCard edTentativas">
+                  <h3 className="edSubtitle">📝 Respostas dos alunos ({submissoesRecebidas.length})</h3>
+
+                  {loadingRecebidas ? (
+                    <div style={{ padding: "20px", textAlign: "center" }}>
+                      <PulseLoader size="small" color="var(--red)" text="Carregando respostas..." />
+                    </div>
+                  ) : submissoesRecebidas.length === 0 ? (
+                    <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
+                      Nenhuma resposta enviada ainda.
+                    </div>
+                  ) : (
+                    <div className="tentativasList">
+                      {submissoesRecebidas.map((sub, idx) => (
+                        <FadeInUp key={sub.id} delay={0.05 * (idx + 1)} duration={0.3}>
+                          <div className="tentativaItem">
+                            <div className="tentativaNumber">
+                              {sub.alunoNome} <span style={{ opacity: 0.7 }}>@{sub.alunoUsuario}</span>
+                            </div>
+
+                            {sub.nota !== null && (
+                              <div className={`tentativaNota ${sub.corrigida ? "corrigida" : ""}`}>
+                                Nota: <strong>{sub.nota}/100</strong>
+                              </div>
+                            )}
+
+                            <div className="tentativaData">
+                              {new Date(sub.createdAt).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
+
+                            {sub.verificacaoDescricao !== null && sub.verificacaoDescricao !== undefined && (
+                              <div className="tentativaFeedback">
+                                <strong>Aderencia ao esperado:</strong> {sub.verificacaoDescricao}%
+                              </div>
+                            )}
+
+                            {sub.feedbackProfessor && (
+                              <div className="tentativaFeedback">
+                                <strong>Feedback:</strong> {sub.feedbackProfessor}
+                              </div>
+                            )}
+
+                            <details className="tentativaDetalhes">
+                              <summary>Ver resposta</summary>
+                              <div className="tentativaResposta">
+                                {sub.tipoResposta === "codigo" ? (
+                                  <pre>{sub.resposta}</pre>
+                                ) : (
+                                  <p>{sub.resposta}</p>
+                                )}
+                              </div>
+                            </details>
+                          </div>
+                        </FadeInUp>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </ConditionalFieldAnimation>
             )}
 
           </div>
@@ -433,26 +452,26 @@ export default function ExerciseDetail() {
               <h2 className="edSubtitle">📝 Envie sua resposta</h2>
 
               {/* MENSAGENS */}
-              {erroSubmissao && (
+              <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
                 <div className="exMessage error">
                   <span>❌</span>
                   <span>{erroSubmissao}</span>
                 </div>
-              )}
+              </ConditionalFieldAnimation>
 
-              {sucessoMsg && (
+              <ConditionalFieldAnimation isVisible={!!sucessoMsg} duration={0.25}>
                 <div className="exMessage success">
                   <span>✅</span>
                   <span>{sucessoMsg}</span>
                 </div>
-              )}
+              </ConditionalFieldAnimation>
 
-              {avisoMsg && (
+              <ConditionalFieldAnimation isVisible={!!avisoMsg} duration={0.25}>
                 <div className="exMessage warning">
                   <span>⚠️</span>
                   <span>{avisoMsg}</span>
                 </div>
-              )}
+              </ConditionalFieldAnimation>
 
               {/* RESPOSTA */}
               <div className="edInputGroup">
@@ -592,13 +611,13 @@ export default function ExerciseDetail() {
                         }}
                       />
 
-                      {mouseCompleted && (
+                      <ConditionalFieldAnimation isVisible={mouseCompleted} duration={0.3}>
                         <div style={{ marginTop: "16px", padding: "12px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: "8px" }}>
                           <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
                             ✅ Desafio completado! Agora você pode enviar sua submissão.
                           </p>
                         </div>
-                      )}
+                      </ConditionalFieldAnimation>
 
                       <textarea
                         className="edTextarea"
@@ -638,23 +657,26 @@ export default function ExerciseDetail() {
 
                       {/* Renderizar questões */}
                       {multiplaRegras.questoes.map((questao: any, index: number) => (
-                        <MultipleChoiceQuestion
-                          key={index}
-                          question={`Q${index + 1}: ${questao.pergunta}`}
-                          options={questao.opcoes}
-                          selectedAnswer={respostasMultipla[`q${index}`]}
-                          onAnswer={(answer) => {
-                            setRespostasMultipla({ ...respostasMultipla, [`q${index}`]: answer });
-                          }}
-                        />
+                        <FadeInUp key={index} delay={0.05 * (index + 1)} duration={0.3}>
+                          <MultipleChoiceQuestion
+                            question={`Q${index + 1}: ${questao.pergunta}`}
+                            options={questao.opcoes}
+                            selectedAnswer={respostasMultipla[`q${index}`]}
+                            onAnswer={(answer) => {
+                              setRespostasMultipla({ ...respostasMultipla, [`q${index}`]: answer });
+                            }}
+                          />
+                        </FadeInUp>
                       ))}
 
                       {/* Progresso */}
-                      <div style={{ padding: "12px", background: "#f0fdf4", borderRadius: "8px", marginTop: "16px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
-                          📊 Progresso: {Object.keys(respostasMultipla).length} / {multiplaRegras.questoes.length} respondidas
-                        </p>
-                      </div>
+                      <FadeInUp delay={0.1} duration={0.3}>
+                        <div style={{ padding: "12px", background: "#f0fdf4", borderRadius: "8px", marginTop: "16px" }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
+                            📊 Progresso: {Object.keys(respostasMultipla).length} / {multiplaRegras.questoes.length} respondidas
+                          </p>
+                        </div>
+                      </FadeInUp>
 
                       {/* Campo opcional de comentário */}
                       <textarea
@@ -685,28 +707,28 @@ export default function ExerciseDetail() {
                     />
 
                     {/* TESTE DE CÓDIGO */}
-                    <button
+                    <AnimatedButton
                       className="edTestBtn"
                       onClick={handleTestarCodigo}
                       disabled={resposta.trim().length === 0 || linguagem !== "javascript"}
                     >
                       🧪 Testar Código
-                    </button>
+                    </AnimatedButton>
 
                     {/* OUTPUT DO TESTE */}
-                    {erroTeste && (
+                    <ConditionalFieldAnimation isVisible={!!erroTeste} duration={0.3}>
                       <div className="edTestOutput error">
                         <div className="edTestLabel">❌ Erro:</div>
                         <pre>{erroTeste}</pre>
                       </div>
-                    )}
+                    </ConditionalFieldAnimation>
 
-                    {outputTeste && !erroTeste && (
+                    <ConditionalFieldAnimation isVisible={!!outputTeste && !erroTeste} duration={0.3}>
                       <div className="edTestOutput success">
                         <div className="edTestLabel">✅ Output:</div>
                         <pre>{outputTeste}</pre>
                       </div>
-                    )}
+                    </ConditionalFieldAnimation>
                   </>
                 )}
 
@@ -723,7 +745,7 @@ export default function ExerciseDetail() {
               </div>
 
               {/* AVISO DE PRAZO VENCIDO */}
-              {prazoVencido && (
+              <ConditionalFieldAnimation isVisible={prazoVencido} duration={0.3}>
                 <div style={{
                   padding: "12px",
                   marginBottom: "12px",
@@ -736,16 +758,17 @@ export default function ExerciseDetail() {
                 }}>
                   ⏰ <strong>Prazo expirado:</strong> Não é mais possível enviar respostas para este exercício.
                 </div>
-              )}
+              </ConditionalFieldAnimation>
 
               {/* BOTÃO ENVIAR */}
-              <button
+              <AnimatedButton
                 className="edSubmitBtn"
                 onClick={handleEnviar}
-                disabled={enviando || resposta.trim().length === 0 || prazoVencido}
+                disabled={resposta.trim().length === 0 || prazoVencido}
+                loading={enviando}
               >
-                {prazoVencido ? "❌ Prazo Expirado" : enviando ? "⏳ Enviando..." : "✨ Enviar Resposta"}
-              </button>
+                {prazoVencido ? "❌ Prazo Expirado" : "✨ Enviar Resposta"}
+              </AnimatedButton>
 
               <div className="edHint">
                 {tipoExercicio === "codigo"
@@ -756,6 +779,24 @@ export default function ExerciseDetail() {
           </div>
         </div>
       </div>
+      </FadeInUp>
+
+      {/* TOASTS */}
+      <AnimatedToast
+        message={sucessoMsg}
+        type="success"
+        onClose={() => setSucessoMsg(null)}
+      />
+      <AnimatedToast
+        message={erroSubmissao}
+        type="error"
+        onClose={() => setErroSubmissao(null)}
+      />
+      <AnimatedToast
+        message={avisoMsg}
+        type="info"
+        onClose={() => setAvisoMsg(null)}
+      />
     </DashboardLayout>
   );
 }

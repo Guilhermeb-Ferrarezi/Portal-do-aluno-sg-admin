@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { getRole } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
+import { FadeInUp } from "../components/animate-ui/FadeInUp";
+import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
+import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
+import { ConditionalFieldAnimation } from "../components/animate-ui/ConditionalFieldAnimation";
 import { apiFetch, type Turma } from "../services/api";
 import "./ExerciseTemplates.css";
 
@@ -202,163 +206,179 @@ export default function ExerciseTemplates() {
       title="📦 Templates de Exercícios"
       subtitle="Gerenciar exercícios pré-prontos reutilizáveis"
     >
-      <div className="templatesContainer">
-        <div className="templatesHeader">
-          <p className="templatesDescription">
-            Templates são exercícios pré-prontos que você pode duplicar e reutilizar em múltiplas turmas.
-            Economize tempo criando uma biblioteca de exercícios!
-          </p>
-          <button
-            className="btnCreateTemplate"
-            onClick={() => navigate("/dashboard/exercicios")}
-          >
-            ✨ Criar Novo Template
-          </button>
-        </div>
+      <FadeInUp duration={0.28}>
+        <div className="templatesContainer">
+          <FadeInUp duration={0.28} delay={0.08}>
+            <div className="templatesHeader">
+              <p className="templatesDescription">
+                Templates são exercícios pré-prontos que você pode duplicar e reutilizar em múltiplas turmas.
+                Economize tempo criando uma biblioteca de exercícios!
+              </p>
+              <AnimatedButton
+                className="btnCreateTemplate"
+                onClick={() => navigate("/dashboard/exercicios")}
+              >
+                ✨ Criar Novo Template
+              </AnimatedButton>
+            </div>
+          </FadeInUp>
 
-        {/* MENSAGENS */}
-        {erro && (
-          <div className="templateMessage error">
-            <span>❌</span>
-            <span>{erro}</span>
-          </div>
-        )}
+          {/* MENSAGENS */}
+          <AnimatedToast
+            message={erro || null}
+            type="error"
+            duration={4000}
+            onClose={() => setErro(null)}
+          />
 
-        {mensagem && (
-          <div className="templateMessage success">
-            <span>✅</span>
-            <span>{mensagem}</span>
-          </div>
-        )}
+          <AnimatedToast
+            message={mensagem || null}
+            type="success"
+            duration={3000}
+            onClose={() => setMensagem(null)}
+          />
 
-        {/* TEMPLATES */}
-        {templates.length === 0 ? (
-          <div className="templateEmpty">
-            <div className="templateEmptyIcon">📋</div>
-            <h3>Nenhum template criado ainda</h3>
-            <p>Vá para Exercícios e marque exercícios como templates para reutilizá-los!</p>
-            <button
-              className="btnGoToExercises"
-              onClick={() => navigate("/dashboard/exercicios")}
-            >
-              → Ir para Exercícios
-            </button>
-          </div>
-        ) : (
-          <>
-            {(() => {
-              const startIndex = (currentPage - 1) * itemsPerPage;
-              const endIndex = startIndex + itemsPerPage;
-              const paginatedTemplates = templates.slice(startIndex, endIndex);
-
-              return (
-                <>
-                  <div className="templatesGrid">
-                    {paginatedTemplates.map((template) => (
-                      <div key={template.id} className="templateCard">
-                <div className="templateCardHeader">
-                  <div className="templateInfo">
-                    <h3 className="templateTitle">{template.titulo}</h3>
-                    <p className="templateMeta">
-                      <span className="templateModule">{template.modulo}</span>
-                      {template.tema && <span className="templateTheme">{template.tema}</span>}
-                      <span className={`templateCategory category-${template.categoria}`}>
-                        {template.categoria === "informatica" ? "💻 Informática" : "🖥️ Programação"}
-                      </span>
-                      <span className={`templateType type-${template.tipoExercicio}`}>
-                        {template.tipoExercicio === "codigo" ? "💻 Código" : "✍️ Texto"}
-                      </span>
-                    </p>
-                  </div>
-                  <button
-                    className="templateIconBtn"
-                    title="Duplicar template"
-                    onClick={() => handleDuplicar(template.id, template.titulo)}
-                    disabled={duplicando === template.id}
-                  >
-                    {duplicando === template.id ? "⏳" : "📋"}
-                  </button>
-                </div>
-
-                <p className="templateDescription">
-                  {template.descricao.substring(0, 150)}
-                  {template.descricao.length > 150 ? "..." : ""}
-                </p>
-
-                <div className="templateFooter">
-                  <span className="templateDate">
-                    {new Date(template.createdAt).toLocaleDateString("pt-BR")}
-                  </span>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      className="templateBtnView"
-                      onClick={() => abrirModalEnviarTarefa(template.id)}
-                      title="Enviar template para turmas"
-                    >
-                      📤 Enviar
-                    </button>
-                    <button
-                      className="templateBtnView"
-                      onClick={() => navigate(`/dashboard/exercicios/${template.id}`)}
-                    >
-                      Ver →
-                    </button>
-                    <button
-                      className="templateBtnView"
-                      onClick={() => handleDeletar(template.id, template.titulo)}
-                      disabled={deletando === template.id}
-                      title="Deletar template"
-                      style={{
-                        background: "rgba(225, 29, 46, 0.1)",
-                        color: "var(--red)",
-                      }}
-                    >
-                      {deletando === template.id ? "⏳" : "🗑️"}
-                    </button>
-                  </div>
-                </div>
+          {/* TEMPLATES */}
+          {templates.length === 0 ? (
+            <FadeInUp duration={0.28} delay={0.16}>
+              <div className="templateEmpty">
+                <div className="templateEmptyIcon">📋</div>
+                <h3>Nenhum template criado ainda</h3>
+                <p>Vá para Exercícios e marque exercícios como templates para reutilizá-los!</p>
+                <AnimatedButton
+                  className="btnGoToExercises"
+                  onClick={() => navigate("/dashboard/exercicios")}
+                >
+                  → Ir para Exercícios
+                </AnimatedButton>
               </div>
-                    ))}
-                  </div>
+            </FadeInUp>
+          ) : (
+            <>
+              {(() => {
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const paginatedTemplates = templates.slice(startIndex, endIndex);
 
-                  <Pagination
-                    currentPage={currentPage}
-                    itemsPerPage={itemsPerPage}
-                    totalItems={templates.length}
-                    onPageChange={setCurrentPage}
-                    onItemsPerPageChange={setItemsPerPage}
-                  />
+                return (
+                  <>
+                    <FadeInUp duration={0.28} delay={0.16}>
+                      <div className="templatesGrid">
+                        {paginatedTemplates.map((template, idx) => (
+                          <FadeInUp key={template.id} duration={0.28} delay={0.16 + idx * 0.04}>
+                            <div className="templateCard">
+                              <div className="templateCardHeader">
+                                <div className="templateInfo">
+                                  <h3 className="templateTitle">{template.titulo}</h3>
+                                  <p className="templateMeta">
+                                    <span className="templateModule">{template.modulo}</span>
+                                    {template.tema && <span className="templateTheme">{template.tema}</span>}
+                                    <span className={`templateCategory category-${template.categoria}`}>
+                                      {template.categoria === "informatica" ? "💻 Informática" : "🖥️ Programação"}
+                                    </span>
+                                    <span className={`templateType type-${template.tipoExercicio}`}>
+                                      {template.tipoExercicio === "codigo" ? "💻 Código" : "✍️ Texto"}
+                                    </span>
+                                  </p>
+                                </div>
+                                <AnimatedButton
+                                  className="templateIconBtn"
+                                  title="Duplicar template"
+                                  onClick={() => handleDuplicar(template.id, template.titulo)}
+                                  disabled={duplicando === template.id}
+                                  loading={duplicando === template.id}
+                                >
+                                  {duplicando === template.id ? "⏳" : "📋"}
+                                </AnimatedButton>
+                              </div>
+
+                              <p className="templateDescription">
+                                {template.descricao.substring(0, 150)}
+                                {template.descricao.length > 150 ? "..." : ""}
+                              </p>
+
+                              <div className="templateFooter">
+                                <span className="templateDate">
+                                  {new Date(template.createdAt).toLocaleDateString("pt-BR")}
+                                </span>
+                                <div style={{ display: "flex", gap: "8px" }}>
+                                  <AnimatedButton
+                                    className="templateBtnView"
+                                    onClick={() => abrirModalEnviarTarefa(template.id)}
+                                    title="Enviar template para turmas"
+                                  >
+                                    📤 Enviar
+                                  </AnimatedButton>
+                                  <AnimatedButton
+                                    className="templateBtnView"
+                                    onClick={() => navigate(`/dashboard/exercicios/${template.id}`)}
+                                  >
+                                    Ver →
+                                  </AnimatedButton>
+                                  <AnimatedButton
+                                    className="templateBtnView"
+                                    onClick={() => handleDeletar(template.id, template.titulo)}
+                                    disabled={deletando === template.id}
+                                    loading={deletando === template.id}
+                                    title="Deletar template"
+                                    style={{
+                                      background: "rgba(225, 29, 46, 0.1)",
+                                      color: "var(--red)",
+                                    }}
+                                  >
+                                    {deletando === template.id ? "⏳" : "🗑️"}
+                                  </AnimatedButton>
+                                </div>
+                              </div>
+                            </div>
+                          </FadeInUp>
+                        ))}
+                      </div>
+                    </FadeInUp>
+
+                    <FadeInUp duration={0.28} delay={0.24}>
+                      <Pagination
+                        currentPage={currentPage}
+                        itemsPerPage={itemsPerPage}
+                        totalItems={templates.length}
+                        onPageChange={setCurrentPage}
+                        onItemsPerPageChange={setItemsPerPage}
+                      />
+                    </FadeInUp>
                 </>
               );
             })()}
           </>
         )}
 
-        {/* MODAL ENVIAR TAREFA */}
-        {modalAberto && (() => {
-          const templateAtual = templates.find(t => t.id === templateSelecionado);
-          const isInformatica = templateAtual?.categoria === "informatica";
-          return (
-            <div className="modalOverlay" onClick={() => {
-              setModalAberto(false);
-              setTurmaBuscaFiltro("");
-            }}>
-              <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                  <h3 style={{ margin: 0 }}>📤 Enviar Template para Turmas</h3>
-                  {templateAtual && (
-                    <span style={{
-                      padding: "4px 12px",
-                      background: isInformatica ? "rgba(59, 130, 246, 0.15)" : "rgba(34, 197, 94, 0.15)",
-                      color: isInformatica ? "#3b82f6" : "#22c55e",
-                      borderRadius: "20px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                    }}>
-                      {isInformatica ? "💻 Informática" : "🖥️ Programação"}
-                    </span>
-                  )}
-                </div>
+          {/* MODAL ENVIAR TAREFA */}
+          <ConditionalFieldAnimation isVisible={modalAberto}>
+            {(() => {
+              const templateAtual = templates.find(t => t.id === templateSelecionado);
+              const isInformatica = templateAtual?.categoria === "informatica";
+              return (
+                <div className="modalOverlay" onClick={() => {
+                  setModalAberto(false);
+                  setTurmaBuscaFiltro("");
+                }}>
+                  <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+                    <FadeInUp duration={0.28}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                        <h3 style={{ margin: 0 }}>📤 Enviar Template para Turmas</h3>
+                        {templateAtual && (
+                          <span style={{
+                            padding: "4px 12px",
+                            background: isInformatica ? "rgba(59, 130, 246, 0.15)" : "rgba(34, 197, 94, 0.15)",
+                            color: isInformatica ? "#3b82f6" : "#22c55e",
+                            borderRadius: "20px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                          }}>
+                            {isInformatica ? "💻 Informática" : "🖥️ Programação"}
+                          </span>
+                        )}
+                      </div>
+                    </FadeInUp>
 
                 {carregandoTurmas ? (
                   <div style={{ textAlign: "center", padding: "20px" }}>
@@ -470,46 +490,51 @@ export default function ExerciseTemplates() {
                 </>
               )}
 
-              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "20px" }}>
-                <button
-                  onClick={() => {
-                    setModalAberto(false);
-                    setTurmaBuscaFiltro("");
-                  }}
-                  disabled={enviandoTarefa}
-                  style={{
-                    padding: "10px 16px",
-                    background: "var(--border)",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: enviandoTarefa ? "not-allowed" : "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleEnviarTarefa}
-                  disabled={enviandoTarefa || turmasSelecionadas.length === 0}
-                  style={{
-                    padding: "10px 16px",
-                    background: "var(--primary)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: enviandoTarefa || turmasSelecionadas.length === 0 ? "not-allowed" : "pointer",
-                    fontWeight: 600,
-                    opacity: (enviandoTarefa || turmasSelecionadas.length === 0) ? 0.6 : 1,
-                  }}
-                >
-                  {enviandoTarefa ? "⏳ Enviando..." : "📤 Enviar Tarefa"}
-                </button>
-              </div>
-            </div>
-          </div>
-          );
-        })()}
-      </div>
+                    <FadeInUp duration={0.28} delay={0.12}>
+                      <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "20px" }}>
+                        <AnimatedButton
+                          onClick={() => {
+                            setModalAberto(false);
+                            setTurmaBuscaFiltro("");
+                          }}
+                          disabled={enviandoTarefa}
+                          style={{
+                            padding: "10px 16px",
+                            background: "var(--border)",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: enviandoTarefa ? "not-allowed" : "pointer",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Cancelar
+                        </AnimatedButton>
+                        <AnimatedButton
+                          onClick={handleEnviarTarefa}
+                          disabled={enviandoTarefa || turmasSelecionadas.length === 0}
+                          loading={enviandoTarefa}
+                          style={{
+                            padding: "10px 16px",
+                            background: "var(--primary)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: enviandoTarefa || turmasSelecionadas.length === 0 ? "not-allowed" : "pointer",
+                            fontWeight: 600,
+                            opacity: (enviandoTarefa || turmasSelecionadas.length === 0) ? 0.6 : 1,
+                          }}
+                        >
+                          {enviandoTarefa ? "⏳ Enviando..." : "📤 Enviar Tarefa"}
+                        </AnimatedButton>
+                      </div>
+                    </FadeInUp>
+                  </div>
+                </div>
+              );
+            })()}
+          </ConditionalFieldAnimation>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }

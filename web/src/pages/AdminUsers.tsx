@@ -1,6 +1,11 @@
 import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
+import { FadeInUp } from "../components/animate-ui/FadeInUp";
+import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
+import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
+import { ConditionalFieldAnimation } from "../components/animate-ui/ConditionalFieldAnimation";
+import { AnimatedSelect } from "../components/animate-ui/AnimatedSelect";
 import {
   listarAlunos,
   listarProfessores,
@@ -207,232 +212,247 @@ export default function AdminUsersPage() {
       title="Gerenciar Usuários"
       subtitle="Gerencie alunos, professores e admins"
     >
-      <div className="adminUsersContainer">
-        {/* FEEDBACK DE NOTIFICAÇÃO */}
-        {feedback && (
-          <div className={`feedbackNotification feedback-${feedback.tipo}`}>
-            <div className="feedbackContent">
-              <span className="feedbackIcon">
-                {feedback.tipo === "sucesso" ? "✓" : "!"}
-              </span>
-              <span className="feedbackMessage">{feedback.mensagem}</span>
-            </div>
-            <button
-              className="feedbackClose"
-              onClick={() => setFeedback(null)}
-              title="Fechar"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+      <FadeInUp duration={0.28}>
+        <div className="adminUsersContainer">
+          {/* FEEDBACK DE NOTIFICAÇÃO */}
+          <AnimatedToast
+            message={feedback?.mensagem || null}
+            type={feedback?.tipo === "sucesso" ? "success" : "error"}
+            duration={3000}
+            onClose={() => setFeedback(null)}
+          />
 
-        {/* HEADER COM FILTROS */}
-        <div className="adminHeader">
-          <div className="filterRow">
-            {/* Busca */}
-            <div className="searchBox">
-              <input
-                type="text"
-                placeholder="🔍 Buscar por nome ou usuário..."
-                value={busca}
-                onChange={(e) => {
-                  setBusca(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="searchInput"
-              />
-            </div>
+          {/* HEADER COM FILTROS */}
+          <FadeInUp duration={0.28} delay={0.08}>
+            <div className="adminHeader">
+              <div className="filterRow">
+                {/* Busca */}
+                <div className="searchBox">
+                  <input
+                    type="text"
+                    placeholder="🔍 Buscar por nome ou usuário..."
+                    value={busca}
+                    onChange={(e) => {
+                      setBusca(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="searchInput"
+                  />
+                </div>
 
-            {/* Filtro de Tipo */}
-            <select
-              value={filtroTipo}
-              onChange={(e) => {
-                setFiltroTipo(e.target.value as any);
-                setCurrentPage(1);
-              }}
-              className="filterSelect"
-            >
-              <option value="todos">👥 Todos os tipos</option>
-              <option value="aluno">🎓 Alunos</option>
-              <option value="professor">👨‍🏫 Professores</option>
-              <option value="admin">🔑 Admins</option>
-            </select>
-          </div>
-        </div>
-
-        {/* TABELA DE USUÁRIOS */}
-        {usuariosFiltrados.length === 0 ? (
-          <div className="emptyState">
-            <p>Nenhum usuário encontrado</p>
-          </div>
-        ) : (
-          <>
-            <div className="usersTableContainer">
-              <table className="usersTable">
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Usuário</th>
-                    <th>Tipo</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usuariosPaginados.map((usuario) => (
-                    <tr key={usuario.id}>
-                      <td>{usuario.nome}</td>
-                      <td className="usuarioCell">{usuario.usuario}</td>
-                      <td>
-                        <span className={`roleTag role-${usuario.role}`}>
-                          {usuario.role === "aluno"
-                            ? "🎓 Aluno"
-                            : usuario.role === "professor"
-                            ? "👨‍🏫 Professor"
-                            : "🔑 Admin"}
-                        </span>
-                      </td>
-                      <td className="actionCell">
-                        <button
-                          className="btnEdit"
-                          onClick={() => abrirEditar(usuario)}
-                          title="Editar usuário"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="btnDelete"
-                          onClick={() => setUsuarioDeletar(usuario)}
-                          title="Deletar usuário"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <Pagination
-              currentPage={currentPage}
-              itemsPerPage={itemsPerPage}
-              totalItems={totalItems}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={setItemsPerPage}
-            />
-          </>
-        )}
-
-        {/* MODAL DE EDIÇÃO */}
-        {editarAberto && editandoUsuario && (
-          <div className="modalOverlay" onClick={fecharEditar}>
-            <div
-              className="modalContent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3>Editar Usuário</h3>
-
-              <div className="formGroup">
-                <label className="formLabel">Nome</label>
-                <input
-                  type="text"
-                  className="formInput"
-                  value={editNome}
-                  onChange={(e) => setEditNome(e.target.value)}
-                  placeholder="Digite o nome"
-                />
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">Usuário</label>
-                <input
-                  type="text"
-                  className="formInput"
-                  value={editUsuario}
-                  onChange={(e) => setEditUsuario(e.target.value)}
-                  placeholder="Digite o usuário"
-                />
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">Tipo</label>
-                <p style={{ margin: "8px 0", fontSize: "14px" }}>
-                  {editandoUsuario.role === "aluno"
-                    ? "🎓 Aluno"
-                    : editandoUsuario.role === "professor"
-                    ? "👨‍🏫 Professor"
-                    : "🔑 Admin"}
-                </p>
-                <small style={{ color: "var(--muted)", fontSize: "12px" }}>
-                  Alterar o tipo de usuário requer alteração manual no banco de dados
-                </small>
-              </div>
-
-              <div className="modalActions">
-                <button
-                  type="button"
-                  className="btnCancel"
-                  onClick={fecharEditar}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="btnConfirm"
-                  onClick={salvarEdicao}
-                >
-                  Salvar Alterações
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL DE CONFIRMAÇÃO DE DELEÇÃO */}
-        {usuarioDeletar && (
-          <div
-            className="modalOverlay"
-            onClick={() => setUsuarioDeletar(null)}
-          >
-            <div
-              className="modalContent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3>Deletar Usuário</h3>
-              <p className="confirmText">
-                Tem certeza que deseja deletar o usuário "{usuarioDeletar.nome}"?
-                <br />
-                <strong>Esta ação não pode ser desfeita.</strong>
-              </p>
-
-              <div className="modalActions">
-                <button
-                  type="button"
-                  className="btnCancel"
-                  onClick={() => setUsuarioDeletar(null)}
-                  disabled={deletando}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="btnDelete"
-                  onClick={confirmarDeletar}
-                  disabled={deletando}
-                  style={{
-                    background: "#dc3545",
-                    color: "white",
-                    border: "none",
+                {/* Filtro de Tipo */}
+                <AnimatedSelect
+                  value={filtroTipo}
+                  onChange={(e) => {
+                    setFiltroTipo(e.target.value as any);
+                    setCurrentPage(1);
                   }}
+                  className="filterSelect"
                 >
-                  {deletando ? "Deletando..." : "Deletar Usuário"}
-                </button>
+                  <option value="todos">👥 Todos os tipos</option>
+                  <option value="aluno">🎓 Alunos</option>
+                  <option value="professor">👨‍🏫 Professores</option>
+                  <option value="admin">🔑 Admins</option>
+                </AnimatedSelect>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          </FadeInUp>
+
+          {/* TABELA DE USUÁRIOS */}
+          {usuariosFiltrados.length === 0 ? (
+            <FadeInUp duration={0.28} delay={0.16}>
+              <div className="emptyState">
+                <p>Nenhum usuário encontrado</p>
+              </div>
+            </FadeInUp>
+          ) : (
+            <>
+              <FadeInUp duration={0.28} delay={0.16}>
+                <div className="usersTableContainer">
+                  <table className="usersTable">
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Usuário</th>
+                        <th>Tipo</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usuariosPaginados.map((usuario, idx) => (
+                        <FadeInUp key={usuario.id} duration={0.28} delay={0.16 + idx * 0.04}>
+                          <tr>
+                            <td>{usuario.nome}</td>
+                            <td className="usuarioCell">{usuario.usuario}</td>
+                            <td>
+                              <span className={`roleTag role-${usuario.role}`}>
+                                {usuario.role === "aluno"
+                                  ? "🎓 Aluno"
+                                  : usuario.role === "professor"
+                                  ? "👨‍🏫 Professor"
+                                  : "🔑 Admin"}
+                              </span>
+                            </td>
+                            <td className="actionCell">
+                              <AnimatedButton
+                                className="btnEdit"
+                                onClick={() => abrirEditar(usuario)}
+                                title="Editar usuário"
+                              >
+                                ✏️
+                              </AnimatedButton>
+                              <AnimatedButton
+                                className="btnDelete"
+                                onClick={() => setUsuarioDeletar(usuario)}
+                                title="Deletar usuário"
+                              >
+                                🗑️
+                              </AnimatedButton>
+                            </td>
+                          </tr>
+                        </FadeInUp>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </FadeInUp>
+
+              <FadeInUp duration={0.28} delay={0.24}>
+                <Pagination
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={totalItems}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={setItemsPerPage}
+                />
+              </FadeInUp>
+            </>
+          )}
+
+          {/* MODAL DE EDIÇÃO */}
+          <ConditionalFieldAnimation isVisible={editarAberto && !!editandoUsuario}>
+            <div className="modalOverlay" onClick={fecharEditar}>
+              <div
+                className="modalContent"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3>Editar Usuário</h3>
+
+                <FadeInUp duration={0.28} delay={0.04}>
+                  <div className="formGroup">
+                    <label className="formLabel">Nome</label>
+                    <input
+                      type="text"
+                      className="formInput"
+                      value={editNome}
+                      onChange={(e) => setEditNome(e.target.value)}
+                      placeholder="Digite o nome"
+                    />
+                  </div>
+                </FadeInUp>
+
+                <FadeInUp duration={0.28} delay={0.08}>
+                  <div className="formGroup">
+                    <label className="formLabel">Usuário</label>
+                    <input
+                      type="text"
+                      className="formInput"
+                      value={editUsuario}
+                      onChange={(e) => setEditUsuario(e.target.value)}
+                      placeholder="Digite o usuário"
+                    />
+                  </div>
+                </FadeInUp>
+
+                <FadeInUp duration={0.28} delay={0.12}>
+                  <div className="formGroup">
+                    <label className="formLabel">Tipo</label>
+                    <p style={{ margin: "8px 0", fontSize: "14px" }}>
+                      {editandoUsuario?.role === "aluno"
+                        ? "🎓 Aluno"
+                        : editandoUsuario?.role === "professor"
+                        ? "👨‍🏫 Professor"
+                        : "🔑 Admin"}
+                    </p>
+                    <small style={{ color: "var(--muted)", fontSize: "12px" }}>
+                      Alterar o tipo de usuário requer alteração manual no banco de dados
+                    </small>
+                  </div>
+                </FadeInUp>
+
+                <FadeInUp duration={0.28} delay={0.16}>
+                  <div className="modalActions">
+                    <AnimatedButton
+                      type="button"
+                      className="btnCancel"
+                      onClick={fecharEditar}
+                    >
+                      Cancelar
+                    </AnimatedButton>
+                    <AnimatedButton
+                      type="button"
+                      className="btnConfirm"
+                      onClick={salvarEdicao}
+                    >
+                      Salvar Alterações
+                    </AnimatedButton>
+                  </div>
+                </FadeInUp>
+              </div>
+            </div>
+          </ConditionalFieldAnimation>
+
+          {/* MODAL DE CONFIRMAÇÃO DE DELEÇÃO */}
+          <ConditionalFieldAnimation isVisible={!!usuarioDeletar}>
+            <div
+              className="modalOverlay"
+              onClick={() => setUsuarioDeletar(null)}
+            >
+              <div
+                className="modalContent"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <FadeInUp duration={0.28}>
+                  <h3>Deletar Usuário</h3>
+                </FadeInUp>
+                <FadeInUp duration={0.28} delay={0.04}>
+                  <p className="confirmText">
+                    Tem certeza que deseja deletar o usuário "{usuarioDeletar?.nome}"?
+                    <br />
+                    <strong>Esta ação não pode ser desfeita.</strong>
+                  </p>
+                </FadeInUp>
+
+                <FadeInUp duration={0.28} delay={0.08}>
+                  <div className="modalActions">
+                    <AnimatedButton
+                      type="button"
+                      className="btnCancel"
+                      onClick={() => setUsuarioDeletar(null)}
+                      disabled={deletando}
+                    >
+                      Cancelar
+                    </AnimatedButton>
+                    <AnimatedButton
+                      type="button"
+                      className="btnDelete"
+                      onClick={confirmarDeletar}
+                      disabled={deletando}
+                      style={{
+                        background: "#dc3545",
+                        color: "white",
+                        border: "none",
+                      }}
+                    >
+                      {deletando ? "Deletando..." : "Deletar Usuário"}
+                    </AnimatedButton>
+                  </div>
+                </FadeInUp>
+              </div>
+            </div>
+          </ConditionalFieldAnimation>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }

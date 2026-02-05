@@ -2,7 +2,7 @@
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
-import { RippleButton, FlipButton } from "../components/animate-ui";
+import { FlipButton, FadeInUp, AnimatedButton, AnimatedToast, ConditionalFieldAnimation } from "../components/animate-ui";
 import {
   obterTurma,
   atualizarTurma,
@@ -317,25 +317,23 @@ export default function TurmaDetailPage() {
       title={turma.nome}
       subtitle={`${turma.tipo === "turma" ? "Turma" : "Turma Particular"} • ${turma.alunos.length} ${turma.alunos.length === 1 ? "aluno" : "alunos"}`}
     >
-      <div className="turmaDetailContainer">
-        {erro && (
-          <div className="message error">
-            <span>❌</span>
-            <span>{erro}</span>
-          </div>
-        )}
-
-        {okMsg && (
-          <div className="message success">
-            <span>✅</span>
-            <span>{okMsg}</span>
-          </div>
-        )}
+      <FadeInUp duration={0.28}>
+        <div className="turmaDetailContainer">
+        <AnimatedToast
+          message={erro}
+          type="error"
+          onClose={() => setErro(null)}
+        />
+        <AnimatedToast
+          message={okMsg}
+          type="success"
+          onClose={() => setOkMsg(null)}
+        />
 
         {/* ABAS */}
         {(canManageTurmas || role === "aluno") && (
           <div style={{ display: "flex", gap: "8px", marginBottom: "20px", borderBottom: "1px solid var(--border)", justifyContent: "center" }}>
-            <button
+            <AnimatedButton
               onClick={() => setAbaSelecionada("info")}
               style={{
                 padding: "12px 16px",
@@ -350,8 +348,8 @@ export default function TurmaDetailPage() {
               }}
             >
               ℹ️ Informações
-            </button>
-            <button
+            </AnimatedButton>
+            <AnimatedButton
               onClick={() => setAbaSelecionada("alunos")}
               style={{
                 padding: "12px 16px",
@@ -366,8 +364,8 @@ export default function TurmaDetailPage() {
               }}
             >
               👥 Alunos
-            </button>
-            <button
+            </AnimatedButton>
+            <AnimatedButton
               onClick={() => setAbaSelecionada("exercicios")}
               style={{
                 padding: "12px 16px",
@@ -382,9 +380,9 @@ export default function TurmaDetailPage() {
               }}
             >
               📚 Exercícios
-            </button>
+            </AnimatedButton>
             {canManageTurmas && turma.dataInicio && (
-              <button
+              <AnimatedButton
                 onClick={() => setAbaSelecionada("cronograma")}
                 style={{
                   padding: "12px 16px",
@@ -399,7 +397,7 @@ export default function TurmaDetailPage() {
                 }}
               >
                 📅 Cronograma
-              </button>
+              </AnimatedButton>
             )}
           </div>
         )}
@@ -417,15 +415,15 @@ export default function TurmaDetailPage() {
               </p>
             </div>
 
-            <button
+            <AnimatedButton
               className="btnBack"
               onClick={() => navigate(backPath)}
             >
               ← Voltar
-            </button>
+            </AnimatedButton>
           </div>
 
-          {role === "admin" && (
+          <ConditionalFieldAnimation isVisible={role === "admin"}>
             <div className="responsavelSection">
               <div className="responsavelHeader">
                 <div>
@@ -445,7 +443,7 @@ export default function TurmaDetailPage() {
                       </option>
                     ))}
                   </select>
-                  <button
+                  <AnimatedButton
                     type="button"
                     className="responsavelBtn"
                     onClick={handleAtualizarResponsavel}
@@ -455,14 +453,14 @@ export default function TurmaDetailPage() {
                     }
                   >
                     {salvandoResponsavel ? "Salvando..." : "Atualizar"}
-                  </button>
+                  </AnimatedButton>
                 </div>
               </div>
               <span className="responsavelHint">
                 Você pode selecionar um admin/professor ou deixar sem responsável.
               </span>
             </div>
-          )}
+          </ConditionalFieldAnimation>
           </div>
         )}
 
@@ -474,12 +472,12 @@ export default function TurmaDetailPage() {
               👥 Alunos ({turma.alunos.length})
             </h2>
             {(role === "admin" || role === "professor") && (
-              <RippleButton
+              <AnimatedButton
                 onClick={abrirModalAdicionar}
                 className="btnAdicionarAluno"
               >
                 ➕ Adicionar aluno
-              </RippleButton>
+              </AnimatedButton>
             )}
           </div>
 
@@ -528,14 +526,14 @@ export default function TurmaDetailPage() {
                     <div className="exercicioTitle">{ex.titulo}</div>
                     <div className="exercicioMeta">{ex.modulo}</div>
                   </div>
-                  <button
+                  <AnimatedButton
                     className="btnVisualizar"
                     onClick={() =>
                       navigate(`/dashboard/exercicios/${ex.id}`)
                     }
                   >
                     Ver →
-                  </button>
+                  </AnimatedButton>
                 </div>
               ))}
             </div>
@@ -612,13 +610,13 @@ export default function TurmaDetailPage() {
                           </select>
                         </div>
 
-                        <button
+                        <AnimatedButton
                           onClick={() => handleAdicionarTemplateSemana(semanaSelecionada)}
                           disabled={salvandoCronograma || !templateSelecionado}
                           className="btnAdicionarTemplate"
                         >
                           {salvandoCronograma ? "Adicionando..." : "Adicionar"}
-                        </button>
+                        </AnimatedButton>
                       </div>
                     </div>
                     ) : (
@@ -664,13 +662,13 @@ export default function TurmaDetailPage() {
                                       {exercicio.modulo || "Sem módulo"}
                                     </div>
                                   </div>
-                                  <button
+                                  <AnimatedButton
                                     onClick={() => handleRemoverExercicioSemana(semana, exercicio.id)}
                                     disabled={salvandoCronograma}
                                     className="btnRemoverExercicio"
                                   >
                                     🗑️ Remover
-                                  </button>
+                                  </AnimatedButton>
                                 </div>
                               ))}
                             </div>
@@ -730,26 +728,27 @@ export default function TurmaDetailPage() {
               )}
 
               <div className="modalActions">
-                <button
+                <AnimatedButton
                   onClick={() => setModalAdicionarAberto(false)}
                   className="modalBtnCancel"
                   disabled={adicionando}
                 >
                   Cancelar
-                </button>
-                <button
+                </AnimatedButton>
+                <AnimatedButton
                   onClick={handleAdicionarAlunos}
                   className="modalBtnConfirm"
                   disabled={adicionando || alunosSelecionados.length === 0}
                 >
                   {adicionando ? "⏳ Adicionando..." : "Adicionar"}
-                </button>
+                </AnimatedButton>
               </div>
             </div>
           </div>,
           document.body
         )}
-      </div>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }
