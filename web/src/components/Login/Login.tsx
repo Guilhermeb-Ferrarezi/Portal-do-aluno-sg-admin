@@ -90,6 +90,11 @@ export default function Login() {
   // evita setState depois do unmount
   const mountedRef = useRef(true);
 
+  // dark mode detection
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+  });
+
   const podeEntrar = useMemo(() => {
     return usuario.trim().length > 0 && senha.trim().length > 0 && !loading;
   }, [usuario, senha, loading]);
@@ -112,6 +117,23 @@ export default function Login() {
         intervalRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    // Listen for changes to data-theme attribute
+    const observer = new MutationObserver(() => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (mountedRef.current) {
+        setIsDarkMode(isDark);
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    return () => observer.disconnect();
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -172,7 +194,7 @@ export default function Login() {
   }
 
   return (
-    <div className="login-page">
+    <div className={`login-page ${isDarkMode ? 'dark-mode' : ''}`}>
       <div className="login-card">
         <header className="login-header">
           <div className="login-logo" aria-hidden>

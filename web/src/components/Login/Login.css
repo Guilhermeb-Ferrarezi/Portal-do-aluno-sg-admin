@@ -33,6 +33,11 @@ body {
     "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
 }
 
+/* Dark mode - use different background */
+.login-page.dark-mode {
+  background-image: url("../../../backgroundLogin.png");
+}
+
 /* Card */
 .login-card {
   width: min(460px, calc(100vw - 32px));
