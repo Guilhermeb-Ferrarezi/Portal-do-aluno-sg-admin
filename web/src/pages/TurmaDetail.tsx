@@ -2,6 +2,7 @@
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
+import { RippleButton } from "../components/animate-ui";
 import {
   obterTurma,
   atualizarTurma,
@@ -473,12 +474,12 @@ export default function TurmaDetailPage() {
               👥 Alunos ({turma.alunos.length})
             </h2>
             {(role === "admin" || role === "professor") && (
-              <button
-                className="btnAdicionarAluno"
+              <RippleButton
                 onClick={abrirModalAdicionar}
+                className="btnAdicionarAluno"
               >
                 ➕ Adicionar aluno
-              </button>
+              </RippleButton>
             )}
           </div>
 

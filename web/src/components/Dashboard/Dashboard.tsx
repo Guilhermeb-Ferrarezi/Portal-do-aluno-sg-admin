@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
 import { getName, getRole, hasRole } from "../../auth/auth";
+import { RippleButton } from "../animate-ui";
 import {
   listarTurmas,
   obterTurmasResponsavel,
@@ -454,149 +455,44 @@ export default function Dashboard() {
               marginTop: "16px",
             }}
           >
-            <button
+            <RippleButton
               onClick={() => navigate("/dashboard/exercicios")}
-              style={{
-                padding: "12px 16px",
-                borderRadius: "10px",
-                border: "1px solid var(--line)",
-                background: "var(--card)",
-                cursor: "pointer",
-                fontWeight: "600",
-                fontSize: "14px",
-                transition: "all 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.borderColor = "var(--red)";
-                target.style.color = "var(--red)";
-                target.style.background = "rgba(225, 29, 46, 0.05)";
-              }}
-              onMouseLeave={(e) => {
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.borderColor = "var(--line)";
-                target.style.color = "var(--text)";
-                target.style.background = "var(--card)";
-              }}
+              className="dashboardActionBtn"
             >
               ✍️ Exercícios
-            </button>
+            </RippleButton>
 
             {(role === "admin" || role === "professor" || turmas.length > 0) && (
-              <button
+              <RippleButton
                 onClick={() => navigate("/dashboard/turmas")}
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--line)",
-                  background: "var(--card)",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                  fontSize: "14px",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.borderColor = "var(--red)";
-                  target.style.color = "var(--red)";
-                  target.style.background = "rgba(225, 29, 46, 0.05)";
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.borderColor = "var(--line)";
-                  target.style.color = "var(--text)";
-                  target.style.background = "var(--card)";
-                }}
+                className="dashboardActionBtn"
               >
                 🏫 Turmas
-              </button>
+              </RippleButton>
             )}
 
             {canCreateUser && (
               <>
-                <button
+                <RippleButton
                   onClick={() => navigate("/dashboard/criar-usuario")}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: "10px",
-                    border: "1px solid var(--line)",
-                    background: "var(--card)",
-                    cursor: "pointer",
-                    fontWeight: "600",
-                    fontSize: "14px",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    const target = e.currentTarget as HTMLButtonElement;
-                    target.style.borderColor = "var(--red)";
-                    target.style.color = "var(--red)";
-                    target.style.background = "rgba(225, 29, 46, 0.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    const target = e.currentTarget as HTMLButtonElement;
-                    target.style.borderColor = "var(--line)";
-                    target.style.color = "var(--text)";
-                    target.style.background = "var(--card)";
-                  }}
+                  className="dashboardActionBtn"
                 >
                   ➕ Criar Usuário
-                </button>
+                </RippleButton>
 
-                <button
+                <RippleButton
                   onClick={() => navigate("/dashboard/usuarios")}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: "10px",
-                    border: "1px solid var(--line)",
-                    background: "var(--card)",
-                    cursor: "pointer",
-                    fontWeight: "600",
-                    fontSize: "14px",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    const target = e.currentTarget as HTMLButtonElement;
-                    target.style.borderColor = "var(--red)";
-                    target.style.color = "var(--red)";
-                    target.style.background = "rgba(225, 29, 46, 0.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    const target = e.currentTarget as HTMLButtonElement;
-                    target.style.borderColor = "var(--line)";
-                    target.style.color = "var(--text)";
-                    target.style.background = "var(--card)";
-                  }}
+                  className="dashboardActionBtn"
                 >
                   🔑 Gerenciar Usuários
-                </button>
+                </RippleButton>
 
-                <button
+                <RippleButton
                   onClick={() => navigate("/dashboard/templates")}
-                  style={{
-                    padding: "12px 16px",
-                    borderRadius: "10px",
-                    border: "1px solid var(--line)",
-                    background: "var(--card)",
-                    cursor: "pointer",
-                    fontWeight: "600",
-                    fontSize: "14px",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    const target = e.currentTarget as HTMLButtonElement;
-                    target.style.borderColor = "var(--red)";
-                    target.style.color = "var(--red)";
-                    target.style.background = "rgba(225, 29, 46, 0.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    const target = e.currentTarget as HTMLButtonElement;
-                    target.style.borderColor = "var(--line)";
-                    target.style.color = "var(--text)";
-                    target.style.background = "var(--card)";
-                  }}
+                  className="dashboardActionBtn"
                 >
                   📦 Templates
-                </button>
+                </RippleButton>
               </>
             )}
           </div>

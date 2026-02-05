@@ -11,7 +11,6 @@ import { materiaisRouter } from "./routes/materiais.route";
 import { videoaulasRouter } from "./routes/videoaulas.route";
 import { startPublishScheduledExercisesJob } from "./jobs/publishScheduledExercises";
 import { startWeeklyExerciseReleaseJob } from "./jobs/releaseWeeklyExercises";
-import { runMigrations } from "./migrations/runner";
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -82,10 +81,8 @@ app.use(
   }
 );
 
-// Executar migrações e iniciar server
+// Iniciar server
 (async () => {
-  await runMigrations();
-
   // Iniciar jobs agendados
   startPublishScheduledExercisesJob();
   startWeeklyExerciseReleaseJob();
