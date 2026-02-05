@@ -1,12 +1,8 @@
 // src/services/api.ts
 type Role = "admin" | "professor" | "aluno";
 
-const DEFAULT_PROD = "https://portaldoaluno.santos-tech.com/api";
-const DEFAULT_DEV = "http://localhost:3000/api";
-
 export const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ||
-  (import.meta.env.DEV ? DEFAULT_DEV : DEFAULT_PROD);
+  (import.meta.env.VITE_API_URL as string | undefined)
 
 async function parseError(res: Response) {
   const data = await res.json().catch(() => null);
