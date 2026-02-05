@@ -2,7 +2,15 @@ import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import { hasRole } from "../auth/auth";
-import { FadeInUp, PopInBadge, PulseLoader } from "../components/animate-ui";
+import {
+  FadeInUp,
+  PopInBadge,
+  PulseLoader,
+  AnimatedButton,
+  AnimatedToast,
+  ConditionalFieldAnimation,
+  AnimatedSelect,
+} from "../components/animate-ui";
 import {
   listarMateriais,
   criarMaterial,
@@ -46,13 +54,9 @@ export default function MateriaisPage() {
   const [alunoFiltro, setAlunoFiltro] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
-  const [feedback, setFeedback] = React.useState<{
-    kind: "success" | "error";
-    title: string;
-    message?: string;
-  } | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<Material | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+  const [toastMsg, setToastMsg] = React.useState<{type: 'success'|'error'; msg: string} | null>(null);
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -183,18 +187,15 @@ export default function MateriaisPage() {
 
       setModalAberto(false);
       resetForm();
-      setFeedback({
-        kind: "success",
-        title: "Material adicionado",
-        message: "O material foi adicionado com sucesso.",
+      setToastMsg({
+        type: "success",
+        msg: "Material adicionado com sucesso.",
       });
       await carregarMateriais();
     } catch (err) {
-      setFeedback({
-        kind: "error",
-        title: "Erro ao adicionar material",
-        message:
-          err instanceof Error ? err.message : "Erro ao adicionar material",
+      setToastMsg({
+        type: "error",
+        msg: err instanceof Error ? err.message : "Erro ao adicionar material",
       });
     } finally {
       setSubmitting(false);
@@ -209,18 +210,15 @@ export default function MateriaisPage() {
       setDeleting(true);
       await deletarMaterial(target.id);
       setDeleteTarget(null);
-      setFeedback({
-        kind: "success",
-        title: "Material deletado",
-        message: `"${target.titulo}" foi removido.`,
+      setToastMsg({
+        type: "success",
+        msg: `"${target.titulo}" foi removido.`,
       });
       await carregarMateriais();
     } catch (err) {
-      setFeedback({
-        kind: "error",
-        title: "Erro ao deletar material",
-        message:
-          err instanceof Error ? err.message : "Erro ao deletar material",
+      setToastMsg({
+        type: "error",
+        msg: err instanceof Error ? err.message : "Erro ao deletar material",
       });
     } finally {
       setDeleting(false);
@@ -265,37 +263,16 @@ export default function MateriaisPage() {
       title="Materiais"
       subtitle="Acesse arquivos e links de estudo"
     >
-      <div className="materiaisContainer">
-        {feedback && (
-          <div
-            className="feedbackOverlay"
-            onClick={() => setFeedback(null)}
-          >
-            <div
-              className={`feedbackCard ${feedback.kind}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="feedbackHeader">
-                <span className="feedbackBadge">
-                  {feedback.kind === "success" ? "OK" : "ERRO"}
-                </span>
-                <h3 className="feedbackTitle">{feedback.title}</h3>
-              </div>
-              {feedback.message && (
-                <p className="feedbackMessage">{feedback.message}</p>
-              )}
-              <button
-                className="btnConfirm"
-                type="button"
-                onClick={() => setFeedback(null)}
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        )}
+      <FadeInUp duration={0.28}>
+        <div className="materiaisContainer">
+          <AnimatedToast
+            message={toastMsg?.msg || null}
+            type={toastMsg?.type || 'success'}
+            duration={3000}
+            onClose={() => setToastMsg(null)}
+          />
 
-        {/* HEADER COM FILTROS */}
+          {/* HEADER COM FILTROS */}
         <div className="materiaisHeader">
           <div className="filtrosRow">
             {/* Busca */}
@@ -310,7 +287,7 @@ export default function MateriaisPage() {
             </div>
 
             {/* Filtro de Tipo */}
-            <select
+            <AnimatedSelect
               value={filtroTipo}
               onChange={(e) => setFiltroTipo(e.target.value)}
               className="filterSelect"
@@ -318,10 +295,10 @@ export default function MateriaisPage() {
               <option value="todos">Todos os tipos</option>
               <option value="arquivo">📄 Arquivos</option>
               <option value="link">🔗 Links</option>
-            </select>
+            </AnimatedSelect>
 
             {/* Filtro de Módulo */}
-            <select
+            <AnimatedSelect
               value={filtroModulo}
               onChange={(e) => setFiltroModulo(e.target.value)}
               className="filterSelect"
@@ -332,10 +309,10 @@ export default function MateriaisPage() {
                   {mod}
                 </option>
               ))}
-            </select>
+            </AnimatedSelect>
 
             {/* Filtro de Turmas */}
-            <select
+            <AnimatedSelect
               value={turmaFiltro}
               onChange={(e) => setTurmaFiltro(e.target.value)}
               className="filterSelect"
@@ -346,12 +323,12 @@ export default function MateriaisPage() {
                   {turma.nome}
                 </option>
               ))}
-            </select>
+            </AnimatedSelect>
           </div>
 
           {/* Botão de Upload (apenas para admin/professor) */}
           {canUpload && (
-            <button
+            <AnimatedButton
               className="uploadBtn"
               onClick={() => {
                 setModalAberto(true);
@@ -359,7 +336,7 @@ export default function MateriaisPage() {
               }}
             >
               ➕ Adicionar Material
-            </button>
+            </AnimatedButton>
           )}
         </div>
 
@@ -498,23 +475,23 @@ export default function MateriaisPage() {
                   </div>
 
                   <div className="materialFooter">
-                    <button
+                    <AnimatedButton
                       className="materialBtn"
                       onClick={() => handleDownload(material)}
                     >
                       {material.tipo === "arquivo"
                         ? "⬇️ Baixar"
                         : "🌐 Abrir Link"}
-                    </button>
+                    </AnimatedButton>
 
                     {canUpload && (
-                      <button
+                      <AnimatedButton
                         onClick={() => setDeleteTarget(material)}
                         className="materialDeleteBtn"
                         title="Deletar"
                       >
                         🗑️
-                      </button>
+                      </AnimatedButton>
                     )}
                   </div>
                 </div>
@@ -537,7 +514,7 @@ export default function MateriaisPage() {
         </div>
 
         {/* MODAL DE UPLOAD (apenas para admin/professor) */}
-        {modalAberto && canUpload && (
+        <ConditionalFieldAnimation isVisible={modalAberto && canUpload}>
           <div className="modalOverlay" onClick={() => setModalAberto(false)}>
             <div
               className="modalContent"
@@ -749,7 +726,7 @@ export default function MateriaisPage() {
                 )}
 
                 <div className="modalActions">
-                  <button
+                  <AnimatedButton
                     type="button"
                     className="btnCancel"
                     onClick={() => {
@@ -759,21 +736,21 @@ export default function MateriaisPage() {
                     disabled={submitting}
                   >
                     Cancelar
-                  </button>
-                  <button
+                  </AnimatedButton>
+                  <AnimatedButton
                     type="submit"
                     className="btnConfirm"
                     disabled={submitting}
                   >
                     {submitting ? "Adicionando..." : "Adicionar"}
-                  </button>
+                  </AnimatedButton>
                 </div>
               </form>
             </div>
           </div>
-        )}
+        </ConditionalFieldAnimation>
 
-        {deleteTarget && (
+        <ConditionalFieldAnimation isVisible={deleteTarget !== null}>
           <div className="modalOverlay" onClick={() => setDeleteTarget(null)}>
             <div
               className="modalContent"
@@ -781,30 +758,31 @@ export default function MateriaisPage() {
             >
               <h3>Deletar material</h3>
               <p className="confirmText">
-                Tem certeza que deseja deletar o material "{deleteTarget.titulo}"?
+                Tem certeza que deseja deletar o material "{deleteTarget?.titulo}"?
               </p>
               <div className="modalActions">
-                <button
+                <AnimatedButton
                   type="button"
                   className="btnCancel"
                   onClick={() => setDeleteTarget(null)}
                   disabled={deleting}
                 >
                   Cancelar
-                </button>
-                <button
+                </AnimatedButton>
+                <AnimatedButton
                   type="button"
                   className="btnDanger"
                   onClick={confirmDelete}
                   disabled={deleting}
                 >
                   {deleting ? "Deletando..." : "Deletar"}
-                </button>
+                </AnimatedButton>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </ConditionalFieldAnimation>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }

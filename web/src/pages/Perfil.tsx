@@ -8,6 +8,13 @@ import {
   type UserMe,
   type Turma,
 } from "../services/api";
+import {
+  FadeInUp,
+  AnimatedButton,
+  AnimatedToast,
+  ConditionalFieldAnimation,
+  AnimatedSelect,
+} from "../components/animate-ui";
 import "./Perfil.css";
 
 type UserStats = {
@@ -59,6 +66,7 @@ export default function PerfilPage() {
   const [feedback, setFeedback] = React.useState<
     { type: "success" | "error"; message: string } | null
   >(null);
+  const [toastMsg, setToastMsg] = React.useState<{type: 'success'|'error'; msg: string} | null>(null);
   const [formData, setFormData] = React.useState({
     nome: "",
     usuario: "",
@@ -224,7 +232,15 @@ export default function PerfilPage() {
 
   return (
     <DashboardLayout title="Perfil" subtitle="Gerencie suas informações pessoais">
-      <div className="perfilContainer">
+      <FadeInUp duration={0.28}>
+        <div className="perfilContainer">
+        <AnimatedToast
+          message={toastMsg?.msg || null}
+          type={toastMsg?.type || 'success'}
+          duration={3000}
+          onClose={() => setToastMsg(null)}
+        />
+
         {feedback && (
           <div className={`perfilMessage ${feedback.type}`}>
             <span>{feedback.type === "success" ? "✅" : "❌"}</span>
@@ -272,9 +288,9 @@ export default function PerfilPage() {
                 <h3>Alterar Senha</h3>
                 <p>Mantenha sua conta segura com uma senha forte</p>
               </div>
-              <button className="altBtn" onClick={() => setModalSenha(true)}>
+              <AnimatedButton className="altBtn" onClick={() => setModalSenha(true)}>
                 Alterar
-              </button>
+              </AnimatedButton>
             </div>
           </div>
         </section>
@@ -353,7 +369,7 @@ export default function PerfilPage() {
                 <h3>Tema preferido</h3>
                 <p>Escolha como prefere visualizar o portal</p>
               </div>
-              <select
+              <AnimatedSelect
                 className="settingsSelect"
                 value={settings.temaPreferido}
                 onChange={(e) =>
@@ -366,21 +382,22 @@ export default function PerfilPage() {
                 <option value="sistema">Sistema</option>
                 <option value="claro">Claro</option>
                 <option value="escuro">Escuro</option>
-              </select>
+              </AnimatedSelect>
             </div>
           </div>
 
           <div className="settingsActions">
-            <button className="btnCancel" onClick={handleResetSettings}>
+            <AnimatedButton className="btnCancel" onClick={handleResetSettings}>
               Restaurar padrões
-            </button>
-            <button
+            </AnimatedButton>
+            <AnimatedButton
               className="btnSalvar"
               onClick={handleSaveSettings}
               disabled={savingSettings}
+              loading={savingSettings}
             >
               {savingSettings ? "Salvando..." : "Salvar configurações"}
-            </button>
+            </AnimatedButton>
           </div>
         </section>
 
@@ -459,7 +476,7 @@ export default function PerfilPage() {
         </section>
 
         {/* MODAL DE ALTERAR SENHA */}
-        {modalSenha && (
+        <ConditionalFieldAnimation isVisible={modalSenha}>
           <div className="modalOverlay" onClick={closeSenhaModal}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <h3>Alterar Senha</h3>
@@ -528,26 +545,28 @@ export default function PerfilPage() {
               </div>
 
               <div className="modalActions">
-                <button
+                <AnimatedButton
                   type="button"
                   className="btnCancel"
                   onClick={closeSenhaModal}
                 >
                   Cancelar
-                </button>
-                <button
+                </AnimatedButton>
+                <AnimatedButton
                   type="button"
                   className="btnConfirm"
                   onClick={handleChangeSenha}
                   disabled={savingSenha}
+                  loading={savingSenha}
                 >
                   {savingSenha ? "⏳ Alterando..." : "✅ Alterar Senha"}
-                </button>
+                </AnimatedButton>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </ConditionalFieldAnimation>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }

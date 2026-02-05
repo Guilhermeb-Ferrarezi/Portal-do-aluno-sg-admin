@@ -2,7 +2,15 @@ import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import { hasRole } from "../auth/auth";
-import { FadeInUp, PopInBadge } from "../components/animate-ui";
+import {
+  FadeInUp,
+  PopInBadge,
+  PulseLoader,
+  AnimatedButton,
+  AnimatedToast,
+  ConditionalFieldAnimation,
+  AnimatedSelect,
+} from "../components/animate-ui";
 import {
   listarTurmas,
   listarAlunos,
@@ -37,6 +45,8 @@ export default function VideoaulaBonusPage() {
 
   // Estados
   const [videoaulas, setVideoaulas] = React.useState<Videoaula[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
   const [busca, setBusca] = React.useState<string>("");
   const [turmaFiltro, setTurmaFiltro] = React.useState<string>("todas");
@@ -48,6 +58,10 @@ export default function VideoaulaBonusPage() {
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
   const [alunoFiltro, setAlunoFiltro] = React.useState<string>("");
+  const [toastMsg, setToastMsg] = React.useState<{type: 'success'|'error'; msg: string} | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<Videoaula | null>(null);
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -107,6 +121,8 @@ export default function VideoaulaBonusPage() {
 
   const carregarVideoaulas = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const data = await listarVideoaulas();
       // Se não houver videoaulas da API, usar exemplos
       if (data.length === 0) {
@@ -116,8 +132,11 @@ export default function VideoaulaBonusPage() {
       }
     } catch (err) {
       console.error("Erro ao carregar videoaulas:", err);
+      setError(err instanceof Error ? err.message : "Erro ao carregar videoaulas");
       // Se der erro, usar exemplos locais
       setVideoaulas(videoaulasExemplo);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -174,21 +193,32 @@ export default function VideoaulaBonusPage() {
       !formData.modulo.trim() ||
       !formData.duracao.trim()
     ) {
-      alert("Por favor, preencha todos os campos obrigatórios");
+      setToastMsg({
+        type: "error",
+        msg: "Por favor, preencha todos os campos obrigatórios",
+      });
       return;
     }
 
     if ((formData.tipo === "youtube" || formData.tipo === "vimeo") && !formData.url.trim()) {
-      alert(`Por favor, cole a URL do ${formData.tipo === "youtube" ? "YouTube" : "Vimeo"}`);
+      setToastMsg({
+        type: "error",
+        msg: `Por favor, cole a URL do ${formData.tipo === "youtube" ? "YouTube" : "Vimeo"}`,
+      });
       return;
     }
 
     if (formData.tipo === "arquivo" && !formData.arquivo) {
-      alert("Por favor, selecione um arquivo de vídeo");
+      setToastMsg({
+        type: "error",
+        msg: "Por favor, selecione um arquivo de vídeo",
+      });
       return;
     }
 
     try {
+      setSubmitting(true);
+
       // Preparar FormData para envio
       const formDataToSend = new FormData();
       formDataToSend.append("titulo", formData.titulo);
@@ -238,35 +268,89 @@ export default function VideoaulaBonusPage() {
       setModoAtribuicao("turma");
 
       setModalAberto(false);
-      alert("Videoaula adicionada com sucesso!");
+      setToastMsg({
+        type: "success",
+        msg: "Videoaula adicionada com sucesso!",
+      });
     } catch (err) {
       console.error("Erro ao adicionar videoaula:", err);
-      alert(`Erro ao adicionar videoaula: ${err instanceof Error ? err.message : "erro desconhecido"}`);
+      setToastMsg({
+        type: "error",
+        msg: err instanceof Error ? err.message : "Erro ao adicionar videoaula",
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteVideoaula = async (id: string) => {
-    if (confirm("Tem certeza que deseja deletar esta videoaula?")) {
-      try {
-        await deletarVideoaula(id);
-        // Recarregar lista de videoaulas
-        await carregarVideoaulas();
-        alert("Videoaula deletada com sucesso!");
-      } catch (err) {
-        console.error("Erro ao deletar videoaula:", err);
-        alert(`Erro ao deletar videoaula: ${err instanceof Error ? err.message : "erro desconhecido"}`);
-      }
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+
+    try {
+      setDeleting(true);
+      await deletarVideoaula(target.id);
+      setDeleteTarget(null);
+      setToastMsg({
+        type: "success",
+        msg: `"${target.titulo}" foi removido.`,
+      });
+      await carregarVideoaulas();
+    } catch (err) {
+      setToastMsg({
+        type: "error",
+        msg: err instanceof Error ? err.message : "Erro ao deletar videoaula",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <DashboardLayout
+        title="Videoaulas Bônus"
+        subtitle="Aprenda ainda mais com essas aulas extras"
+      >
+        <div style={{ textAlign: "center", padding: "2rem" }}>
+          <PulseLoader size="large" text="Carregando videoaulas..." />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <DashboardLayout
+        title="Videoaulas Bônus"
+        subtitle="Aprenda ainda mais com essas aulas extras"
+      >
+        <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
+          <p>Erro: {error}</p>
+          <button onClick={carregarVideoaulas}>Tentar novamente</button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
       title="Videoaulas Bônus"
       subtitle="Aprenda ainda mais com essas aulas extras"
     >
-      <div className="videoaulasContainer">
-        {/* HEADER COM FILTROS */}
-        <div className="videoaulasHeader">
+      <FadeInUp duration={0.28}>
+        <div className="videoaulasContainer">
+          <AnimatedToast
+            message={toastMsg?.msg || null}
+            type={toastMsg?.type || 'success'}
+            duration={3000}
+            onClose={() => setToastMsg(null)}
+          />
+
+          {/* HEADER COM FILTROS */}
+          <div className="videoaulasHeader">
           <div className="filtrosRow">
             {/* Busca */}
             <div className="searchBox">
@@ -280,7 +364,7 @@ export default function VideoaulaBonusPage() {
             </div>
 
             {/* Filtro de Módulo */}
-            <select
+            <AnimatedSelect
               value={filtroModulo}
               onChange={(e) => setFiltroModulo(e.target.value)}
               className="filterSelect"
@@ -291,10 +375,10 @@ export default function VideoaulaBonusPage() {
                   {mod}
                 </option>
               ))}
-            </select>
+            </AnimatedSelect>
 
             {/* Filtro de Turmas */}
-            <select
+            <AnimatedSelect
               value={turmaFiltro}
               onChange={(e) => setTurmaFiltro(e.target.value)}
               className="filterSelect"
@@ -305,17 +389,17 @@ export default function VideoaulaBonusPage() {
                   {turma.nome}
                 </option>
               ))}
-            </select>
+            </AnimatedSelect>
           </div>
 
           {/* Botão de Upload (apenas para admin/professor) */}
           {canUpload && (
-            <button
+            <AnimatedButton
               className="uploadBtn"
               onClick={() => setModalAberto(true)}
             >
               ➕ Adicionar Videoaula
-            </button>
+            </AnimatedButton>
           )}
         </div>
 
@@ -349,7 +433,7 @@ export default function VideoaulaBonusPage() {
                   <>
                     <div className="videoaulasGrid">
                       {paginatedVideoaulas.map((videoaula, index) => (
-                        <FadeInUp key={videoaula.id} delay={index * 0.1}>
+                        <FadeInUp key={videoaula.id} delay={index * 0.05}>
                         <div className="videoaulaCard">
                   <div
                     className="videoaulaThumbnail"
@@ -456,20 +540,20 @@ export default function VideoaulaBonusPage() {
                         )}
                       </span>
                       <div style={{ display: "flex", gap: "8px" }}>
-                        <button
+                        <AnimatedButton
                           className="assistirBtn"
                           onClick={() => handleAssistir(videoaula)}
                         >
                           ▶️ Assistir
-                        </button>
+                        </AnimatedButton>
                         {canUpload && (
-                          <button
+                          <AnimatedButton
                             className="deleteBtn"
-                            onClick={() => handleDeleteVideoaula(videoaula.id)}
+                            onClick={() => setDeleteTarget(videoaula)}
                             title="Deletar"
                           >
                             🗑️
-                          </button>
+                          </AnimatedButton>
                         )}
                       </div>
                     </div>
@@ -494,36 +578,36 @@ export default function VideoaulaBonusPage() {
         </div>
 
         {/* MODAL DE VIDEOAULA */}
-        {videoSelecionado && (
+        <ConditionalFieldAnimation isVisible={videoSelecionado !== null}>
           <div className="modalOverlay" onClick={() => setVideoSelecionado(null)}>
             <div
               className="modalContent videoaulaModal"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
+              <AnimatedButton
                 className="closeBtn"
                 onClick={() => setVideoSelecionado(null)}
               >
                 ✕
-              </button>
+              </AnimatedButton>
 
               <div className="videoContainer">
-                {videoSelecionado.tipo === "youtube" ? (
+                {videoSelecionado?.tipo === "youtube" ? (
                   <iframe
                     width="100%"
                     height="400"
-                    src={videoSelecionado.url}
-                    title={videoSelecionado.titulo}
+                    src={videoSelecionado?.url || ""}
+                    title={videoSelecionado?.titulo || ""}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
-                ) : videoSelecionado.tipo === "vimeo" ? (
+                ) : videoSelecionado?.tipo === "vimeo" ? (
                   <iframe
                     width="100%"
                     height="400"
-                    src={videoSelecionado.url}
-                    title={videoSelecionado.titulo}
+                    src={videoSelecionado?.url || ""}
+                    title={videoSelecionado?.titulo || ""}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -536,7 +620,7 @@ export default function VideoaulaBonusPage() {
                     style={{ backgroundColor: "#000" }}
                   >
                     <source
-                      src={videoSelecionado.url}
+                      src={videoSelecionado?.url || ""}
                       type="video/mp4"
                     />
                     Seu navegador não suporta a tag de vídeo.
@@ -545,16 +629,16 @@ export default function VideoaulaBonusPage() {
               </div>
 
               <div className="videoInfo">
-                <h2>{videoSelecionado.titulo}</h2>
+                <h2>{videoSelecionado?.titulo}</h2>
                 <div className="infoRow">
-                  <span className="modulo">{videoSelecionado.modulo}</span>
-                  <span className="duracao">⏱️ {videoSelecionado.duracao}</span>
+                  <span className="modulo">{videoSelecionado?.modulo}</span>
+                  <span className="duracao">⏱️ {videoSelecionado?.duracao}</span>
                 </div>
-                <p className="descricao">{videoSelecionado.descricao}</p>
+                <p className="descricao">{videoSelecionado?.descricao}</p>
                 <div className="infoFooter">
                   <span className="data">
                     Adicionada em{" "}
-                    {new Date(videoSelecionado.dataAdicionada || videoSelecionado.createdAt || new Date()).toLocaleDateString(
+                    {new Date(videoSelecionado?.dataAdicionada || videoSelecionado?.createdAt || new Date()).toLocaleDateString(
                       "pt-BR"
                     )}
                   </span>
@@ -562,10 +646,10 @@ export default function VideoaulaBonusPage() {
               </div>
             </div>
           </div>
-        )}
+        </ConditionalFieldAnimation>
 
         {/* MODAL DE UPLOAD */}
-        {modalAberto && canUpload && (
+        <ConditionalFieldAnimation isVisible={modalAberto && canUpload}>
           <div className="modalOverlay" onClick={() => setModalAberto(false)}>
             <div
               className="modalContent"
@@ -588,7 +672,7 @@ export default function VideoaulaBonusPage() {
 
               <div className="formGroup">
                 <label className="formLabel">Módulo *</label>
-                <select
+                <AnimatedSelect
                   value={formData.modulo}
                   onChange={(e) =>
                     setFormData({ ...formData, modulo: e.target.value })
@@ -602,7 +686,7 @@ export default function VideoaulaBonusPage() {
                     </option>
                   ))}
                   <option value="novo">+ Novo Módulo</option>
-                </select>
+                </AnimatedSelect>
               </div>
 
               <div className="formGroup">
@@ -803,23 +887,61 @@ export default function VideoaulaBonusPage() {
               </div>
 
               <div className="modalActions">
-                <button
+                <AnimatedButton
+                  type="button"
                   className="btnCancel"
                   onClick={() => setModalAberto(false)}
+                  disabled={submitting}
                 >
                   Cancelar
-                </button>
-                <button
+                </AnimatedButton>
+                <AnimatedButton
+                  type="button"
                   className="btnConfirm"
                   onClick={handleAddVideoaula}
+                  disabled={submitting}
                 >
-                  Adicionar
-                </button>
+                  {submitting ? "Adicionando..." : "Adicionar"}
+                </AnimatedButton>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </ConditionalFieldAnimation>
+
+        {/* MODAL DE CONFIRMAÇÃO DE DELETE */}
+        <ConditionalFieldAnimation isVisible={deleteTarget !== null}>
+          <div className="modalOverlay" onClick={() => setDeleteTarget(null)}>
+            <div
+              className="modalContent"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3>Deletar videoaula</h3>
+              <p className="confirmText">
+                Tem certeza que deseja deletar a videoaula "{deleteTarget?.titulo}"?
+              </p>
+              <div className="modalActions">
+                <AnimatedButton
+                  type="button"
+                  className="btnCancel"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                >
+                  Cancelar
+                </AnimatedButton>
+                <AnimatedButton
+                  type="button"
+                  className="btnDanger"
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deletando..." : "Deletar"}
+                </AnimatedButton>
+              </div>
+            </div>
+          </div>
+        </ConditionalFieldAnimation>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }
