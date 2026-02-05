@@ -1,6 +1,8 @@
 import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
+import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
 import {
   FadeInUp,
@@ -8,7 +10,6 @@ import {
   PulseLoader,
   AnimatedButton,
   AnimatedToast,
-  ConditionalFieldAnimation,
   AnimatedSelect,
   AnimatedRadioLabel,
 } from "../components/animate-ui";
@@ -579,85 +580,109 @@ export default function VideoaulaBonusPage() {
         </div>
 
         {/* MODAL DE VIDEOAULA */}
-        <ConditionalFieldAnimation isVisible={videoSelecionado !== null}>
-          <div className="modalOverlay" onClick={() => setVideoSelecionado(null)}>
-            <div
-              className="modalContent videoaulaModal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <AnimatedButton
-                className="closeBtn"
-                onClick={() => setVideoSelecionado(null)}
-              >
-                ✕
-              </AnimatedButton>
-
-              <div className="videoContainer">
-                {videoSelecionado?.tipo === "youtube" ? (
-                  <iframe
-                    width="100%"
-                    height="400"
+        <Modal
+          isOpen={videoSelecionado !== null}
+          onClose={() => setVideoSelecionado(null)}
+          title={videoSelecionado?.titulo || "Videoaula"}
+          size="lg"
+        >
+          <div style={{ marginBottom: '24px' }}>
+            <div className="videoContainer">
+              {videoSelecionado?.tipo === "youtube" ? (
+                <iframe
+                  width="100%"
+                  height="400"
+                  src={videoSelecionado?.url || ""}
+                  title={videoSelecionado?.titulo || ""}
+                  frameBorder={0}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : videoSelecionado?.tipo === "vimeo" ? (
+                <iframe
+                  width="100%"
+                  height="400"
+                  src={videoSelecionado?.url || ""}
+                  title={videoSelecionado?.titulo || ""}
+                  frameBorder={0}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  width="100%"
+                  height="400"
+                  controls
+                  style={{ backgroundColor: "#000" }}
+                >
+                  <source
                     src={videoSelecionado?.url || ""}
-                    title={videoSelecionado?.titulo || ""}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
+                    type="video/mp4"
                   />
-                ) : videoSelecionado?.tipo === "vimeo" ? (
-                  <iframe
-                    width="100%"
-                    height="400"
-                    src={videoSelecionado?.url || ""}
-                    title={videoSelecionado?.titulo || ""}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <video
-                    width="100%"
-                    height="400"
-                    controls
-                    style={{ backgroundColor: "#000" }}
-                  >
-                    <source
-                      src={videoSelecionado?.url || ""}
-                      type="video/mp4"
-                    />
-                    Seu navegador não suporta a tag de vídeo.
-                  </video>
-                )}
-              </div>
-
-              <div className="videoInfo">
-                <h2>{videoSelecionado?.titulo}</h2>
-                <div className="infoRow">
-                  <span className="modulo">{videoSelecionado?.modulo}</span>
-                  <span className="duracao">⏱️ {videoSelecionado?.duracao}</span>
-                </div>
-                <p className="descricao">{videoSelecionado?.descricao}</p>
-                <div className="infoFooter">
-                  <span className="data">
-                    Adicionada em{" "}
-                    {new Date(videoSelecionado?.dataAdicionada || videoSelecionado?.createdAt || new Date()).toLocaleDateString(
-                      "pt-BR"
-                    )}
-                  </span>
-                </div>
-              </div>
+                  Seu navegador não suporta a tag de vídeo.
+                </video>
+              )}
             </div>
           </div>
-        </ConditionalFieldAnimation>
+
+          <div className="videoInfo" style={{ padding: '0' }}>
+            <div className="infoRow">
+              <span className="modulo">{videoSelecionado?.modulo}</span>
+              <span className="duracao">⏱️ {videoSelecionado?.duracao}</span>
+            </div>
+            <p className="descricao">{videoSelecionado?.descricao}</p>
+            <div className="infoFooter">
+              <span className="data">
+                Adicionada em{" "}
+                {new Date(videoSelecionado?.dataAdicionada || videoSelecionado?.createdAt || new Date()).toLocaleDateString(
+                  "pt-BR"
+                )}
+              </span>
+            </div>
+          </div>
+        </Modal>
 
         {/* MODAL DE UPLOAD */}
-        <ConditionalFieldAnimation isVisible={modalAberto && canUpload}>
-          <div className="modalOverlay" onClick={() => setModalAberto(false)}>
-            <div
-              className="modalContent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3>Adicionar Nova Videoaula</h3>
-
+        <Modal
+          isOpen={modalAberto && canUpload}
+          onClose={() => setModalAberto(false)}
+          title="Adicionar Nova Videoaula"
+          size="lg"
+          footer={
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <AnimatedButton
+                onClick={() => setModalAberto(false)}
+                disabled={submitting}
+                style={{
+                  background: 'var(--background-secondary)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--line)',
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </AnimatedButton>
+              <AnimatedButton
+                onClick={handleAddVideoaula}
+                disabled={submitting}
+                style={{
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {submitting ? 'Adicionando...' : 'Adicionar'}
+              </AnimatedButton>
+            </div>
+          }
+        >
               <div className="formGroup">
                 <label className="formLabel">Título *</label>
                 <input
@@ -880,61 +905,20 @@ export default function VideoaulaBonusPage() {
                   className="formInput"
                 />
               </div>
+        </Modal>
 
-              <div className="modalActions">
-                <AnimatedButton
-                  type="button"
-                  className="btnCancel"
-                  onClick={() => setModalAberto(false)}
-                  disabled={submitting}
-                >
-                  Cancelar
-                </AnimatedButton>
-                <AnimatedButton
-                  type="button"
-                  className="btnConfirm"
-                  onClick={handleAddVideoaula}
-                  disabled={submitting}
-                >
-                  {submitting ? "Adicionando..." : "Adicionar"}
-                </AnimatedButton>
-              </div>
-            </div>
-          </div>
-        </ConditionalFieldAnimation>
-
-        {/* MODAL DE CONFIRMAÇÃO DE DELETE */}
-        <ConditionalFieldAnimation isVisible={deleteTarget !== null}>
-          <div className="modalOverlay" onClick={() => setDeleteTarget(null)}>
-            <div
-              className="modalContent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3>Deletar videoaula</h3>
-              <p className="confirmText">
-                Tem certeza que deseja deletar a videoaula "{deleteTarget?.titulo}"?
-              </p>
-              <div className="modalActions">
-                <AnimatedButton
-                  type="button"
-                  className="btnCancel"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={deleting}
-                >
-                  Cancelar
-                </AnimatedButton>
-                <AnimatedButton
-                  type="button"
-                  className="btnDanger"
-                  onClick={confirmDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deletando..." : "Deletar"}
-                </AnimatedButton>
-              </div>
-            </div>
-          </div>
-        </ConditionalFieldAnimation>
+        {/* CONFIRM DIALOG DE DELETE */}
+        <ConfirmDialog
+          isOpen={deleteTarget !== null}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+          title="Deletar videoaula"
+          message={`Tem certeza que deseja deletar a videoaula "${deleteTarget?.titulo}"?`}
+          confirmText="Deletar"
+          cancelText="Cancelar"
+          isLoading={deleting}
+          isDangerous={true}
+        />
         </div>
       </FadeInUp>
     </DashboardLayout>
