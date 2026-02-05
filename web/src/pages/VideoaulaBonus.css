@@ -99,8 +99,9 @@
 /* GRID DE VIDEOAULAS */
 .videoaulasGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
+  grid-auto-rows: max-content;
 }
 
 .videoaulaCard {
@@ -299,16 +300,15 @@
 /* MODAL */
 .modalOverlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.2s ease;
+  padding: 20px;
+  overflow-y: auto;
 }
 
 .modalContent {
@@ -316,11 +316,14 @@
   padding: 28px;
   border-radius: 14px;
   max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
+  width: 100%;
+  max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
+  border: 1px solid var(--line);
+  color: var(--text);
+  margin: auto;
 }
 
 .videoaulaModal {
@@ -541,12 +544,14 @@ textarea.formInput {
 }
 
 .btnCancel {
-  background: var(--ring);
-  color: #6b7280;
+  background: var(--background-secondary);
+  color: var(--text);
+  border: 1px solid var(--line);
 }
 
 .btnCancel:hover {
   background: var(--line);
+  color: var(--text);
 }
 
 .btnConfirm {
