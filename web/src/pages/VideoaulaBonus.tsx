@@ -79,40 +79,16 @@ export default function VideoaulaBonusPage() {
     duracao: "",
   });
 
-  // Videoaulas de exemplo
+  // Videoaulas de exemplo (fallback)
   const videoaulasExemplo: Videoaula[] = [
     {
       id: "1",
-      titulo: "Introdução à Programação - Parte 1",
-      descricao: "Conceitos fundamentais de lógica e algoritmos",
-      modulo: "Introdução à Programação",
-      duracao: "25:30",
+      titulo: "Introdução ao Projeto",
+      descricao: "Visão geral do projeto e objetivos",
+      modulo: "Fundamentos",
       tipo: "youtube",
       url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      thumbnail: "https://via.placeholder.com/320x180?text=Aula+1",
-      dataAdicionada: "2025-01-15",
-    },
-    {
-      id: "2",
-      titulo: "Estruturas de Controle - Loops",
-      descricao: "Como usar for, while e do-while em programação",
-      modulo: "Estruturas de Controle",
-      duracao: "32:15",
-      tipo: "youtube",
-      url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      thumbnail: "https://via.placeholder.com/320x180?text=Loops",
-      dataAdicionada: "2025-01-14",
-    },
-    {
-      id: "3",
-      titulo: "Funções e Escopo em JavaScript",
-      descricao: "Entenda como funcionam funções, escopo e closures",
-      modulo: "Funções e Escopo",
-      duracao: "28:45",
-      tipo: "youtube",
-      url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      thumbnail: "https://via.placeholder.com/320x180?text=Funções",
-      dataAdicionada: "2025-01-13",
+      thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
     },
   ];
 

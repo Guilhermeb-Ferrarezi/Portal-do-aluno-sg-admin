@@ -47,8 +47,6 @@ export function AnimatedToast({
     error: '❌',
     info: 'ℹ️',
   }[type];
-  const topOffset = 'calc(env(safe-area-inset-top, 0px) + var(--toast-offset, 24px))';
-
   return (
     <AnimatePresence>
       {message && (
@@ -59,13 +57,9 @@ export function AnimatedToast({
           exit={{ y: -20, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 240, damping: 24 }}
           style={{
-            position: 'fixed',
-            top: topOffset,
-            left: '24px',
-            right: '24px',
-            maxWidth: '500px',
+            width: '100%',
+            padding: '16px 24px',
             zIndex: 9999,
-            margin: '0 auto',
           }}
         >
           <div
@@ -74,7 +68,6 @@ export function AnimatedToast({
               background: backgroundColor,
               color: textColor,
               padding: '14px 18px',
-              textAlign: 'center',
               borderRadius: '8px',
               fontSize: '14px',
               fontWeight: 600,
