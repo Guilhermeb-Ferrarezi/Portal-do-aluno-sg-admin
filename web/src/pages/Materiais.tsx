@@ -10,6 +10,7 @@ import {
   AnimatedToast,
   ConditionalFieldAnimation,
   AnimatedSelect,
+  AnimatedRadioLabel,
 } from "../components/animate-ui";
 import {
   listarMateriais,
@@ -593,35 +594,29 @@ export default function MateriaisPage() {
 
                 <div className="formGroup">
                   <label className="formLabel">Atribuição</label>
-                  <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-                    <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
-                      <input
-                        type="radio"
-                        name="modoAtribuicao"
-                        value="turma"
-                        checked={modoAtribuicao === "turma"}
-                        onChange={() => {
-                          setModoAtribuicao("turma");
-                          setAlunosSelecionados([]);
-                        }}
-                        style={{ marginRight: "6px", cursor: "pointer" }}
-                      />
-                      👥 Turma Específica
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
-                      <input
-                        type="radio"
-                        name="modoAtribuicao"
-                        value="aluno"
-                        checked={modoAtribuicao === "aluno"}
-                        onChange={() => {
-                          setModoAtribuicao("aluno");
-                          setTurmasSelecionadas([]);
-                        }}
-                        style={{ marginRight: "6px", cursor: "pointer" }}
-                      />
-                      👤 Aluno Específico
-                    </label>
+                  <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                    <AnimatedRadioLabel
+                      name="modoAtribuicao"
+                      value="turma"
+                      checked={modoAtribuicao === "turma"}
+                      onChange={() => {
+                        setModoAtribuicao("turma");
+                        setAlunosSelecionados([]);
+                      }}
+                      label="Turma Específica"
+                      icon="👥"
+                    />
+                    <AnimatedRadioLabel
+                      name="modoAtribuicao"
+                      value="aluno"
+                      checked={modoAtribuicao === "aluno"}
+                      onChange={() => {
+                        setModoAtribuicao("aluno");
+                        setTurmasSelecionadas([]);
+                      }}
+                      label="Aluno Específico"
+                      icon="👤"
+                    />
                   </div>
                 </div>
 
