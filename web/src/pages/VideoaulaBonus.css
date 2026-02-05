@@ -314,15 +314,14 @@
   background: var(--card);
   padding: 28px;
   border-radius: 14px;
-  max-width: 600px;
-  width: calc(100% - 40px);
-  max-height: 90vh;
+  width: 90%;
+  max-width: 550px;
+  max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
   border: 1px solid var(--line);
   color: var(--text);
-  margin: 0 20px;
 }
 
 .videoaulaModal {

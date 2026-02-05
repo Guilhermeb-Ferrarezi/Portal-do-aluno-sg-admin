@@ -262,6 +262,7 @@ body {
   min-width: 0;
   flex: 1;
   width: 100%;
+  --toast-offset: 96px;
 }
 
 .topbar {
@@ -817,6 +818,7 @@ body {
   .main {
     margin-left: 0;
     min-height: 100vh;
+    --toast-offset: 72px;
   }
 
   /* Sidebar em mobile volta ao tamanho normal */
@@ -840,6 +842,10 @@ body {
 
   .topbar {
     padding: 12px 8px;
+  }
+
+  .main {
+    --toast-offset: 64px;
   }
 
   .hamburger {
