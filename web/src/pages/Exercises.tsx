@@ -6,7 +6,7 @@ import Pagination from "../components/Pagination";
 import MonacoEditor from "../components/MonacoEditor";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
-import { ScaleIn, AnimatedRadioLabel } from "../components/animate-ui";
+import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, ConditionalFieldAnimation, AnimatedSelect, FadeInUp } from "../components/animate-ui";
 import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
@@ -390,12 +390,12 @@ export default function ExerciciosPage() {
           </div>
         )}
 
-        {okMsg && (
-          <div className="exMessage success">
-            <span>✅</span>
-            <span>{okMsg}</span>
-          </div>
-        )}
+        <AnimatedToast
+          message={okMsg}
+          type="success"
+          duration={3000}
+          onClose={() => setOkMsg(null)}
+        />
 
         {!canCreate && (
           <div className="exMessage warning">
@@ -411,6 +411,7 @@ export default function ExerciciosPage() {
 
         {/* SEÇÃO DE CRIAR */}
         {canCreate && (
+          <FadeInUp duration={0.28}>
           <div className="createExerciseCard">
             <h2 className="exFormTitle">Criar novo exercício</h2>
 
@@ -607,7 +608,7 @@ export default function ExerciciosPage() {
 
                             <div style={{ marginBottom: "8px" }}>
                               <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Resposta Correta:</label>
-                              <select
+                              <AnimatedSelect
                                 className="exSelect"
                                 value={questao.respostaCorreta}
                                 onChange={(e) => {
@@ -622,7 +623,7 @@ export default function ExerciciosPage() {
                                     {opcao.letter}: {opcao.text}
                                   </option>
                                 ))}
-                              </select>
+                              </AnimatedSelect>
                             </div>
 
                             {multiplaQuestoes.length > 1 && (
@@ -706,7 +707,7 @@ export default function ExerciciosPage() {
                 <>
                   <div className="exInputGroup">
                     <label className="exLabel">Componente Interativo</label>
-                    <select
+                    <AnimatedSelect
                       className="exSelect"
                       value={componenteInterativo}
                       onChange={(e) => setComponenteInterativo(e.target.value)}
@@ -714,11 +715,11 @@ export default function ExerciciosPage() {
                       <option value="">Nenhum (Exercício Normal)</option>
                       <option value="mouse">🖱️ Mouse</option>
                       <option value="multipla">❓ Múltipla Escolha</option>
-                    </select>
+                    </AnimatedSelect>
                   </div>
 
                   {/* Campo "Dia #" quando um componente é selecionado */}
-                  {componenteInterativo && (
+                  <ConditionalFieldAnimation isVisible={componenteInterativo !== ""}>
                     <div className="exInputGroup">
                       <label className="exLabel">Dia #</label>
                       <input
@@ -733,10 +734,10 @@ export default function ExerciciosPage() {
                         Título será: "Dia {diaNumero}: {componenteInterativo === "mouse" ? "Mouse" : "Pergunta Múltipla"}"
                       </small>
                     </div>
-                  )}
+                  </ConditionalFieldAnimation>
 
                   {/* REGRAS DO MOUSE - Apenas para componente Mouse */}
-                  {componenteInterativo === "mouse" && (
+                  <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
                     <>
                       <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#1e40af", margin: "0 0 12px 0" }}>
@@ -785,10 +786,10 @@ export default function ExerciciosPage() {
                         </div>
                       </div>
                     </>
-                  )}
+                  </ConditionalFieldAnimation>
 
                   {/* PREVIEW DO COMPONENTE MOUSE */}
-                  {componenteInterativo === "mouse" && (
+                  <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
                     <div style={{
                       background: "#f9fafb",
                       border: "2px dashed #e5e7eb",
@@ -804,10 +805,10 @@ export default function ExerciciosPage() {
                         instruction="Clique, duplo-clique ou clique direito para registrar suas ações"
                       />
                     </div>
-                  )}
+                  </ConditionalFieldAnimation>
 
                   {/* FORMULÁRIO DINÂMICO PARA MÚLTIPLA ESCOLHA */}
-                  {componenteInterativo === "multipla" && (
+                  <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
                     <div style={{
                       background: "#f9fafb",
                       border: "2px dashed #e5e7eb",
@@ -986,7 +987,7 @@ export default function ExerciciosPage() {
                         </div>
                       )}
                     </div>
-                  )}
+                  </ConditionalFieldAnimation>
                 </>
               )}
 
@@ -1038,7 +1039,7 @@ export default function ExerciciosPage() {
                 </div>
               </div>
 
-              {!publishNow && !isTemplate && (
+              <ConditionalFieldAnimation isVisible={!publishNow && !isTemplate}>
                 <div className="exInputRow">
                   <div className="exInputGroup">
                     <label className="exLabel">📅 Agendar Publicação</label>
@@ -1054,7 +1055,7 @@ export default function ExerciciosPage() {
                     </small>
                   </div>
                 </div>
-              )}
+              </ConditionalFieldAnimation>
 
               {isTemplate && (
                 <div style={{ padding: "12px", background: "#dbeafe", borderRadius: "4px", color: "#075985", fontSize: "14px", marginTop: "12px" }}>
@@ -1101,7 +1102,7 @@ export default function ExerciciosPage() {
                   {modoAtribuicao === "turma" && turmasDisponiveis.length > 0 && (
                     <div className="exInputGroup">
                       <label className="exLabel">Turmas</label>
-                      <select
+                      <AnimatedSelect
                         className="exSelect"
                         multiple
                         value={turmasSelecionadas}
@@ -1117,7 +1118,7 @@ export default function ExerciciosPage() {
                             {turma.nome}
                           </option>
                         ))}
-                      </select>
+                      </AnimatedSelect>
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                         Segure Ctrl/Cmd para selecionar múltiplas turmas. Deixe vazio para "Todos".
                       </small>
@@ -1140,7 +1141,7 @@ export default function ExerciciosPage() {
 
                       <div className="exInputGroup">
                         <label className="exLabel">Alunos</label>
-                        <select
+                        <AnimatedSelect
                           className="exSelect"
                           multiple
                           value={alunosSelecionados}
@@ -1163,7 +1164,7 @@ export default function ExerciciosPage() {
                                 {aluno.nome} ({aluno.usuario})
                               </option>
                             ))}
-                        </select>
+                        </AnimatedSelect>
                         <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                           Segure Ctrl/Cmd para selecionar múltiplos alunos
                         </small>
@@ -1174,11 +1175,17 @@ export default function ExerciciosPage() {
               )}
 
               <div style={{ display: "flex", gap: "12px" }}>
-                <button className="exSubmitBtn" onClick={handleSubmit} disabled={disabled} style={{ flex: 1 }}>
-                  {saving ? "⏳ Salvando..." : editandoId ? "💾 Atualizar Exercício" : "✨ Publicar Exercício"}
-                </button>
+                <AnimatedButton
+                  className="exSubmitBtn"
+                  onClick={handleSubmit}
+                  disabled={disabled}
+                  loading={saving}
+                  style={{ flex: 1 }}
+                >
+                  {editandoId ? "💾 Atualizar Exercício" : "✨ Publicar Exercício"}
+                </AnimatedButton>
                 {editandoId && (
-                  <button
+                  <AnimatedButton
                     className="exSubmitBtn"
                     onClick={handleCancel}
                     disabled={saving}
@@ -1188,7 +1195,7 @@ export default function ExerciciosPage() {
                     }}
                   >
                     ❌ Cancelar
-                  </button>
+                  </AnimatedButton>
                 )}
               </div>
 
@@ -1197,6 +1204,7 @@ export default function ExerciciosPage() {
               </div>
             </div>
           </div>
+          </FadeInUp>
         )}
 
         {/* FILTROS DE EXERCÍCIOS */}
