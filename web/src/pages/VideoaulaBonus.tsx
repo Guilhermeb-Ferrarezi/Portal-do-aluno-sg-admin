@@ -2,6 +2,7 @@ import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import { hasRole } from "../auth/auth";
+import { FadeInUp, PopInBadge } from "../components/animate-ui";
 import {
   listarTurmas,
   listarAlunos,
@@ -347,8 +348,9 @@ export default function VideoaulaBonusPage() {
                 return (
                   <>
                     <div className="videoaulasGrid">
-                      {paginatedVideoaulas.map((videoaula) => (
-                        <div key={videoaula.id} className="videoaulaCard">
+                      {paginatedVideoaulas.map((videoaula, index) => (
+                        <FadeInUp key={videoaula.id} delay={index * 0.1}>
+                        <div className="videoaulaCard">
                   <div
                     className="videoaulaThumbnail"
                     onClick={() => handleAssistir(videoaula)}
@@ -377,6 +379,7 @@ export default function VideoaulaBonusPage() {
                     >
                       {videoaula.turmas && videoaula.turmas.length > 0 ? (
                         <>
+                          <PopInBadge delay={0.1}>
                           <span
                             style={{
                               display: "inline-flex",
@@ -393,9 +396,10 @@ export default function VideoaulaBonusPage() {
                           >
                             🏛️ {videoaula.turmas.length} turma{videoaula.turmas.length > 1 ? "s" : ""}
                           </span>
-                          {videoaula.turmas.map((turma) => (
+                          </PopInBadge>
+                          {videoaula.turmas.map((turma, idx) => (
+                            <PopInBadge key={turma.id} delay={0.2 + idx * 0.1}>
                             <span
-                              key={turma.id}
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
@@ -419,9 +423,11 @@ export default function VideoaulaBonusPage() {
                             >
                               {turma.nome}
                             </span>
+                            </PopInBadge>
                           ))}
                         </>
                       ) : (
+                        <PopInBadge delay={0.1}>
                         <span
                           style={{
                             display: "inline-flex",
@@ -439,6 +445,7 @@ export default function VideoaulaBonusPage() {
                         >
                           🌐 Para Todos
                         </span>
+                        </PopInBadge>
                       )}
                     </div>
 
@@ -468,6 +475,7 @@ export default function VideoaulaBonusPage() {
                     </div>
                   </div>
                 </div>
+                        </FadeInUp>
                       ))}
                     </div>
 

@@ -2,6 +2,7 @@ import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import { hasRole } from "../auth/auth";
+import { FadeInUp, PopInBadge, PulseLoader } from "../components/animate-ui";
 import {
   listarMateriais,
   criarMaterial,
@@ -238,7 +239,7 @@ export default function MateriaisPage() {
         subtitle="Acesse arquivos e links de estudo"
       >
         <div style={{ textAlign: "center", padding: "2rem" }}>
-          <p>Carregando materiais...</p>
+          <PulseLoader size="large" text="Carregando materiais..." />
         </div>
       </DashboardLayout>
     );
@@ -391,8 +392,9 @@ export default function MateriaisPage() {
                 return (
                   <>
                     <div className="materiaisGrid">
-                      {paginatedMateriais.map((material) => (
-                        <div key={material.id} className="materialCard">
+                      {paginatedMateriais.map((material, index) => (
+                        <FadeInUp key={material.id} delay={index * 0.1}>
+                        <div className="materialCard">
                   <div className="materialHeader">
                     <div className="materialIcon">
                       {material.tipo === "arquivo" ? "📄" : "🔗"}
@@ -425,6 +427,7 @@ export default function MateriaisPage() {
                   >
                     {material.turmas && material.turmas.length > 0 ? (
                       <>
+                        <PopInBadge delay={0.1}>
                         <span
                           style={{
                             display: "inline-flex",
@@ -441,9 +444,10 @@ export default function MateriaisPage() {
                         >
                           🏛️ {material.turmas.length} turma{material.turmas.length > 1 ? "s" : ""}
                         </span>
-                        {material.turmas.map((turma) => (
+                        </PopInBadge>
+                        {material.turmas.map((turma, idx) => (
+                          <PopInBadge key={turma.id} delay={0.2 + idx * 0.1}>
                           <span
-                            key={turma.id}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
@@ -467,9 +471,11 @@ export default function MateriaisPage() {
                           >
                             {turma.nome}
                           </span>
+                          </PopInBadge>
                         ))}
                       </>
                     ) : (
+                      <PopInBadge delay={0.1}>
                       <span
                         style={{
                           display: "inline-flex",
@@ -487,6 +493,7 @@ export default function MateriaisPage() {
                       >
                         🌐 Para Todos
                       </span>
+                      </PopInBadge>
                     )}
                   </div>
 
@@ -511,6 +518,7 @@ export default function MateriaisPage() {
                     )}
                   </div>
                 </div>
+                        </FadeInUp>
                       ))}
                     </div>
 
