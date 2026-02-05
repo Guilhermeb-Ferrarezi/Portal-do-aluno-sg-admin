@@ -13,3 +13,4 @@ export { AnimatedToast } from './AnimatedToast';
 export { ConditionalFieldAnimation } from './ConditionalFieldAnimation';
 export { AnimatedSelect } from './AnimatedSelect';
 export { StaggerContainer } from './StaggerContainer';
+export { AnimatedToggle } from './AnimatedToggle';

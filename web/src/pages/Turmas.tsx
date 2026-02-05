@@ -9,6 +9,7 @@ import {
   AnimatedToast,
   ConditionalFieldAnimation,
   AnimatedSelect,
+  AnimatedToggle,
 } from "../components/animate-ui";
 import {
   listarTurmas,
@@ -525,12 +526,10 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
+                  <label style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <AnimatedToggle
                       checked={cronogramaAtivo}
-                      onChange={(e) => setCronogramaAtivo(e.target.checked)}
-                      style={{ marginRight: "8px", cursor: "pointer" }}
+                      onChange={setCronogramaAtivo}
                     />
                     <span className="turmaLabel" style={{ margin: 0 }}>Ativar Cronograma Automatico</span>
                   </label>

@@ -14,6 +14,7 @@ import {
   AnimatedToast,
   ConditionalFieldAnimation,
   AnimatedSelect,
+  AnimatedToggle,
 } from "../components/animate-ui";
 import "./Perfil.css";
 
@@ -307,19 +308,15 @@ export default function PerfilPage() {
                 <h3>Notificações por e-mail</h3>
                 <p>Receba alertas sobre novas atividades e avisos</p>
               </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={settings.emailNotificacoes}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      emailNotificacoes: e.target.checked,
-                    }))
-                  }
-                />
-                <span className="slider" />
-              </label>
+              <AnimatedToggle
+                checked={settings.emailNotificacoes}
+                onChange={(checked) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    emailNotificacoes: checked,
+                  }))
+                }
+              />
             </div>
 
             <div className="settingsItem">
@@ -327,19 +324,15 @@ export default function PerfilPage() {
                 <h3>Notificações no app</h3>
                 <p>Mostre avisos dentro do portal quando houver novidades</p>
               </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={settings.pushNotificacoes}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      pushNotificacoes: e.target.checked,
-                    }))
-                  }
-                />
-                <span className="slider" />
-              </label>
+              <AnimatedToggle
+                checked={settings.pushNotificacoes}
+                onChange={(checked) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    pushNotificacoes: checked,
+                  }))
+                }
+              />
             </div>
 
             
@@ -349,19 +342,15 @@ export default function PerfilPage() {
                 <h3>Modo compacto</h3>
                 <p>Reduza o espaçamento para ver mais conteúdo</p>
               </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={settings.modoCompacto}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      modoCompacto: e.target.checked,
-                    }))
-                  }
-                />
-                <span className="slider" />
-              </label>
+              <AnimatedToggle
+                checked={settings.modoCompacto}
+                onChange={(checked) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    modoCompacto: checked,
+                  }))
+                }
+              />
             </div>
 
             <div className="settingsItem">

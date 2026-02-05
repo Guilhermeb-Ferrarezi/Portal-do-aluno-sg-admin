@@ -6,7 +6,7 @@ import Pagination from "../components/Pagination";
 import MonacoEditor from "../components/MonacoEditor";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
-import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, ConditionalFieldAnimation, AnimatedSelect, FadeInUp } from "../components/animate-ui";
+import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, ConditionalFieldAnimation, AnimatedSelect, FadeInUp, AnimatedToggle } from "../components/animate-ui";
 import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
@@ -1026,13 +1026,11 @@ export default function ExerciciosPage() {
               {/* AGENDAMENTO DE PUBLICAÇÃO */}
               <div className="exInputRow">
                 <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center" }}>
-                    <input
-                      type="checkbox"
+                  <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <AnimatedToggle
                       checked={publishNow}
-                      onChange={(e) => setPublishNow(e.target.checked)}
+                      onChange={setPublishNow}
                       disabled={isTemplate}
-                      style={{ marginRight: "8px" }}
                     />
                     Publicar agora
                   </label>
