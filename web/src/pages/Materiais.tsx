@@ -1,6 +1,8 @@
 import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
+import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
 import {
   FadeInUp,
@@ -8,7 +10,6 @@ import {
   PulseLoader,
   AnimatedButton,
   AnimatedToast,
-  ConditionalFieldAnimation,
   AnimatedSelect,
   AnimatedRadioLabel,
 } from "../components/animate-ui";
@@ -515,16 +516,37 @@ export default function MateriaisPage() {
         </div>
 
         {/* MODAL DE UPLOAD (apenas para admin/professor) */}
-        <ConditionalFieldAnimation isVisible={modalAberto && canUpload}>
-          <div className="modalOverlay" onClick={() => setModalAberto(false)}>
-            <div
-              className="modalContent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3>Adicionar Novo Material</h3>
-              {formError && <p className="formError">{formError}</p>}
+        <Modal
+          isOpen={modalAberto && canUpload}
+          onClose={() => {
+            setModalAberto(false);
+            resetForm();
+          }}
+          title="Adicionar Novo Material"
+          size="lg"
+          footer={
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <AnimatedButton
+                onClick={() => {
+                  setModalAberto(false);
+                  resetForm();
+                }}
+                disabled={submitting}
+              >
+                Cancelar
+              </AnimatedButton>
+              <AnimatedButton
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? '⏳ Salvando...' : 'Salvar Material'}
+              </AnimatedButton>
+            </div>
+          }
+        >
+          {formError && <p className="formError">{formError}</p>}
 
-              <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit}>
                 <div className="formGroup">
                   <label className="formLabel">Título *</label>
                   <input
@@ -719,63 +741,20 @@ export default function MateriaisPage() {
                     />
                   </div>
                 )}
-
-                <div className="modalActions">
-                  <AnimatedButton
-                    type="button"
-                    className="btnCancel"
-                    onClick={() => {
-                      setModalAberto(false);
-                      resetForm();
-                    }}
-                    disabled={submitting}
-                  >
-                    Cancelar
-                  </AnimatedButton>
-                  <AnimatedButton
-                    type="submit"
-                    className="btnConfirm"
-                    disabled={submitting}
-                  >
-                    {submitting ? "Adicionando..." : "Adicionar"}
-                  </AnimatedButton>
-                </div>
               </form>
-            </div>
-          </div>
-        </ConditionalFieldAnimation>
+        </Modal>
 
-        <ConditionalFieldAnimation isVisible={deleteTarget !== null}>
-          <div className="modalOverlay" onClick={() => setDeleteTarget(null)}>
-            <div
-              className="modalContent"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3>Deletar material</h3>
-              <p className="confirmText">
-                Tem certeza que deseja deletar o material "{deleteTarget?.titulo}"?
-              </p>
-              <div className="modalActions">
-                <AnimatedButton
-                  type="button"
-                  className="btnCancel"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={deleting}
-                >
-                  Cancelar
-                </AnimatedButton>
-                <AnimatedButton
-                  type="button"
-                  className="btnDanger"
-                  onClick={confirmDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deletando..." : "Deletar"}
-                </AnimatedButton>
-              </div>
-            </div>
-          </div>
-        </ConditionalFieldAnimation>
+        <ConfirmDialog
+          isOpen={deleteTarget !== null}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+          title="Deletar material"
+          message={`Tem certeza que deseja deletar o material "${deleteTarget?.titulo}"?`}
+          confirmText="Deletar"
+          cancelText="Cancelar"
+          isLoading={deleting}
+          isDangerous={true}
+        />
         </div>
       </FadeInUp>
     </DashboardLayout>
