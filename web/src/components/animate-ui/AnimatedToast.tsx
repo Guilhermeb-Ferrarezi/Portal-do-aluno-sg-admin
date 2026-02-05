@@ -61,8 +61,10 @@ export function AnimatedToast({
             position: 'fixed',
             bottom: '24px',
             right: '24px',
-            maxWidth: '400px',
+            maxWidth: '90vw',
+            width: '400px',
             zIndex: 9999,
+            padding: '0 16px',
           }}
         >
           <div
@@ -79,10 +81,12 @@ export function AnimatedToast({
               alignItems: 'center',
               gap: '8px',
               backdropFilter: 'blur(8px)',
+              wordWrap: 'break-word',
+              overflow: 'hidden',
             }}
           >
-            <span>{icon}</span>
-            <span>{message}</span>
+            <span style={{ flexShrink: 0 }}>{icon}</span>
+            <span style={{ flex: 1, textAlign: 'center' }}>{message}</span>
           </div>
         </motion.div>
       )}
