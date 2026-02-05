@@ -6,6 +6,7 @@ import Pagination from "../components/Pagination";
 import MonacoEditor from "../components/MonacoEditor";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
+import { ScaleIn, AnimatedRadioLabel } from "../components/animate-ui";
 import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
@@ -514,21 +515,32 @@ export default function ExerciciosPage() {
                 <>
                   <div className="exInputGroup">
                     <label className="exLabel">Tipo de Exercício</label>
-                    <select
-                      className="exSelect"
-                      value={componenteInterativo}
-                      onChange={(e) => setComponenteInterativo(e.target.value)}
-                    >
-                      <option value="">💻 Código (Monaco)</option>
-                      <option value="multipla">❓ Múltipla Escolha</option>
-                    </select>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                      <AnimatedRadioLabel
+                        name="tipoExercicio"
+                        value=""
+                        checked={componenteInterativo === ""}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Código (Monaco)"
+                        icon="💻"
+                      />
+                      <AnimatedRadioLabel
+                        name="tipoExercicio"
+                        value="multipla"
+                        checked={componenteInterativo === "multipla"}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Múltipla Escolha"
+                        icon="❓"
+                      />
+                    </div>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
                       Selecione o tipo de exercício para Programação
                     </small>
                   </div>
 
                   {/* GABARITO / CÓDIGO ESPERADO - Apenas para tipo Código */}
                   {componenteInterativo === "" && (
+                    <ScaleIn>
                     <div className="exInputGroup">
                       <label className="exLabel">Gabarito / Codigo esperado</label>
                       <MonacoEditor
@@ -543,10 +555,12 @@ export default function ExerciciosPage() {
                         Esse texto sera usado para comparar se a resposta do aluno esta parecida com o esperado.
                       </small>
                     </div>
+                    </ScaleIn>
                   )}
 
                   {/* QUESTÕES DE MÚLTIPLA ESCOLHA - Para Programação */}
                   {componenteInterativo === "multipla" && (
+                    <ScaleIn>
                     <>
                       <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#92400e", margin: "0 0 12px 0" }}>
@@ -682,6 +696,7 @@ export default function ExerciciosPage() {
                         ))}
                       </div>
                     </>
+                    </ScaleIn>
                   )}
                 </>
               )}

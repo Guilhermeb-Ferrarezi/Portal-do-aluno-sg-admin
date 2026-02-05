@@ -7,3 +7,4 @@ export { ScaleIn } from './ScaleIn';
 export { SlideIn } from './SlideIn';
 export { PulseLoader } from './PulseLoader';
 export { PopInBadge } from './PopInBadge';
+export { AnimatedRadioLabel } from './AnimatedRadioLabel';
