@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
 import { getName, getRole, hasRole } from "../../auth/auth";
-import { RippleButton } from "../animate-ui";
+import { RippleButton, GradientBackground } from "../animate-ui";
 import {
   listarTurmas,
   obterTurmasResponsavel,
@@ -445,7 +445,7 @@ export default function Dashboard() {
 
       {/* SEÇÃO 4: AÇÕES RÁPIDAS */}
       <section>
-        <div className="card">
+        <GradientBackground className="card">
           <div className="cardTitle">Ações Rápidas</div>
           <div
             style={{
@@ -496,7 +496,7 @@ export default function Dashboard() {
               </>
             )}
           </div>
-        </div>
+        </GradientBackground>
       </section>
     </DashboardLayout>
   );

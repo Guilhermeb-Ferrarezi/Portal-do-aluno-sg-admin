@@ -2,7 +2,7 @@
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
-import { RippleButton } from "../components/animate-ui";
+import { RippleButton, FlipButton } from "../components/animate-ui";
 import {
   obterTurma,
   atualizarTurma,
@@ -501,13 +501,11 @@ export default function TurmaDetailPage() {
                     </div>
                   </div>
                   {(role === "admin" || role === "professor") && (
-                    <button
-                      className="btnRemover"
+                    <FlipButton
+                      front="🗑️"
+                      back="Remover?"
                       onClick={() => handleRemoverAluno(aluno.id)}
-                      title="Remover aluno"
-                    >
-                      🗑️
-                    </button>
+                    />
                   )}
                 </div>
               ))}
