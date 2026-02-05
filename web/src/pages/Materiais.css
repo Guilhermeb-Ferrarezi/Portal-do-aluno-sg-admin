@@ -313,10 +313,7 @@
 /* MODAL */
 .modalOverlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -324,6 +321,7 @@
   z-index: 9999;
   animation: fadeIn 0.2s ease;
   padding: 20px;
+  overflow: hidden;
 }
 
 .modalContent {

@@ -60,11 +60,11 @@ export function AnimatedToast({
           style={{
             position: 'fixed',
             bottom: '24px',
+            left: '24px',
             right: '24px',
-            maxWidth: '90vw',
-            width: '400px',
+            maxWidth: '500px',
             zIndex: 9999,
-            padding: '0 16px',
+            margin: '0 auto',
           }}
         >
           <div
@@ -72,21 +72,22 @@ export function AnimatedToast({
               border: `1px solid ${borderColor}`,
               background: backgroundColor,
               color: textColor,
-              padding: '12px 16px',
+              padding: '14px 18px',
               textAlign: 'center',
               borderRadius: '8px',
               fontSize: '14px',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '10px',
               backdropFilter: 'blur(8px)',
               wordWrap: 'break-word',
-              overflow: 'hidden',
+              whiteSpace: 'normal',
+              lineHeight: '1.4',
             }}
           >
-            <span style={{ flexShrink: 0 }}>{icon}</span>
-            <span style={{ flex: 1, textAlign: 'center' }}>{message}</span>
+            <span style={{ flexShrink: 0, fontSize: '16px' }}>{icon}</span>
+            <span style={{ flex: 1 }}>{message}</span>
           </div>
         </motion.div>
       )}
