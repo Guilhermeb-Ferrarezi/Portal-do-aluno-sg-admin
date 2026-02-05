@@ -11,7 +11,6 @@ import {
   atribuirVideoaulaTurmas,
   type Turma,
   type User,
-  type Videoaula as VideoaulaAPI,
 } from "../services/api";
 import "./VideoaulaBonus.css";
 

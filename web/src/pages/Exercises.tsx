@@ -6,7 +6,6 @@ import Pagination from "../components/Pagination";
 import MonacoEditor from "../components/MonacoEditor";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
-import { RippleButton } from "../components/animate-ui";
 import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
