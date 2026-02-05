@@ -1,5 +1,11 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
+import {
+  FadeInUp,
+  AnimatedButton,
+  AnimatedToast,
+} from "../components/animate-ui";
 import "./TrilhaCurso.css";
 
 type Modulo = {
@@ -15,6 +21,7 @@ type Modulo = {
 
 export default function TrilhaCursoPage() {
   const navigate = useNavigate();
+  const [toastMsg, setToastMsg] = useState<{type: 'success'|'error'; msg: string} | null>(null);
 
   // Módulos de exemplo (em produção, viriam da API)
   const modulos: Modulo[] = [
@@ -93,7 +100,14 @@ export default function TrilhaCursoPage() {
       title="Trilha do Curso"
       subtitle="Acompanhe seu progresso através dos módulos"
     >
-      <div className="trilhaContainer">
+      <FadeInUp duration={0.28}>
+        <div className="trilhaContainer">
+          <AnimatedToast
+            message={toastMsg?.msg || null}
+            type={toastMsg?.type || 'success'}
+            duration={3000}
+            onClose={() => setToastMsg(null)}
+          />
         {/* PROGRESSO GERAL */}
         <div className="trilhaHeader">
           <div className="trilhaProgressCard">
@@ -114,20 +128,21 @@ export default function TrilhaCursoPage() {
               <div className="proximoLabel">PRÓXIMO PASSO</div>
               <div className="proximoTitulo">{proximoModulo.titulo}</div>
               <div className="proximoDescricao">{proximoModulo.descricao}</div>
-              <button
+              <AnimatedButton
                 className="proximoBtn"
                 onClick={() => navigate("/dashboard/exercicios")}
               >
                 Começar Agora →
-              </button>
+              </AnimatedButton>
             </div>
           )}
         </div>
 
         {/* LISTA DE MÓDULOS */}
         <div className="modulosContainer">
-          {modulos.map((modulo) => (
-            <div key={modulo.id} className={`moduloCard ${modulo.progresso === 100 ? "concluido" : ""}`}>
+          {modulos.map((modulo, i) => (
+            <FadeInUp key={modulo.id} delay={i * 0.05}>
+            <div className={`moduloCard ${modulo.progresso === 100 ? "concluido" : ""}`}>
               <div className="moduloHeader">
                 <div className="moduloNumero">{modulo.numero}</div>
                 <div className="moduloInfo">
@@ -177,16 +192,18 @@ export default function TrilhaCursoPage() {
               </div>
 
               {/* Botão de Ação */}
-              <button
+              <AnimatedButton
                 className="moduloBtn"
                 onClick={() => navigate("/dashboard/exercicios")}
               >
                 {modulo.progresso === 100 ? "Revisar Módulo" : "Continuar Aprendizado"}
-              </button>
+              </AnimatedButton>
             </div>
+            </FadeInUp>
           ))}
         </div>
-      </div>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }
