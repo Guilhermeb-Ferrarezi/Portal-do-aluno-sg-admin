@@ -3,6 +3,14 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import {
+  FadeInUp,
+  PulseLoader,
+  AnimatedButton,
+  AnimatedToast,
+  ConditionalFieldAnimation,
+  AnimatedSelect,
+} from "../components/animate-ui";
+import {
   listarTurmas,
   criarTurma,
   atualizarTurma,
@@ -38,8 +46,7 @@ export default function TurmasPage() {
   const [turmasAll, setTurmasAll] = React.useState<Turma[]>([]);
   const [filtroTurmas, setFiltroTurmas] = React.useState<"minhas" | "todas">("minhas");
   const [loading, setLoading] = React.useState(false);
-  const [erro, setErro] = React.useState<string | null>(null);
-  const [okMsg, setOkMsg] = React.useState<string | null>(null);
+  const [toastMsg, setToastMsg] = React.useState<{type: 'success'|'error'; msg: string} | null>(null);
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -82,7 +89,6 @@ export default function TurmasPage() {
   async function load() {
     try {
       setLoading(true);
-      setErro(null);
       const data = await listarTurmas();
       if (role === "admin") {
         setTurmasAll(data);
@@ -97,7 +103,7 @@ export default function TurmasPage() {
         setTurmas(data);
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao carregar turmas");
+      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao carregar turmas" });
     } finally {
       setLoading(false);
     }
@@ -181,14 +187,13 @@ export default function TurmasPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nome.trim()) {
-      setErro("Nome da turma é obrigatório");
+      setToastMsg({ type: 'error', msg: "Nome da turma é obrigatório" });
       return;
     }
 
     try {
       setSaving(true);
-      setErro(null);
-      setOkMsg(null);
+      setToastMsg(null);
 
       if (editandoId) {
         const atualizarDados: any = { nome, tipo, categoria, descricao: descricao || null };
@@ -208,14 +213,14 @@ export default function TurmasPage() {
         if (templatesSelecionados.length > 0) {
           try {
             await adicionarTemplatesNoCronograma(editandoId);
-            setOkMsg("Turma atualizada e templates adicionados!");
+            setToastMsg({ type: 'success', msg: "Turma atualizada e templates adicionados!" });
           } catch (err) {
             console.error("Erro ao adicionar templates no cronograma:", err);
-            setOkMsg("Turma atualizada!");
-            setErro("Falha ao adicionar templates ao cronograma.");
+            setToastMsg({ type: 'success', msg: "Turma atualizada!" });
+            setToastMsg({ type: 'error', msg: "Falha ao adicionar templates ao cronograma." });
           }
         } else {
-          setOkMsg("Turma atualizada!");
+          setToastMsg({ type: 'success', msg: "Turma atualizada!" });
         }
 
         setEditandoId(null);
@@ -238,14 +243,14 @@ export default function TurmasPage() {
         if (templatesSelecionados.length > 0 && turmaCriada) {
           try {
             await adicionarTemplatesNoCronograma(turmaCriada.id);
-            setOkMsg("Turma criada e templates adicionados! Agora adicione alunos.");
+            setToastMsg({ type: 'success', msg: "Turma criada e templates adicionados! Agora adicione alunos." });
           } catch (err) {
             console.error("Erro ao adicionar templates no cronograma:", err);
-            setOkMsg("Turma criada! Agora adicione alunos.");
-            setErro("Falha ao adicionar templates ao cronograma.");
+            setToastMsg({ type: 'success', msg: "Turma criada! Agora adicione alunos." });
+            setToastMsg({ type: 'error', msg: "Falha ao adicionar templates ao cronograma." });
           }
         } else {
-          setOkMsg("Turma criada! Agora adicione alunos.");
+          setToastMsg({ type: 'success', msg: "Turma criada! Agora adicione alunos." });
         }
 
         if (turmaCriada) {
@@ -271,7 +276,7 @@ export default function TurmasPage() {
         await load();
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao salvar turma");
+      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao salvar turma" });
     } finally {
       setSaving(false);
     }
@@ -287,7 +292,6 @@ export default function TurmasPage() {
     setDuracaoSemanas(turma.duracaoSemanas || 12);
     setCronogramaAtivo(turma.cronogramaAtivo || false);
     setEditandoId(turma.id);
-    setOkMsg(null);
 
     setTimeout(() => {
       const formElement = document.querySelector(".turmaFormCard");
@@ -305,7 +309,6 @@ export default function TurmasPage() {
     setDuracaoSemanas(12);
     setCronogramaAtivo(false);
     setEditandoId(null);
-    setOkMsg(null);
   }
 
   function abrirModalDeletar(id: string, nome: string) {
@@ -322,11 +325,11 @@ export default function TurmasPage() {
     try {
       setSaving(true);
       await deletarTurma(modalDeletar.turmaId);
-      setOkMsg("Turma deletada com sucesso!");
+      setToastMsg({ type: 'success', msg: "Turma deletada com sucesso!" });
       fecharModalDeletar();
       await load();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao deletar turma");
+      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao deletar turma" });
     } finally {
       setSaving(false);
     }
@@ -345,11 +348,11 @@ export default function TurmasPage() {
     try {
       setAdicionando(true);
       await adicionarAlunosNaTurma(turmaAcabadaCriar.id, alunosSelecionados);
-      setOkMsg("Alunos adicionados com sucesso!");
+      setToastMsg({ type: 'success', msg: "Alunos adicionados com sucesso!" });
       fecharModalAdicionar();
       await load();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao adicionar alunos");
+      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao adicionar alunos" });
     } finally {
       setAdicionando(false);
     }
@@ -375,7 +378,14 @@ export default function TurmasPage() {
       title="Minhas Turmas"
       subtitle="Gerencie suas turmas e alunos"
     >
-      <div className="turmasContainer">
+      <FadeInUp duration={0.28}>
+        <div className="turmasContainer">
+          <AnimatedToast
+            message={toastMsg?.msg || null}
+            type={toastMsg?.type || 'success'}
+            duration={3000}
+            onClose={() => setToastMsg(null)}
+          />
         {/* HEADER */}
         <div className="turmasHeader">
           {role === "admin" ? (
@@ -406,21 +416,6 @@ export default function TurmasPage() {
           </button>
         </div>
 
-        {/* MENSAGENS */}
-        {erro && (
-          <div className="exMessage error">
-            <span>❌</span>
-            <span>{erro}</span>
-          </div>
-        )}
-
-        {okMsg && (
-          <div className="exMessage success">
-            <span>✅</span>
-            <span>{okMsg}</span>
-          </div>
-        )}
-
         {/* FORMULÁRIO */}
         {canCreate && (
           <div className="turmaFormCard">
@@ -442,32 +437,32 @@ export default function TurmasPage() {
 
               <div className="turmaInputGroup">
                 <label className="turmaLabel">Tipo *</label>
-                <select
+                <AnimatedSelect
                   className="turmaSelect"
                   value={tipo}
                   onChange={(e) => setTipo(e.target.value as "turma" | "particular")}
                 >
                   <option value="turma">Turma (Grupo)</option>
                   <option value="particular">Particular</option>
-                </select>
+                </AnimatedSelect>
               </div>
 
               <div className="turmaInputGroup">
                 <label className="turmaLabel">Categoria *</label>
-                <select
+                <AnimatedSelect
                   className="turmaSelect"
                   value={categoria}
                   onChange={(e) => setCategoria(e.target.value as "programacao" | "informatica")}
                 >
                   <option value="programacao">Programação</option>
                   <option value="informatica">Informática</option>
-                </select>
+                </AnimatedSelect>
               </div>
 
               {role === "admin" && (
                 <div className="turmaInputGroup">
                   <label className="turmaLabel">Responsável pela Turma</label>
-                  <select
+                  <AnimatedSelect
                     className="turmaSelect"
                     value={professorId}
                     onChange={(e) => setProfessorId(e.target.value)}
@@ -478,7 +473,7 @@ export default function TurmasPage() {
                         {prof.nome} ({prof.role === "admin" ? "Admin" : "Professor"})
                       </option>
                     ))}
-                  </select>
+                  </AnimatedSelect>
                   <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                     Deixe em branco para nenhum responsável, ou selecione um admin/professor
                   </small>
@@ -610,7 +605,7 @@ export default function TurmasPage() {
               </div>
 
               <div className="turmaActions">
-                <button
+                <AnimatedButton
                   type="submit"
                   className="turmaSubmitBtn"
                   disabled={disabled}
@@ -620,16 +615,16 @@ export default function TurmasPage() {
                     : editandoId
                     ? "💾 Atualizar Turma"
                     : "➕ Criar Turma"}
-                </button>
+                </AnimatedButton>
                 {editandoId && (
-                  <button
+                  <AnimatedButton
                     type="button"
                     className="turmaCancelBtn"
                     onClick={handleCancel}
                     disabled={saving}
                   >
                     ❌ Cancelar
-                  </button>
+                  </AnimatedButton>
                 )}
               </div>
             </form>
@@ -639,9 +634,8 @@ export default function TurmasPage() {
         {/* LISTA DE TURMAS */}
         <div>
           {loading && turmas.length === 0 ? (
-            <div className="loadingState">
-              <div className="spinner" />
-              Carregando turmas...
+            <div style={{ textAlign: "center", padding: "2rem" }}>
+              <PulseLoader size="large" text="Carregando turmas..." />
             </div>
           ) : !loading && turmas.length === 0 ? (
             <div className="emptyState">
@@ -659,8 +653,9 @@ export default function TurmasPage() {
                   const endIndex = startIndex + itemsPerPage;
                   const paginatedTurmas = turmas.slice(startIndex, endIndex);
 
-                  return paginatedTurmas.map((turma) => (
-                    <div key={turma.id} className="turmaCard">
+                  return paginatedTurmas.map((turma, i) => (
+                    <FadeInUp key={turma.id} delay={i * 0.05}>
+                    <div className="turmaCard">
                       <div className="turmaCardHeader">
                         <div className="turmaCardInfo">
                           <h3 className="turmaCardTitle">{turma.nome}</h3>
@@ -670,20 +665,20 @@ export default function TurmasPage() {
                         </div>
                         {canCreate && (
                           <div className="turmaCardActions">
-                            <button
+                            <AnimatedButton
                               className="turmaEditBtn"
                               onClick={() => handleEdit(turma)}
                               title="Editar turma"
                             >
                               ✏️
-                            </button>
-                            <button
+                            </AnimatedButton>
+                            <AnimatedButton
                               className="turmaDeleteBtn"
                               onClick={() => abrirModalDeletar(turma.id, turma.nome)}
                               title="Deletar turma"
                             >
                               🗑️
-                            </button>
+                            </AnimatedButton>
                           </div>
                         )}
                       </div>
@@ -711,21 +706,22 @@ export default function TurmasPage() {
 
                       <div className="turmaCardFooter">
                         {canCreate && (
-                          <button
+                          <AnimatedButton
                             className="turmaManageBtn"
                             onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
                           >
                             👥 Gerenciar Alunos
-                          </button>
+                          </AnimatedButton>
                         )}
-                        <button
+                        <AnimatedButton
                           className="turmaViewBtn"
                           onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
                         >
                           Ver Detalhes →
-                        </button>
+                        </AnimatedButton>
                       </div>
                     </div>
+                    </FadeInUp>
                   ));
                 })()}
               </div>
@@ -755,7 +751,7 @@ export default function TurmasPage() {
         />
 
         {/* MODAL ADICIONAR ALUNOS */}
-        {modalAdicionarAberto && (
+        <ConditionalFieldAnimation isVisible={modalAdicionarAberto}>
           <div className="modalOverlay" onClick={fecharModalAdicionar}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <h3>Adicionar alunos à turma: {turmaAcabadaCriar?.nome}</h3>
@@ -794,25 +790,26 @@ export default function TurmasPage() {
               )}
 
               <div className="modalActions">
-                <button
+                <AnimatedButton
                   onClick={fecharModalAdicionar}
                   className="modalBtnCancel"
                   disabled={adicionando}
                 >
                   Pular por enquanto
-                </button>
-                <button
+                </AnimatedButton>
+                <AnimatedButton
                   onClick={handleAdicionarAlunos}
                   className="modalBtnConfirm"
                   disabled={adicionando || alunosSelecionados.length === 0}
                 >
                   {adicionando ? "⏳ Adicionando..." : "Adicionar"}
-                </button>
+                </AnimatedButton>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </ConditionalFieldAnimation>
+        </div>
+      </FadeInUp>
     </DashboardLayout>
   );
 }
