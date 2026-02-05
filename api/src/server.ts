@@ -11,7 +11,7 @@ import { materiaisRouter } from "./routes/materiais.route";
 import { videoaulasRouter } from "./routes/videoaulas.route";
 import { startPublishScheduledExercisesJob } from "./jobs/publishScheduledExercises";
 import { startWeeklyExerciseReleaseJob } from "./jobs/releaseWeeklyExercises";
-import { initializeDatabaseTables } from "./db/migrations";
+
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -85,7 +85,6 @@ app.use(
 // Iniciar server
 (async () => {
   // Inicializar banco de dados
-  await initializeDatabaseTables();
 
   // Iniciar jobs agendados
   startPublishScheduledExercisesJob();
