@@ -4,12 +4,12 @@ import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
+import { useToast } from "../contexts/ToastContext";
 import {
   FadeInUp,
   PopInBadge,
   PulseLoader,
   AnimatedButton,
-  AnimatedToast,
   AnimatedSelect,
   AnimatedRadioLabel,
 } from "../components/animate-ui";
@@ -28,6 +28,7 @@ import "./Materiais.css";
 
 export default function MateriaisPage() {
   const canUpload = hasRole(["admin", "professor"]);
+  const { addToast } = useToast();
 
   // Estados principais
   const [materiais, setMateriais] = React.useState<Material[]>([]);
@@ -58,7 +59,6 @@ export default function MateriaisPage() {
   const [formError, setFormError] = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<Material | null>(null);
   const [deleting, setDeleting] = React.useState(false);
-  const [toastMsg, setToastMsg] = React.useState<{type: 'success'|'error'; msg: string} | null>(null);
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -189,16 +189,13 @@ export default function MateriaisPage() {
 
       setModalAberto(false);
       resetForm();
-      setToastMsg({
-        type: "success",
-        msg: "Material adicionado com sucesso.",
-      });
+      addToast("Material adicionado com sucesso.", "success");
       await carregarMateriais();
     } catch (err) {
-      setToastMsg({
-        type: "error",
-        msg: err instanceof Error ? err.message : "Erro ao adicionar material",
-      });
+      addToast(
+        err instanceof Error ? err.message : "Erro ao adicionar material",
+        "error"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -212,16 +209,13 @@ export default function MateriaisPage() {
       setDeleting(true);
       await deletarMaterial(target.id);
       setDeleteTarget(null);
-      setToastMsg({
-        type: "success",
-        msg: `"${target.titulo}" foi removido.`,
-      });
+      addToast(`"${target.titulo}" foi removido.`, "success");
       await carregarMateriais();
     } catch (err) {
-      setToastMsg({
-        type: "error",
-        msg: err instanceof Error ? err.message : "Erro ao deletar material",
-      });
+      addToast(
+        err instanceof Error ? err.message : "Erro ao deletar material",
+        "error"
+      );
     } finally {
       setDeleting(false);
     }
@@ -267,13 +261,6 @@ export default function MateriaisPage() {
     >
       <FadeInUp duration={0.28}>
         <div className="materiaisContainer">
-          <AnimatedToast
-            message={toastMsg?.msg || null}
-            type={toastMsg?.type || 'success'}
-            duration={3000}
-            onClose={() => setToastMsg(null)}
-          />
-
           {/* HEADER COM FILTROS */}
         <div className="materiaisHeader">
           <div className="filtrosRow">

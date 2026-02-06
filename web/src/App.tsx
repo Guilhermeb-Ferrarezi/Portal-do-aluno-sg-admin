@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useTheme } from "./hooks/useTheme";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import { ToastProvider } from "./contexts/ToastContext";
+import { ToastContainer } from "./components/ToastContainer";
 
 import Login from "./components/Login/Login";
 import Dashboard from "./components/Dashboard/Dashboard";
@@ -92,7 +94,10 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+        <ToastContainer />
+      </ToastProvider>
     </BrowserRouter>
   );
 }

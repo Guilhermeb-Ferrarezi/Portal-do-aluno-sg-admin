@@ -4,12 +4,12 @@ import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
+import { useToast } from "../contexts/ToastContext";
 import {
   FadeInUp,
   PopInBadge,
   PulseLoader,
   AnimatedButton,
-  AnimatedToast,
   AnimatedSelect,
   AnimatedRadioLabel,
 } from "../components/animate-ui";
@@ -44,6 +44,7 @@ type Videoaula = {
 
 export default function VideoaulaBonusPage() {
   const canUpload = hasRole(["admin", "professor"]);
+  const { addToast } = useToast();
 
   // Estados
   const [videoaulas, setVideoaulas] = React.useState<Videoaula[]>([]);
@@ -60,7 +61,6 @@ export default function VideoaulaBonusPage() {
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
   const [alunoFiltro, setAlunoFiltro] = React.useState<string>("");
-  const [toastMsg, setToastMsg] = React.useState<{type: 'success'|'error'; msg: string} | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<Videoaula | null>(null);
@@ -171,26 +171,20 @@ export default function VideoaulaBonusPage() {
       !formData.modulo.trim() ||
       !formData.duracao.trim()
     ) {
-      setToastMsg({
-        type: "error",
-        msg: "Por favor, preencha todos os campos obrigatórios",
-      });
+      addToast("Por favor, preencha todos os campos obrigatórios", "error");
       return;
     }
 
     if ((formData.tipo === "youtube" || formData.tipo === "vimeo") && !formData.url.trim()) {
-      setToastMsg({
-        type: "error",
-        msg: `Por favor, cole a URL do ${formData.tipo === "youtube" ? "YouTube" : "Vimeo"}`,
-      });
+      addToast(
+        `Por favor, cole a URL do ${formData.tipo === "youtube" ? "YouTube" : "Vimeo"}`,
+        "error"
+      );
       return;
     }
 
     if (formData.tipo === "arquivo" && !formData.arquivo) {
-      setToastMsg({
-        type: "error",
-        msg: "Por favor, selecione um arquivo de vídeo",
-      });
+      addToast("Por favor, selecione um arquivo de vídeo", "error");
       return;
     }
 
@@ -246,16 +240,13 @@ export default function VideoaulaBonusPage() {
       setModoAtribuicao("turma");
 
       setModalAberto(false);
-      setToastMsg({
-        type: "success",
-        msg: "Videoaula adicionada com sucesso!",
-      });
+      addToast("Videoaula adicionada com sucesso!", "success");
     } catch (err) {
       console.error("Erro ao adicionar videoaula:", err);
-      setToastMsg({
-        type: "error",
-        msg: err instanceof Error ? err.message : "Erro ao adicionar videoaula",
-      });
+      addToast(
+        err instanceof Error ? err.message : "Erro ao adicionar videoaula",
+        "error"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -269,16 +260,13 @@ export default function VideoaulaBonusPage() {
       setDeleting(true);
       await deletarVideoaula(target.id);
       setDeleteTarget(null);
-      setToastMsg({
-        type: "success",
-        msg: `"${target.titulo}" foi removido.`,
-      });
+      addToast(`"${target.titulo}" foi removido.`, "success");
       await carregarVideoaulas();
     } catch (err) {
-      setToastMsg({
-        type: "error",
-        msg: err instanceof Error ? err.message : "Erro ao deletar videoaula",
-      });
+      addToast(
+        err instanceof Error ? err.message : "Erro ao deletar videoaula",
+        "error"
+      );
     } finally {
       setDeleting(false);
     }
@@ -320,13 +308,6 @@ export default function VideoaulaBonusPage() {
     >
       <FadeInUp duration={0.28}>
         <div className="videoaulasContainer">
-          <AnimatedToast
-            message={toastMsg?.msg || null}
-            type={toastMsg?.type || 'success'}
-            duration={3000}
-            onClose={() => setToastMsg(null)}
-          />
-
           {/* HEADER COM FILTROS */}
           <div className="videoaulasHeader">
           <div className="filtrosRow">
