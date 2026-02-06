@@ -882,26 +882,33 @@ export default function ExerciseDetail() {
                 </div>
               </ConditionalFieldAnimation>
 
-              {/* BOTÃO ENVIAR - Aparece quando tipo foi selecionado ou tipo não é "Nenhum" */}
-              {(tipoExercicio !== "nenhum" || (tipoExercicio === "nenhum" && selectedTipoNenhum)) && (
-                <>
-                  <AnimatedButton
-                    className="edSubmitBtn"
-                    onClick={handleEnviar}
-                    disabled={resposta.trim().length === 0 || prazoVencido}
-                    loading={enviando}
-                  >
-                    {prazoVencido ? "❌ Prazo Expirado" : "✨ Enviar Resposta"}
-                  </AnimatedButton>
+              {/* BOTÃO ENVIAR - Desabilitado quando tipo "Nenhum" sem seleção */}
+              <AnimatedButton
+                className="edSubmitBtn"
+                onClick={handleEnviar}
+                disabled={
+                  resposta.trim().length === 0 ||
+                  prazoVencido ||
+                  (tipoExercicio === "nenhum" && !selectedTipoNenhum)
+                }
+                loading={enviando}
+              >
+                {prazoVencido
+                  ? "❌ Prazo Expirado"
+                  : tipoExercicio === "nenhum" && !selectedTipoNenhum
+                  ? "👇 Selecione um tipo acima"
+                  : "✨ Enviar Resposta"}
+              </AnimatedButton>
 
-                  <div className="edHint">
-                    {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo"))
-                      ? "Escolha a linguagem no editor e escreva seu código."
-                      : (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita"))
-                      ? "Sua resposta será avaliada pelo professor. Escreva de forma clara e completa."
-                      : "Escreva sua resposta de forma clara e objetiva."}
-                  </div>
-                </>
+              {/* DICA - Mostra apenas quando há um tipo selecionado */}
+              {(tipoExercicio !== "nenhum" || (tipoExercicio === "nenhum" && selectedTipoNenhum)) && (
+                <div className="edHint">
+                  {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo"))
+                    ? "Escolha a linguagem no editor e escreva seu código."
+                    : (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita"))
+                    ? "Sua resposta será avaliada pelo professor. Escreva de forma clara e completa."
+                    : "Escreva sua resposta de forma clara e objetiva."}
+                </div>
               )}
             </div>
           </div>
