@@ -357,6 +357,7 @@ export default function ExerciciosPage() {
   const isInteractiveComponentInformatica = categoria === "informatica" && componenteInterativo !== "";
   const disabled =
     saving ||
+    componenteInterativo === "nenhum" || // Tipo "Nenhum" não pode ser publicado
     modulo.trim().length < 1 ||
     (!isInteractiveComponentInformatica && titulo.trim().length < 2) ||
     (!isInteractiveComponentInformatica && descricao.trim().length < 2) ||
@@ -1252,6 +1253,24 @@ export default function ExerciciosPage() {
                     </>
                   )}
                 </>
+              )}
+
+              {/* AVISO: Tipo "Nenhum" não pode ser publicado */}
+              {componenteInterativo === "nenhum" && (
+                <ConditionalFieldAnimation isVisible={true} duration={0.3}>
+                  <div style={{
+                    padding: "12px",
+                    marginBottom: "12px",
+                    backgroundColor: "rgba(239, 68, 68, 0.1)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    borderRadius: "6px",
+                    color: "#dc2626",
+                    fontSize: "13px",
+                    fontWeight: "500",
+                  }}>
+                    ⚠️ <strong>Tipo "Nenhum"</strong> é apenas um seletor para alunos. Não é possível publicar um exercício com este tipo. Escolha um tipo válido: Código, Escrita ou Digitação.
+                  </div>
+                </ConditionalFieldAnimation>
               )}
 
               <div style={{ display: "flex", gap: "12px" }}>
