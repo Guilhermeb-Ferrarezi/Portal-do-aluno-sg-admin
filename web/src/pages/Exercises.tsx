@@ -39,7 +39,7 @@ export default function ExerciciosPage() {
     }
   }, [isTemplate, publishNow]);
   const [categoria, setCategoria] = React.useState("programacao"); // programacao ou informatica
-  const [componenteInterativo, setComponenteInterativo] = React.useState(""); // mouse, multipla, ou vazio
+  const [componenteInterativo, setComponenteInterativo] = React.useState("nenhum"); // nenhum, mouse, multipla, escrita, ou código
   const [diaNumero, setDiaNumero] = React.useState(1); // Número do dia para componentes interativos
   // Regras para Mouse Interativo
   const [mouseRegras, setMouseRegras] = React.useState({
