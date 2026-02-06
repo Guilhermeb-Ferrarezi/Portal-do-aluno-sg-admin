@@ -108,6 +108,7 @@
   border: 1.5px solid var(--line);
   border-radius: 12px;
   font-size: 14px;
+  width: 100%;
   font-family: inherit;
   background: var(--card);
   color: var(--text);
