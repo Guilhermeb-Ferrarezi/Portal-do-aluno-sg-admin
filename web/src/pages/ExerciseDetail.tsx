@@ -283,7 +283,13 @@ export default function ExerciseDetail() {
                 )}
                 <div className="edMetaItem">
                   <span className="edLabel">Tipo:</span>
-                  <strong>{tipoExercicio === "codigo" ? "💻 Código" : "✍️ Digitação"}</strong>
+                  <strong>
+                    {tipoExercicio === "codigo"
+                      ? "💻 Código"
+                      : tipoExercicio === "escrita"
+                      ? "✍️ Escrita"
+                      : "📝 Digitação"}
+                  </strong>
                 </div>
                 {prazoData && (
                   <div className={`edMetaItem ${prazoVencido ? "overdue" : ""}`}>
@@ -738,6 +744,17 @@ export default function ExerciseDetail() {
                     rows={12}
                   />
                 )}
+
+                {/* Exercícios de ESCRITA */}
+                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && tipoExercicio === "escrita" && (
+                  <textarea
+                    className="edTextarea"
+                    placeholder="Escreva sua resposta aqui. Sua resposta será revisada pelo professor..."
+                    value={resposta}
+                    onChange={(e) => setResposta(e.target.value)}
+                    rows={12}
+                  />
+                )}
               </div>
 
               {/* AVISO DE PRAZO VENCIDO */}
@@ -769,6 +786,8 @@ export default function ExerciseDetail() {
               <div className="edHint">
                 {tipoExercicio === "codigo"
                   ? "Escolha a linguagem no editor e escreva seu código."
+                  : tipoExercicio === "escrita"
+                  ? "Sua resposta será avaliada pelo professor. Escreva de forma clara e completa."
                   : "Escreva sua resposta de forma clara e objetiva."}
               </div>
             </div>

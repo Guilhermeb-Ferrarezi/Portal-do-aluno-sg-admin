@@ -24,7 +24,7 @@ export default function ExerciciosPage() {
   const [titulo, setTitulo] = React.useState("");
   const [descricao, setDescricao] = React.useState("");
   const [gabarito, setGabarito] = React.useState("");
-  const [gabaritoLang, setGabaritoLang] = React.useState("javascript");
+  const gabaritoLang = "javascript"; // Linguagem padrão, não editável
   const [modulo, setModulo] = React.useState("");
   const [tema, setTema] = React.useState("");
   const [prazo, setPrazo] = React.useState(""); // datetime-local
@@ -519,6 +519,14 @@ export default function ExerciciosPage() {
                     <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
                       <AnimatedRadioLabel
                         name="tipoExercicio"
+                        value="nenhum"
+                        checked={componenteInterativo === "nenhum"}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Nenhum (Normal)"
+                        icon="📝"
+                      />
+                      <AnimatedRadioLabel
+                        name="tipoExercicio"
                         value=""
                         checked={componenteInterativo === ""}
                         onChange={(e) => setComponenteInterativo(e.target.value)}
@@ -556,7 +564,6 @@ export default function ExerciciosPage() {
                         value={gabarito}
                         onChange={(v) => setGabarito(v || "")}
                         language={gabaritoLang}
-                        onLanguageChange={setGabaritoLang}
                         height="240px"
                         theme="dark"
                       />
@@ -591,7 +598,7 @@ export default function ExerciciosPage() {
                     <ScaleIn>
                     <>
                       <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#92400e", margin: "0 0 12px 0" }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", margin: "0 0 12px 0" }}>
                           ❓ Configurar Questões de Múltipla Escolha:
                         </p>
 
