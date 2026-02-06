@@ -712,13 +712,6 @@ body {
   }
 }
 
-@media (max-width: 900px) {
-  .grid3 { grid-template-columns: 1fr; }
-  .grid2 { grid-template-columns: 1fr; }
-  .wideBody { grid-template-columns: 1fr; }
-  .codeBox { margin-left: 0; }
-}
-
 /* MOBILE - Sidebar como hamburger menu */
 @media (max-width: 768px) {
   .appShell {
@@ -830,6 +823,12 @@ body {
   .sidebar:not(.open) {
     display: none;
   }
+
+  /* Cards verticais no mobile */
+  .grid3 { grid-template-columns: 1fr; }
+  .grid2 { grid-template-columns: 1fr; }
+  .wideBody { grid-template-columns: 1fr; }
+  .codeBox { margin-left: 0; }
 }
 
 @media (max-width: 480px) {

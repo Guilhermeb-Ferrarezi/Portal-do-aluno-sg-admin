@@ -1,10 +1,11 @@
 import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
+import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
 import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
-import { ConditionalFieldAnimation } from "../components/animate-ui/ConditionalFieldAnimation";
 import { AnimatedSelect } from "../components/animate-ui/AnimatedSelect";
 import {
   listarAlunos,
@@ -333,127 +334,71 @@ export default function AdminUsersPage() {
           )}
 
           {/* MODAL DE EDIÇÃO */}
-          <ConditionalFieldAnimation isVisible={editarAberto && !!editandoUsuario}>
-            <div className="modalOverlay" onClick={fecharEditar}>
-              <div
-                className="modalContent"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h3>Editar Usuário</h3>
-
-                <FadeInUp duration={0.28} delay={0.04}>
-                  <div className="formGroup">
-                    <label className="formLabel">Nome</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      value={editNome}
-                      onChange={(e) => setEditNome(e.target.value)}
-                      placeholder="Digite o nome"
-                    />
-                  </div>
-                </FadeInUp>
-
-                <FadeInUp duration={0.28} delay={0.08}>
-                  <div className="formGroup">
-                    <label className="formLabel">Usuário</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      value={editUsuario}
-                      onChange={(e) => setEditUsuario(e.target.value)}
-                      placeholder="Digite o usuário"
-                    />
-                  </div>
-                </FadeInUp>
-
-                <FadeInUp duration={0.28} delay={0.12}>
-                  <div className="formGroup">
-                    <label className="formLabel">Tipo</label>
-                    <p style={{ margin: "8px 0", fontSize: "14px" }}>
-                      {editandoUsuario?.role === "aluno"
-                        ? "🎓 Aluno"
-                        : editandoUsuario?.role === "professor"
-                        ? "👨‍🏫 Professor"
-                        : "🔑 Admin"}
-                    </p>
-                    <small style={{ color: "var(--muted)", fontSize: "12px" }}>
-                      Alterar o tipo de usuário requer alteração manual no banco de dados
-                    </small>
-                  </div>
-                </FadeInUp>
-
-                <FadeInUp duration={0.28} delay={0.16}>
-                  <div className="modalActions">
-                    <AnimatedButton
-                      type="button"
-                      className="btnCancel"
-                      onClick={fecharEditar}
-                    >
-                      Cancelar
-                    </AnimatedButton>
-                    <AnimatedButton
-                      type="button"
-                      className="btnConfirm"
-                      onClick={salvarEdicao}
-                    >
-                      Salvar Alterações
-                    </AnimatedButton>
-                  </div>
-                </FadeInUp>
+          <Modal
+            isOpen={editarAberto && !!editandoUsuario}
+            onClose={fecharEditar}
+            title="Editar Usuário"
+            size="sm"
+            footer={
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <AnimatedButton onClick={fecharEditar}>
+                  Cancelar
+                </AnimatedButton>
+                <AnimatedButton onClick={salvarEdicao}>
+                  Salvar Alterações
+                </AnimatedButton>
               </div>
+            }
+          >
+            <div className="formGroup">
+              <label className="formLabel">Nome</label>
+              <input
+                type="text"
+                className="formInput"
+                value={editNome}
+                onChange={(e) => setEditNome(e.target.value)}
+                placeholder="Digite o nome"
+              />
             </div>
-          </ConditionalFieldAnimation>
+
+            <div className="formGroup">
+              <label className="formLabel">Usuário</label>
+              <input
+                type="text"
+                className="formInput"
+                value={editUsuario}
+                onChange={(e) => setEditUsuario(e.target.value)}
+                placeholder="Digite o usuário"
+              />
+            </div>
+
+            <div className="formGroup">
+              <label className="formLabel">Tipo</label>
+              <p style={{ margin: "8px 0", fontSize: "14px" }}>
+                {editandoUsuario?.role === "aluno"
+                  ? "🎓 Aluno"
+                  : editandoUsuario?.role === "professor"
+                  ? "👨‍🏫 Professor"
+                  : "🔑 Admin"}
+              </p>
+              <small style={{ color: "var(--muted)", fontSize: "12px" }}>
+                Alterar o tipo de usuário requer alteração manual no banco de dados
+              </small>
+            </div>
+          </Modal>
 
           {/* MODAL DE CONFIRMAÇÃO DE DELEÇÃO */}
-          <ConditionalFieldAnimation isVisible={!!usuarioDeletar}>
-            <div
-              className="modalOverlay"
-              onClick={() => setUsuarioDeletar(null)}
-            >
-              <div
-                className="modalContent"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <FadeInUp duration={0.28}>
-                  <h3>Deletar Usuário</h3>
-                </FadeInUp>
-                <FadeInUp duration={0.28} delay={0.04}>
-                  <p className="confirmText">
-                    Tem certeza que deseja deletar o usuário "{usuarioDeletar?.nome}"?
-                    <br />
-                    <strong>Esta ação não pode ser desfeita.</strong>
-                  </p>
-                </FadeInUp>
-
-                <FadeInUp duration={0.28} delay={0.08}>
-                  <div className="modalActions">
-                    <AnimatedButton
-                      type="button"
-                      className="btnCancel"
-                      onClick={() => setUsuarioDeletar(null)}
-                      disabled={deletando}
-                    >
-                      Cancelar
-                    </AnimatedButton>
-                    <AnimatedButton
-                      type="button"
-                      className="btnDelete"
-                      onClick={confirmarDeletar}
-                      disabled={deletando}
-                      style={{
-                        background: "#dc3545",
-                        color: "white",
-                        border: "none",
-                      }}
-                    >
-                      {deletando ? "Deletando..." : "Deletar Usuário"}
-                    </AnimatedButton>
-                  </div>
-                </FadeInUp>
-              </div>
-            </div>
-          </ConditionalFieldAnimation>
+          <ConfirmDialog
+            isOpen={!!usuarioDeletar}
+            onClose={() => setUsuarioDeletar(null)}
+            onConfirm={confirmarDeletar}
+            title="Deletar Usuário"
+            message={`Tem certeza que deseja deletar o usuário "${usuarioDeletar?.nome}"? Esta ação não pode ser desfeita.`}
+            confirmText="Deletar"
+            cancelText="Cancelar"
+            isLoading={deletando}
+            isDangerous={true}
+          />
         </div>
       </FadeInUp>
     </DashboardLayout>
