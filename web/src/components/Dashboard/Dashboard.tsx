@@ -240,7 +240,7 @@ export default function Dashboard() {
           {(role !== "aluno" || turmas.length > 0) && (
             <motion.div
               className="card"
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0 * 0.1, duration: 0.3 }}
             >
@@ -275,7 +275,7 @@ export default function Dashboard() {
           {(role !== "aluno" ? totalAlunos > 0 : turmas.length > 0) && (
             <motion.div
               className="card"
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1 * 0.1, duration: 0.3 }}
             >
@@ -302,7 +302,7 @@ export default function Dashboard() {
 
           <motion.div
             className="card"
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 2 * 0.1, duration: 0.3 }}
           >
@@ -325,7 +325,7 @@ export default function Dashboard() {
         <section className="grid2">
           <motion.div
             className="card"
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 3 * 0.1, duration: 0.3 }}
           >
@@ -392,7 +392,7 @@ export default function Dashboard() {
 
           <motion.div
             className="card"
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 4 * 0.1, duration: 0.3 }}
           >
@@ -420,7 +420,7 @@ export default function Dashboard() {
         <section className="grid2">
           <motion.div
             className="card"
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 5 * 0.1, duration: 0.3 }}
           >
@@ -444,7 +444,7 @@ export default function Dashboard() {
 
           <motion.div
             className="card"
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 6 * 0.1, duration: 0.3 }}
           >
@@ -483,7 +483,7 @@ export default function Dashboard() {
         {/* SEÇÃO 4: AÇÕES RÁPIDAS */}
         <section>
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 7 * 0.1, duration: 0.3 }}
           >

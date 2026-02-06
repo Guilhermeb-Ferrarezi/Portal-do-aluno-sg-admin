@@ -9,6 +9,7 @@ import { AnimatedSelect } from "../components/animate-ui/AnimatedSelect";
 import {
   listarAlunos,
   listarProfessores,
+  listarAdmins,
   atualizarUsuario,
   deletarUsuario,
   type User,
@@ -62,16 +63,18 @@ export default function AdminUsersPage() {
       setLoading(true);
       setErro(null);
 
-      const [alunos, professores] = await Promise.all([
+      const [alunos, professores, admins] = await Promise.all([
         listarAlunos(),
         listarProfessores(),
+        listarAdmins(),
       ]);
 
       // Adicionar role aos usuarios
       const alunosComRole: User[] = alunos.map(a => ({ ...a, role: "aluno" }));
       const professoresComRole: User[] = professores.map(p => ({ ...p, role: "professor" }));
+      const adminsComRole: User[] = admins.map(ad => ({ ...ad, role: "admin" }));
 
-      setUsuarios([...alunosComRole, ...professoresComRole]);
+      setUsuarios([...adminsComRole, ...professoresComRole, ...alunosComRole]);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao carregar usuários");
     } finally {

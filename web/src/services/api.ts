@@ -340,6 +340,10 @@ export async function listarAlunos() {
   return apiFetch<User[]>("/users?role=aluno");
 }
 
+export async function listarAdmins() {
+  return apiFetch<User[]>("/users?role=admin");
+}
+
 export async function atualizarUsuario(
   id: string,
   dados: { nome?: string; usuario?: string; role?: Role; ativo?: boolean }
