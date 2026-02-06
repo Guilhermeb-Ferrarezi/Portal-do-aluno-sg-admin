@@ -707,15 +707,35 @@ export default function ExerciciosPage() {
                 <>
                   <div className="exInputGroup">
                     <label className="exLabel">Componente Interativo</label>
-                    <AnimatedSelect
-                      className="exSelect"
-                      value={componenteInterativo}
-                      onChange={(e) => setComponenteInterativo(e.target.value)}
-                    >
-                      <option value="">Nenhum (Exercício Normal)</option>
-                      <option value="mouse">🖱️ Mouse</option>
-                      <option value="multipla">❓ Múltipla Escolha</option>
-                    </AnimatedSelect>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                      <AnimatedRadioLabel
+                        name="componenteInterativoInformatica"
+                        value=""
+                        checked={componenteInterativo === ""}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Nenhum (Normal)"
+                        icon="📝"
+                      />
+                      <AnimatedRadioLabel
+                        name="componenteInterativoInformatica"
+                        value="mouse"
+                        checked={componenteInterativo === "mouse"}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Mouse"
+                        icon="🖱️"
+                      />
+                      <AnimatedRadioLabel
+                        name="componenteInterativoInformatica"
+                        value="multipla"
+                        checked={componenteInterativo === "multipla"}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Múltipla Escolha"
+                        icon="❓"
+                      />
+                    </div>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                      Selecione o tipo de componente para Informática
+                    </small>
                   </div>
 
                   {/* Campo "Dia #" quando um componente é selecionado */}
