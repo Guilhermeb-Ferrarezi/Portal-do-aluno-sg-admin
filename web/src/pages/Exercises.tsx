@@ -527,6 +527,14 @@ export default function ExerciciosPage() {
                       />
                       <AnimatedRadioLabel
                         name="tipoExercicio"
+                        value="escrita"
+                        checked={componenteInterativo === "escrita"}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Escrita"
+                        icon="✍️"
+                      />
+                      <AnimatedRadioLabel
+                        name="tipoExercicio"
                         value="multipla"
                         checked={componenteInterativo === "multipla"}
                         onChange={(e) => setComponenteInterativo(e.target.value)}
@@ -554,6 +562,25 @@ export default function ExerciciosPage() {
                       />
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                         Esse texto sera usado para comparar se a resposta do aluno esta parecida com o esperado.
+                      </small>
+                    </div>
+                    </ScaleIn>
+                  )}
+
+                  {/* EXERCÍCIO DE ESCRITA - Para Programação */}
+                  {componenteInterativo === "escrita" && (
+                    <ScaleIn>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Resposta/Gabarito Esperado</label>
+                      <textarea
+                        className="exInput"
+                        value={gabarito}
+                        onChange={(e) => setGabarito(e.target.value)}
+                        placeholder="Digite o gabarito ou resposta esperada para o exercício de escrita..."
+                        style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
+                      />
+                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        Este texto será usado como referência para avaliar a resposta do aluno.
                       </small>
                     </div>
                     </ScaleIn>
@@ -718,6 +745,14 @@ export default function ExerciciosPage() {
                       />
                       <AnimatedRadioLabel
                         name="componenteInterativoInformatica"
+                        value="escrita"
+                        checked={componenteInterativo === "escrita"}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Escrita"
+                        icon="✍️"
+                      />
+                      <AnimatedRadioLabel
+                        name="componenteInterativoInformatica"
                         value="mouse"
                         checked={componenteInterativo === "mouse"}
                         onChange={(e) => setComponenteInterativo(e.target.value)}
@@ -737,6 +772,25 @@ export default function ExerciciosPage() {
                       Selecione o tipo de componente para Informática
                     </small>
                   </div>
+
+                  {/* EXERCÍCIO DE ESCRITA - Para Informática */}
+                  {componenteInterativo === "escrita" && (
+                    <ScaleIn>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Resposta/Gabarito Esperado</label>
+                      <textarea
+                        className="exInput"
+                        value={gabarito}
+                        onChange={(e) => setGabarito(e.target.value)}
+                        placeholder="Digite o gabarito ou resposta esperada para o exercício de escrita..."
+                        style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
+                      />
+                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        Este texto será usado como referência para avaliar a resposta do aluno.
+                      </small>
+                    </div>
+                    </ScaleIn>
+                  )}
 
                   {/* Campo "Dia #" quando um componente é selecionado */}
                   <ConditionalFieldAnimation isVisible={componenteInterativo !== ""}>
