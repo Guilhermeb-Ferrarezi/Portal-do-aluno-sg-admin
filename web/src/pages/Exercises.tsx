@@ -1107,7 +1107,7 @@ export default function ExerciciosPage() {
               {/* AGENDAMENTO DE PUBLICAÇÃO */}
               <div className="exInputRow">
                 <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
                     <AnimatedToggle
                       checked={publishNow}
                       onChange={setPublishNow}
@@ -1120,14 +1120,15 @@ export default function ExerciciosPage() {
 
               <ConditionalFieldAnimation isVisible={!publishNow && !isTemplate}>
                 <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <label className="exLabel">📅 Agendar Publicação</label>
+                  <div className="exInputGroup" style={{ cursor: "pointer" }}>
+                    <label className="exLabel" style={{ cursor: "pointer" }}>📅 Agendar Publicação</label>
                     <input
                       className="exInput"
                       type="datetime-local"
                       value={publishedAt}
                       onChange={(e) => setPublishedAt(e.target.value)}
                       required={!publishNow}
+                      style={{ cursor: "pointer" }}
                     />
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       O exercício será visível a partir dessa data e hora
