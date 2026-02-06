@@ -3,7 +3,7 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { hasRole } from "../auth/auth";
+import { getRole, getUserId, hasRole } from "../auth/auth";
 import { useToast } from "../contexts/ToastContext";
 import { useCachedData } from "../hooks/useCachedData";
 import {
@@ -29,6 +29,9 @@ import "./VideoaulaBonus.css";
 
 export default function VideoaulaBonusPage() {
   const canUpload = hasRole(["admin", "professor"]);
+  const role = getRole();
+  const userId = getUserId();
+  const isStaff = role === "admin" || role === "professor";
   const { addToast } = useToast();
 
   // Carregar videoaulas com cache
@@ -57,6 +60,48 @@ export default function VideoaulaBonusPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
+  const alunoNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    alunosDisponiveis.forEach((aluno) => {
+      map.set(aluno.id, aluno.nome || aluno.usuario || aluno.id);
+    });
+    return map;
+  }, [alunosDisponiveis]);
+
+  function getAlunoIds(videoaula: Videoaula): string[] {
+    const alunos = Array.isArray((videoaula as any).alunos)
+      ? (videoaula as any).alunos.map((a: any) => a?.id).filter(Boolean)
+      : [];
+    const idsSnake = Array.isArray((videoaula as any).aluno_ids)
+      ? (videoaula as any).aluno_ids
+      : [];
+    const idsCamel = Array.isArray((videoaula as any).alunoIds)
+      ? (videoaula as any).alunoIds
+      : [];
+    return Array.from(new Set([...alunos, ...idsSnake, ...idsCamel]));
+  }
+
+  function getAlunoNames(videoaula: Videoaula): string[] {
+    const alunos = Array.isArray((videoaula as any).alunos)
+      ? (videoaula as any).alunos
+          .map((a: any) => a?.nome || a?.usuario || a?.id)
+          .filter(Boolean)
+      : [];
+    if (alunos.length > 0) return alunos as string[];
+
+    const ids = getAlunoIds(videoaula);
+    return ids
+      .map((id) => alunoNameById.get(id))
+      .filter((nome): nome is string => !!nome);
+  }
+
+  function formatAlunoLabel(names: string[]) {
+    if (names.length === 0) return "Aluno específico";
+    if (names.length === 1) return `Para: ${names[0]}`;
+    if (names.length === 2) return `Para: ${names.join(", ")}`;
+    return `Para: ${names[0]} +${names.length - 1}`;
+  }
+
   const [formData, setFormData] = React.useState({
     titulo: "",
     descricao: "",
@@ -82,6 +127,13 @@ export default function VideoaulaBonusPage() {
 
   // Filtrar videoaulas
   const videoaulasFiltradas = videoaulas.filter((v) => {
+    const alunoIds = getAlunoIds(v);
+    const hasAlunoAssignment = alunoIds.length > 0;
+    if (!isStaff && hasAlunoAssignment) {
+      if (!userId || !alunoIds.includes(userId)) {
+        return false;
+      }
+    }
     const matchModulo =
       filtroModulo === "todos" || v.modulo === filtroModulo;
     const matchBusca =
@@ -91,8 +143,7 @@ export default function VideoaulaBonusPage() {
     const matchTurma =
       turmaFiltro === "todas" ||
       (v.turmas && v.turmas.some((t) => t.id === turmaFiltro)) ||
-      !v.turmas ||
-      v.turmas.length === 0; // Videoaulas sem turma visíveis para todos
+      (!hasAlunoAssignment && (!v.turmas || v.turmas.length === 0)); // Videoaulas sem turma visíveis para todos
 
     return matchModulo && matchBusca && matchTurma;
   });
@@ -157,6 +208,8 @@ export default function VideoaulaBonusPage() {
       // Adicionar turmas se selecionadas
       if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
         formDataToSend.append("turma_ids", JSON.stringify(turmasSelecionadas));
+      } else if (modoAtribuicao === "aluno" && alunosSelecionados.length > 0) {
+        formDataToSend.append("aluno_ids", JSON.stringify(alunosSelecionados));
       }
 
       // Enviar para API
@@ -340,7 +393,22 @@ export default function VideoaulaBonusPage() {
                 return (
                   <>
                     <div className="videoaulasGrid">
-                      {paginatedVideoaulas.map((videoaula, index) => (
+                      {paginatedVideoaulas.map((videoaula, index) => {
+                        const alunoIds = getAlunoIds(videoaula);
+                        const hasAlunoAssignment = alunoIds.length > 0;
+                        const alunoNames = hasAlunoAssignment ? getAlunoNames(videoaula) : [];
+                        const showParaMim =
+                          !isStaff && !!userId && alunoIds.includes(userId);
+                        const alunoLabel = showParaMim
+                          ? "Para mim"
+                          : formatAlunoLabel(alunoNames);
+                        const alunoTitle = showParaMim
+                          ? "Disponível apenas para você"
+                          : alunoNames.length > 0
+                            ? `Disponível apenas para: ${alunoNames.join(", ")}`
+                            : "Disponível para aluno(s) específico(s)";
+
+                        return (
                         <FadeInUp key={videoaula.id} delay={index * 0.05}>
                         <div className="videoaulaCard">
                   <div
@@ -369,7 +437,27 @@ export default function VideoaulaBonusPage() {
                         gap: "6px",
                       }}
                     >
-                      {videoaula.turmas && videoaula.turmas.length > 0 ? (
+                      {hasAlunoAssignment ? (
+                        <PopInBadge delay={0.1}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 10px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            borderRadius: "12px",
+                            background: "rgba(34, 197, 94, 0.15)",
+                            color: "#15803d",
+                            border: "1px solid rgba(34, 197, 94, 0.3)",
+                          }}
+                          title={alunoTitle}
+                        >
+                          👤 {alunoLabel}
+                        </span>
+                        </PopInBadge>
+                      ) : videoaula.turmas && videoaula.turmas.length > 0 ? (
                         <>
                           <PopInBadge delay={0.1}>
                           <span
@@ -468,7 +556,8 @@ export default function VideoaulaBonusPage() {
                   </div>
                 </div>
                         </FadeInUp>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <Pagination

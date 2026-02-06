@@ -62,6 +62,66 @@ export async function initializeDatabaseTables() {
     `);
     console.log("✅ Índices de videoaula_turma criados!");
 
+    // Criar tabela material_aluno se não existir
+    console.log("📚 Criando tabela material_aluno...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS material_aluno (
+        material_id UUID NOT NULL REFERENCES materiais(id) ON DELETE CASCADE,
+        aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(material_id, aluno_id)
+      );
+    `);
+    console.log("✅ Tabela material_aluno criada/verificada!");
+
+    // Criar índices para material_aluno
+    console.log("🔍 Criando índices para material_aluno...");
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_material_aluno_material_id ON material_aluno(material_id);
+      CREATE INDEX IF NOT EXISTS idx_material_aluno_aluno_id ON material_aluno(aluno_id);
+    `);
+    console.log("✅ Índices de material_aluno criados!");
+
+    // Criar tabela videoaula_aluno se não existir
+    console.log("🎬 Criando tabela videoaula_aluno...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS videoaula_aluno (
+        videoaula_id UUID NOT NULL REFERENCES videoaulas(id) ON DELETE CASCADE,
+        aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(videoaula_id, aluno_id)
+      );
+    `);
+    console.log("✅ Tabela videoaula_aluno criada/verificada!");
+
+    // Criar índices para videoaula_aluno
+    console.log("🔍 Criando índices para videoaula_aluno...");
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_videoaula_aluno_videoaula_id ON videoaula_aluno(videoaula_id);
+      CREATE INDEX IF NOT EXISTS idx_videoaula_aluno_aluno_id ON videoaula_aluno(aluno_id);
+    `);
+    console.log("✅ Índices de videoaula_aluno criados!");
+
+    // Criar tabela exercicio_aluno se não existir
+    console.log("✍️ Criando tabela exercicio_aluno...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS exercicio_aluno (
+        exercicio_id UUID NOT NULL REFERENCES exercicios(id) ON DELETE CASCADE,
+        aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(exercicio_id, aluno_id)
+      );
+    `);
+    console.log("✅ Tabela exercicio_aluno criada/verificada!");
+
+    // Criar índices para exercicio_aluno
+    console.log("🔍 Criando índices para exercicio_aluno...");
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_exercicio_aluno_exercicio_id ON exercicio_aluno(exercicio_id);
+      CREATE INDEX IF NOT EXISTS idx_exercicio_aluno_aluno_id ON exercicio_aluno(aluno_id);
+    `);
+    console.log("✅ Índices de exercicio_aluno criados!");
+
     console.log("✨ Banco de dados inicializado com sucesso!");
   } catch (error) {
     console.error("❌ Erro ao inicializar banco de dados:", error);

@@ -3,7 +3,7 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { hasRole } from "../auth/auth";
+import { getRole, getUserId, hasRole } from "../auth/auth";
 import { useToast } from "../contexts/ToastContext";
 import { useCachedData } from "../hooks/useCachedData";
 import {
@@ -29,6 +29,9 @@ import "./Materiais.css";
 
 export default function MateriaisPage() {
   const canUpload = hasRole(["admin", "professor"]);
+  const role = getRole();
+  const userId = getUserId();
+  const isStaff = role === "admin" || role === "professor";
   const { addToast } = useToast();
 
   // Carregar materiais com cache
@@ -66,6 +69,48 @@ export default function MateriaisPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
+  const alunoNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    alunosDisponiveis.forEach((aluno) => {
+      map.set(aluno.id, aluno.nome || aluno.usuario || aluno.id);
+    });
+    return map;
+  }, [alunosDisponiveis]);
+
+  function getAlunoIds(material: Material): string[] {
+    const alunos = Array.isArray((material as any).alunos)
+      ? (material as any).alunos.map((a: any) => a?.id).filter(Boolean)
+      : [];
+    const idsSnake = Array.isArray((material as any).aluno_ids)
+      ? (material as any).aluno_ids
+      : [];
+    const idsCamel = Array.isArray((material as any).alunoIds)
+      ? (material as any).alunoIds
+      : [];
+    return Array.from(new Set([...alunos, ...idsSnake, ...idsCamel]));
+  }
+
+  function getAlunoNames(material: Material): string[] {
+    const alunos = Array.isArray((material as any).alunos)
+      ? (material as any).alunos
+          .map((a: any) => a?.nome || a?.usuario || a?.id)
+          .filter(Boolean)
+      : [];
+    if (alunos.length > 0) return alunos as string[];
+
+    const ids = getAlunoIds(material);
+    return ids
+      .map((id) => alunoNameById.get(id))
+      .filter((nome): nome is string => !!nome);
+  }
+
+  function formatAlunoLabel(names: string[]) {
+    if (names.length === 0) return "Aluno específico";
+    if (names.length === 1) return `Para: ${names[0]}`;
+    if (names.length === 2) return `Para: ${names.join(", ")}`;
+    return `Para: ${names[0]} +${names.length - 1}`;
+  }
+
   // Carregar turmas e alunos quando puder fazer upload
   React.useEffect(() => {
     if (canUpload) {
@@ -81,6 +126,13 @@ export default function MateriaisPage() {
 
   // Filtrar materiais
   const materiaisFiltrados = materiais.filter((m) => {
+    const alunoIds = getAlunoIds(m);
+    const hasAlunoAssignment = alunoIds.length > 0;
+    if (!isStaff && hasAlunoAssignment) {
+      if (!userId || !alunoIds.includes(userId)) {
+        return false;
+      }
+    }
     const matchModulo =
       filtroModulo === "todos" || m.modulo === filtroModulo;
     const matchTipo = filtroTipo === "todos" || m.tipo === filtroTipo;
@@ -92,8 +144,7 @@ export default function MateriaisPage() {
     const matchTurma =
       turmaFiltro === "todas" ||
       (m.turmas && m.turmas.some((t) => t.id === turmaFiltro)) ||
-      !m.turmas ||
-      m.turmas.length === 0; // Materiais sem turma visíveis para todos
+      (!hasAlunoAssignment && (!m.turmas || m.turmas.length === 0)); // Materiais sem turma visíveis para todos
 
     return matchModulo && matchTipo && matchBusca && matchTurma;
   });
@@ -340,7 +391,22 @@ export default function MateriaisPage() {
                 return (
                   <>
                     <div className="materiaisGrid">
-                      {paginatedMateriais.map((material, index) => (
+                      {paginatedMateriais.map((material, index) => {
+                        const alunoIds = getAlunoIds(material);
+                        const hasAlunoAssignment = alunoIds.length > 0;
+                        const alunoNames = hasAlunoAssignment ? getAlunoNames(material) : [];
+                        const showParaMim =
+                          !isStaff && !!userId && alunoIds.includes(userId);
+                        const alunoLabel = showParaMim
+                          ? "Para mim"
+                          : formatAlunoLabel(alunoNames);
+                        const alunoTitle = showParaMim
+                          ? "Disponível apenas para você"
+                          : alunoNames.length > 0
+                            ? `Disponível apenas para: ${alunoNames.join(", ")}`
+                            : "Disponível para aluno(s) específico(s)";
+
+                        return (
                         <FadeInUp key={material.id} delay={index * 0.1}>
                         <div className="materialCard">
                   <div className="materialHeader">
@@ -373,7 +439,27 @@ export default function MateriaisPage() {
                       gap: "6px",
                     }}
                   >
-                    {material.turmas && material.turmas.length > 0 ? (
+                    {hasAlunoAssignment ? (
+                      <PopInBadge delay={0.1}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "4px 10px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          borderRadius: "12px",
+                          background: "rgba(34, 197, 94, 0.15)",
+                          color: "#15803d",
+                          border: "1px solid rgba(34, 197, 94, 0.3)",
+                        }}
+                        title={alunoTitle}
+                      >
+                        👤 {alunoLabel}
+                      </span>
+                      </PopInBadge>
+                    ) : material.turmas && material.turmas.length > 0 ? (
                       <>
                         <PopInBadge delay={0.1}>
                         <span
@@ -467,7 +553,8 @@ export default function MateriaisPage() {
                   </div>
                 </div>
                         </FadeInUp>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <Pagination

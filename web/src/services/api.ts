@@ -1,6 +1,12 @@
 // src/services/api.ts
 type Role = "admin" | "professor" | "aluno";
 
+export type UserRef = {
+  id: string;
+  usuario?: string;
+  nome?: string;
+};
+
 export const API_BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined)
 
@@ -55,6 +61,8 @@ export type Exercicio = {
   multipla_regras?: string | null;
   createdAt: string;
   turmas?: Turma[];
+  alunos?: UserRef[];
+  aluno_ids?: string[];
 };
 
 export type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita";
@@ -96,6 +104,7 @@ export async function criarExercicio(dados: {
   mouse_regras?: string | null;
   multipla_regras?: string | null;
   turma_ids?: string[];
+  aluno_ids?: string[];
 }) {
   return apiFetch<{ message: string; exercicio: unknown }>("/exercicios", {
     method: "POST",
@@ -117,6 +126,7 @@ export async function atualizarExercicio(id: string, dados: {
   mouse_regras?: string | null;
   multipla_regras?: string | null;
   turma_ids?: string[];
+  aluno_ids?: string[];
 }) {
   return apiFetch<{ message: string; exercicio: unknown }>(`/exercicios/${id}`, {
     method: "PUT",
@@ -376,6 +386,8 @@ export type Material = {
   createdAt: string;
   updatedAt: string;
   turmas?: Turma[];
+  alunos?: UserRef[];
+  aluno_ids?: string[];
 };
 
 export type Videoaula = {
@@ -392,6 +404,8 @@ export type Videoaula = {
   thumbnail?: string;
   dataAdicionada?: string;
   turmas?: Turma[];
+  alunos?: UserRef[];
+  aluno_ids?: string[];
 };
 
 export async function listarMateriais(modulo?: string) {

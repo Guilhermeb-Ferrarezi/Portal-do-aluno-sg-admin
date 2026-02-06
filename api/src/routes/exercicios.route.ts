@@ -29,6 +29,11 @@ type ExercicioRow = {
   updated_at: DBDate;
 };
 
+type ExercicioAccessRow = ExercicioRow & {
+  turmas?: Array<{ id: string; nome: string; tipo: string }>;
+  alunos?: Array<{ id: string; nome: string; usuario: string }>;
+};
+
 function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio {
   const texto = `${titulo} ${descricao}`.toLowerCase();
 
@@ -135,19 +140,94 @@ const createSchema = z.object({
   multipla_regras: z.string().optional().nullable(),
 });
 
+function parseIdArray(value: unknown): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v)).filter((v) => v.trim().length > 0);
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((v) => String(v)).filter((v) => v.trim().length > 0);
+      }
+    } catch {
+      // ignore JSON parse errors
+    }
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.includes(",")) {
+      return trimmed.split(",").map((v) => v.trim()).filter(Boolean);
+    }
+    return [trimmed];
+  }
+  return [];
+}
+
 export function exerciciosRouter(jwtSecret: string) {
   const router = Router();
 
   // GET /exercicios - Listar todos os exercícios públicos
   router.get("/exercicios", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const filtroTemplate = " AND is_template = false";
+    const isAluno = req.user?.role === "aluno";
+    const userId = req.user?.sub;
 
-    const r = await pool.query<ExercicioRow>(
-      `SELECT id, titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, created_at, updated_at
-       FROM exercicios
-       WHERE publicado = true AND (published_at IS NULL OR published_at <= NOW())${filtroTemplate}
-       ORDER BY created_at DESC`
-    );
+    const conditions: string[] = [
+      "e.publicado = true",
+      "(e.published_at IS NULL OR e.published_at <= NOW())",
+      "e.is_template = false",
+    ];
+    const params: any[] = [];
+
+    if (isAluno) {
+      const alunoParam = `$${params.length + 1}`;
+      params.push(userId);
+      conditions.push(`(
+        EXISTS (
+          SELECT 1 FROM exercicio_aluno ea
+          WHERE ea.exercicio_id = e.id AND ea.aluno_id = ${alunoParam}
+        )
+        OR (
+          NOT EXISTS (SELECT 1 FROM exercicio_aluno ea2 WHERE ea2.exercicio_id = e.id)
+          AND (
+            EXISTS (
+              SELECT 1 FROM exercicio_turma et
+              WHERE et.exercicio_id = e.id
+                AND et.turma_id IN (
+                  SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                )
+            )
+            OR NOT EXISTS (SELECT 1 FROM exercicio_turma et2 WHERE et2.exercicio_id = e.id)
+          )
+        )
+      )`);
+    }
+
+    const query = `
+      SELECT
+        e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
+        e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
+        e.multipla_regras, e.created_at, e.updated_at,
+        COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
+        COALESCE(alunos.alunos, '[]'::jsonb) as alunos
+      FROM exercicios e
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+        FROM exercicio_turma et
+        JOIN turmas t ON et.turma_id = t.id
+        WHERE et.exercicio_id = e.id
+      ) turmas ON true
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(DISTINCT jsonb_build_object('id', u.id, 'nome', u.nome, 'usuario', u.usuario)) as alunos
+        FROM exercicio_aluno ea
+        JOIN users u ON ea.aluno_id = u.id
+        WHERE ea.exercicio_id = e.id
+      ) alunos ON true
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY e.created_at DESC
+    `;
+
+    const r = await pool.query<ExercicioAccessRow>(query, params);
 
     return res.json(
       r.rows.map((row) => ({
@@ -164,6 +244,8 @@ export function exerciciosRouter(jwtSecret: string) {
         mouse_regras: row.mouse_regras,
         multipla_regras: row.multipla_regras,
         createdAt: row.created_at,
+        turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
+        alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
       }))
     );
   });
@@ -174,11 +256,61 @@ export function exerciciosRouter(jwtSecret: string) {
     const filtroTemplate = isAluno ? " AND is_template = false" : "";
     const { id } = req.params;
 
-    const r = await pool.query<ExercicioRow>(
-      `SELECT id, titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, created_at, updated_at
-       FROM exercicios
-       WHERE id = $1 AND publicado = true AND (published_at IS NULL OR published_at <= NOW())${filtroTemplate}`,
-      [id]
+    const params: any[] = [id];
+    const conditions: string[] = [
+      "e.id = $1",
+      "e.publicado = true",
+      "(e.published_at IS NULL OR e.published_at <= NOW())",
+    ];
+    if (filtroTemplate) {
+      conditions.push("e.is_template = false");
+    }
+    if (isAluno) {
+      const alunoParam = `$${params.length + 1}`;
+      params.push(req.user?.sub);
+      conditions.push(`(
+        EXISTS (
+          SELECT 1 FROM exercicio_aluno ea
+          WHERE ea.exercicio_id = e.id AND ea.aluno_id = ${alunoParam}
+        )
+        OR (
+          NOT EXISTS (SELECT 1 FROM exercicio_aluno ea2 WHERE ea2.exercicio_id = e.id)
+          AND (
+            EXISTS (
+              SELECT 1 FROM exercicio_turma et
+              WHERE et.exercicio_id = e.id
+                AND et.turma_id IN (
+                  SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                )
+            )
+            OR NOT EXISTS (SELECT 1 FROM exercicio_turma et2 WHERE et2.exercicio_id = e.id)
+          )
+        )
+      )`);
+    }
+
+    const r = await pool.query<ExercicioAccessRow>(
+      `SELECT
+         e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
+         e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
+         e.multipla_regras, e.created_at, e.updated_at,
+         COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
+         COALESCE(alunos.alunos, '[]'::jsonb) as alunos
+       FROM exercicios e
+       LEFT JOIN LATERAL (
+         SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+         FROM exercicio_turma et
+         JOIN turmas t ON et.turma_id = t.id
+         WHERE et.exercicio_id = e.id
+       ) turmas ON true
+       LEFT JOIN LATERAL (
+         SELECT jsonb_agg(DISTINCT jsonb_build_object('id', u.id, 'nome', u.nome, 'usuario', u.usuario)) as alunos
+         FROM exercicio_aluno ea
+         JOIN users u ON ea.aluno_id = u.id
+         WHERE ea.exercicio_id = e.id
+       ) alunos ON true
+       WHERE ${conditions.join(" AND ")}`,
+      params
     );
 
     if (r.rows.length === 0) {
@@ -204,6 +336,8 @@ export function exerciciosRouter(jwtSecret: string) {
       multipla_regras: row.multipla_regras,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
+      alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
     });
   });
 
@@ -253,6 +387,29 @@ export function exerciciosRouter(jwtSecret: string) {
       );
 
       const row = created.rows[0];
+      const turmaIds = parseIdArray((req.body as any).turma_ids);
+      if (turmaIds.length > 0) {
+        for (const turmaId of turmaIds) {
+          await pool.query(
+            `INSERT INTO exercicio_turma (exercicio_id, turma_id)
+             VALUES ($1, $2)
+             ON CONFLICT (exercicio_id, turma_id) DO NOTHING`,
+            [row.id, turmaId]
+          );
+        }
+      }
+
+      const alunoIds = parseIdArray((req.body as any).aluno_ids);
+      if (alunoIds.length > 0) {
+        for (const alunoId of alunoIds) {
+          await pool.query(
+            `INSERT INTO exercicio_aluno (exercicio_id, aluno_id)
+             VALUES ($1, $2)
+             ON CONFLICT (exercicio_id, aluno_id) DO NOTHING`,
+            [row.id, alunoId]
+          );
+        }
+      }
       return res.status(201).json({
         message: "Exercício criado!",
         exercicio: {
@@ -332,6 +489,45 @@ export function exerciciosRouter(jwtSecret: string) {
       );
 
       const row = updated.rows[0];
+      const hasTurmaIds = Object.prototype.hasOwnProperty.call(req.body, "turma_ids");
+      const hasAlunoIds = Object.prototype.hasOwnProperty.call(req.body, "aluno_ids");
+
+      if (hasAlunoIds && !hasTurmaIds) {
+        await pool.query("DELETE FROM exercicio_turma WHERE exercicio_id = $1", [id]);
+      }
+      if (hasTurmaIds && !hasAlunoIds) {
+        await pool.query("DELETE FROM exercicio_aluno WHERE exercicio_id = $1", [id]);
+      }
+
+      if (hasTurmaIds) {
+        const turmaIds = parseIdArray((req.body as any).turma_ids);
+        await pool.query("DELETE FROM exercicio_turma WHERE exercicio_id = $1", [id]);
+        if (turmaIds.length > 0) {
+          for (const turmaId of turmaIds) {
+            await pool.query(
+              `INSERT INTO exercicio_turma (exercicio_id, turma_id)
+               VALUES ($1, $2)
+               ON CONFLICT (exercicio_id, turma_id) DO NOTHING`,
+              [id, turmaId]
+            );
+          }
+        }
+      }
+
+      if (hasAlunoIds) {
+        const alunoIds = parseIdArray((req.body as any).aluno_ids);
+        await pool.query("DELETE FROM exercicio_aluno WHERE exercicio_id = $1", [id]);
+        if (alunoIds.length > 0) {
+          for (const alunoId of alunoIds) {
+            await pool.query(
+              `INSERT INTO exercicio_aluno (exercicio_id, aluno_id)
+               VALUES ($1, $2)
+               ON CONFLICT (exercicio_id, aluno_id) DO NOTHING`,
+              [id, alunoId]
+            );
+          }
+        }
+      }
       return res.json({
         message: "Exercício atualizado!",
         exercicio: {

@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { getUserId } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
@@ -13,7 +14,9 @@ import "./Exercises.css";
 export default function ExerciciosPage() {
   const navigate = useNavigate();
   const role = getRole() ?? "aluno";
-  const canCreate = role === "admin" || role === "professor";
+  const userId = getUserId();
+  const isStaff = role === "admin" || role === "professor";
+  const canCreate = isStaff;
   const canManageTemplates = role === "admin";
 
   const [items, setItems] = React.useState<Exercicio[]>([]);
@@ -85,6 +88,48 @@ export default function ExerciciosPage() {
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
+
+  const alunoNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    alunosDisponiveis.forEach((aluno) => {
+      map.set(aluno.id, aluno.nome || aluno.usuario || aluno.id);
+    });
+    return map;
+  }, [alunosDisponiveis]);
+
+  function getAlunoIds(exercicio: Exercicio): string[] {
+    const alunos = Array.isArray((exercicio as any).alunos)
+      ? (exercicio as any).alunos.map((a: any) => a?.id).filter(Boolean)
+      : [];
+    const idsSnake = Array.isArray((exercicio as any).aluno_ids)
+      ? (exercicio as any).aluno_ids
+      : [];
+    const idsCamel = Array.isArray((exercicio as any).alunoIds)
+      ? (exercicio as any).alunoIds
+      : [];
+    return Array.from(new Set([...alunos, ...idsSnake, ...idsCamel]));
+  }
+
+  function getAlunoNames(exercicio: Exercicio): string[] {
+    const alunos = Array.isArray((exercicio as any).alunos)
+      ? (exercicio as any).alunos
+          .map((a: any) => a?.nome || a?.usuario || a?.id)
+          .filter(Boolean)
+      : [];
+    if (alunos.length > 0) return alunos as string[];
+
+    const ids = getAlunoIds(exercicio);
+    return ids
+      .map((id) => alunoNameById.get(id))
+      .filter((nome): nome is string => !!nome);
+  }
+
+  function formatAlunoLabel(names: string[]) {
+    if (names.length === 0) return "Aluno específico";
+    if (names.length === 1) return `Para: ${names[0]}`;
+    if (names.length === 2) return `Para: ${names.join(", ")}`;
+    return `Para: ${names[0]} +${names.length - 1}`;
+  }
 
 
   // Modal de confirmação
@@ -245,6 +290,16 @@ export default function ExerciciosPage() {
       setTurmasSelecionadas(exercicio.turmas.map((t) => t.id));
     } else {
       setTurmasSelecionadas([]);
+    }
+
+    const alunoIds = getAlunoIds(exercicio);
+    if (alunoIds.length > 0) {
+      setModoAtribuicao("aluno");
+      setAlunosSelecionados(alunoIds);
+      setTurmasSelecionadas([]);
+    } else {
+      setModoAtribuicao("turma");
+      setAlunosSelecionados([]);
     }
 
     // Restaurar categoria
@@ -1299,7 +1354,7 @@ export default function ExerciciosPage() {
               </div>
 
               <div className="exFormNote">
-                💡 Exercícios criados ficam visíveis para todos os alunos automaticamente.
+                💡 Exercícios podem ser publicados para turmas, alunos específicos ou para todos.
               </div>
             </div>
           </div>
@@ -1400,6 +1455,13 @@ export default function ExerciciosPage() {
                 {(() => {
                   const filteredExercises = items.filter((ex) => {
                     if (ex.is_template) return false;
+                    const alunoIds = getAlunoIds(ex);
+                    const hasAlunoAssignment = alunoIds.length > 0;
+                    if (!isStaff && hasAlunoAssignment) {
+                      if (!userId || !alunoIds.includes(userId)) {
+                        return false;
+                      }
+                    }
                     // Filtro de busca por titulo
                     if (
                       buscaFiltro &&
@@ -1420,6 +1482,7 @@ export default function ExerciciosPage() {
 
                     // Filtro de turma
                     if (turmaFiltro === "todas") return true;
+                    if (hasAlunoAssignment) return false;
                     return ex.turmas?.some((t) => t.id === turmaFiltro);
                   });
 
@@ -1430,7 +1493,22 @@ export default function ExerciciosPage() {
                   return (
                     <>
                       <div className="exercisesList">
-                        {paginatedExercises.map((ex) => (
+                        {paginatedExercises.map((ex) => {
+                          const alunoIds = getAlunoIds(ex);
+                          const hasAlunoAssignment = alunoIds.length > 0;
+                          const alunoNames = hasAlunoAssignment ? getAlunoNames(ex) : [];
+                          const showParaMim =
+                            !isStaff && !!userId && alunoIds.includes(userId);
+                          const alunoLabel = showParaMim
+                            ? "Para mim"
+                            : formatAlunoLabel(alunoNames);
+                          const alunoTitle = showParaMim
+                            ? "Disponível apenas para você"
+                            : alunoNames.length > 0
+                              ? `Disponível apenas para: ${alunoNames.join(", ")}`
+                              : "Disponível para aluno(s) específico(s)";
+
+                          return (
                 <div
                   key={ex.id}
                   className={`exerciseCard ${canCreate ? "canEdit" : ""}`}
@@ -1512,7 +1590,25 @@ export default function ExerciciosPage() {
 
                   {/* Badges de acesso/turmas */}
                   <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {ex.turmas && ex.turmas.length > 0 ? (
+                    {hasAlunoAssignment ? (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "4px 10px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          borderRadius: "12px",
+                          background: "rgba(34, 197, 94, 0.15)",
+                          color: "#15803d",
+                          border: "1px solid rgba(34, 197, 94, 0.3)",
+                        }}
+                        title={alunoTitle}
+                      >
+                        👤 {alunoLabel}
+                      </span>
+                    ) : ex.turmas && ex.turmas.length > 0 ? (
                       <>
                         <span
                           style={{
@@ -1579,7 +1675,8 @@ export default function ExerciciosPage() {
                     )}
                   </div>
                 </div>
-                        ))}
+                        );
+                        })}
                       </div>
 
                       <Pagination

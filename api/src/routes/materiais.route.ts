@@ -24,6 +24,7 @@ type MaterialRow = {
   created_at: string | Date;
   updated_at: string | Date;
   turmas?: Array<{ id: string; nome: string; tipo: string }>;
+  alunos?: Array<{ id: string; nome: string; usuario: string }>;
 };
 
 const createMaterialSchema = z.object({
@@ -42,6 +43,30 @@ const updateMaterialSchema = z.object({
   url: z.string().optional(),
 });
 
+function parseIdArray(value: unknown): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v)).filter((v) => v.trim().length > 0);
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((v) => String(v)).filter((v) => v.trim().length > 0);
+      }
+    } catch {
+      // ignore JSON parse errors
+    }
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.includes(",")) {
+      return trimmed.split(",").map((v) => v.trim()).filter(Boolean);
+    }
+    return [trimmed];
+  }
+  return [];
+}
+
 function transformMaterial(row: MaterialRow) {
   return {
     id: row.id,
@@ -54,6 +79,7 @@ function transformMaterial(row: MaterialRow) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
+    alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
   };
 }
 
@@ -71,15 +97,21 @@ export function materiaisRouter(jwtSecret: string) {
         SELECT
           m.id, m.titulo, m.tipo, m.modulo, m.descricao, m.url,
           m.created_by, m.created_at, m.updated_at,
-          COALESCE(
-            json_agg(
-              json_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)
-            ) FILTER (WHERE t.id IS NOT NULL),
-            '[]'
-          ) as turmas
+          COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
+          COALESCE(alunos.alunos, '[]'::jsonb) as alunos
         FROM materiais m
-        LEFT JOIN material_turma mt ON m.id = mt.material_id
-        LEFT JOIN turmas t ON mt.turma_id = t.id
+        LEFT JOIN LATERAL (
+          SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+          FROM material_turma mt
+          JOIN turmas t ON mt.turma_id = t.id
+          WHERE mt.material_id = m.id
+        ) turmas ON true
+        LEFT JOIN LATERAL (
+          SELECT jsonb_agg(DISTINCT jsonb_build_object('id', u.id, 'nome', u.nome, 'usuario', u.usuario)) as alunos
+          FROM material_aluno ma
+          JOIN users u ON ma.aluno_id = u.id
+          WHERE ma.material_id = m.id
+        ) alunos ON true
       `;
 
       const conditions: string[] = [];
@@ -87,13 +119,27 @@ export function materiaisRouter(jwtSecret: string) {
 
       // Se aluno, filtrar por turmas do aluno ou materiais sem turma (visíveis para todos)
       if (userRole === "aluno") {
-        conditions.push(`(
-          mt.turma_id IN (
-            SELECT turma_id FROM aluno_turma WHERE aluno_id = $${params.length + 1}
-          )
-          OR mt.turma_id IS NULL
-        )`);
+        const alunoParam = `$${params.length + 1}`;
         params.push(userId);
+        conditions.push(`(
+          EXISTS (
+            SELECT 1 FROM material_aluno ma
+            WHERE ma.material_id = m.id AND ma.aluno_id = ${alunoParam}
+          )
+          OR (
+            NOT EXISTS (SELECT 1 FROM material_aluno ma2 WHERE ma2.material_id = m.id)
+            AND (
+              EXISTS (
+                SELECT 1 FROM material_turma mt
+                WHERE mt.material_id = m.id
+                  AND mt.turma_id IN (
+                    SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                  )
+              )
+              OR NOT EXISTS (SELECT 1 FROM material_turma mt2 WHERE mt2.material_id = m.id)
+            )
+          )
+        )`);
       }
 
       // Filtro por módulo
@@ -106,7 +152,7 @@ export function materiaisRouter(jwtSecret: string) {
         query += ` WHERE ${conditions.join(" AND ")}`;
       }
 
-      query += ` GROUP BY m.id ORDER BY m.created_at DESC`;
+      query += ` ORDER BY m.created_at DESC`;
 
       const result = await pool.query(query, params);
       const materiais = result.rows.map(transformMaterial);
@@ -123,24 +169,58 @@ export function materiaisRouter(jwtSecret: string) {
     try {
       const { id } = req.params;
 
-      const query = `
+      const userRole = req.user?.role;
+      const userId = req.user?.sub;
+
+      let query = `
         SELECT
           m.id, m.titulo, m.tipo, m.modulo, m.descricao, m.url,
           m.created_by, m.created_at, m.updated_at,
-          COALESCE(
-            json_agg(
-              json_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)
-            ) FILTER (WHERE t.id IS NOT NULL),
-            '[]'
-          ) as turmas
+          COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
+          COALESCE(alunos.alunos, '[]'::jsonb) as alunos
         FROM materiais m
-        LEFT JOIN material_turma mt ON m.id = mt.material_id
-        LEFT JOIN turmas t ON mt.turma_id = t.id
+        LEFT JOIN LATERAL (
+          SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+          FROM material_turma mt
+          JOIN turmas t ON mt.turma_id = t.id
+          WHERE mt.material_id = m.id
+        ) turmas ON true
+        LEFT JOIN LATERAL (
+          SELECT jsonb_agg(DISTINCT jsonb_build_object('id', u.id, 'nome', u.nome, 'usuario', u.usuario)) as alunos
+          FROM material_aluno ma
+          JOIN users u ON ma.aluno_id = u.id
+          WHERE ma.material_id = m.id
+        ) alunos ON true
         WHERE m.id = $1
-        GROUP BY m.id
       `;
 
-      const result = await pool.query(query, [id]);
+      const params: any[] = [id];
+
+      if (userRole === "aluno") {
+        const alunoParam = `$${params.length + 1}`;
+        params.push(userId);
+        query += ` AND (
+          EXISTS (
+            SELECT 1 FROM material_aluno ma
+            WHERE ma.material_id = m.id AND ma.aluno_id = ${alunoParam}
+          )
+          OR (
+            NOT EXISTS (SELECT 1 FROM material_aluno ma2 WHERE ma2.material_id = m.id)
+            AND (
+              EXISTS (
+                SELECT 1 FROM material_turma mt
+                WHERE mt.material_id = m.id
+                  AND mt.turma_id IN (
+                    SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                  )
+              )
+              OR NOT EXISTS (SELECT 1 FROM material_turma mt2 WHERE mt2.material_id = m.id)
+            )
+          )
+        )`;
+      }
+
+      const result = await pool.query(query, params);
 
       if (result.rows.length === 0) {
         res.status(404).json({ message: "Material não encontrado" });
@@ -223,7 +303,7 @@ export function materiaisRouter(jwtSecret: string) {
         // Processar turma_ids se fornecido
         if (req.body.turma_ids) {
           try {
-            const turmaIds = JSON.parse(req.body.turma_ids);
+            const turmaIds = parseIdArray(req.body.turma_ids);
             if (Array.isArray(turmaIds) && turmaIds.length > 0) {
               for (const turmaId of turmaIds) {
                 await pool.query(
@@ -239,23 +319,46 @@ export function materiaisRouter(jwtSecret: string) {
           }
         }
 
+        if (req.body.aluno_ids) {
+          try {
+            const alunoIds = parseIdArray(req.body.aluno_ids);
+            if (Array.isArray(alunoIds) && alunoIds.length > 0) {
+              for (const alunoId of alunoIds) {
+                await pool.query(
+                  `INSERT INTO material_aluno (material_id, aluno_id)
+                   VALUES ($1, $2)
+                   ON CONFLICT (material_id, aluno_id) DO NOTHING`,
+                  [materialId, alunoId]
+                );
+              }
+            }
+          } catch (err) {
+            console.error("Erro ao processar aluno_ids:", err);
+          }
+        }
+
         // Buscar material com turmas para retornar
         const materialCompleto = await pool.query(
           `
           SELECT
             m.id, m.titulo, m.tipo, m.modulo, m.descricao, m.url,
             m.created_by, m.created_at, m.updated_at,
-            COALESCE(
-              json_agg(
-                json_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)
-              ) FILTER (WHERE t.id IS NOT NULL),
-              '[]'
-            ) as turmas
+            COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
+            COALESCE(alunos.alunos, '[]'::jsonb) as alunos
           FROM materiais m
-          LEFT JOIN material_turma mt ON m.id = mt.material_id
-          LEFT JOIN turmas t ON mt.turma_id = t.id
+          LEFT JOIN LATERAL (
+            SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+            FROM material_turma mt
+            JOIN turmas t ON mt.turma_id = t.id
+            WHERE mt.material_id = m.id
+          ) turmas ON true
+          LEFT JOIN LATERAL (
+            SELECT jsonb_agg(DISTINCT jsonb_build_object('id', u.id, 'nome', u.nome, 'usuario', u.usuario)) as alunos
+            FROM material_aluno ma
+            JOIN users u ON ma.aluno_id = u.id
+            WHERE ma.material_id = m.id
+          ) alunos ON true
           WHERE m.id = $1
-          GROUP BY m.id
           `,
           [materialId]
         );
@@ -360,6 +463,16 @@ export function materiaisRouter(jwtSecret: string) {
           ]
         );
 
+        const hasTurmaIds = typeof req.body.turma_ids !== "undefined";
+        const hasAlunoIds = typeof req.body.aluno_ids !== "undefined";
+
+        if (hasAlunoIds && !hasTurmaIds) {
+          await pool.query("DELETE FROM material_turma WHERE material_id = $1", [id]);
+        }
+        if (hasTurmaIds && !hasAlunoIds) {
+          await pool.query("DELETE FROM material_aluno WHERE material_id = $1", [id]);
+        }
+
         // Processar turma_ids se fornecido
         if (req.body.turma_ids) {
           try {
@@ -367,7 +480,7 @@ export function materiaisRouter(jwtSecret: string) {
             await pool.query("DELETE FROM material_turma WHERE material_id = $1", [id]);
 
             // Inserir novas atribuições
-            const turmaIds = JSON.parse(req.body.turma_ids);
+            const turmaIds = parseIdArray(req.body.turma_ids);
             if (Array.isArray(turmaIds) && turmaIds.length > 0) {
               for (const turmaId of turmaIds) {
                 await pool.query(
@@ -383,23 +496,47 @@ export function materiaisRouter(jwtSecret: string) {
           }
         }
 
+        if (typeof req.body.aluno_ids !== "undefined") {
+          try {
+            await pool.query("DELETE FROM material_aluno WHERE material_id = $1", [id]);
+            const alunoIds = parseIdArray(req.body.aluno_ids);
+            if (Array.isArray(alunoIds) && alunoIds.length > 0) {
+              for (const alunoId of alunoIds) {
+                await pool.query(
+                  `INSERT INTO material_aluno (material_id, aluno_id)
+                   VALUES ($1, $2)
+                   ON CONFLICT (material_id, aluno_id) DO NOTHING`,
+                  [id, alunoId]
+                );
+              }
+            }
+          } catch (err) {
+            console.error("Erro ao processar aluno_ids:", err);
+          }
+        }
+
         // Buscar material com turmas para retornar
         const materialCompleto = await pool.query(
           `
           SELECT
             m.id, m.titulo, m.tipo, m.modulo, m.descricao, m.url,
             m.created_by, m.created_at, m.updated_at,
-            COALESCE(
-              json_agg(
-                json_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)
-              ) FILTER (WHERE t.id IS NOT NULL),
-              '[]'
-            ) as turmas
+            COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
+            COALESCE(alunos.alunos, '[]'::jsonb) as alunos
           FROM materiais m
-          LEFT JOIN material_turma mt ON m.id = mt.material_id
-          LEFT JOIN turmas t ON mt.turma_id = t.id
+          LEFT JOIN LATERAL (
+            SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+            FROM material_turma mt
+            JOIN turmas t ON mt.turma_id = t.id
+            WHERE mt.material_id = m.id
+          ) turmas ON true
+          LEFT JOIN LATERAL (
+            SELECT jsonb_agg(DISTINCT jsonb_build_object('id', u.id, 'nome', u.nome, 'usuario', u.usuario)) as alunos
+            FROM material_aluno ma
+            JOIN users u ON ma.aluno_id = u.id
+            WHERE ma.material_id = m.id
+          ) alunos ON true
           WHERE m.id = $1
-          GROUP BY m.id
           `,
           [id]
         );

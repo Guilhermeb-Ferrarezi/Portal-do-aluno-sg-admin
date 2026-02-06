@@ -233,10 +233,37 @@ export function submissoesRouter(jwtSecret: string) {
 
       try {
         // Verificar se exercício existe e buscar prazo
-        const exercicio = await pool.query(
-          `SELECT id, descricao, gabarito, tipo_exercicio, prazo, multipla_regras FROM exercicios WHERE id = $1 AND publicado = true`,
-          [exercicioId]
-        );
+        const userRole = req.user?.role;
+        const params: any[] = [exercicioId];
+        let query = `SELECT id, descricao, gabarito, tipo_exercicio, prazo, multipla_regras
+          FROM exercicios e
+          WHERE e.id = $1 AND e.publicado = true AND (e.published_at IS NULL OR e.published_at <= NOW())`;
+
+        if (userRole === "aluno") {
+          const alunoParam = `$${params.length + 1}`;
+          params.push(alunoId);
+          query += ` AND (
+            EXISTS (
+              SELECT 1 FROM exercicio_aluno ea
+              WHERE ea.exercicio_id = e.id AND ea.aluno_id = ${alunoParam}
+            )
+            OR (
+              NOT EXISTS (SELECT 1 FROM exercicio_aluno ea2 WHERE ea2.exercicio_id = e.id)
+              AND (
+                EXISTS (
+                  SELECT 1 FROM exercicio_turma et
+                  WHERE et.exercicio_id = e.id
+                    AND et.turma_id IN (
+                      SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                    )
+                )
+                OR NOT EXISTS (SELECT 1 FROM exercicio_turma et2 WHERE et2.exercicio_id = e.id)
+              )
+            )
+          )`;
+        }
+
+        const exercicio = await pool.query(query, params);
 
         if (exercicio.rows.length === 0) {
           return res.status(404).json({ message: "Exercício não encontrado" });
