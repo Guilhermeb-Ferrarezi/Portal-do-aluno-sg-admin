@@ -563,7 +563,7 @@ export default function ExerciciosPage() {
                   {componenteInterativo === "multipla" && (
                     <ScaleIn>
                     <>
-                      <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
+                      <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#92400e", margin: "0 0 12px 0" }}>
                           ❓ Configurar Questões de Múltipla Escolha:
                         </p>
@@ -681,7 +681,7 @@ export default function ExerciciosPage() {
                         </button>
                       </div>
 
-                      <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
+                      <div style={{ background: "var(--background-secondary)", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>
                           👁️ Pré-visualização:
                         </p>
