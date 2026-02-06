@@ -116,6 +116,7 @@
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
+  min-height: 320px;
 }
 
 .templateCard:hover {

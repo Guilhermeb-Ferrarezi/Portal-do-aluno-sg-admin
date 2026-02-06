@@ -5,6 +5,7 @@ import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
 import { useToast } from "../contexts/ToastContext";
+import { useCachedData } from "../hooks/useCachedData";
 import {
   FadeInUp,
   PopInBadge,
@@ -30,10 +31,11 @@ export default function MateriaisPage() {
   const canUpload = hasRole(["admin", "professor"]);
   const { addToast } = useToast();
 
-  // Estados principais
-  const [materiais, setMateriais] = React.useState<Material[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  // Carregar materiais com cache
+  const { data: materiais, loading, error, refetch } = useCachedData(
+    'materiais-list',
+    listarMateriais
+  );
 
   // Estados de filtros
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
@@ -64,11 +66,6 @@ export default function MateriaisPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
-  // Carregar materiais ao montar
-  React.useEffect(() => {
-    carregarMateriais();
-  }, []);
-
   // Carregar turmas e alunos quando puder fazer upload
   React.useEffect(() => {
     if (canUpload) {
@@ -81,21 +78,6 @@ export default function MateriaisPage() {
         .catch((err) => console.error("Erro ao carregar alunos:", err));
     }
   }, [canUpload]);
-
-  const carregarMateriais = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await listarMateriais();
-      setMateriais(data);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Erro ao carregar materiais"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Filtrar materiais
   const materiaisFiltrados = materiais.filter((m) => {
@@ -190,7 +172,7 @@ export default function MateriaisPage() {
       setModalAberto(false);
       resetForm();
       addToast("Material adicionado com sucesso.", "success");
-      await carregarMateriais();
+      await refetch();
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : "Erro ao adicionar material",
@@ -210,7 +192,7 @@ export default function MateriaisPage() {
       await deletarMaterial(target.id);
       setDeleteTarget(null);
       addToast(`"${target.titulo}" foi removido.`, "success");
-      await carregarMateriais();
+      await refetch();
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : "Erro ao deletar material",
@@ -248,7 +230,7 @@ export default function MateriaisPage() {
       >
         <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
           <p>Erro: {error}</p>
-          <button onClick={carregarMateriais}>Tentar novamente</button>
+          <button onClick={refetch}>Tentar novamente</button>
         </div>
       </DashboardLayout>
     );

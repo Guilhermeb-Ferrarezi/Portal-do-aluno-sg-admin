@@ -5,6 +5,7 @@ import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
 import { useToast } from "../contexts/ToastContext";
+import { useCachedData } from "../hooks/useCachedData";
 import {
   FadeInUp,
   PopInBadge,
@@ -22,34 +23,21 @@ import {
   atribuirVideoaulaTurmas,
   type Turma,
   type User,
+  type Videoaula,
 } from "../services/api";
 import "./VideoaulaBonus.css";
-
-type Videoaula = {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  modulo: string;
-  duracao?: string | null;
-  tipo: "youtube" | "vimeo" | "arquivo";
-  url: string;
-  arquivo?: string;
-  thumbnail?: string;
-  dataAdicionada?: string;
-  createdAt?: string;
-  createdBy?: string | null;
-  updatedAt?: string;
-  turmas?: Turma[];
-};
 
 export default function VideoaulaBonusPage() {
   const canUpload = hasRole(["admin", "professor"]);
   const { addToast } = useToast();
 
+  // Carregar videoaulas com cache
+  const { data: videoaulas, loading, error, refetch } = useCachedData(
+    'videoaulas-list',
+    listarVideoaulas
+  );
+
   // Estados
-  const [videoaulas, setVideoaulas] = React.useState<Videoaula[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
   const [busca, setBusca] = React.useState<string>("");
   const [turmaFiltro, setTurmaFiltro] = React.useState<string>("todas");
@@ -78,45 +66,6 @@ export default function VideoaulaBonusPage() {
     arquivo: null as File | null,
     duracao: "",
   });
-
-  // Videoaulas de exemplo (fallback)
-  const videoaulasExemplo: Videoaula[] = [
-    {
-      id: "1",
-      titulo: "Introdução ao Projeto",
-      descricao: "Visão geral do projeto e objetivos",
-      modulo: "Fundamentos",
-      tipo: "youtube",
-      url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-    },
-  ];
-
-  // Carregar videoaulas da API
-  React.useEffect(() => {
-    carregarVideoaulas();
-  }, []);
-
-  const carregarVideoaulas = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await listarVideoaulas();
-      // Se não houver videoaulas da API, usar exemplos
-      if (data.length === 0) {
-        setVideoaulas(videoaulasExemplo);
-      } else {
-        setVideoaulas(data);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar videoaulas:", err);
-      setError(err instanceof Error ? err.message : "Erro ao carregar videoaulas");
-      // Se der erro, usar exemplos locais
-      setVideoaulas(videoaulasExemplo);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Carregar turmas e alunos quando puder fazer upload
   React.useEffect(() => {
@@ -223,7 +172,7 @@ export default function VideoaulaBonusPage() {
       }
 
       // Recarregar lista de videoaulas
-      await carregarVideoaulas();
+      await refetch();
 
       // Resetar formulário
       setFormData({
@@ -261,7 +210,7 @@ export default function VideoaulaBonusPage() {
       await deletarVideoaula(target.id);
       setDeleteTarget(null);
       addToast(`"${target.titulo}" foi removido.`, "success");
-      await carregarVideoaulas();
+      await refetch();
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : "Erro ao deletar videoaula",
@@ -295,7 +244,7 @@ export default function VideoaulaBonusPage() {
       >
         <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
           <p>Erro: {error}</p>
-          <button onClick={carregarVideoaulas}>Tentar novamente</button>
+          <button onClick={refetch}>Tentar novamente</button>
         </div>
       </DashboardLayout>
     );

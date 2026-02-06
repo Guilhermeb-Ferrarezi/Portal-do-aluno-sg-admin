@@ -5,11 +5,7 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import MonacoEditor from "../components/MonacoEditor";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
-import { FadeInUp } from "../components/animate-ui/FadeInUp";
-import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
-import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
-import { ConditionalFieldAnimation } from "../components/animate-ui/ConditionalFieldAnimation";
-import { PulseLoader } from "../components/animate-ui/PulseLoader";
+import { FadeInUp, AnimatedButton, PulseLoader, ConditionalFieldAnimation, AnimatedToast } from "../components/animate-ui";
 import {
   obterExercicio,
   enviarSubmissao,

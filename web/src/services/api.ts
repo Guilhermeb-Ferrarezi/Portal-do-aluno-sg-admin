@@ -385,6 +385,8 @@ export type Videoaula = {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  thumbnail?: string;
+  dataAdicionada?: string;
   turmas?: Turma[];
 };
 
