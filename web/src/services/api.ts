@@ -48,7 +48,7 @@ export type Exercicio = {
   tema: string | null;
   prazo: string | null;
   publishedAt: string | null;
-  tipoExercicio?: "codigo" | "texto" | "escrita" | null;
+  tipoExercicio?: "nenhum" | "codigo" | "texto" | "escrita" | null;
   is_template?: boolean;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
@@ -57,7 +57,7 @@ export type Exercicio = {
   turmas?: Turma[];
 };
 
-export type TipoExercicio = "codigo" | "texto" | "escrita";
+export type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita";
 
 export type Submissao = {
   id: string;

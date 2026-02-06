@@ -51,6 +51,9 @@ export default function ExerciseDetail() {
   // Para exercícios com Mouse Interativo
   const [mouseCompleted, setMouseCompleted] = React.useState(false);
 
+  // Para exercícios tipo "Nenhum" - seletor de tipo
+  const [selectedTipoNenhum, setSelectedTipoNenhum] = React.useState<"codigo" | "texto" | "escrita" | null>(null);
+
   // Carregar exercício
   React.useEffect(() => {
     if (!id) return;
@@ -144,6 +147,12 @@ export default function ExerciseDetail() {
   const handleEnviar = async () => {
     if (!id || !exercicio) return;
 
+    // Exercícios tipo "nenhum" precisam de um tipo selecionado
+    if (exercicio.tipoExercicio === "nenhum" && !selectedTipoNenhum) {
+      setErroSubmissao("Por favor, selecione um tipo de exercício antes de enviar.");
+      return;
+    }
+
     const isMultipla = exercicio.titulo && /^Dia \d+: (Múltipla Escolha|Pergunta Múltipla)$/.test(exercicio.titulo);
 
     // Validação
@@ -167,7 +176,11 @@ export default function ExerciseDetail() {
       setSucessoMsg(null);
       setAvisoMsg(null);
 
-      const tipoResposta = exercicio.tipoExercicio || "texto";
+      // Determinar tipo de resposta - se "nenhum", usar tipo selecionado
+      let tipoResposta = exercicio.tipoExercicio || "texto";
+      if (tipoResposta === "nenhum" && selectedTipoNenhum) {
+        tipoResposta = selectedTipoNenhum;
+      }
 
       // Preparar resposta
       const respostaFinal = isMultipla
@@ -284,7 +297,9 @@ export default function ExerciseDetail() {
                 <div className="edMetaItem">
                   <span className="edLabel">Tipo:</span>
                   <strong>
-                    {tipoExercicio === "codigo"
+                    {tipoExercicio === "nenhum"
+                      ? "🌐 Nenhum (Consulta)"
+                      : tipoExercicio === "codigo"
                       ? "💻 Código"
                       : tipoExercicio === "escrita"
                       ? "✍️ Escrita"
@@ -693,8 +708,102 @@ export default function ExerciseDetail() {
                   );
                 })()}
 
+                {/* Exercícios tipo NENHUM - Seletor de tipo */}
+                {tipoExercicio === "nenhum" && !selectedTipoNenhum && (
+                  <ConditionalFieldAnimation isVisible={true} duration={0.3}>
+                    <div style={{
+                      padding: "24px",
+                      marginBottom: "24px",
+                      backgroundColor: "rgba(59, 130, 246, 0.1)",
+                      border: "2px solid rgba(59, 130, 246, 0.3)",
+                      borderRadius: "12px",
+                    }}>
+                      <h3 style={{ marginTop: 0, marginBottom: "16px", color: "#2563eb", fontSize: "18px", fontWeight: "600" }}>
+                        📋 Selecione o tipo de resposta
+                      </h3>
+                      <p style={{ marginBottom: "20px", color: "var(--text)", fontSize: "14px" }}>
+                        Escolha como você gostaria de responder este exercício:
+                      </p>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <button
+                          onClick={() => setSelectedTipoNenhum("codigo")}
+                          style={{
+                            padding: "16px",
+                            border: "2px solid rgba(59, 130, 246, 0.2)",
+                            borderRadius: "8px",
+                            backgroundColor: "var(--background-secondary)",
+                            color: "#2563eb",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(59, 130, 246, 0.15)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                          }}
+                        >
+                          💻 Código
+                        </button>
+                        <button
+                          onClick={() => setSelectedTipoNenhum("escrita")}
+                          style={{
+                            padding: "16px",
+                            border: "2px solid rgba(139, 92, 246, 0.2)",
+                            borderRadius: "8px",
+                            backgroundColor: "var(--background-secondary)",
+                            color: "#a855f7",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(168, 85, 247, 0.15)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                          }}
+                        >
+                          ✍️ Escrita
+                        </button>
+                        <button
+                          onClick={() => setSelectedTipoNenhum("texto")}
+                          style={{
+                            padding: "16px",
+                            border: "2px solid rgba(34, 197, 94, 0.2)",
+                            borderRadius: "8px",
+                            backgroundColor: "var(--background-secondary)",
+                            color: "#22c55e",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(34, 197, 94, 0.15)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                          }}
+                        >
+                          📝 Digitação
+                        </button>
+                      </div>
+                    </div>
+                  </ConditionalFieldAnimation>
+                )}
+
                 {/* Exercícios normais de código */}
-                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && tipoExercicio === "codigo" && (
+                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && (tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo")) && (
                   <>
                     <MonacoEditor
                       value={resposta}
@@ -735,7 +844,7 @@ export default function ExerciseDetail() {
                 )}
 
                 {/* Exercícios normais de texto */}
-                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && tipoExercicio === "texto" && (
+                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && (tipoExercicio === "texto" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "texto")) && (
                   <textarea
                     className="edTextarea"
                     placeholder="Digite sua resposta aqui..."
@@ -746,7 +855,7 @@ export default function ExerciseDetail() {
                 )}
 
                 {/* Exercícios de ESCRITA */}
-                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && tipoExercicio === "escrita" && (
+                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita")) && (
                   <textarea
                     className="edTextarea"
                     placeholder="Escreva sua resposta aqui. Sua resposta será revisada pelo professor..."
@@ -773,23 +882,27 @@ export default function ExerciseDetail() {
                 </div>
               </ConditionalFieldAnimation>
 
-              {/* BOTÃO ENVIAR */}
-              <AnimatedButton
-                className="edSubmitBtn"
-                onClick={handleEnviar}
-                disabled={resposta.trim().length === 0 || prazoVencido}
-                loading={enviando}
-              >
-                {prazoVencido ? "❌ Prazo Expirado" : "✨ Enviar Resposta"}
-              </AnimatedButton>
+              {/* BOTÃO ENVIAR - Aparece quando tipo foi selecionado ou tipo não é "Nenhum" */}
+              {(tipoExercicio !== "nenhum" || (tipoExercicio === "nenhum" && selectedTipoNenhum)) && (
+                <>
+                  <AnimatedButton
+                    className="edSubmitBtn"
+                    onClick={handleEnviar}
+                    disabled={resposta.trim().length === 0 || prazoVencido}
+                    loading={enviando}
+                  >
+                    {prazoVencido ? "❌ Prazo Expirado" : "✨ Enviar Resposta"}
+                  </AnimatedButton>
 
-              <div className="edHint">
-                {tipoExercicio === "codigo"
-                  ? "Escolha a linguagem no editor e escreva seu código."
-                  : tipoExercicio === "escrita"
-                  ? "Sua resposta será avaliada pelo professor. Escreva de forma clara e completa."
-                  : "Escreva sua resposta de forma clara e objetiva."}
-              </div>
+                  <div className="edHint">
+                    {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo"))
+                      ? "Escolha a linguagem no editor e escreva seu código."
+                      : (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita"))
+                      ? "Sua resposta será avaliada pelo professor. Escreva de forma clara e completa."
+                      : "Escreva sua resposta de forma clara e objetiva."}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
