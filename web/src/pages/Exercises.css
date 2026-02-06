@@ -306,6 +306,22 @@
   padding: 10px 8px;
 }
 
+/* Aumentar área clicável do botão de calendário no input de data */
+input[type="datetime-local"].exInput {
+  padding-right: 50px;
+}
+
+input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 0;
+  margin: 0;
+}
+
 .exInputRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
