@@ -654,15 +654,70 @@ export default function ExerciseDetail() {
                 {/* Exercícios de ATALHO */}
                 {exercicio && determinarTipoRenderizacao(exercicio) === "atalho" && (() => {
                   const atalhoTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
+                  const sampleRef = React.useRef<HTMLDivElement | null>(null);
+
+                  // Adaptar amostras quando o tipo muda
+                  React.useEffect(() => {
+                    if (!exercicio) return;
+                    if (atalhoTipo === "copiar-colar-imagens") {
+                      const images = [
+                        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+1",
+                        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+2",
+                        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+3"
+                      ];
+                      setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
+                    } else {
+                      const texts = [
+                        "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
+                        "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                        "Exemplo: 12345 - teste rápido de copiar e colar!",
+                        "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
+                        "Treino: Abacaxi, banana, uva, morango, limão."
+                      ];
+                      setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
+                    }
+                    setAtalhoCompleted(false);
+                  }, [exercicio, atalhoTipo]);
+
+                  // Handler para colagem de imagens (quando aplicável)
+                  const handleImagePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+                    const items = e.clipboardData && Array.from(e.clipboardData.items || []);
+                    if (!items || items.length === 0) return;
+                    for (const item of items) {
+                      if (item.type && item.type.indexOf("image") !== -1) {
+                        const file = item.getAsFile();
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const result = reader.result as string;
+                            setResposta(result);
+                            setAtalhoCompleted(true);
+                          };
+                          reader.readAsDataURL(file);
+                          e.preventDefault();
+                          return;
+                        }
+                      }
+                    }
+                  };
+
+                  // Handler para selecionar-tudo e apagar: detectar quando o sample fica vazio
+                  const handleSampleInput = () => {
+                    const el = sampleRef.current;
+                    if (!el) return;
+                    const text = el.innerText || "";
+                    if (text.trim().length === 0) {
+                      setAtalhoCompleted(true);
+                    } else {
+                      setAtalhoCompleted(false);
+                    }
+                  };
 
                   return (
                     <div>
-                      {/* Descrição e Instruções */}
-
-                      {/* Componente de Atalho */}
                       <ShortcutTrainingBox
                         title="⌨️ Pratique o Atalho"
-                        instruction="Use o atalho indicado abaixo para completar o exercício"
+                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Copie o texto abaixo e cole na caixa à direita" }
                         shortcutType={atalhoTipo}
                         onComplete={(events) => {
                           console.log("Atalho completado:", events);
@@ -670,55 +725,95 @@ export default function ExerciseDetail() {
                         }}
                       />
 
-                      {/* Texto de exemplo (read-only) + botão copiar/novo */}
                       <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "flex-start" }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>Texto de exemplo</label>
-                          <textarea
-                            className="edTextarea"
-                            readOnly
-                            value={atalhoSample}
-                            rows={6}
-                            style={{ resize: "vertical" }}
-                          />
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Imagem de exemplo" : "Texto de exemplo"}</label>
+
+                          {atalhoTipo === "copiar-colar-imagens" ? (
+                            <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+                              <img src={atalhoSample} alt="Exemplo" style={{ width: "100%", display: "block" }} />
+                            </div>
+                          ) : atalhoTipo === "selecionar-deletar" ? (
+                            <div
+                              ref={sampleRef}
+                              contentEditable
+                              suppressContentEditableWarning
+                              onInput={handleSampleInput}
+                              className="edTextarea"
+                              style={{ minHeight: 140, padding: 12, whiteSpace: "pre-wrap", outline: "none" }}
+                            >
+                              {atalhoSample}
+                            </div>
+                          ) : (
+                            <textarea
+                              className="edTextarea"
+                              readOnly
+                              value={atalhoSample}
+                              rows={6}
+                              style={{ resize: "vertical" }}
+                            />
+                          )}
+
                           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                             <button
                               className="templateBtnView"
-                              onClick={() => navigator.clipboard?.writeText(atalhoSample)}
-                              title="Copiar texto exemplo"
-                            >
-                              📋 Copiar
-                            </button>
-                            <button
-                              className="templateBtnView"
                               onClick={() => {
-                                const samples = [
-                                  "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
-                                  "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                                  "Exemplo: 12345 - teste rápido de copiar e colar!",
-                                  "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
-                                  "Treino: Abacaxi, banana, uva, morango, limão."
-                                ];
-                                setAtalhoSample(samples[Math.floor(Math.random() * samples.length)]);
+                                if (atalhoTipo === "copiar-colar-imagens") {
+                                  const images = [
+                                    "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+1",
+                                    "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+2",
+                                    "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+3"
+                                  ];
+                                  setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
+                                } else {
+                                  const texts = [
+                                    "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
+                                    "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                                    "Exemplo: 12345 - teste rápido de copiar e colar!",
+                                    "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
+                                    "Treino: Abacaxi, banana, uva, morango, limão."
+                                  ];
+                                  setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
+                                }
                                 setAtalhoCompleted(false);
                               }}
                             >
-                              🔁 Novo texto
+                              🔁 Novo exemplo
                             </button>
                           </div>
                         </div>
 
-                        {/* Campo onde usuário cola o texto */}
+                        {/* Campo onde usuário cola o texto/imagem */}
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>Cole aqui</label>
-                          <textarea
-                            className="edTextarea"
-                            placeholder="Cole o texto aqui após copiar o exemplo"
-                            value={resposta}
-                            onChange={(e) => setResposta(e.target.value)}
-                            rows={6}
-                            style={{ resize: "vertical" }}
-                          />
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+
+                          {atalhoTipo === "copiar-colar-imagens" ? (
+                            <div
+                              className="edTextarea"
+                              onPaste={handleImagePaste}
+                              style={{ minHeight: 140, padding: 12, borderRadius: 8, background: "var(--card)", overflow: "auto" }}
+                            >
+                              {resposta && (resposta.startsWith("data:image") ? (
+                                <img src={resposta} alt="Pasted" style={{ maxWidth: "100%", display: "block" }} />
+                              ) : (
+                                <div style={{ whiteSpace: "pre-wrap" }}>{resposta}</div>
+                              ))}
+                            </div>
+                          ) : atalhoTipo === "selecionar-deletar" ? (
+                            <div style={{ marginTop: 6, color: "#9CA3AF", fontSize: 13 }}>
+                              Selecione todo o texto à esquerda e pressione Delete ou Backspace para completar o exercício.
+                            </div>
+                          ) : (
+                            <textarea
+                              className="edTextarea"
+                              placeholder="Cole o texto aqui após copiar o exemplo"
+                              value={resposta}
+                              onChange={(e) => setResposta(e.target.value)}
+                              rows={6}
+                              style={{ resize: "vertical" }}
+                            />
+                          )}
+
                           <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>
                             {atalhoCompleted ? "✅ Atalho completado" : "⏳ Complete o exercício de atalho para treinar"}
                           </div>

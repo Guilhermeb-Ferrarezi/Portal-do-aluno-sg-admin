@@ -194,6 +194,17 @@ export default function ExerciciosPage() {
         tituloFinal = `Dia ${diaNumero}: ${nomeComponente}`;
       }
 
+      // Determinar o `tipoExercicio` explicitamente a partir das seleções do formulário
+      let tipoSelecionado: string | undefined = undefined;
+      if (categoria === "programacao") {
+        if (componenteInterativo === "") tipoSelecionado = "codigo"; // Monaco
+        else tipoSelecionado = componenteInterativo || undefined;
+      } else {
+        // Para informática, o valor vazio representa 'nenhum'
+        if (componenteInterativo === "") tipoSelecionado = "nenhum";
+        else tipoSelecionado = componenteInterativo || undefined;
+      }
+
       const dados: any = {
         titulo: tituloFinal,
         descricao: descricaoFinal,
@@ -205,14 +216,8 @@ export default function ExerciciosPage() {
         is_template: isTemplate,
         categoria: categoria,
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
-        // Definir tipo de exercício baseado no componente interativo
-        ...(componenteInterativo === "mouse" ? { tipoExercicio: "mouse" } : {}),
-        ...(componenteInterativo === "multipla" ? { tipoExercicio: "multipla" } : {}),
-        ...(componenteInterativo === "atalho" ? { tipoExercicio: "atalho" } : {}),
-        // Quando o componente for explicitamente 'nenhum'
-        ...(componenteInterativo === "nenhum" ? { tipoExercicio: "nenhum" } : {}),
-        // Para Programação, o valor "" representa o editor de código (Monaco) => mapear para "codigo"
-        ...(categoria === "programacao" && componenteInterativo === "" ? { tipoExercicio: "codigo" } : {}),
+        // Incluir o tipo de exercício determinado explicitamente
+        ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
         // Adicionar regras do mouse se for componente interativo
         ...(componenteInterativo === "mouse" ? {
           mouse_regras: JSON.stringify(mouseRegras)
