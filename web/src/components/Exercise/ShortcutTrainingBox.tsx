@@ -13,6 +13,7 @@ type ShortcutTrainingBoxProps = {
   instruction: string;
   shortcutType: ShortcutType;
   onComplete?: (events: ShortcutEvent[]) => void;
+  sample?: string;
 };
 
 const SHORTCUT_LABELS: Record<ShortcutType, string> = {
@@ -41,6 +42,7 @@ export default function ShortcutTrainingBox({
   instruction,
   shortcutType,
   onComplete,
+  sample,
 }: ShortcutTrainingBoxProps) {
   const boxRef = React.useRef<HTMLDivElement>(null);
   const [events, setEvents] = React.useState<ShortcutEvent[]>([]);
@@ -140,6 +142,17 @@ export default function ShortcutTrainingBox({
 
       <div className="shortcutArea">
         <div className="shortcutBox">
+          {sample && (
+            <div style={{ marginBottom: 12 }}>
+              {shortcutType === "copiar-colar-imagens" ? (
+                <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <img src={sample} alt="Exemplo" style={{ width: "100%", display: "block" }} />
+                </div>
+              ) : (
+                <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap" }}>{sample}</div>
+              )}
+            </div>
+          )}
           <div className="shortcutLabel">
             🎹 {SHORTCUT_LABELS[shortcutType]}
           </div>

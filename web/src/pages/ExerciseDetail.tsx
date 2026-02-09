@@ -741,6 +741,7 @@ export default function ExerciseDetail() {
                         title="⌨️ Pratique o Atalho"
                         instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Copie o texto abaixo e cole na caixa à direita" }
                         shortcutType={atalhoTipo}
+                        sample={atalhoSample}
                         onComplete={(events) => {
                           console.log("Atalho completado:", events);
                           setAtalhoCompleted(true);
