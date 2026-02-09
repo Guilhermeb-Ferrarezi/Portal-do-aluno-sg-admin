@@ -112,7 +112,7 @@
   background: var(--background);
 }
 
-:root div{
+:root div:focus{
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
