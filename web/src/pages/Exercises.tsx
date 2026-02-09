@@ -192,7 +192,7 @@ export default function ExerciciosPage() {
         }
 
         tituloFinal = `Dia ${diaNumero}: ${nomeComponente}`;
-        descricaoFinal = `${descricao}`;
+        descricaoFinal = `${descricaoFinal}`;
       }
 
       const dados: any = {
