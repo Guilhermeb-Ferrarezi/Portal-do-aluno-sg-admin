@@ -440,13 +440,9 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 /* LISTA DE EXERCÍCIOS */
 .exercisesList {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(320px, 360px);
-  gap: 16px;
-  overflow-x: auto;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
   padding: 4px 6px 12px;
-  scroll-snap-type: x proximity;
-  scrollbar-gutter: stable both-edges;
   animation: fadeInList 0.4s ease-out;
 }
 
@@ -849,13 +845,20 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 /* RESPONSIVO */
+@media (max-width: 1024px) {
+  .exercisesList {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .exercisesContainer {
     gap: 16px;
   }
 
   .exercisesList {
-    grid-auto-columns: 85%;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
     padding-bottom: 8px;
   }
 
