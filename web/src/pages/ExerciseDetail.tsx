@@ -679,6 +679,40 @@ export default function ExerciseDetail() {
                     setAtalhoCompleted(false);
                   }, [exercicio, atalhoTipo]);
 
+                  // Listener global de paste para capturar colagem de imagens mesmo sem foco
+                  React.useEffect(() => {
+                    const handler = (e: any) => {
+                      try {
+                        if (!exercicio) return;
+                        const localTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
+                        if (localTipo !== "copiar-colar-imagens") return;
+                        const items = e.clipboardData && Array.from(e.clipboardData.items || []);
+                        if (!items || items.length === 0) return;
+                        for (const item of items) {
+                          if (item.type && item.type.indexOf("image") !== -1) {
+                            const file = item.getAsFile();
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                const result = reader.result as string;
+                                setResposta(result);
+                                setAtalhoCompleted(true);
+                              };
+                              reader.readAsDataURL(file);
+                              e.preventDefault();
+                              return;
+                            }
+                          }
+                        }
+                      } catch (err) {
+                        // ignore
+                      }
+                    };
+
+                    window.addEventListener("paste", handler as EventListener);
+                    return () => window.removeEventListener("paste", handler as EventListener);
+                  }, [exercicio]);
+
                   // Handler para colagem de imagens (quando aplicável)
                   const handleImagePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
                     const items = e.clipboardData && Array.from(e.clipboardData.items || []);
