@@ -574,23 +574,25 @@ body {
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
   z-index: 9999;
-  padding: 0;
-  overflow: hidden;
+  padding: 24px;
+  overflow-y: auto;
 }
 
 .modalContent {
   background: var(--card);
-  padding: 20px 24px;
-  border-radius: 0;
-  width: 100vw;
-  height: 100vh;
-  max-height: none;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 450px;
+  width: 90%;
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
-  box-shadow: none;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
   color: var(--text);
-  border: 0;
+  border: 1px solid var(--line);
   display:flex;
   flex-direction:column;
 }

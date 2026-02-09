@@ -258,21 +258,23 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
   z-index: 1000;
-  padding: 0;
-  overflow: hidden;
+  padding: 24px;
+  overflow-y: auto;
 }
 
 .modalContent {
   background: var(--card);
-  border-radius: 0;
-  padding: 20px 24px;
-  width: 100vw;
-  height: 100vh;
-  max-height: none;
-  box-shadow: none;
-  animation: none;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: calc(100vh - 120px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: modalSlideIn 0.2s ease;
   display:flex;
   flex-direction:column;
 }

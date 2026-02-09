@@ -296,31 +296,6 @@
 }
 
 /* MODAL */
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  animation: fadeIn 0.2s ease;
-  overflow: hidden;
-}
-
-.modalContent {
-  background: var(--card);
-  padding: 28px;
-  border-radius: 14px;
-  width: 90%;
-  max-width: 550px;
-  max-height: 85vh;
-  overflow-y: auto;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease;
-  border: 1px solid var(--line);
-  color: var(--text);
-}
 
 .videoaulaModal {
   max-width: 800px;
@@ -382,21 +357,24 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
   z-index: 9999;
-  padding: 0;
-  overflow: hidden;
+  padding: 24px;
+  overflow-y: auto;
 }
 
 .modalContent {
   background: var(--card);
-  padding: 20px 24px;
-  border-radius: 0;
-  width: 100vw;
-  height: 100vh;
-  max-height: none;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 540px;
+  width: 92%;
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
-  box-shadow: none;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
   display:flex;
   flex-direction:column;
 }
