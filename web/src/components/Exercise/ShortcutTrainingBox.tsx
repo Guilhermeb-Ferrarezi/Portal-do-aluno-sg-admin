@@ -57,8 +57,7 @@ export default function ShortcutTrainingBox({
 
       const key = e.key.toLowerCase();
       const isCtrlCmd = e.ctrlKey || e.metaKey;
-      const isAlt = e.altKey;
-      const isShift = e.shiftKey;
+
 
       let detectedAction = "";
 
