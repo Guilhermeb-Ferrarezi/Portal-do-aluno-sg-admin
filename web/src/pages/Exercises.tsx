@@ -48,7 +48,7 @@ export default function ExerciciosPage() {
   const [mouseRegras, setMouseRegras] = React.useState({
     clicksSimples: 0,
     duplosClicks: 0,
-    clicksDireitos: 0,wqw
+    clicksDireitos: 0,
   });
   // Regras para Múltipla Escolha
   const [multiplaQuestoes, setMultiplaQuestoes] = React.useState<Array<{
