@@ -379,31 +379,27 @@
   flex-wrap: wrap;
 }
 
-.modulo {
-  display: inline-flex;
-  padding: 4px 12px;
-  border-radius: 6px;
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  padding: 0;
+  overflow: hidden;
 }
 
-.duracao {
-  font-size: 13px;
-  color: var(--muted);
-  font-weight: 600;
+.modalContent {
+  background: var(--card);
+  padding: 20px 24px;
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  overflow-y: auto;
+  box-shadow: none;
+  display:flex;
+  flex-direction:column;
 }
-
-.descricao {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.infoFooter {
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }

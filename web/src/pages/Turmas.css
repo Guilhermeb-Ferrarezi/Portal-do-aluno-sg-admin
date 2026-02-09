@@ -615,29 +615,27 @@
   animation: fadeIn 0.2s ease;
 }
 
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  padding: 0;
+  overflow: hidden;
+}
+
 .modalContent {
   background: var(--card);
-  padding: 24px;
-  border-radius: 12px;
-  max-width: 450px;
-  width: 90%;
-  max-height: 80vh;
+  padding: 20px 24px;
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
   overflow-y: auto;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease;
+  box-shadow: none;
+  display:flex;
+  flex-direction:column;
 }
-
-.modalContent h3 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.alunosSelectorList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   margin: 16px 0;
   max-height: 400px;
   overflow-y: auto;

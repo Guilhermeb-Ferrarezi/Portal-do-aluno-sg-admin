@@ -259,20 +259,22 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 1000;
+  padding: 0;
+  overflow: hidden;
 }
 
 .modalContent {
   background: var(--card);
-  border-radius: 12px;
-  padding: 24px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  animation: modalSlideIn 0.2s ease;
+  border-radius: 0;
+  padding: 20px 24px;
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  box-shadow: none;
+  animation: none;
+  display:flex;
+  flex-direction:column;
 }
 
 @keyframes modalSlideIn {
