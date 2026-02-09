@@ -205,6 +205,10 @@ export default function ExerciciosPage() {
         is_template: isTemplate,
         categoria: categoria,
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
+        // Definir tipo de exercício baseado no componente interativo
+        ...(componenteInterativo === "mouse" ? { tipoExercicio: "mouse" } : {}),
+        ...(componenteInterativo === "multipla" ? { tipoExercicio: "multipla" } : {}),
+        ...(componenteInterativo === "atalho" ? { tipoExercicio: "atalho" } : {}),
         // Adicionar regras do mouse se for componente interativo
         ...(componenteInterativo === "mouse" ? {
           mouse_regras: JSON.stringify(mouseRegras)
