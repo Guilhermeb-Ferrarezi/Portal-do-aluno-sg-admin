@@ -214,6 +214,7 @@
 
 .edTextarea {
   width: 100%;
+  min-height: 160px;
   padding: 12px 14px;
   border: 1.5px solid var(--line);
   border-radius: 10px;
