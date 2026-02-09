@@ -17,6 +17,29 @@ import {
 } from "../services/api";
 import "./ExerciseDetail.css";
 
+// Helper: Determina qual tipo de exercício renderizar baseado nos campos
+function determinarTipoRenderizacao(exercicio: Exercicio | null) {
+  if (!exercicio) return null;
+
+  // Se tem atalho_tipo, é exercício de atalho
+  if (exercicio.atalho_tipo) return "atalho";
+
+  // Se tem multipla_regras e tipoExercicio é "multipla", é múltipla escolha
+  if (exercicio.multipla_regras && (exercicio.tipoExercicio === "multipla" ||
+      (exercicio.tipoExercicio === "nenhum" && exercicio.multipla_regras))) {
+    return "multipla";
+  }
+
+  // Se tem mouse_regras e tipoExercicio é "mouse", é mouse interativo
+  if (exercicio.mouse_regras && (exercicio.tipoExercicio === "mouse" ||
+      (exercicio.tipoExercicio === "nenhum" && exercicio.mouse_regras))) {
+    return "mouse";
+  }
+
+  // Senão, usa o tipoExercicio
+  return exercicio.tipoExercicio || "texto";
+}
+
 export default function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -154,7 +177,9 @@ export default function ExerciseDetail() {
       return;
     }
 
-    const isMultipla = exercicio.titulo && /^Dia \d+: (Múltipla Escolha|Pergunta Múltipla)$/.test(exercicio.titulo);
+    // Determinar tipo de renderização (usa tipoExercicio e campos auxiliares)
+    const tipoRenderizacao = determinarTipoRenderizacao(exercicio);
+    const isMultipla = tipoRenderizacao === "multipla";
 
     // Validação
     if (isMultipla) {
@@ -601,7 +626,7 @@ export default function ExerciseDetail() {
                 )}
 
                 {/* NOVO: Exercícios com Mouse Interativo criados dinamicamente */}
-                {exercicio && /^Dia \d+: Mouse$/.test(exercicio.titulo) && (() => {
+                {exercicio && determinarTipoRenderizacao(exercicio) === "mouse" && (() => {
                   const mouseRegras = exercicio.mouse_regras
                     ? JSON.parse(exercicio.mouse_regras)
                     : { clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 };
@@ -660,7 +685,7 @@ export default function ExerciseDetail() {
                 })()}
 
                 {/* EXERCÍCIOS COM MÚLTIPLA ESCOLHA */}
-                {exercicio && /^Dia \d+: (Múltipla Escolha|Pergunta Múltipla)$/.test(exercicio.titulo) && (() => {
+                {exercicio && determinarTipoRenderizacao(exercicio) === "multipla" && (() => {
                   const multiplaRegras = exercicio.multipla_regras
                     ? JSON.parse(exercicio.multipla_regras)
                     : { questoes: [] };
@@ -856,7 +881,7 @@ export default function ExerciseDetail() {
                 )}
 
                 {/* Exercícios normais de código */}
-                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && (tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo")) && (
+                {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo")) && (
                   <>
                     <MonacoEditor
                       value={resposta}
@@ -897,7 +922,7 @@ export default function ExerciseDetail() {
                 )}
 
                 {/* Exercícios normais de texto */}
-                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && (tipoExercicio === "texto" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "texto")) && (
+                {(tipoExercicio === "texto" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "texto")) && (
                   <textarea
                     className="edTextarea"
                     placeholder="Digite sua resposta aqui..."
@@ -908,7 +933,7 @@ export default function ExerciseDetail() {
                 )}
 
                 {/* Exercícios de ESCRITA */}
-                {!exercicio.titulo.match(/^Dia \d+: (Mouse|Múltipla Escolha|Pergunta Múltipla)$/) && (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita")) && (
+                {(tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita")) && (
                   <textarea
                     className="edTextarea"
                     placeholder="Escreva sua resposta aqui. Sua resposta será revisada pelo professor..."

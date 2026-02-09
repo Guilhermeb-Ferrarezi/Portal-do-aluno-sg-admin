@@ -54,7 +54,7 @@ export type Exercicio = {
   tema: string | null;
   prazo: string | null;
   publishedAt: string | null;
-  tipoExercicio?: "nenhum" | "codigo" | "texto" | "escrita" | null;
+  tipoExercicio?: "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho" | null;
   is_template?: boolean;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
