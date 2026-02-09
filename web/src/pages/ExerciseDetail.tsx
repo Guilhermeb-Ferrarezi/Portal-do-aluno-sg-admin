@@ -648,8 +648,8 @@ export default function ExerciseDetail() {
                 })()}
 
                 {/* Exercícios de ATALHO */}
-                {exercicio && exercicio.atalho_tipo && (() => {
-                  const atalhoTipo = exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar";
+                {exercicio && determinarTipoRenderizacao(exercicio) === "atalho" && (() => {
+                  const atalhoTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
 
                   return (
                     <div>
