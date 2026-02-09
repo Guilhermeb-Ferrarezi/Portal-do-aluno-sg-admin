@@ -81,6 +81,7 @@ export default function ExerciseDetail() {
   const [atalhoSample, setAtalhoSample] = React.useState("");
   const [atalhoCompleted, setAtalhoCompleted] = React.useState(false);
   const [atalhoAutoSubmitted, setAtalhoAutoSubmitted] = React.useState(false);
+  const [atalhoAutoNotice, setAtalhoAutoNotice] = React.useState(false);
 
   // Carregar exercício
   React.useEffect(() => {
@@ -99,22 +100,7 @@ export default function ExerciseDetail() {
     })();
   }, [id]);
 
-  // Gerar texto exemplo para exercícios de atalho quando o exercício é carregado
-  React.useEffect(() => {
-    if (!exercicio) return;
-    if (determinarTipoRenderizacao(exercicio) !== "atalho") return;
-    const samples = [
-      "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
-      "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-      "Exemplo: 12345 - teste rápido de copiar e colar!",
-      "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
-      "Treino: Abacaxi, banana, uva, morango, limão."
-    ];
-    const pick = samples[Math.floor(Math.random() * samples.length)];
-    setAtalhoSample(pick);
-    setAtalhoCompleted(false);
-    setAtalhoAutoSubmitted(false);
-  }, [exercicio]);
+  // (amostras geradas no efeito centralizado abaixo)
 
   // Auto-submissão quando o atalho é completado
   React.useEffect(() => {
@@ -127,6 +113,8 @@ export default function ExerciseDetail() {
       try {
         await handleEnviar();
         setAtalhoAutoSubmitted(true);
+        setAtalhoAutoNotice(true);
+        setTimeout(() => setAtalhoAutoNotice(false), 4000);
       } catch (err) {
         // Se falhar, não marcar como enviado para tentar novamente
         console.error("Auto-submissão falhou:", err);
@@ -860,6 +848,11 @@ export default function ExerciseDetail() {
                           <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>
                             {atalhoCompleted ? "✅ Atalho completado" : "⏳ Complete o exercício de atalho para treinar"}
                           </div>
+                          {atalhoAutoNotice && (
+                            <div style={{ marginTop: 8, color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
+                              ✅ Imagem detectada — enviada automaticamente
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

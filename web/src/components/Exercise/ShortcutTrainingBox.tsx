@@ -144,13 +144,21 @@ export default function ShortcutTrainingBox({
         <div className="shortcutBox">
           {sample && (
             <div style={{ marginBottom: 12 }}>
-              {shortcutType === "copiar-colar-imagens" ? (
-                <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <img src={sample} alt="Exemplo" style={{ width: "100%", display: "block" }} />
-                </div>
-              ) : (
-                <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap" }}>{sample}</div>
-              )}
+              {(() => {
+                const isDataImage = sample.startsWith("data:image");
+                const isImageUrl = /\.(png|jpg|jpeg|gif|webp)(\?|$)/i.test(sample) || /^https?:\/\//i.test(sample) && /placeholder|image|png|jpg|jpeg|gif/i.test(sample);
+                if (isDataImage || isImageUrl) {
+                  return (
+                    <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <img src={sample} alt="Exemplo" style={{ width: "100%", display: "block" }} />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap" }}>{sample}</div>
+                );
+              })()}
             </div>
           )}
           <div className="shortcutLabel">
