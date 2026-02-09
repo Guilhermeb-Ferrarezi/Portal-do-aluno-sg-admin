@@ -80,6 +80,7 @@ export default function ExerciseDetail() {
   // Para exercícios de ATALHO: texto de exemplo e estado de conclusão
   const [atalhoSample, setAtalhoSample] = React.useState("");
   const [atalhoCompleted, setAtalhoCompleted] = React.useState(false);
+  const [atalhoAutoSubmitted, setAtalhoAutoSubmitted] = React.useState(false);
 
   // Carregar exercício
   React.useEffect(() => {
@@ -112,7 +113,26 @@ export default function ExerciseDetail() {
     const pick = samples[Math.floor(Math.random() * samples.length)];
     setAtalhoSample(pick);
     setAtalhoCompleted(false);
+    setAtalhoAutoSubmitted(false);
   }, [exercicio]);
+
+  // Auto-submissão quando o atalho é completado
+  React.useEffect(() => {
+    if (!atalhoCompleted) return;
+    if (atalhoAutoSubmitted) return;
+    // Apenas enviar se estamos em um exercício válido
+    if (!exercicio) return;
+    // Chamar função de envio existente
+    (async () => {
+      try {
+        await handleEnviar();
+        setAtalhoAutoSubmitted(true);
+      } catch (err) {
+        // Se falhar, não marcar como enviado para tentar novamente
+        console.error("Auto-submissão falhou:", err);
+      }
+    })();
+  }, [atalhoCompleted, atalhoAutoSubmitted, exercicio]);
 
   // Carregar minhas tentativas
   React.useEffect(() => {
