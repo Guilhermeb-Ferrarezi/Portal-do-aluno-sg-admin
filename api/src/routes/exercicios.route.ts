@@ -6,7 +6,7 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 
 type DBDate = string | Date;
-type TipoExercicio = "codigo" | "texto";
+type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho";
 
 type ExercicioRow = {
   id: string;
@@ -139,6 +139,7 @@ const createSchema = z.object({
   mouse_regras: z.string().optional().nullable(),
   multipla_regras: z.string().optional().nullable(),
   atalho_tipo: z.enum(["copiar-colar", "copiar-colar-imagens", "selecionar-deletar"]).optional().nullable(),
+  tipo_exercicio: z.string().optional().nullable(),
 });
 
 function parseIdArray(value: unknown): string[] {
@@ -356,10 +357,11 @@ export function exerciciosRouter(jwtSecret: string) {
         });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, tipo_exercicio } = parsed.data;
 
-      // Detectar tipo automaticamente
-      const tipoExercicio = detectarTipoExercicio(titulo, descricao);
+      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
+      const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
+      const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
       // Se tem published_at, publicado deve ser false até que a data chegue
       const shouldPublish = published_at ? false : (publicado ?? true);
@@ -461,10 +463,11 @@ export function exerciciosRouter(jwtSecret: string) {
         return res.status(404).json({ message: "Exercício não encontrado" });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, tipo_exercicio } = parsed.data;
 
-      // Detectar tipo automaticamente
-      const tipoExercicio = detectarTipoExercicio(titulo, descricao);
+      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
+      const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
+      const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
       const updated = await pool.query<ExercicioRow>(
         `UPDATE exercicios

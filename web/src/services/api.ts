@@ -106,6 +106,7 @@ export async function criarExercicio(dados: {
   multipla_regras?: string | null;
   turma_ids?: string[];
   aluno_ids?: string[];
+  tipoExercicio?: TipoExercicio;
 }) {
   return apiFetch<{ message: string; exercicio: unknown }>("/exercicios", {
     method: "POST",
@@ -128,6 +129,7 @@ export async function atualizarExercicio(id: string, dados: {
   multipla_regras?: string | null;
   turma_ids?: string[];
   aluno_ids?: string[];
+  tipoExercicio?: TipoExercicio;
 }) {
   return apiFetch<{ message: string; exercicio: unknown }>(`/exercicios/${id}`, {
     method: "PUT",
