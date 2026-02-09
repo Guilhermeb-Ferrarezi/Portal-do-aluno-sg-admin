@@ -76,7 +76,7 @@ export default function ExerciseDetail() {
   const [mouseCompleted, setMouseCompleted] = React.useState(false);
 
   // Para exercícios tipo "Nenhum" - seletor de tipo
-  const [selectedTipoNenhum, setSelectedTipoNenhum] = React.useState<"codigo" | "texto" | "escrita" | null>(null);
+  const [selectedTipoNenhum, setSelectedTipoNenhum] = React.useState<"codigo" | "texto" | "escrita" | "multipla" | "mouse" | "atalho" | null>(null);
   // Para exercícios de ATALHO: texto de exemplo e estado de conclusão
   const [atalhoSample, setAtalhoSample] = React.useState("");
   const [atalhoCompleted, setAtalhoCompleted] = React.useState(false);
@@ -392,7 +392,15 @@ export default function ExerciseDetail() {
   const prazoData = exercicio.prazo ? new Date(exercicio.prazo) : null;
   const prazoVencido = prazoData ? prazoData < new Date() : false;
   const temaTema = exercicio.tema || "Sem tema";
-  const tipoExercicio = exercicio.tipoExercicio || "texto";
+  let tipoExercicio = exercicio.tipoExercicio || "texto";
+
+  // Se é exercício tipo "nenhum" e usuário selecionou um tipo, use o tipo selecionado
+  if (exercicio.tipoExercicio === "nenhum" && selectedTipoNenhum) {
+    tipoExercicio = selectedTipoNenhum;
+  }
+
+  // Usar tipoExercicio para renderização (já considera selectedTipoNenhum)
+  const tipoRenderizacao = tipoExercicio;
 
   return (
     <DashboardLayout
@@ -436,7 +444,8 @@ export default function ExerciseDetail() {
                       ? "💻 Código"
                       : tipoExercicio === "escrita"
                       ? "✍️ Escrita"
-                      : "📝 Digitação"}
+                      : "📝 Digitação"
+                      }
                   </strong>
                 </div>
                 {prazoData && (
@@ -627,7 +636,7 @@ export default function ExerciseDetail() {
               {/* RESPOSTA */}
               <div className="edInputGroup">
                 {/* Exercícios com Mouse Interativo - Baseado em tipo */}
-                {exercicio && determinarTipoRenderizacao(exercicio) === "mouse" && (() => {
+                {exercicio && tipoRenderizacao === "mouse" && (() => {
                   const mouseRegras = exercicio.mouse_regras
                     ? JSON.parse(exercicio.mouse_regras)
                     : { clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 };
@@ -680,7 +689,7 @@ export default function ExerciseDetail() {
                 })()}
 
                 {/* EXERCÍCIOS COM MÚLTIPLA ESCOLHA */}
-                {exercicio && determinarTipoRenderizacao(exercicio) === "multipla" && (() => {
+                {exercicio && tipoRenderizacao === "multipla" && (() => {
                   const multiplaRegras = exercicio.multipla_regras
                     ? JSON.parse(exercicio.multipla_regras)
                     : { questoes: [] };
@@ -740,7 +749,7 @@ export default function ExerciseDetail() {
                 })()}
 
                 {/* Exercícios de ATALHO */}
-                {exercicio && determinarTipoRenderizacao(exercicio) === "atalho" && (() => {
+                {exercicio && tipoRenderizacao === "atalho" && (() => {
                   const atalhoTipo = currentAtalhoTipo;
 
                   return (
@@ -947,6 +956,78 @@ export default function ExerciseDetail() {
                           }}
                         >
                           📝 Digitação
+                        </button>
+                        <button
+                          onClick={() => setSelectedTipoNenhum("multipla")}
+                          style={{
+                            padding: "16px",
+                            border: "2px solid rgba(236, 72, 153, 0.2)",
+                            borderRadius: "8px",
+                            backgroundColor: "var(--background-secondary)",
+                            color: "#ec4899",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(236, 72, 153, 0.15)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                          }}
+                        >
+                          ❓ Múltipla Escolha
+                        </button>
+                        <button
+                          onClick={() => setSelectedTipoNenhum("mouse")}
+                          style={{
+                            padding: "16px",
+                            border: "2px solid rgba(248, 113, 113, 0.2)",
+                            borderRadius: "8px",
+                            backgroundColor: "var(--background-secondary)",
+                            color: "#f87171",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(248, 113, 113, 0.15)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                          }}
+                        >
+                          🖱️ Mouse Interativo
+                        </button>
+                        <button
+                          onClick={() => setSelectedTipoNenhum("atalho")}
+                          style={{
+                            padding: "16px",
+                            border: "2px solid rgba(251, 146, 60, 0.2)",
+                            borderRadius: "8px",
+                            backgroundColor: "var(--background-secondary)",
+                            color: "#fb923c",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(251, 146, 60, 0.15)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                          }}
+                        >
+                          ⌨️ Atalho
                         </button>
                       </div>
                     </div>
