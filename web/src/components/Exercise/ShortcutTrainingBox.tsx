@@ -49,6 +49,7 @@ export default function ShortcutTrainingBox({
   const [isComplete, setIsComplete] = React.useState(false);
   const [pressedKeys, setPressedKeys] = React.useState<Set<string>>(new Set());
   const [feedback, setFeedback] = React.useState<string>("");
+  const [imageError, setImageError] = React.useState(false);
 
   const shortcutConfig = SHORTCUTS[shortcutType];
   const requiredKeys = shortcutConfig.keys;
@@ -122,9 +123,8 @@ export default function ShortcutTrainingBox({
   };
 
   const renderImageTrainingLayout = () => {
-    const isDataImage = typeof sample === "string" && sample.startsWith("data:image");
-    const isImageUrl = typeof sample === "string" && (/\.(png|jpg|jpeg|gif|webp)(\?|$)/i.test(sample) || (/^https?:\/\//i.test(sample) && /placeholder|image|png|jpg|jpeg|gif/i.test(sample)));
-    const imageSrc = isDataImage || isImageUrl ? sample : "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo";
+    // Sempre use a amostra como imagem (já validada no ExerciseDetail)
+    const fallbackColor = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
 
     return (
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 20 }}>
@@ -134,7 +134,19 @@ export default function ShortcutTrainingBox({
             📷 Imagem - Copie aqui
           </div>
           <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)" }}>
-            <img src={imageSrc} alt="Imagem para copiar" style={{ width: "100%", display: "block", cursor: "pointer" }} title="Clique ou use Ctrl+C para copiar" />
+            {sample && !imageError ? (
+              <img
+                src={sample}
+                alt="Imagem para copiar"
+                style={{ width: "100%", display: "block", cursor: "pointer", minHeight: 180, objectFit: "cover" }}
+                title="Clique ou use Ctrl+C para copiar"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div style={{ width: "100%", minHeight: 180, background: fallbackColor, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 14, fontWeight: 600 }}>
+                📸 Imagem de Exemplo
+              </div>
+            )}
           </div>
         </div>
 
@@ -168,6 +180,7 @@ export default function ShortcutTrainingBox({
                 }
               }
             }}
+            tabIndex={0}
           >
             Cola a imagem aqui com Ctrl+V
           </div>
