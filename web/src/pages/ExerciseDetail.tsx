@@ -128,6 +128,86 @@ export default function ExerciseDetail() {
     })();
   }, [id, exercicio]);
 
+  // Refs e handlers para exercícios do tipo ATALHO (devem ficar no topo do componente)
+  const sampleRef = React.useRef<HTMLDivElement | null>(null);
+
+  const currentAtalhoTipo = exercicio ? ((exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar") : "copiar-colar";
+
+  // Atualiza amostra quando exercício ou tipo mudar
+  React.useEffect(() => {
+    if (!exercicio) return;
+    if (currentAtalhoTipo === "copiar-colar-imagens") {
+      const images = [
+        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+1",
+        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+2",
+        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+3"
+      ];
+      setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
+    } else {
+      const texts = [
+        "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
+        "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "Exemplo: 12345 - teste rápido de copiar e colar!",
+        "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
+        "Treino: Abacaxi, banana, uva, morango, limão."
+      ];
+      setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
+    }
+    setAtalhoCompleted(false);
+  }, [exercicio, currentAtalhoTipo]);
+
+  // Handler para colagem de imagens (quando aplicável) — pode ser usado em onPaste ou no listener global
+  const handleImagePaste = React.useCallback((e: any) => {
+    const items = e.clipboardData && Array.from(e.clipboardData.items || []);
+    if (!items || items.length === 0) return false;
+    for (const item of items) {
+      if (item.type && item.type.indexOf("image") !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            setResposta(result);
+            setAtalhoCompleted(true);
+          };
+          reader.readAsDataURL(file);
+          if (e.preventDefault) e.preventDefault();
+          return true;
+        }
+      }
+    }
+    return false;
+  }, []);
+
+  // Handler para input na amostra (selecionar e apagar)
+  const handleSampleInput = React.useCallback(() => {
+    const el = sampleRef.current;
+    if (!el) return;
+    const text = el.innerText || "";
+    if (text.trim().length === 0) {
+      setAtalhoCompleted(true);
+    } else {
+      setAtalhoCompleted(false);
+    }
+  }, []);
+
+  // Listener global de paste para capturar imagem mesmo sem foco
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        if (!exercicio) return;
+        const localTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
+        if (localTipo !== "copiar-colar-imagens") return;
+        handleImagePaste(e);
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    window.addEventListener("paste", handler as EventListener);
+    return () => window.removeEventListener("paste", handler as EventListener);
+  }, [exercicio, handleImagePaste]);
+
 
   // Carregar submissoes dos alunos (admin/prof)
   React.useEffect(() => {
@@ -653,99 +733,7 @@ export default function ExerciseDetail() {
 
                 {/* Exercícios de ATALHO */}
                 {exercicio && determinarTipoRenderizacao(exercicio) === "atalho" && (() => {
-                  const atalhoTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
-                  const sampleRef = React.useRef<HTMLDivElement | null>(null);
-
-                  // Adaptar amostras quando o tipo muda
-                  React.useEffect(() => {
-                    if (!exercicio) return;
-                    if (atalhoTipo === "copiar-colar-imagens") {
-                      const images = [
-                        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+1",
-                        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+2",
-                        "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo+3"
-                      ];
-                      setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
-                    } else {
-                      const texts = [
-                        "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
-                        "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                        "Exemplo: 12345 - teste rápido de copiar e colar!",
-                        "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
-                        "Treino: Abacaxi, banana, uva, morango, limão."
-                      ];
-                      setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
-                    }
-                    setAtalhoCompleted(false);
-                  }, [exercicio, atalhoTipo]);
-
-                  // Listener global de paste para capturar colagem de imagens mesmo sem foco
-                  React.useEffect(() => {
-                    const handler = (e: any) => {
-                      try {
-                        if (!exercicio) return;
-                        const localTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
-                        if (localTipo !== "copiar-colar-imagens") return;
-                        const items = e.clipboardData && Array.from(e.clipboardData.items || []);
-                        if (!items || items.length === 0) return;
-                        for (const item of items) {
-                          if (item.type && item.type.indexOf("image") !== -1) {
-                            const file = item.getAsFile();
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                const result = reader.result as string;
-                                setResposta(result);
-                                setAtalhoCompleted(true);
-                              };
-                              reader.readAsDataURL(file);
-                              e.preventDefault();
-                              return;
-                            }
-                          }
-                        }
-                      } catch (err) {
-                        // ignore
-                      }
-                    };
-
-                    window.addEventListener("paste", handler as EventListener);
-                    return () => window.removeEventListener("paste", handler as EventListener);
-                  }, [exercicio]);
-
-                  // Handler para colagem de imagens (quando aplicável)
-                  const handleImagePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-                    const items = e.clipboardData && Array.from(e.clipboardData.items || []);
-                    if (!items || items.length === 0) return;
-                    for (const item of items) {
-                      if (item.type && item.type.indexOf("image") !== -1) {
-                        const file = item.getAsFile();
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const result = reader.result as string;
-                            setResposta(result);
-                            setAtalhoCompleted(true);
-                          };
-                          reader.readAsDataURL(file);
-                          e.preventDefault();
-                          return;
-                        }
-                      }
-                    }
-                  };
-
-                  // Handler para selecionar-tudo e apagar: detectar quando o sample fica vazio
-                  const handleSampleInput = () => {
-                    const el = sampleRef.current;
-                    if (!el) return;
-                    const text = el.innerText || "";
-                    if (text.trim().length === 0) {
-                      setAtalhoCompleted(true);
-                    } else {
-                      setAtalhoCompleted(false);
-                    }
-                  };
+                  const atalhoTipo = currentAtalhoTipo;
 
                   return (
                     <div>
