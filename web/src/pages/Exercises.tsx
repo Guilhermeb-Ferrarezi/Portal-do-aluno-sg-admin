@@ -331,6 +331,9 @@ export default function ExerciciosPage() {
         console.error("Erro ao parsear multipla_regras:", e);
         setComponenteInterativo("");
       }
+    } else if (exercicio.atalho_tipo) {
+      setComponenteInterativo("atalho");
+      setAtalhoTipo(exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar");
     } else {
       setComponenteInterativo("");
     }
@@ -365,6 +368,7 @@ export default function ExerciciosPage() {
     setCategoria("programacao");
     setComponenteInterativo("");
     setDiaNumero(1);
+    setAtalhoTipo("copiar-colar");
     setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
     setMultiplaQuestoes([{
       pergunta: "",
