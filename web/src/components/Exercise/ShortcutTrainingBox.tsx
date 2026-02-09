@@ -121,6 +121,61 @@ export default function ShortcutTrainingBox({
     return `${completed}/${total}`;
   };
 
+  const renderImageTrainingLayout = () => {
+    const isDataImage = typeof sample === "string" && sample.startsWith("data:image");
+    const isImageUrl = typeof sample === "string" && (/\.(png|jpg|jpeg|gif|webp)(\?|$)/i.test(sample) || (/^https?:\/\//i.test(sample) && /placeholder|image|png|jpg|jpeg|gif/i.test(sample)));
+    const imageSrc = isDataImage || isImageUrl ? sample : "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo";
+
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 20 }}>
+        {/* Campo Esquerdo - Imagem para Copiar */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "rgba(255,255,255,0.7)" }}>
+            📷 Imagem - Copie aqui
+          </div>
+          <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)" }}>
+            <img src={imageSrc} alt="Imagem para copiar" style={{ width: "100%", display: "block", cursor: "pointer" }} title="Clique ou use Ctrl+C para copiar" />
+          </div>
+        </div>
+
+        {/* Campo Direito - Área para Colar */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "rgba(255,255,255,0.7)" }}>
+            📌 Cole aqui a imagem
+          </div>
+          <div
+            style={{
+              borderRadius: 8,
+              border: "2px dashed rgba(255,255,255,0.2)",
+              padding: 20,
+              minHeight: 180,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(0,0,0,0.3)",
+              color: "rgba(255,255,255,0.5)",
+              fontSize: 14,
+              cursor: "pointer",
+              textAlign: "center"
+            }}
+            onPaste={(e) => {
+              const items = e.clipboardData?.items;
+              if (items) {
+                for (let i = 0; i < items.length; i++) {
+                  if (items[i].type.indexOf("image") !== -1) {
+                    setFeedback("✓ Imagem colada detectada!");
+                  }
+                }
+              }
+            }}
+          >
+            Cola a imagem aqui com Ctrl+V
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="shortcutTrainingBox" ref={boxRef}>
       <div className="shortcutHeader">
@@ -142,36 +197,34 @@ export default function ShortcutTrainingBox({
 
       <div className="shortcutArea">
         <div className="shortcutBox">
-          {sample && (
-            <div style={{ marginBottom: 12 }}>
-              {(() => {
-                const isDataImage = typeof sample === "string" && sample.startsWith("data:image");
-                const isImageUrl = typeof sample === "string" && (/\.(png|jpg|jpeg|gif|webp)(\?|$)/i.test(sample) || (/^https?:\/\//i.test(sample) && /placeholder|image|png|jpg|jpeg|gif/i.test(sample)));
+          {/* Layout especial para copiar-colar-imagens */}
+          {shortcutType === "copiar-colar-imagens" ? (
+            renderImageTrainingLayout()
+          ) : (
+            <>
+              {sample && (
+                <div style={{ marginBottom: 12 }}>
+                  {(() => {
+                    const isDataImage = typeof sample === "string" && sample.startsWith("data:image");
+                    const isImageUrl = typeof sample === "string" && (/\.(png|jpg|jpeg|gif|webp)(\?|$)/i.test(sample) || (/^https?:\/\//i.test(sample) && /placeholder|image|png|jpg|jpeg|gif/i.test(sample)));
 
-                // If the shortcut type expects an image, always render an image.
-                if (shortcutType === "copiar-colar-imagens") {
-                  const src = isDataImage || isImageUrl ? sample : "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo";
-                  return (
-                    <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      <img src={src} alt="Exemplo" style={{ width: "100%", display: "block" }} />
-                    </div>
-                  );
-                }
+                    if (isDataImage || isImageUrl) {
+                      return (
+                        <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          <img src={sample} alt="Exemplo" style={{ width: "100%", display: "block" }} />
+                        </div>
+                      );
+                    }
 
-                if (isDataImage || isImageUrl) {
-                  return (
-                    <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      <img src={sample} alt="Exemplo" style={{ width: "100%", display: "block" }} />
-                    </div>
-                  );
-                }
-
-                return (
-                  <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap" }}>{sample}</div>
-                );
-              })()}
-            </div>
+                    return (
+                      <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap" }}>{sample}</div>
+                    );
+                  })()}
+                </div>
+              )}
+            </>
           )}
+
           <div className="shortcutLabel">
             🎹 {SHORTCUT_LABELS[shortcutType]}
           </div>
