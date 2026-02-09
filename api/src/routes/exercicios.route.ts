@@ -730,5 +730,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
+  
+
   return router;
 }
