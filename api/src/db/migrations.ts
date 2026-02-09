@@ -122,6 +122,18 @@ export async function initializeDatabaseTables() {
     `);
     console.log("✅ Índices de exercicio_aluno criados!");
 
+    // Adicionar coluna atalho_tipo na tabela exercicios se não existir
+    console.log("⌨️ Adicionando suporte a atalhos na tabela exercicios...");
+    try {
+      await pool.query(`
+        ALTER TABLE exercicios
+        ADD COLUMN IF NOT EXISTS atalho_tipo VARCHAR(50) CHECK (atalho_tipo IN ('copiar-colar', 'copiar-colar-imagens', 'selecionar-deletar'));
+      `);
+      console.log("✅ Coluna atalho_tipo adicionada!");
+    } catch (error) {
+      console.warn("⚠️ Coluna atalho_tipo já existe ou erro ao adicionar:", (error as any).message);
+    }
+
     console.log("✨ Banco de dados inicializado com sucesso!");
   } catch (error) {
     console.error("❌ Erro ao inicializar banco de dados:", error);

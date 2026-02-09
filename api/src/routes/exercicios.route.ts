@@ -138,6 +138,7 @@ const createSchema = z.object({
   categoria: z.string().optional().default("programacao"),
   mouse_regras: z.string().optional().nullable(),
   multipla_regras: z.string().optional().nullable(),
+  atalho_tipo: z.enum(["copiar-colar", "copiar-colar-imagens", "selecionar-deletar"]).optional().nullable(),
 });
 
 function parseIdArray(value: unknown): string[] {
@@ -364,9 +365,9 @@ export function exerciciosRouter(jwtSecret: string) {
       const shouldPublish = published_at ? false : (publicado ?? true);
 
       const created = await pool.query<ExercicioRow>(
-        `INSERT INTO exercicios (titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, created_at, updated_at`,
+        `INSERT INTO exercicios (titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, created_at, updated_at`,
         [
           titulo,
           descricao,
@@ -383,6 +384,7 @@ export function exerciciosRouter(jwtSecret: string) {
           categoria ?? "programacao",
           mouse_regras ?? null,
           multipla_regras ?? null,
+          (req.body as any).atalho_tipo ?? null,
         ]
       );
 
@@ -459,7 +461,7 @@ export function exerciciosRouter(jwtSecret: string) {
         return res.status(404).json({ message: "Exercício não encontrado" });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo } = parsed.data;
 
       // Detectar tipo automaticamente
       const tipoExercicio = detectarTipoExercicio(titulo, descricao);
@@ -468,9 +470,9 @@ export function exerciciosRouter(jwtSecret: string) {
         `UPDATE exercicios
          SET titulo = $1, descricao = $2, modulo = $3, tema = $4, prazo = $5,
              publicado = $6, tipo_exercicio = $7, gabarito = $8, linguagem_esperada = $9,
-             categoria = $10, mouse_regras = $11, multipla_regras = $12, updated_at = NOW()
-         WHERE id = $13
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, created_at, updated_at`,
+             categoria = $10, mouse_regras = $11, multipla_regras = $12, atalho_tipo = $13, updated_at = NOW()
+         WHERE id = $14
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, created_at, updated_at`,
         [
           titulo,
           descricao,
@@ -484,6 +486,7 @@ export function exerciciosRouter(jwtSecret: string) {
           categoria ?? "programacao",
           mouse_regras ?? null,
           multipla_regras ?? null,
+          atalho_tipo ?? null,
           id,
         ]
       );

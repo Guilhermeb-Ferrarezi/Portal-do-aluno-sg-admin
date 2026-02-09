@@ -59,6 +59,7 @@ export type Exercicio = {
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
   multipla_regras?: string | null;
+  atalho_tipo?: "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar" | null;
   createdAt: string;
   turmas?: Turma[];
   alunos?: UserRef[];
