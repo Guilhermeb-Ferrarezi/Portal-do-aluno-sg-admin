@@ -469,6 +469,16 @@ export default function ExerciseDetail() {
             <div className="edCard edResponder">
               <h2 className="edSubtitle">📝 Envie sua resposta</h2>
 
+              {/* DESCRIÇÃO DO EXERCÍCIO - Para TODOS os tipos */}
+              <div style={{ padding: "14px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: "8px", marginBottom: "20px" }}>
+                <p style={{ margin: "0 0 8px 0", fontWeight: 600, color: "#1e40af", fontSize: "14px" }}>
+                  📋 Descrição do Desafio:
+                </p>
+                <p style={{ margin: 0, color: "#1e40af", fontSize: "13px", lineHeight: "1.5" }}>
+                  {exercicio.descricao}
+                </p>
+              </div>
+
               {/* MENSAGENS */}
               <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
                 <div className="exMessage error">

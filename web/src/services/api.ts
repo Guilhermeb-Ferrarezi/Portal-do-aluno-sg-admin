@@ -66,7 +66,7 @@ export type Exercicio = {
   aluno_ids?: string[];
 };
 
-export type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita";
+export type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho";
 
 export type Submissao = {
   id: string;
