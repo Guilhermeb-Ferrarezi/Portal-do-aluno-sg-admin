@@ -489,7 +489,6 @@ export default function ExerciciosPage() {
                   placeholder="Descreva o exercício em detalhes..."
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  disabled={categoria === "informatica" && (componenteInterativo === "mouse" || componenteInterativo === "multipla")}
                 />
               </div>
 
