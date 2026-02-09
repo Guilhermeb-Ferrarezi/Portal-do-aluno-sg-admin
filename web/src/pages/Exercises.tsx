@@ -11,6 +11,7 @@ import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, Conditional
 import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
+
 export default function ExerciciosPage() {
   const navigate = useNavigate();
   const role = getRole() ?? "aluno";
@@ -191,7 +192,7 @@ export default function ExerciciosPage() {
         }
 
         tituloFinal = `Dia ${diaNumero}: ${nomeComponente}`;
-        descricaoFinal = `Dia ${diaNumero}: ${nomeComponente}`;
+        descricaoFinal = `${descricao}`;
       }
 
       const dados: any = {
