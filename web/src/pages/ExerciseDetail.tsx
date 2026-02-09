@@ -5,6 +5,7 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import MonacoEditor from "../components/MonacoEditor";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
+import ShortcutTrainingBox from "../components/Exercise/ShortcutTrainingBox";
 import { FadeInUp, AnimatedButton, PulseLoader, ConditionalFieldAnimation, AnimatedToast } from "../components/animate-ui";
 import {
   obterExercicio,
@@ -704,6 +705,48 @@ export default function ExerciseDetail() {
                         rows={4}
                         style={{ marginTop: "16px" }}
                       />
+                    </div>
+                  );
+                })()}
+
+                {/* Exercícios de ATALHO */}
+                {exercicio && exercicio.atalho_tipo && (() => {
+                  const atalhoTipo = exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar";
+
+                  return (
+                    <div>
+                      {/* Descrição e Instruções */}
+                      <div style={{ padding: "16px", background: "#f0f9ff", borderRadius: "8px", marginBottom: "20px", border: "1px solid #bfdbfe" }}>
+                        <p style={{ fontWeight: 600, color: "#1e40af", fontSize: "15px", marginTop: 0, marginBottom: "8px" }}>
+                          📋 Descrição do Desafio:
+                        </p>
+                        <p style={{ fontSize: "14px", color: "#1e40af", margin: 0, lineHeight: "1.6" }}>
+                          {exercicio.descricao}
+                        </p>
+                      </div>
+
+                      {/* Componente de Atalho */}
+                      <ShortcutTrainingBox
+                        title="⌨️ Pratique o Atalho"
+                        instruction="Use o atalho indicado abaixo para completar o exercício"
+                        shortcutType={atalhoTipo}
+                        onComplete={(events) => {
+                          console.log("Atalho completado:", events);
+                          setResposta("Atalho completado com sucesso!");
+                        }}
+                      />
+
+                      {/* Campo opcional de comentário */}
+                      <FadeInUp delay={0.1} duration={0.3}>
+                        <textarea
+                          className="edTextarea"
+                          placeholder="(Opcional) Deixe um comentário sobre a experiência..."
+                          value={resposta}
+                          onChange={(e) => setResposta(e.target.value)}
+                          rows={4}
+                          style={{ marginTop: "16px" }}
+                        />
+                      </FadeInUp>
                     </div>
                   );
                 })()}

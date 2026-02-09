@@ -65,6 +65,8 @@ export default function ExerciciosPage() {
     ],
     respostaCorreta: ""
   }]);
+  // Tipos de atalho para exercícios de atalho
+  const [atalhoTipo, setAtalhoTipo] = React.useState<"copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar">("copiar-colar");
   const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
   const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
@@ -211,6 +213,10 @@ export default function ExerciciosPage() {
         ...(componenteInterativo === "multipla" ? {
           multipla_regras: JSON.stringify({ questoes: multiplaQuestoes })
         } : {}),
+        // Adicionar tipo de atalho se for componente de atalho
+        ...(componenteInterativo === "atalho" ? {
+          atalho_tipo: atalhoTipo
+        } : {}),
       };
 
       if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
@@ -243,6 +249,7 @@ export default function ExerciciosPage() {
       setComponenteInterativo("");
       setDiaNumero(1);
       setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
+      setAtalhoTipo("copiar-colar");
       setTurmasSelecionadas([]);
       setAlunosSelecionados([]);
       setModoAtribuicao("turma");
@@ -829,6 +836,14 @@ export default function ExerciciosPage() {
                         label="Múltipla Escolha"
                         icon="❓"
                       />
+                      <AnimatedRadioLabel
+                        name="componenteInterativoInformatica"
+                        value="atalho"
+                        checked={componenteInterativo === "atalho"}
+                        onChange={(e) => setComponenteInterativo(e.target.value)}
+                        label="Atalho"
+                        icon="⌨️"
+                      />
                     </div>
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
                       Selecione o tipo de componente para Informática
@@ -1125,6 +1140,44 @@ export default function ExerciciosPage() {
                     </div>
                   </ConditionalFieldAnimation>
                 </>
+              )}
+
+              {/* TIPO DE ATALHO - Para componente de atalho em Informática */}
+              {categoria === "informatica" && componenteInterativo === "atalho" && (
+                <ScaleIn>
+                  <div className="exInputGroup">
+                    <label className="exLabel">Selecione o Tipo de Atalho</label>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                      <AnimatedRadioLabel
+                        name="atalhoTipo"
+                        value="copiar-colar"
+                        checked={atalhoTipo === "copiar-colar"}
+                        onChange={(e) => setAtalhoTipo(e.target.value as any)}
+                        label="Copiar e Colar"
+                        icon="📋"
+                      />
+                      <AnimatedRadioLabel
+                        name="atalhoTipo"
+                        value="copiar-colar-imagens"
+                        checked={atalhoTipo === "copiar-colar-imagens"}
+                        onChange={(e) => setAtalhoTipo(e.target.value as any)}
+                        label="Copiar e Colar Imagens"
+                        icon="🖼️"
+                      />
+                      <AnimatedRadioLabel
+                        name="atalhoTipo"
+                        value="selecionar-deletar"
+                        checked={atalhoTipo === "selecionar-deletar"}
+                        onChange={(e) => setAtalhoTipo(e.target.value as any)}
+                        label="Selecionar Tudo e Deletar"
+                        icon="🗑️"
+                      />
+                    </div>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                      Escolha qual atalho o aluno irá treinar
+                    </small>
+                  </div>
+                </ScaleIn>
               )}
 
               <div className="exInputRow">
