@@ -145,8 +145,19 @@ export default function ShortcutTrainingBox({
           {sample && (
             <div style={{ marginBottom: 12 }}>
               {(() => {
-                const isDataImage = sample.startsWith("data:image");
-                const isImageUrl = /\.(png|jpg|jpeg|gif|webp)(\?|$)/i.test(sample) || /^https?:\/\//i.test(sample) && /placeholder|image|png|jpg|jpeg|gif/i.test(sample);
+                const isDataImage = typeof sample === "string" && sample.startsWith("data:image");
+                const isImageUrl = typeof sample === "string" && (/\.(png|jpg|jpeg|gif|webp)(\?|$)/i.test(sample) || (/^https?:\/\//i.test(sample) && /placeholder|image|png|jpg|jpeg|gif/i.test(sample)));
+
+                // If the shortcut type expects an image, always render an image.
+                if (shortcutType === "copiar-colar-imagens") {
+                  const src = isDataImage || isImageUrl ? sample : "https://via.placeholder.com/420x180.png?text=Imagem+Exemplo";
+                  return (
+                    <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <img src={src} alt="Exemplo" style={{ width: "100%", display: "block" }} />
+                    </div>
+                  );
+                }
+
                 if (isDataImage || isImageUrl) {
                   return (
                     <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
