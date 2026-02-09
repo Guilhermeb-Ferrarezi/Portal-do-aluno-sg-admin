@@ -209,6 +209,10 @@ export default function ExerciciosPage() {
         ...(componenteInterativo === "mouse" ? { tipoExercicio: "mouse" } : {}),
         ...(componenteInterativo === "multipla" ? { tipoExercicio: "multipla" } : {}),
         ...(componenteInterativo === "atalho" ? { tipoExercicio: "atalho" } : {}),
+        // Quando o componente for explicitamente 'nenhum'
+        ...(componenteInterativo === "nenhum" ? { tipoExercicio: "nenhum" } : {}),
+        // Para Programação, o valor "" representa o editor de código (Monaco) => mapear para "codigo"
+        ...(categoria === "programacao" && componenteInterativo === "" ? { tipoExercicio: "codigo" } : {}),
         // Adicionar regras do mouse se for componente interativo
         ...(componenteInterativo === "mouse" ? {
           mouse_regras: JSON.stringify(mouseRegras)

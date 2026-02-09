@@ -77,6 +77,9 @@ export default function ExerciseDetail() {
 
   // Para exercícios tipo "Nenhum" - seletor de tipo
   const [selectedTipoNenhum, setSelectedTipoNenhum] = React.useState<"codigo" | "texto" | "escrita" | null>(null);
+  // Para exercícios de ATALHO: texto de exemplo e estado de conclusão
+  const [atalhoSample, setAtalhoSample] = React.useState("");
+  const [atalhoCompleted, setAtalhoCompleted] = React.useState(false);
 
   // Carregar exercício
   React.useEffect(() => {
@@ -94,6 +97,22 @@ export default function ExerciseDetail() {
       }
     })();
   }, [id]);
+
+  // Gerar texto exemplo para exercícios de atalho quando o exercício é carregado
+  React.useEffect(() => {
+    if (!exercicio) return;
+    if (determinarTipoRenderizacao(exercicio) !== "atalho") return;
+    const samples = [
+      "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
+      "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      "Exemplo: 12345 - teste rápido de copiar e colar!",
+      "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
+      "Treino: Abacaxi, banana, uva, morango, limão."
+    ];
+    const pick = samples[Math.floor(Math.random() * samples.length)];
+    setAtalhoSample(pick);
+    setAtalhoCompleted(false);
+  }, [exercicio]);
 
   // Carregar minhas tentativas
   React.useEffect(() => {
@@ -494,15 +513,6 @@ export default function ExerciseDetail() {
             <div className="edCard edResponder">
               <h2 className="edSubtitle">📝 Envie sua resposta</h2>
 
-              {/* DESCRIÇÃO DO EXERCÍCIO - Para TODOS os tipos */}
-              <div style={{ padding: "14px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: "8px", marginBottom: "20px" }}>
-                <p style={{ margin: "0 0 8px 0", fontWeight: 600, color: "#1e40af", fontSize: "14px" }}>
-                  📋 Descrição do Desafio:
-                </p>
-                <p style={{ margin: 0, color: "#1e40af", fontSize: "13px", lineHeight: "1.5" }}>
-                  {exercicio.descricao}
-                </p>
-              </div>
 
               {/* MENSAGENS */}
               <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
@@ -537,12 +547,6 @@ export default function ExerciseDetail() {
                   return (
                     <div>
                       <div style={{ marginBottom: "20px", padding: "16px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: "8px" }}>
-                        <p style={{ fontSize: 14, color: "#1e40af", margin: "0 0 8px 0", fontWeight: 600 }}>
-                          📋 Descrição do Desafio:
-                        </p>
-                        <p style={{ fontSize: 13, color: "#1e40af", margin: 0 }}>
-                          {exercicio.descricao}
-                        </p>
                         {(mouseRegras.clicksSimples || mouseRegras.duplosClicks || mouseRegras.clicksDireitos) && (
                           <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #bfdbfe" }}>
                             <p style={{ fontSize: 12, color: "#1e40af", margin: "0 0 6px 0", fontWeight: 600 }}>
@@ -654,14 +658,6 @@ export default function ExerciseDetail() {
                   return (
                     <div>
                       {/* Descrição e Instruções */}
-                      <div style={{ padding: "16px", background: "#f0f9ff", borderRadius: "8px", marginBottom: "20px", border: "1px solid #bfdbfe" }}>
-                        <p style={{ fontWeight: 600, color: "#1e40af", fontSize: "15px", marginTop: 0, marginBottom: "8px" }}>
-                          📋 Descrição do Desafio:
-                        </p>
-                        <p style={{ fontSize: "14px", color: "#1e40af", margin: 0, lineHeight: "1.6" }}>
-                          {exercicio.descricao}
-                        </p>
-                      </div>
 
                       {/* Componente de Atalho */}
                       <ShortcutTrainingBox
@@ -670,21 +666,64 @@ export default function ExerciseDetail() {
                         shortcutType={atalhoTipo}
                         onComplete={(events) => {
                           console.log("Atalho completado:", events);
-                          setResposta("Atalho completado com sucesso!");
+                          setAtalhoCompleted(true);
                         }}
                       />
 
-                      {/* Campo opcional de comentário */}
-                      <FadeInUp delay={0.1} duration={0.3}>
-                        <textarea
-                          className="edTextarea"
-                          placeholder="(Opcional) Deixe um comentário sobre a experiência..."
-                          value={resposta}
-                          onChange={(e) => setResposta(e.target.value)}
-                          rows={4}
-                          style={{ marginTop: "16px" }}
-                        />
-                      </FadeInUp>
+                      {/* Texto de exemplo (read-only) + botão copiar/novo */}
+                      <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "flex-start" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>Texto de exemplo</label>
+                          <textarea
+                            className="edTextarea"
+                            readOnly
+                            value={atalhoSample}
+                            rows={6}
+                            style={{ resize: "vertical" }}
+                          />
+                          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button
+                              className="templateBtnView"
+                              onClick={() => navigator.clipboard?.writeText(atalhoSample)}
+                              title="Copiar texto exemplo"
+                            >
+                              📋 Copiar
+                            </button>
+                            <button
+                              className="templateBtnView"
+                              onClick={() => {
+                                const samples = [
+                                  "Copie este texto de exemplo: O rápido castor marron salta sobre o cão preguiçoso.",
+                                  "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                                  "Exemplo: 12345 - teste rápido de copiar e colar!",
+                                  "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
+                                  "Treino: Abacaxi, banana, uva, morango, limão."
+                                ];
+                                setAtalhoSample(samples[Math.floor(Math.random() * samples.length)]);
+                                setAtalhoCompleted(false);
+                              }}
+                            >
+                              🔁 Novo texto
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Campo onde usuário cola o texto */}
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>Cole aqui</label>
+                          <textarea
+                            className="edTextarea"
+                            placeholder="Cole o texto aqui após copiar o exemplo"
+                            value={resposta}
+                            onChange={(e) => setResposta(e.target.value)}
+                            rows={6}
+                            style={{ resize: "vertical" }}
+                          />
+                          <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>
+                            {atalhoCompleted ? "✅ Atalho completado" : "⏳ Complete o exercício de atalho para treinar"}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   );
                 })()}
