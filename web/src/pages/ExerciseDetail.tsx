@@ -839,7 +839,7 @@ export default function ExerciseDetail() {
                         <ShortcutTrainingBox
                           ref={shortcutBoxRef}
                           title="⌨️ Pratique o Atalho"
-                          instruction={atalhoTipo === "copiar-colar" ? "" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita"}
+                          instruction={atalhoTipo === "copiar-colar" ? "Selecione todo o texto de exemplo acima com o mouse" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita"}
                           shortcutType={atalhoTipo}
                           sample={atalhoSample}
                           onComplete={(events) => {
