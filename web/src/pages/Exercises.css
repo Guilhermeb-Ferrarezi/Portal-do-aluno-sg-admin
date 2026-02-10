@@ -1054,7 +1054,20 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   flex-wrap: wrap;
 }
 
-.filterGroup {
-  flex: 1;
-  min-width: 180px;
+
+.exerciseBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--background-secondary);
+  color: var(--text);
+  border: 1px solid var(--line);
+  margin-left: 8px;
+  white-space: nowrap;
+  vertical-align: middle;
 }

@@ -118,8 +118,8 @@ export default function ExerciciosPage() {
   function getAlunoNames(exercicio: Exercicio): string[] {
     const alunos = Array.isArray((exercicio as any).alunos)
       ? (exercicio as any).alunos
-          .map((a: any) => a?.nome || a?.usuario || a?.id)
-          .filter(Boolean)
+        .map((a: any) => a?.nome || a?.usuario || a?.id)
+        .filter(Boolean)
       : [];
     if (alunos.length > 0) return alunos as string[];
 
@@ -511,554 +511,527 @@ export default function ExerciciosPage() {
         {/* SEÇÃO DE CRIAR */}
         {canCreate && activeSection === "criar" && (
           <FadeInUp duration={0.28}>
-          <div className="createExerciseCard">
-            <h2 className="exFormTitle">Criar novo exercício</h2>
+            <div className="createExerciseCard">
+              <h2 className="exFormTitle">Criar novo exercício</h2>
 
-            <div className="exFormGrid">
-              <div className="exInputGroup">
-                <label className="exLabel">Título *</label>
-                <input
-                  className="exInput"
-                  placeholder="ex: Exercício 15.3: Layout Responsivo"
-                  value={titulo}
-                  onChange={(e) => setTitulo(e.target.value)}
-                />
-              </div>
-
-              <div className="exInputGroup">
-                <label className="exLabel">Descrição *</label>
-                <textarea
-                  className="exTextarea"
-                  placeholder="Descreva o exercício em detalhes..."
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                />
-              </div>
-
-              {/* CATEGORIA - PROGRAMAÇÃO vs INFORMATICA */}
-              <div className="exInputRow">
+              <div className="exFormGrid">
                 <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="categoria"
-                      value="programacao"
-                      checked={categoria === "programacao"}
-                      onChange={(e) => {
-                        setCategoria(e.target.value as any);
-                        setComponenteInterativo("");
-                      }}
-                      style={{ marginRight: "8px", cursor: "pointer" }}
-                    />
-                    <span style={{ fontWeight: 600 }}>💻 Programação</span>
-                  </label>
+                  <label className="exLabel">Título *</label>
+                  <input
+                    className="exInput"
+                    placeholder="ex: Exercício 15.3: Layout Responsivo"
+                    value={titulo}
+                    onChange={(e) => setTitulo(e.target.value)}
+                  />
                 </div>
 
                 <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="categoria"
-                      value="informatica"
-                      checked={categoria === "informatica"}
-                      onChange={(e) => {
-                        setCategoria(e.target.value as any);
-                        setComponenteInterativo("");
-                      }}
-                      style={{ marginRight: "8px", cursor: "pointer" }}
-                    />
-                    <span style={{ fontWeight: 600 }}>📚 Informática</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* TEMPLATE VS ATIVIDADE */}
-              <div className="exInputRow">
-                <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="tipoAtividade"
-                      value="atividade"
-                      checked={!isTemplate}
-                      onChange={() => setIsTemplate(false)}
-                      style={{ marginRight: "8px", cursor: "pointer" }}
-                    />
-                    <span style={{ fontWeight: 600 }}>📝 Atividade Padrão</span>
-                  </label>
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                    Atividade padrão para a turma
-                  </small>
+                  <label className="exLabel">Descrição *</label>
+                  <textarea
+                    className="exTextarea"
+                    placeholder="Descreva o exercício em detalhes..."
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
+                  />
                 </div>
 
-                <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="tipoAtividade"
-                      value="template"
-                      checked={isTemplate}
-                      onChange={() => setIsTemplate(true)}
-                      style={{ marginRight: "8px", cursor: "pointer" }}
-                    />
-                    <span style={{ fontWeight: 600 }}>📦 Template (Reutilizável)</span>
-                  </label>
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                    Template reutilizável
-                  </small>
-                </div>
-              </div>
-
-              {/* COMPONENTES INTERATIVOS - Para Programação */}
-              {categoria === "programacao" && (
-                <>
+                {/* CATEGORIA - PROGRAMAÇÃO vs INFORMATICA */}
+                <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Tipo de Exercício</label>
-                    <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                      <AnimatedRadioLabel
-                        name="tipoExercicio"
-                        value="nenhum"
-                        checked={componenteInterativo === "nenhum"}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Nenhum (Normal)"
-                        icon="📝"
-                      />
-                      <AnimatedRadioLabel
-                        name="tipoExercicio"
-                        value=""
-                        checked={componenteInterativo === ""}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Código (Monaco)"
-                        icon="💻"
-                      />
-                      <AnimatedRadioLabel
-                        name="tipoExercicio"
-                        value="escrita"
-                        checked={componenteInterativo === "escrita"}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Escrita"
-                        icon="✍️"
-                      />
-                      <AnimatedRadioLabel
-                        name="tipoExercicio"
-                        value="multipla"
-                        checked={componenteInterativo === "multipla"}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Múltipla Escolha"
-                        icon="❓"
-                      />
-                    </div>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-                      Selecione o tipo de exercício para Programação
-                    </small>
-                  </div>
-
-                  {/* GABARITO / CÓDIGO ESPERADO - Apenas para tipo Código */}
-                  {componenteInterativo === "" && (
-                    <ScaleIn>
-                    <div className="exInputGroup">
-                      <label className="exLabel">Gabarito / Codigo esperado</label>
-                      <MonacoEditor
-                        value={gabarito}
-                        onChange={(v) => setGabarito(v || "")}
-                        language={gabaritoLang}
-                        height="240px"
-                        theme="dark"
-                      />
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                        Esse texto sera usado para comparar se a resposta do aluno esta parecida com o esperado.
-                      </small>
-                    </div>
-                    </ScaleIn>
-                  )}
-
-                  {/* EXERCÍCIO DE ESCRITA - Para Programação */}
-                  {componenteInterativo === "escrita" && (
-                    <ScaleIn>
-                    <div className="exInputGroup">
-                      <label className="exLabel">Resposta/Gabarito Esperado</label>
-                      <textarea
-                        className="exInput"
-                        value={gabarito}
-                        onChange={(e) => setGabarito(e.target.value)}
-                        placeholder="Digite o gabarito ou resposta esperada para o exercício de escrita..."
-                        style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
-                      />
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                        Este texto será usado como referência para avaliar a resposta do aluno.
-                      </small>
-                    </div>
-                    </ScaleIn>
-                  )}
-
-                  {/* QUESTÕES DE MÚLTIPLA ESCOLHA - Para Programação */}
-                  {componenteInterativo === "multipla" && (
-                    <ScaleIn>
-                    <>
-                      <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", margin: "0 0 12px 0" }}>
-                          ❓ Configurar Questões de Múltipla Escolha:
-                        </p>
-
-                        {multiplaQuestoes.map((questao, qIndex) => (
-                          <div key={qIndex} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
-                            <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questão {qIndex + 1}</h4>
-
-                            <div style={{ marginBottom: "8px" }}>
-                              <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Pergunta:</label>
-                              <input
-                                className="exInput"
-                                type="text"
-                                value={questao.pergunta}
-                                onChange={(e) => {
-                                  const novas = [...multiplaQuestoes];
-                                  novas[qIndex].pergunta = e.target.value;
-                                  setMultiplaQuestoes(novas);
-                                }}
-                                placeholder="Digite a pergunta"
-                              />
-                            </div>
-
-                            <div style={{ marginBottom: "8px" }}>
-                              <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opções:</label>
-                              {questao.opcoes.map((opcao, oIndex) => (
-                                <input
-                                  key={oIndex}
-                                  className="exInput"
-                                  type="text"
-                                  value={opcao.text}
-                                  onChange={(e) => {
-                                    const novas = [...multiplaQuestoes];
-                                    novas[qIndex].opcoes[oIndex].text = e.target.value;
-                                    setMultiplaQuestoes(novas);
-                                  }}
-                                  placeholder={`Opção ${opcao.letter}`}
-                                  style={{ marginBottom: "6px" }}
-                                />
-                              ))}
-                            </div>
-
-                            <div style={{ marginBottom: "8px" }}>
-                              <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Resposta Correta:</label>
-                              <AnimatedSelect
-                                className="exSelect"
-                                value={questao.respostaCorreta}
-                                onChange={(e) => {
-                                  const novas = [...multiplaQuestoes];
-                                  novas[qIndex].respostaCorreta = e.target.value;
-                                  setMultiplaQuestoes(novas);
-                                }}
-                              >
-                                <option value="">-- Selecione --</option>
-                                {questao.opcoes.map((opcao) => (
-                                  <option key={opcao.letter} value={opcao.letter}>
-                                    {opcao.letter}: {opcao.text}
-                                  </option>
-                                ))}
-                              </AnimatedSelect>
-                            </div>
-
-                            {multiplaQuestoes.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex));
-                                }}
-                                style={{
-                                  padding: "6px 12px",
-                                  background: "#fee2e2",
-                                  color: "#991b1b",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                🗑️ Remover Questão
-                              </button>
-                            )}
-                          </div>
-                        ))}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMultiplaQuestoes([
-                              ...multiplaQuestoes,
-                              {
-                                pergunta: "",
-                                opcoes: [
-                                  { letter: "A", text: "" },
-                                  { letter: "B", text: "" },
-                                  { letter: "C", text: "" },
-                                  { letter: "D", text: "" }
-                                ],
-                                respostaCorreta: ""
-                              }
-                            ]);
-                          }}
-                          style={{
-                            padding: "8px 16px",
-                            background: "#dcfce7",
-                            color: "#166534",
-                            border: "1px solid #86efac",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            marginTop: "8px",
-                          }}
-                        >
-                          ➕ Adicionar Outra Questão
-                        </button>
-                      </div>
-
-                      <div style={{ background: "var(--background-secondary)", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>
-                          👁️ Pré-visualização:
-                        </p>
-                        {multiplaQuestoes.map((questao, idx) => (
-                          <div key={idx} style={{ marginBottom: "16px" }}>
-                            <MultipleChoiceQuestion
-                              question={`Q${idx + 1}: ${questao.pergunta}`}
-                              options={questao.opcoes}
-                              selectedAnswer=""
-                              onAnswer={() => {}}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                    </ScaleIn>
-                  )}
-                </>
-              )}
-
-              {/* COMPONENTES INTERATIVOS - Apenas para Informática */}
-              {categoria === "informatica" && (
-                <>
-                  <div className="exInputGroup">
-                    <label className="exLabel">Componente Interativo</label>
-                    <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                      <AnimatedRadioLabel
-                        name="componenteInterativoInformatica"
-                        value=""
-                        checked={componenteInterativo === ""}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Nenhum (Normal)"
-                        icon="📝"
-                      />
-                      <AnimatedRadioLabel
-                        name="componenteInterativoInformatica"
-                        value="escrita"
-                        checked={componenteInterativo === "escrita"}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Escrita"
-                        icon="✍️"
-                      />
-                      <AnimatedRadioLabel
-                        name="componenteInterativoInformatica"
-                        value="mouse"
-                        checked={componenteInterativo === "mouse"}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Mouse"
-                        icon="🖱️"
-                      />
-                      <AnimatedRadioLabel
-                        name="componenteInterativoInformatica"
-                        value="multipla"
-                        checked={componenteInterativo === "multipla"}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Múltipla Escolha"
-                        icon="❓"
-                      />
-                      <AnimatedRadioLabel
-                        name="componenteInterativoInformatica"
-                        value="atalho"
-                        checked={componenteInterativo === "atalho"}
-                        onChange={(e) => setComponenteInterativo(e.target.value)}
-                        label="Atalho"
-                        icon="⌨️"
-                      />
-                    </div>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-                      Selecione o tipo de componente para Informática
-                    </small>
-                  </div>
-
-                  {/* EXERCÍCIO DE ESCRITA - Para Informática */}
-                  {componenteInterativo === "escrita" && (
-                    <ScaleIn>
-                    <div className="exInputGroup">
-                      <label className="exLabel">Resposta/Gabarito Esperado</label>
-                      <textarea
-                        className="exInput"
-                        value={gabarito}
-                        onChange={(e) => setGabarito(e.target.value)}
-                        placeholder="Digite o gabarito ou resposta esperada para o exercício de escrita..."
-                        style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
-                      />
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                        Este texto será usado como referência para avaliar a resposta do aluno.
-                      </small>
-                    </div>
-                    </ScaleIn>
-                  )}
-
-                  {/* Campo "Dia #" quando um componente é selecionado */}
-                  <ConditionalFieldAnimation isVisible={componenteInterativo !== ""}>
-                    <div className="exInputGroup">
-                      <label className="exLabel">Dia #</label>
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
                       <input
-                        className="exInput"
-                        type="number"
-                        min="1"
-                        value={diaNumero}
-                        onChange={(e) => setDiaNumero(parseInt(e.target.value) || 1)}
-                        placeholder="Digite o número do dia"
+                        type="radio"
+                        name="categoria"
+                        value="programacao"
+                        checked={categoria === "programacao"}
+                        onChange={(e) => {
+                          setCategoria(e.target.value as any);
+                          setComponenteInterativo("");
+                        }}
+                        style={{ marginRight: "8px", cursor: "pointer" }}
                       />
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                        Usado apenas para organização interna (não altera o título automaticamente).
+                      <span style={{ fontWeight: 600 }}>💻 Programação</span>
+                    </label>
+                  </div>
+
+                  <div className="exInputGroup">
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="categoria"
+                        value="informatica"
+                        checked={categoria === "informatica"}
+                        onChange={(e) => {
+                          setCategoria(e.target.value as any);
+                          setComponenteInterativo("");
+                        }}
+                        style={{ marginRight: "8px", cursor: "pointer" }}
+                      />
+                      <span style={{ fontWeight: 600 }}>📚 Informática</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* TEMPLATE VS ATIVIDADE */}
+                <div className="exInputRow">
+                  <div className="exInputGroup">
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="tipoAtividade"
+                        value="atividade"
+                        checked={!isTemplate}
+                        onChange={() => setIsTemplate(false)}
+                        style={{ marginRight: "8px", cursor: "pointer" }}
+                      />
+                      <span style={{ fontWeight: 600 }}>📝 Atividade Padrão</span>
+                    </label>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                      Atividade padrão para a turma
+                    </small>
+                  </div>
+
+                  <div className="exInputGroup">
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="tipoAtividade"
+                        value="template"
+                        checked={isTemplate}
+                        onChange={() => setIsTemplate(true)}
+                        style={{ marginRight: "8px", cursor: "pointer" }}
+                      />
+                      <span style={{ fontWeight: 600 }}>📦 Template (Reutilizável)</span>
+                    </label>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                      Template reutilizável
+                    </small>
+                  </div>
+                </div>
+
+                {/* COMPONENTES INTERATIVOS - Para Programação */}
+                {categoria === "programacao" && (
+                  <>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Tipo de Exercício</label>
+                      <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                        <AnimatedRadioLabel
+                          name="tipoExercicio"
+                          value="nenhum"
+                          checked={componenteInterativo === "nenhum"}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Nenhum (Normal)"
+                          icon="📝"
+                        />
+                        <AnimatedRadioLabel
+                          name="tipoExercicio"
+                          value=""
+                          checked={componenteInterativo === ""}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Código (Monaco)"
+                          icon="💻"
+                        />
+                        <AnimatedRadioLabel
+                          name="tipoExercicio"
+                          value="escrita"
+                          checked={componenteInterativo === "escrita"}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Escrita"
+                          icon="✍️"
+                        />
+                        <AnimatedRadioLabel
+                          name="tipoExercicio"
+                          value="multipla"
+                          checked={componenteInterativo === "multipla"}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Múltipla Escolha"
+                          icon="❓"
+                        />
+                      </div>
+                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                        Selecione o tipo de exercício para Programação
                       </small>
                     </div>
-                  </ConditionalFieldAnimation>
 
-                  {/* REGRAS DO MOUSE - Apenas para componente Mouse */}
-                  <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
-                    <>
-                      <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#1e40af", margin: "0 0 12px 0" }}>
-                          ⚙️ Definir Regras de Sucesso:
-                        </p>
-
-                        <div className="exInputRow">
-                          <div className="exInputGroup">
-                            <label className="exLabel">Cliques Esquerdos</label>
-                            <input
-                              className="exInput"
-                              type="number"
-                              min="0"
-                              value={mouseRegras.clicksSimples}
-                              onChange={(e) => setMouseRegras({ ...mouseRegras, clicksSimples: parseInt(e.target.value) || 0 })}
-                              placeholder="Ex: 5"
-                            />
-                            <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques simples são necessários?</small>
-                          </div>
-
-                          <div className="exInputGroup">
-                            <label className="exLabel">Duplos Cliques</label>
-                            <input
-                              className="exInput"
-                              type="number"
-                              min="0"
-                              value={mouseRegras.duplosClicks}
-                              onChange={(e) => setMouseRegras({ ...mouseRegras, duplosClicks: parseInt(e.target.value) || 0 })}
-                              placeholder="Ex: 3"
-                            />
-                            <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos duplos cliques são necessários?</small>
-                          </div>
-
-                          <div className="exInputGroup">
-                            <label className="exLabel">Cliques Direitos</label>
-                            <input
-                              className="exInput"
-                              type="number"
-                              min="0"
-                              value={mouseRegras.clicksDireitos}
-                              onChange={(e) => setMouseRegras({ ...mouseRegras, clicksDireitos: parseInt(e.target.value) || 0 })}
-                              placeholder="Ex: 2"
-                            />
-                            <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques direitos são necessários?</small>
-                          </div>
+                    {/* GABARITO / CÓDIGO ESPERADO - Apenas para tipo Código */}
+                    {componenteInterativo === "" && (
+                      <ScaleIn>
+                        <div className="exInputGroup">
+                          <label className="exLabel">Gabarito / Codigo esperado</label>
+                          <MonacoEditor
+                            value={gabarito}
+                            onChange={(v) => setGabarito(v || "")}
+                            language={gabaritoLang}
+                            height="240px"
+                            theme="dark"
+                          />
+                          <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                            Esse texto sera usado para comparar se a resposta do aluno esta parecida com o esperado.
+                          </small>
                         </div>
-                      </div>
-                    </>
-                  </ConditionalFieldAnimation>
+                      </ScaleIn>
+                    )}
 
-                  {/* PREVIEW DO COMPONENTE MOUSE */}
-                  <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
-                    <div style={{
-                      background: "#f9fafb",
-                      border: "2px dashed #e5e7eb",
-                      borderRadius: "12px",
-                      padding: "20px",
-                      marginTop: "16px",
-                    }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "12px" }}>
-                        📋 PREVIEW - Como o aluno vai ver:
-                      </p>
-                      <MouseInteractiveBox
-                        title="🖱️ Interação com Mouse"
-                        instruction="Clique, duplo-clique ou clique direito para registrar suas ações"
-                      />
-                    </div>
-                  </ConditionalFieldAnimation>
+                    {/* EXERCÍCIO DE ESCRITA - Para Programação */}
+                    {componenteInterativo === "escrita" && (
+                      <ScaleIn>
+                        <div className="exInputGroup">
+                          <label className="exLabel">Resposta/Gabarito Esperado</label>
+                          <textarea
+                            className="exInput"
+                            value={gabarito}
+                            onChange={(e) => setGabarito(e.target.value)}
+                            placeholder="Digite o gabarito ou resposta esperada para o exercício de escrita..."
+                            style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
+                          />
+                          <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                            Este texto será usado como referência para avaliar a resposta do aluno.
+                          </small>
+                        </div>
+                      </ScaleIn>
+                    )}
 
-                  {/* FORMULÁRIO DINÂMICO PARA MÚLTIPLA ESCOLHA */}
-                  <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
-                    <div style={{
-                      background: "#f9fafb",
-                      border: "2px dashed #e5e7eb",
-                      borderRadius: "12px",
-                      padding: "20px",
-                      marginTop: "16px",
-                    }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "16px" }}>
-                        📋 Criar Questões ({multiplaQuestoes.length})
-                      </p>
+                    {/* QUESTÕES DE MÚLTIPLA ESCOLHA - Para Programação */}
+                    {componenteInterativo === "multipla" && (
+                      <ScaleIn>
+                        <>
+                          <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", margin: "0 0 12px 0" }}>
+                              ❓ Configurar Questões de Múltipla Escolha:
+                            </p>
 
-                      {/* Loop através de cada questão */}
-                      {multiplaQuestoes.map((questao, qIndex) => (
-                        <div key={qIndex} style={{
-                          background: "var(--card)",
-                          border: "1px solid var(--line)",
-                          borderRadius: "8px",
-                          padding: "16px",
-                          marginBottom: "16px",
-                        }}>
-                          <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937" }}>
-                            Questão {qIndex + 1}
-                          </h4>
+                            {multiplaQuestoes.map((questao, qIndex) => (
+                              <div key={qIndex} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
+                                <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questão {qIndex + 1}</h4>
 
-                          {/* Campo de pergunta */}
-                          <div style={{ marginBottom: "12px" }}>
-                            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
-                              Pergunta
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Digite a pergunta..."
-                              value={questao.pergunta}
-                              onChange={(e) => {
-                                const novaQuestoes = [...multiplaQuestoes];
-                                novaQuestoes[qIndex].pergunta = e.target.value;
-                                setMultiplaQuestoes(novaQuestoes);
+                                <div style={{ marginBottom: "8px" }}>
+                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Pergunta:</label>
+                                  <input
+                                    className="exInput"
+                                    type="text"
+                                    value={questao.pergunta}
+                                    onChange={(e) => {
+                                      const novas = [...multiplaQuestoes];
+                                      novas[qIndex].pergunta = e.target.value;
+                                      setMultiplaQuestoes(novas);
+                                    }}
+                                    placeholder="Digite a pergunta"
+                                  />
+                                </div>
+
+                                <div style={{ marginBottom: "8px" }}>
+                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opções:</label>
+                                  {questao.opcoes.map((opcao, oIndex) => (
+                                    <input
+                                      key={oIndex}
+                                      className="exInput"
+                                      type="text"
+                                      value={opcao.text}
+                                      onChange={(e) => {
+                                        const novas = [...multiplaQuestoes];
+                                        novas[qIndex].opcoes[oIndex].text = e.target.value;
+                                        setMultiplaQuestoes(novas);
+                                      }}
+                                      placeholder={`Opção ${opcao.letter}`}
+                                      style={{ marginBottom: "6px" }}
+                                    />
+                                  ))}
+                                </div>
+
+                                <div style={{ marginBottom: "8px" }}>
+                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Resposta Correta:</label>
+                                  <AnimatedSelect
+                                    className="exSelect"
+                                    value={questao.respostaCorreta}
+                                    onChange={(e) => {
+                                      const novas = [...multiplaQuestoes];
+                                      novas[qIndex].respostaCorreta = e.target.value;
+                                      setMultiplaQuestoes(novas);
+                                    }}
+                                  >
+                                    <option value="">-- Selecione --</option>
+                                    {questao.opcoes.map((opcao) => (
+                                      <option key={opcao.letter} value={opcao.letter}>
+                                        {opcao.letter}: {opcao.text}
+                                      </option>
+                                    ))}
+                                  </AnimatedSelect>
+                                </div>
+
+                                {multiplaQuestoes.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex));
+                                    }}
+                                    style={{
+                                      padding: "6px 12px",
+                                      background: "#fee2e2",
+                                      color: "#991b1b",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      cursor: "pointer",
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    🗑️ Remover Questão
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMultiplaQuestoes([
+                                  ...multiplaQuestoes,
+                                  {
+                                    pergunta: "",
+                                    opcoes: [
+                                      { letter: "A", text: "" },
+                                      { letter: "B", text: "" },
+                                      { letter: "C", text: "" },
+                                      { letter: "D", text: "" }
+                                    ],
+                                    respostaCorreta: ""
+                                  }
+                                ]);
                               }}
                               style={{
-                                width: "100%",
-                                padding: "8px",
-                                border: "1px solid #d1d5db",
+                                padding: "8px 16px",
+                                background: "#dcfce7",
+                                color: "#166534",
+                                border: "1px solid #86efac",
                                 borderRadius: "4px",
-                                fontSize: "14px",
-                                fontFamily: "inherit",
-                                boxSizing: "border-box",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                marginTop: "8px",
                               }}
-                            />
+                            >
+                              ➕ Adicionar Outra Questão
+                            </button>
                           </div>
 
-                          {/* Campos de opções */}
-                          {questao.opcoes.map((opcao, oIndex) => (
-                            <div key={oIndex} style={{ marginBottom: "12px" }}>
+                          <div style={{ background: "var(--background-secondary)", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>
+                              👁️ Pré-visualização:
+                            </p>
+                            {multiplaQuestoes.map((questao, idx) => (
+                              <div key={idx} style={{ marginBottom: "16px" }}>
+                                <MultipleChoiceQuestion
+                                  question={`Q${idx + 1}: ${questao.pergunta}`}
+                                  options={questao.opcoes}
+                                  selectedAnswer=""
+                                  onAnswer={() => { }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      </ScaleIn>
+                    )}
+                  </>
+                )}
+
+                {/* COMPONENTES INTERATIVOS - Apenas para Informática */}
+                {categoria === "informatica" && (
+                  <>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Componente Interativo</label>
+                      <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                        <AnimatedRadioLabel
+                          name="componenteInterativoInformatica"
+                          value=""
+                          checked={componenteInterativo === ""}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Nenhum (Normal)"
+                          icon="📝"
+                        />
+                        <AnimatedRadioLabel
+                          name="componenteInterativoInformatica"
+                          value="escrita"
+                          checked={componenteInterativo === "escrita"}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Escrita"
+                          icon="✍️"
+                        />
+                        <AnimatedRadioLabel
+                          name="componenteInterativoInformatica"
+                          value="mouse"
+                          checked={componenteInterativo === "mouse"}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Mouse"
+                          icon="🖱️"
+                        />
+                        <AnimatedRadioLabel
+                          name="componenteInterativoInformatica"
+                          value="multipla"
+                          checked={componenteInterativo === "multipla"}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Múltipla Escolha"
+                          icon="❓"
+                        />
+                        <AnimatedRadioLabel
+                          name="componenteInterativoInformatica"
+                          value="atalho"
+                          checked={componenteInterativo === "atalho"}
+                          onChange={(e) => setComponenteInterativo(e.target.value)}
+                          label="Atalho"
+                          icon="⌨️"
+                        />
+                      </div>
+                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                        Selecione o tipo de componente para Informática
+                      </small>
+                    </div>
+
+                    {/* EXERCÍCIO DE ESCRITA - Para Informática */}
+                    {componenteInterativo === "escrita" && (
+                      <ScaleIn>
+                        <div className="exInputGroup">
+                          <label className="exLabel">Resposta/Gabarito Esperado</label>
+                          <textarea
+                            className="exInput"
+                            value={gabarito}
+                            onChange={(e) => setGabarito(e.target.value)}
+                            placeholder="Digite o gabarito ou resposta esperada para o exercício de escrita..."
+                            style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
+                          />
+                          <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                            Este texto será usado como referência para avaliar a resposta do aluno.
+                          </small>
+                        </div>
+                      </ScaleIn>
+                    )}
+
+                    {/* Campo "Dia #" quando um componente é selecionado */}
+                    <ConditionalFieldAnimation isVisible={componenteInterativo !== ""}>
+                      <div className="exInputGroup">
+                        <label className="exLabel">Dia #</label>
+                        <input
+                          className="exInput"
+                          type="number"
+                          min="1"
+                          value={diaNumero}
+                          onChange={(e) => setDiaNumero(parseInt(e.target.value) || 1)}
+                          placeholder="Digite o número do dia"
+                        />
+                        <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                          Usado apenas para organização interna (não altera o título automaticamente).
+                        </small>
+                      </div>
+                    </ConditionalFieldAnimation>
+
+                    {/* REGRAS DO MOUSE - Apenas para componente Mouse */}
+                    <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
+                      <>
+                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "#1e40af", margin: "0 0 12px 0" }}>
+                            ⚙️ Definir Regras de Sucesso:
+                          </p>
+
+                          <div className="exInputRow">
+                            <div className="exInputGroup">
+                              <label className="exLabel">Cliques Esquerdos</label>
+                              <input
+                                className="exInput"
+                                type="number"
+                                min="0"
+                                value={mouseRegras.clicksSimples}
+                                onChange={(e) => setMouseRegras({ ...mouseRegras, clicksSimples: parseInt(e.target.value) || 0 })}
+                                placeholder="Ex: 5"
+                              />
+                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques simples são necessários?</small>
+                            </div>
+
+                            <div className="exInputGroup">
+                              <label className="exLabel">Duplos Cliques</label>
+                              <input
+                                className="exInput"
+                                type="number"
+                                min="0"
+                                value={mouseRegras.duplosClicks}
+                                onChange={(e) => setMouseRegras({ ...mouseRegras, duplosClicks: parseInt(e.target.value) || 0 })}
+                                placeholder="Ex: 3"
+                              />
+                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos duplos cliques são necessários?</small>
+                            </div>
+
+                            <div className="exInputGroup">
+                              <label className="exLabel">Cliques Direitos</label>
+                              <input
+                                className="exInput"
+                                type="number"
+                                min="0"
+                                value={mouseRegras.clicksDireitos}
+                                onChange={(e) => setMouseRegras({ ...mouseRegras, clicksDireitos: parseInt(e.target.value) || 0 })}
+                                placeholder="Ex: 2"
+                              />
+                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques direitos são necessários?</small>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    </ConditionalFieldAnimation>
+
+                    {/* PREVIEW DO COMPONENTE MOUSE */}
+                    <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
+                      <div style={{
+                        background: "#f9fafb",
+                        border: "2px dashed #e5e7eb",
+                        borderRadius: "12px",
+                        padding: "20px",
+                        marginTop: "16px",
+                      }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "12px" }}>
+                          📋 PREVIEW - Como o aluno vai ver:
+                        </p>
+                        <MouseInteractiveBox
+                          title="🖱️ Interação com Mouse"
+                          instruction="Clique, duplo-clique ou clique direito para registrar suas ações"
+                        />
+                      </div>
+                    </ConditionalFieldAnimation>
+
+                    {/* FORMULÁRIO DINÂMICO PARA MÚLTIPLA ESCOLHA */}
+                    <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
+                      <div style={{
+                        background: "#f9fafb",
+                        border: "2px dashed #e5e7eb",
+                        borderRadius: "12px",
+                        padding: "20px",
+                        marginTop: "16px",
+                      }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "16px" }}>
+                          📋 Criar Questões ({multiplaQuestoes.length})
+                        </p>
+
+                        {/* Loop através de cada questão */}
+                        {multiplaQuestoes.map((questao, qIndex) => (
+                          <div key={qIndex} style={{
+                            background: "var(--card)",
+                            border: "1px solid var(--line)",
+                            borderRadius: "8px",
+                            padding: "16px",
+                            marginBottom: "16px",
+                          }}>
+                            <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937" }}>
+                              Questão {qIndex + 1}
+                            </h4>
+
+                            {/* Campo de pergunta */}
+                            <div style={{ marginBottom: "12px" }}>
                               <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
-                                Opção {opcao.letter}
+                                Pergunta
                               </label>
                               <input
                                 type="text"
-                                placeholder={`Digite a opção ${opcao.letter}...`}
-                                value={opcao.text}
+                                placeholder="Digite a pergunta..."
+                                value={questao.pergunta}
                                 onChange={(e) => {
                                   const novaQuestoes = [...multiplaQuestoes];
-                                  novaQuestoes[qIndex].opcoes[oIndex].text = e.target.value;
+                                  novaQuestoes[qIndex].pergunta = e.target.value;
                                   setMultiplaQuestoes(novaQuestoes);
                                 }}
                                 style={{
@@ -1072,734 +1045,799 @@ export default function ExerciciosPage() {
                                 }}
                               />
                             </div>
-                          ))}
 
-                          {/* Radio buttons para resposta correta */}
-                          <div style={{ marginBottom: "12px" }}>
-                            <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 0, marginBottom: "8px" }}>
-                              Resposta Correta:
-                            </p>
-                            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                              {questao.opcoes.map((opcao) => (
-                                <label key={opcao.letter} style={{ display: "flex", alignItems: "center", fontSize: "14px", cursor: "pointer" }}>
-                                  <input
-                                    type="radio"
-                                    name={`respostaCorreta_${qIndex}`}
-                                    value={opcao.letter}
-                                    checked={questao.respostaCorreta === opcao.letter}
-                                    onChange={(e) => {
-                                      const novaQuestoes = [...multiplaQuestoes];
-                                      novaQuestoes[qIndex].respostaCorreta = e.target.value;
-                                      setMultiplaQuestoes(novaQuestoes);
-                                    }}
-                                    style={{ marginRight: "6px", cursor: "pointer" }}
-                                  />
-                                  {opcao.letter}
+                            {/* Campos de opções */}
+                            {questao.opcoes.map((opcao, oIndex) => (
+                              <div key={oIndex} style={{ marginBottom: "12px" }}>
+                                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
+                                  Opção {opcao.letter}
                                 </label>
-                              ))}
+                                <input
+                                  type="text"
+                                  placeholder={`Digite a opção ${opcao.letter}...`}
+                                  value={opcao.text}
+                                  onChange={(e) => {
+                                    const novaQuestoes = [...multiplaQuestoes];
+                                    novaQuestoes[qIndex].opcoes[oIndex].text = e.target.value;
+                                    setMultiplaQuestoes(novaQuestoes);
+                                  }}
+                                  style={{
+                                    width: "100%",
+                                    padding: "8px",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "4px",
+                                    fontSize: "14px",
+                                    fontFamily: "inherit",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                              </div>
+                            ))}
+
+                            {/* Radio buttons para resposta correta */}
+                            <div style={{ marginBottom: "12px" }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 0, marginBottom: "8px" }}>
+                                Resposta Correta:
+                              </p>
+                              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                                {questao.opcoes.map((opcao) => (
+                                  <label key={opcao.letter} style={{ display: "flex", alignItems: "center", fontSize: "14px", cursor: "pointer" }}>
+                                    <input
+                                      type="radio"
+                                      name={`respostaCorreta_${qIndex}`}
+                                      value={opcao.letter}
+                                      checked={questao.respostaCorreta === opcao.letter}
+                                      onChange={(e) => {
+                                        const novaQuestoes = [...multiplaQuestoes];
+                                        novaQuestoes[qIndex].respostaCorreta = e.target.value;
+                                        setMultiplaQuestoes(novaQuestoes);
+                                      }}
+                                      style={{ marginRight: "6px", cursor: "pointer" }}
+                                    />
+                                    {opcao.letter}
+                                  </label>
+                                ))}
+                              </div>
                             </div>
+
+                            {/* Botão remover questão */}
+                            {multiplaQuestoes.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex));
+                                }}
+                                style={{
+                                  padding: "6px 12px",
+                                  background: "#fecaca",
+                                  color: "#991b1b",
+                                  border: "1px solid #fca5a5",
+                                  borderRadius: "4px",
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                ❌ Remover Questão
+                              </button>
+                            )}
                           </div>
+                        ))}
 
-                          {/* Botão remover questão */}
-                          {multiplaQuestoes.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex));
-                              }}
-                              style={{
-                                padding: "6px 12px",
-                                background: "#fecaca",
-                                color: "#991b1b",
-                                border: "1px solid #fca5a5",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                                fontSize: "12px",
-                                fontWeight: 500,
-                              }}
-                            >
-                              ❌ Remover Questão
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                        {/* Botão adicionar questão */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMultiplaQuestoes([...multiplaQuestoes, {
+                              pergunta: "",
+                              opcoes: [
+                                { letter: "A", text: "" },
+                                { letter: "B", text: "" },
+                                { letter: "C", text: "" },
+                                { letter: "D", text: "" }
+                              ],
+                              respostaCorreta: ""
+                            }]);
+                          }}
+                          style={{
+                            padding: "8px 16px",
+                            background: "#dbeafe",
+                            color: "#0c4a6e",
+                            border: "1px solid #93c5fd",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            marginBottom: "16px",
+                          }}
+                        >
+                          ➕ Adicionar Outra Questão
+                        </button>
 
-                      {/* Botão adicionar questão */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMultiplaQuestoes([...multiplaQuestoes, {
-                            pergunta: "",
-                            opcoes: [
-                              { letter: "A", text: "" },
-                              { letter: "B", text: "" },
-                              { letter: "C", text: "" },
-                              { letter: "D", text: "" }
-                            ],
-                            respostaCorreta: ""
-                          }]);
-                        }}
-                        style={{
-                          padding: "8px 16px",
-                          background: "#dbeafe",
-                          color: "#0c4a6e",
-                          border: "1px solid #93c5fd",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: 500,
-                          marginBottom: "16px",
-                        }}
-                      >
-                        ➕ Adicionar Outra Questão
-                      </button>
+                        {/* PREVIEW DINÂMICO DA PRIMEIRA QUESTÃO */}
+                        {multiplaQuestoes.length > 0 && multiplaQuestoes[0].pergunta && (
+                          <div style={{
+                            background: "var(--card)",
+                            border: "2px solid var(--line)",
+                            borderRadius: "8px",
+                            padding: "16px",
+                            marginTop: "16px",
+                          }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#0c4a6e", marginTop: 0, marginBottom: "12px" }}>
+                              👁️ PREVIEW - Como o aluno vai ver:
+                            </p>
+                            <MultipleChoiceQuestion
+                              question={`Q1: ${multiplaQuestoes[0].pergunta}`}
+                              options={multiplaQuestoes[0].opcoes}
+                              onAnswer={() => { }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </ConditionalFieldAnimation>
+                  </>
+                )}
 
-                      {/* PREVIEW DINÂMICO DA PRIMEIRA QUESTÃO */}
-                      {multiplaQuestoes.length > 0 && multiplaQuestoes[0].pergunta && (
-                        <div style={{
-                          background: "var(--card)",
-                          border: "2px solid var(--line)",
-                          borderRadius: "8px",
-                          padding: "16px",
-                          marginTop: "16px",
-                        }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "#0c4a6e", marginTop: 0, marginBottom: "12px" }}>
-                            👁️ PREVIEW - Como o aluno vai ver:
-                          </p>
-                          <MultipleChoiceQuestion
-                            question={`Q1: ${multiplaQuestoes[0].pergunta}`}
-                            options={multiplaQuestoes[0].opcoes}
-                            onAnswer={() => {}}
-                          />
-                        </div>
-                      )}
+                {/* TIPO DE ATALHO - Para componente de atalho em Informática */}
+                {categoria === "informatica" && componenteInterativo === "atalho" && (
+                  <ScaleIn>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Selecione o Tipo de Atalho</label>
+                      <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                        <AnimatedRadioLabel
+                          name="atalhoTipo"
+                          value="copiar-colar"
+                          checked={atalhoTipo === "copiar-colar"}
+                          onChange={(e) => setAtalhoTipo(e.target.value as any)}
+                          label="Copiar e Colar Texto"
+                          icon="📋"
+                        />
+                        <AnimatedRadioLabel
+                          name="atalhoTipo"
+                          value="copiar-colar-imagens"
+                          checked={atalhoTipo === "copiar-colar-imagens"}
+                          onChange={(e) => setAtalhoTipo(e.target.value as any)}
+                          label="Copiar e Colar Imagem"
+                          icon="🖼️"
+                        />
+                        <AnimatedRadioLabel
+                          name="atalhoTipo"
+                          value="selecionar-deletar"
+                          checked={atalhoTipo === "selecionar-deletar"}
+                          onChange={(e) => setAtalhoTipo(e.target.value as any)}
+                          label="Selecionar Tudo e Deletar"
+                          icon="🗑️"
+                        />
+                      </div>
+                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                        Escolha qual atalho o aluno irá treinar
+                      </small>
                     </div>
-                  </ConditionalFieldAnimation>
-                </>
-              )}
+                  </ScaleIn>
+                )}
 
-              {/* TIPO DE ATALHO - Para componente de atalho em Informática */}
-              {categoria === "informatica" && componenteInterativo === "atalho" && (
-                <ScaleIn>
+                {/* PERMITIR REPETIÇÃO */}
+                <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Selecione o Tipo de Atalho</label>
-                    <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                      <AnimatedRadioLabel
-                        name="atalhoTipo"
-                        value="copiar-colar"
-                        checked={atalhoTipo === "copiar-colar"}
-                        onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                        label="Copiar e Colar Texto"
-                        icon="📋"
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                      <AnimatedToggle
+                        checked={permitirRepeticao}
+                        onChange={setPermitirRepeticao}
                       />
-                      <AnimatedRadioLabel
-                        name="atalhoTipo"
-                        value="copiar-colar-imagens"
-                        checked={atalhoTipo === "copiar-colar-imagens"}
-                        onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                        label="Copiar e Colar Imagem"
-                        icon="🖼️"
-                      />
-                      <AnimatedRadioLabel
-                        name="atalhoTipo"
-                        value="selecionar-deletar"
-                        checked={atalhoTipo === "selecionar-deletar"}
-                        onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                        label="Selecionar Tudo e Deletar"
-                        icon="🗑️"
-                      />
-                    </div>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-                      Escolha qual atalho o aluno irá treinar
+                      Permitir repetição
+                    </label>
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Se ativado, alunos podem enviar múltiplas respostas
                     </small>
                   </div>
-                </ScaleIn>
-              )}
-
-              {/* PERMITIR REPETIÇÃO */}
-              <div className="exInputRow">
-                <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
-                    <AnimatedToggle
-                      checked={permitirRepeticao}
-                      onChange={setPermitirRepeticao}
-                    />
-                    Permitir repetição
-                  </label>
-                  <small style={{ color: "#666", marginTop: "4px" }}>
-                    Se ativado, alunos podem enviar múltiplas respostas
-                  </small>
-                </div>
-              </div>
-
-              <div className="exInputRow">
-                <div className="exInputGroup">
-                  <label className="exLabel">Módulo *</label>
-                  <input
-                    className="exInput"
-                    placeholder="ex: MÓDULO 4"
-                    value={modulo}
-                    onChange={(e) => setModulo(e.target.value)}
-                  />
                 </div>
 
-                <div className="exInputGroup">
-                  <label className="exLabel">Tema</label>
-                  <input
-                    className="exInput"
-                    placeholder="ex: HTML5 e CSS3 Avançado"
-                    value={tema}
-                    onChange={(e) => setTema(e.target.value)}
-                  />
-                </div>
-
-                <div className="exInputGroup">
-                  <label className="exLabel">Prazo</label>
-                  <input
-                    className="exInput"
-                    type="datetime-local"
-                    value={prazo}
-                    onChange={(e) => setPrazo(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* AGENDAMENTO DE PUBLICAÇÃO */}
-              <div className="exInputRow">
-                <div className="exInputGroup">
-                  <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
-                    <AnimatedToggle
-                      checked={publishNow}
-                      onChange={setPublishNow}
-                      disabled={isTemplate}
-                    />
-                    Publicar agora
-                  </label>
-                </div>
-              </div>
-
-              <ConditionalFieldAnimation isVisible={!publishNow && !isTemplate}>
                 <div className="exInputRow">
-                  <div className="exInputGroup" style={{ cursor: "pointer" }}>
-                    <label className="exLabel" style={{ cursor: "pointer" }}>📅 Agendar Publicação</label>
+                  <div className="exInputGroup">
+                    <label className="exLabel">Módulo *</label>
+                    <input
+                      className="exInput"
+                      placeholder="ex: MÓDULO 4"
+                      value={modulo}
+                      onChange={(e) => setModulo(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="exInputGroup">
+                    <label className="exLabel">Tema</label>
+                    <input
+                      className="exInput"
+                      placeholder="ex: HTML5 e CSS3 Avançado"
+                      value={tema}
+                      onChange={(e) => setTema(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="exInputGroup">
+                    <label className="exLabel">Prazo</label>
                     <input
                       className="exInput"
                       type="datetime-local"
-                      value={publishedAt}
-                      onChange={(e) => setPublishedAt(e.target.value)}
-                      required={!publishNow}
-                      style={{ cursor: "pointer" }}
+                      value={prazo}
+                      onChange={(e) => setPrazo(e.target.value)}
                     />
-                    <small style={{ color: "#666", marginTop: "4px" }}>
-                      O exercício será visível a partir dessa data e hora
-                    </small>
                   </div>
                 </div>
-              </ConditionalFieldAnimation>
 
-              {isTemplate && (
-                <div style={{ padding: "12px", background: "#dbeafe", borderRadius: "4px", color: "#075985", fontSize: "14px", marginTop: "12px" }}>
-                  ℹ️ Templates são sempre publicados imediatamente para poderem ser reutilizados
-                </div>
-              )}
-
-              {canCreate && (turmasDisponiveis.length > 0 || alunosDisponiveis.length > 0) && (
-                <>
+                {/* AGENDAMENTO DE PUBLICAÇÃO */}
+                <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Atribuição</label>
-                    <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-                      <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
-                        <input
-                          type="radio"
-                          name="modoAtribuicao"
-                          value="turma"
-                          checked={modoAtribuicao === "turma"}
-                          onChange={() => {
-                            setModoAtribuicao("turma");
-                            setAlunosSelecionados([]);
-                          }}
-                          style={{ marginRight: "6px", cursor: "pointer" }}
-                        />
-                        👥 Turma Específica
-                      </label>
-                      <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
-                        <input
-                          type="radio"
-                          name="modoAtribuicao"
-                          value="aluno"
-                          checked={modoAtribuicao === "aluno"}
-                          onChange={() => {
-                            setModoAtribuicao("aluno");
-                            setTurmasSelecionadas([]);
-                          }}
-                          style={{ marginRight: "6px", cursor: "pointer" }}
-                        />
-                        👤 Aluno Específico
-                      </label>
-                    </div>
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                      <AnimatedToggle
+                        checked={publishNow}
+                        onChange={setPublishNow}
+                        disabled={isTemplate}
+                      />
+                      Publicar agora
+                    </label>
                   </div>
+                </div>
 
-                  {modoAtribuicao === "turma" && turmasDisponiveis.length > 0 && (
-                    <div className="exInputGroup">
-                      <label className="exLabel">Turmas</label>
-                      <AnimatedSelect
-                        className="exSelect"
-                        multiple
-                        value={turmasSelecionadas}
-                        onChange={(e) =>
-                          setTurmasSelecionadas(
-                            Array.from(e.target.selectedOptions, (opt) => opt.value)
-                          )
-                        }
-                        size={3}
-                      >
-                        {turmasDisponiveis.map((turma) => (
-                          <option key={turma.id} value={turma.id}>
-                            {turma.nome}
-                          </option>
-                        ))}
-                      </AnimatedSelect>
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                        Segure Ctrl/Cmd para selecionar múltiplas turmas. Deixe vazio para "Todos".
+                <ConditionalFieldAnimation isVisible={!publishNow && !isTemplate}>
+                  <div className="exInputRow">
+                    <div className="exInputGroup" style={{ cursor: "pointer" }}>
+                      <label className="exLabel" style={{ cursor: "pointer" }}>📅 Agendar Publicação</label>
+                      <input
+                        className="exInput"
+                        type="datetime-local"
+                        value={publishedAt}
+                        onChange={(e) => setPublishedAt(e.target.value)}
+                        required={!publishNow}
+                        style={{ cursor: "pointer" }}
+                      />
+                      <small style={{ color: "#666", marginTop: "4px" }}>
+                        O exercício será visível a partir dessa data e hora
                       </small>
                     </div>
-                  )}
+                  </div>
+                </ConditionalFieldAnimation>
 
-                  {modoAtribuicao === "aluno" && alunosDisponiveis.length > 0 && (
-                    <>
-                      <div className="exInputGroup">
-                        <label className="exLabel">Pesquisar Alunos</label>
-                        <input
-                          type="text"
-                          className="exInput"
-                          placeholder="🔍 Digite nome ou usuário..."
-                          value={alunoFiltro}
-                          onChange={(e) => setAlunoFiltro(e.target.value)}
-                          style={{ width: "100%" }}
-                        />
+                {isTemplate && (
+                  <div style={{ padding: "12px", background: "#dbeafe", borderRadius: "4px", color: "#075985", fontSize: "14px", marginTop: "12px" }}>
+                    ℹ️ Templates são sempre publicados imediatamente para poderem ser reutilizados
+                  </div>
+                )}
+
+                {canCreate && (turmasDisponiveis.length > 0 || alunosDisponiveis.length > 0) && (
+                  <>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Atribuição</label>
+                      <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
+                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
+                          <input
+                            type="radio"
+                            name="modoAtribuicao"
+                            value="turma"
+                            checked={modoAtribuicao === "turma"}
+                            onChange={() => {
+                              setModoAtribuicao("turma");
+                              setAlunosSelecionados([]);
+                            }}
+                            style={{ marginRight: "6px", cursor: "pointer" }}
+                          />
+                          👥 Turma Específica
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
+                          <input
+                            type="radio"
+                            name="modoAtribuicao"
+                            value="aluno"
+                            checked={modoAtribuicao === "aluno"}
+                            onChange={() => {
+                              setModoAtribuicao("aluno");
+                              setTurmasSelecionadas([]);
+                            }}
+                            style={{ marginRight: "6px", cursor: "pointer" }}
+                          />
+                          👤 Aluno Específico
+                        </label>
                       </div>
+                    </div>
 
+                    {modoAtribuicao === "turma" && turmasDisponiveis.length > 0 && (
                       <div className="exInputGroup">
-                        <label className="exLabel">Alunos</label>
+                        <label className="exLabel">Turmas</label>
                         <AnimatedSelect
                           className="exSelect"
                           multiple
-                          value={alunosSelecionados}
+                          value={turmasSelecionadas}
                           onChange={(e) =>
-                            setAlunosSelecionados(
+                            setTurmasSelecionadas(
                               Array.from(e.target.selectedOptions, (opt) => opt.value)
                             )
                           }
                           size={3}
                         >
-                          {alunosDisponiveis
-                            .filter(
-                              (aluno) =>
-                                alunoFiltro === "" ||
-                                aluno.nome.toLowerCase().includes(alunoFiltro.toLowerCase()) ||
-                                aluno.usuario.toLowerCase().includes(alunoFiltro.toLowerCase())
-                            )
-                            .map((aluno) => (
-                              <option key={aluno.id} value={aluno.id}>
-                                {aluno.nome} ({aluno.usuario})
-                              </option>
-                            ))}
+                          {turmasDisponiveis.map((turma) => (
+                            <option key={turma.id} value={turma.id}>
+                              {turma.nome}
+                            </option>
+                          ))}
                         </AnimatedSelect>
                         <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                          Segure Ctrl/Cmd para selecionar múltiplos alunos
+                          Segure Ctrl/Cmd para selecionar múltiplas turmas. Deixe vazio para "Todos".
                         </small>
                       </div>
-                    </>
-                  )}
-                </>
-              )}
+                    )}
 
-              {/* AVISO: Tipo "Nenhum" não pode ser publicado */}
-              {componenteInterativo === "nenhum" && (
-                <ConditionalFieldAnimation isVisible={true} duration={0.3}>
-                  <div style={{
-                    padding: "12px",
-                    marginBottom: "12px",
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    borderRadius: "6px",
-                    color: "#dc2626",
-                    fontSize: "13px",
-                    fontWeight: "500",
-                  }}>
-                    ⚠️ <strong>Tipo "Nenhum"</strong> é apenas um seletor para alunos. Não é possível publicar um exercício com este tipo. Escolha um tipo válido: Código, Escrita ou Digitação.
-                  </div>
-                </ConditionalFieldAnimation>
-              )}
+                    {modoAtribuicao === "aluno" && alunosDisponiveis.length > 0 && (
+                      <>
+                        <div className="exInputGroup">
+                          <label className="exLabel">Pesquisar Alunos</label>
+                          <input
+                            type="text"
+                            className="exInput"
+                            placeholder="🔍 Digite nome ou usuário..."
+                            value={alunoFiltro}
+                            onChange={(e) => setAlunoFiltro(e.target.value)}
+                            style={{ width: "100%" }}
+                          />
+                        </div>
 
-              <div style={{ display: "flex", gap: "12px" }}>
-                <AnimatedButton
-                  className="exSubmitBtn"
-                  onClick={handleSubmit}
-                  disabled={disabled}
-                  loading={saving}
-                  style={{ flex: 1 }}
-                >
-                  {editandoId ? "💾 Atualizar Exercício" : "✨ Publicar Exercício"}
-                </AnimatedButton>
-                {editandoId && (
+                        <div className="exInputGroup">
+                          <label className="exLabel">Alunos</label>
+                          <AnimatedSelect
+                            className="exSelect"
+                            multiple
+                            value={alunosSelecionados}
+                            onChange={(e) =>
+                              setAlunosSelecionados(
+                                Array.from(e.target.selectedOptions, (opt) => opt.value)
+                              )
+                            }
+                            size={3}
+                          >
+                            {alunosDisponiveis
+                              .filter(
+                                (aluno) =>
+                                  alunoFiltro === "" ||
+                                  aluno.nome.toLowerCase().includes(alunoFiltro.toLowerCase()) ||
+                                  aluno.usuario.toLowerCase().includes(alunoFiltro.toLowerCase())
+                              )
+                              .map((aluno) => (
+                                <option key={aluno.id} value={aluno.id}>
+                                  {aluno.nome} ({aluno.usuario})
+                                </option>
+                              ))}
+                          </AnimatedSelect>
+                          <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                            Segure Ctrl/Cmd para selecionar múltiplos alunos
+                          </small>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* AVISO: Tipo "Nenhum" não pode ser publicado */}
+                {componenteInterativo === "nenhum" && (
+                  <ConditionalFieldAnimation isVisible={true} duration={0.3}>
+                    <div style={{
+                      padding: "12px",
+                      marginBottom: "12px",
+                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      border: "1px solid rgba(239, 68, 68, 0.3)",
+                      borderRadius: "6px",
+                      color: "#dc2626",
+                      fontSize: "13px",
+                      fontWeight: "500",
+                    }}>
+                      ⚠️ <strong>Tipo "Nenhum"</strong> é apenas um seletor para alunos. Não é possível publicar um exercício com este tipo. Escolha um tipo válido: Código, Escrita ou Digitação.
+                    </div>
+                  </ConditionalFieldAnimation>
+                )}
+
+                <div style={{ display: "flex", gap: "12px" }}>
                   <AnimatedButton
                     className="exSubmitBtn"
-                    onClick={handleCancel}
-                    disabled={saving}
-                    style={{
-                      background: "linear-gradient(135deg, #6b7280, #4b5563)",
-                      flex: 1,
-                    }}
+                    onClick={handleSubmit}
+                    disabled={disabled}
+                    loading={saving}
+                    style={{ flex: 1 }}
                   >
-                    ❌ Cancelar
+                    {editandoId ? "💾 Atualizar Exercício" : "✨ Publicar Exercício"}
                   </AnimatedButton>
-                )}
-              </div>
+                  {editandoId && (
+                    <AnimatedButton
+                      className="exSubmitBtn"
+                      onClick={handleCancel}
+                      disabled={saving}
+                      style={{
+                        background: "linear-gradient(135deg, #6b7280, #4b5563)",
+                        flex: 1,
+                      }}
+                    >
+                      ❌ Cancelar
+                    </AnimatedButton>
+                  )}
+                </div>
 
-              <div className="exFormNote">
-                💡 Exercícios podem ser publicados para turmas, alunos específicos ou para todos.
+                <div className="exFormNote">
+                  💡 Exercícios podem ser publicados para turmas, alunos específicos ou para todos.
+                </div>
               </div>
             </div>
-          </div>
           </FadeInUp>
         )}
 
         {/* FILTROS DE EXERCÍCIOS */}
         {activeSection === "lista" && (
-        <>
-        <div className="filtersSection">
-          {/* Linha 1: Busca por título */}
-          <div className="filterRow">
-            <div className="filterGroup" style={{ flex: 1 }}>
-              <input
-                className="exInput"
-                type="text"
-                placeholder="🔍 Buscar por titulo..."
-                value={buscaFiltro}
-                onChange={(e) => setBuscaFiltro(e.target.value)}
-                style={{ width: "100%" }}
-              />
-            </div>
-          </div>
-
-          {/* Linha 2: Módulo, Tipo, Turmas, Aluno */}
-          <div className="filterRow" style={{ gap: "12px" }}>
-            {/* Filtro de modulo */}
-            <div className="filterGroup">
-              <select
-                className="exSelect"
-                value={moduloFiltro}
-                onChange={(e) => setModuloFiltro(e.target.value)}
-                style={{ minWidth: 160 }}
-              >
-                <option value="">📚 Todos os Módulos</option>
-                {Array.from(new Set(items.map((ex) => ex.modulo)))
-                  .sort()
-                  .map((mod) => (
-                    <option key={mod} value={mod}>
-                      {mod}
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            {/* Filtro de tipo */}
-            <div className="filterGroup">
-              <select
-                className="exSelect"
-                value={tipoFiltro}
-                onChange={(e) => setTipoFiltro(e.target.value)}
-                style={{ minWidth: 160 }}
-              >
-                <option value="">📝 Todos os Tipos</option>
-                <option value="codigo">💻 Código</option>
-                <option value="texto">📄 Texto</option>
-              </select>
-            </div>
-
-            {/* Filtro de turmas */}
-            {turmasDisponiveis.length > 0 && (
-              <div className="filterGroup">
-                <select
-                  className="exSelect"
-                  value={turmaFiltro}
-                  onChange={(e) => setTurmaFiltro(e.target.value)}
-                  style={{ minWidth: 180 }}
-                >
-                  <option value="todas">👥 Todas as turmas</option>
-                  {turmasDisponiveis.map((turma) => (
-                    <option key={turma.id} value={turma.id}>
-                      {turma.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* LISTA DE EXERCÍCIOS */}
-        <div>
-          {loading && items.length === 0 ? (
-            <div className="loadingState">
-              <div className="spinner" />
-              Carregando exercícios...
-            </div>
-          ) : !loading && items.length === 0 ? (
-            <div className="emptyState">
-              <div className="emptyIcon">📚</div>
-              <div className="emptyTitle">Nenhum exercício disponível</div>
-              <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
-                Volte mais tarde para novos exercícios!
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Filtros e Paginação */}
-              <div style={{ marginBottom: "16px" }}>
-                {(() => {
-                  const filteredExercises = items.filter((ex) => {
-                    if (ex.is_template) return false;
-                    const alunoIds = getAlunoIds(ex);
-                    const hasAlunoAssignment = alunoIds.length > 0;
-                    if (!isStaff && hasAlunoAssignment) {
-                      if (!userId || !alunoIds.includes(userId)) {
-                        return false;
-                      }
-                    }
-                    // Filtro de busca por titulo
-                    if (
-                      buscaFiltro &&
-                      !ex.titulo.toLowerCase().includes(buscaFiltro.toLowerCase())
-                    ) {
-                      return false;
-                    }
-
-                    // Filtro de modulo
-                    if (moduloFiltro && ex.modulo !== moduloFiltro) {
-                      return false;
-                    }
-
-                    // Filtro de tipo
-                    if (tipoFiltro && ex.tipoExercicio !== tipoFiltro) {
-                      return false;
-                    }
-
-                    // Filtro de turma
-                    if (turmaFiltro === "todas") return true;
-                    if (hasAlunoAssignment) return false;
-                    return ex.turmas?.some((t) => t.id === turmaFiltro);
-                  });
-
-                  const startIndex = (currentPage - 1) * itemsPerPage;
-                  const endIndex = startIndex + itemsPerPage;
-                  const paginatedExercises = filteredExercises.slice(startIndex, endIndex);
-
-                  return (
-                    <>
-                      <div className="exercisesList">
-                        {paginatedExercises.map((ex) => {
-                          const alunoIds = getAlunoIds(ex);
-                          const hasAlunoAssignment = alunoIds.length > 0;
-                          const alunoNames = hasAlunoAssignment ? getAlunoNames(ex) : [];
-                          const showParaMim =
-                            !isStaff && !!userId && alunoIds.includes(userId);
-                          const alunoLabel = showParaMim
-                            ? "Para mim"
-                            : formatAlunoLabel(alunoNames);
-                          const alunoTitle = showParaMim
-                            ? "Disponível apenas para você"
-                            : alunoNames.length > 0
-                              ? `Disponível apenas para: ${alunoNames.join(", ")}`
-                              : "Disponível para aluno(s) específico(s)";
-
-                          return (
-                <div
-                  key={ex.id}
-                  className={`exerciseCard ${canCreate ? "canEdit" : ""}`}
-                  onClick={() => navigate(`/dashboard/exercicios/${ex.id}`)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      navigate(`/dashboard/exercicios/${ex.id}`);
-                    }
-                  }}
-                >
-                  {canCreate && (
-                    <div className="exerciseActions">
-                      <button
-                        className="exerciseEditBtn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(ex);
-                        }}
-                        title="Editar exercício"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        className="exerciseDeleteBtn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(ex.id);
-                        }}
-                        title="Deletar exercício"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="exerciseHeader">
-                    <div className="exerciseInfo">
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <h3 className="exerciseTitle">{ex.titulo}</h3>
-                        {}
-                        {ex.publishedAt && new Date(ex.publishedAt) > new Date() && (
-                          <span className="exerciseBadge" style={{ background: "#3b82f6", color: "white" }} title="Exercício programado para publicação">
-                            📅 Programado
-                          </span>
-                        )}
-                        {ex.tipoExercicio && (
-                          <span className="exerciseBadge" title={ex.tipoExercicio === "codigo" ? "Exercício de código" : "Exercício de digitação"}>
-                            {ex.tipoExercicio === "codigo" ? "💻" : "✍️"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="exerciseModule">
-                        {ex.modulo}
-                        {ex.tema && (
-                          <span className="exerciseTopic">{ex.tema}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="exerciseMeta">
-                      <div className={`exerciseDeadline ${
-                        ex.prazo && new Date(ex.prazo) < new Date() ? "overdue" : ""
-                      }`}>
-                        {ex.prazo
-                          ? new Date(ex.prazo).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit"
-                            })
-                          : "Sem prazo"
-                        }
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="exerciseDescription">{ex.descricao}</div>
-
-                  {/* Badges de acesso/turmas */}
-                  <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {hasAlunoAssignment ? (
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: "4px 10px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          borderRadius: "12px",
-                          background: "rgba(34, 197, 94, 0.15)",
-                          color: "#15803d",
-                          border: "1px solid rgba(34, 197, 94, 0.3)",
-                        }}
-                        title={alunoTitle}
-                      >
-                        👤 {alunoLabel}
-                      </span>
-                    ) : ex.turmas && ex.turmas.length > 0 ? (
-                      <>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "4px 10px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            borderRadius: "12px",
-                            background: "rgba(59, 130, 246, 0.15)",
-                            color: "#1e40af",
-                            border: "1px solid rgba(59, 130, 246, 0.3)",
-                          }}
-                        >
-                          🏛️ {ex.turmas.length} turma{ex.turmas.length > 1 ? "s" : ""}
-                        </span>
-                        {ex.turmas.map((turma) => (
-                          <span
-                            key={turma.id}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "4px 10px",
-                              fontSize: "10px",
-                              fontWeight: 600,
-                              borderRadius: "12px",
-                              background:
-                                turma.tipo === "turma"
-                                  ? "rgba(59, 130, 246, 0.1)"
-                                  : "rgba(168, 85, 247, 0.1)",
-                              color:
-                                turma.tipo === "turma" ? "#2563eb" : "#a855f7",
-                              border:
-                                turma.tipo === "turma"
-                                  ? "1px solid rgba(59, 130, 246, 0.2)"
-                                  : "1px solid rgba(168, 85, 247, 0.2)",
-                            }}
-                            title={`${turma.tipo}: ${turma.nome}`}
-                          >
-                            {turma.nome}
-                          </span>
-                        ))}
-                      </>
-                    ) : (
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: "4px 10px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          borderRadius: "12px",
-                          background: "rgba(34, 197, 94, 0.15)",
-                          color: "#15803d",
-                          border: "1px solid rgba(34, 197, 94, 0.3)",
-                        }}
-                        title="Disponível para todos os alunos"
-                      >
-                        🌐 Para Todos
-                      </span>
-                    )}
-                  </div>
+          <>
+            <div className="filtersSection">
+              {/* Linha 1: Busca por título */}
+              <div className="filterRow">
+                <div className="filterGroup" style={{ flex: 1 }}>
+                  <input
+                    className="exInput"
+                    type="text"
+                    placeholder="🔍 Buscar por titulo..."
+                    value={buscaFiltro}
+                    onChange={(e) => setBuscaFiltro(e.target.value)}
+                    style={{ width: "100%" }}
+                  />
                 </div>
-                        );
-                        })}
-                      </div>
-
-                      <Pagination
-                        currentPage={currentPage}
-                        itemsPerPage={itemsPerPage}
-                        totalItems={filteredExercises.length}
-                        onPageChange={setCurrentPage}
-                        onItemsPerPageChange={setItemsPerPage}
-                      />
-                    </>
-                  );
-                })()}
               </div>
-            </>
-          )}
-        </div>
-        </>
+
+              {/* Linha 2: Módulo, Tipo, Turmas, Aluno */}
+              <div className="filterRow" style={{ gap: "12px" }}>
+                {/* Filtro de modulo */}
+                <div className="filterGroup">
+                  <select
+                    className="exSelect"
+                    value={moduloFiltro}
+                    onChange={(e) => setModuloFiltro(e.target.value)}
+                    style={{ minWidth: 160 }}
+                  >
+                    <option value="">📚 Todos os Módulos</option>
+                    {Array.from(new Set(items.map((ex) => ex.modulo)))
+                      .sort()
+                      .map((mod) => (
+                        <option key={mod} value={mod}>
+                          {mod}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Filtro de tipo */}
+                <div className="filterGroup">
+                  <select
+                    className="exSelect"
+                    value={tipoFiltro}
+                    onChange={(e) => setTipoFiltro(e.target.value)}
+                    style={{ minWidth: 160 }}
+                  >
+                    <option value="">📝 Todos os Tipos</option>
+                    <option value="codigo">💻 Código</option>
+                    <option value="texto">📄 Texto</option>
+                  </select>
+                </div>
+
+                {/* Filtro de turmas */}
+                {turmasDisponiveis.length > 0 && (
+                  <div className="filterGroup">
+                    <select
+                      className="exSelect"
+                      value={turmaFiltro}
+                      onChange={(e) => setTurmaFiltro(e.target.value)}
+                      style={{ minWidth: 180 }}
+                    >
+                      <option value="todas">👥 Todas as turmas</option>
+                      {turmasDisponiveis.map((turma) => (
+                        <option key={turma.id} value={turma.id}>
+                          {turma.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* LISTA DE EXERCÍCIOS */}
+            <div>
+              {loading && items.length === 0 ? (
+                <div className="loadingState">
+                  <div className="spinner" />
+                  Carregando exercícios...
+                </div>
+              ) : !loading && items.length === 0 ? (
+                <div className="emptyState">
+                  <div className="emptyIcon">📚</div>
+                  <div className="emptyTitle">Nenhum exercício disponível</div>
+                  <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
+                    Volte mais tarde para novos exercícios!
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Filtros e Paginação */}
+                  <div style={{ marginBottom: "16px" }}>
+                    {(() => {
+                      const filteredExercises = items.filter((ex) => {
+                        if (ex.is_template) return false;
+                        const alunoIds = getAlunoIds(ex);
+                        const hasAlunoAssignment = alunoIds.length > 0;
+                        if (!isStaff && hasAlunoAssignment) {
+                          if (!userId || !alunoIds.includes(userId)) {
+                            return false;
+                          }
+                        }
+                        // Filtro de busca por titulo
+                        if (
+                          buscaFiltro &&
+                          !ex.titulo.toLowerCase().includes(buscaFiltro.toLowerCase())
+                        ) {
+                          return false;
+                        }
+
+                        // Filtro de modulo
+                        if (moduloFiltro && ex.modulo !== moduloFiltro) {
+                          return false;
+                        }
+
+                        // Filtro de tipo
+                        if (tipoFiltro && ex.tipoExercicio !== tipoFiltro) {
+                          return false;
+                        }
+
+                        // Filtro de turma
+                        if (turmaFiltro === "todas") return true;
+                        if (hasAlunoAssignment) return false;
+                        return ex.turmas?.some((t) => t.id === turmaFiltro);
+                      });
+
+                      const startIndex = (currentPage - 1) * itemsPerPage;
+                      const endIndex = startIndex + itemsPerPage;
+                      const paginatedExercises = filteredExercises.slice(startIndex, endIndex);
+
+                      return (
+                        <>
+                          <div className="exercisesList">
+                            {paginatedExercises.map((ex) => {
+                              const alunoIds = getAlunoIds(ex);
+                              const hasAlunoAssignment = alunoIds.length > 0;
+                              const alunoNames = hasAlunoAssignment ? getAlunoNames(ex) : [];
+                              const showParaMim =
+                                !isStaff && !!userId && alunoIds.includes(userId);
+                              const alunoLabel = showParaMim
+                                ? "Para mim"
+                                : formatAlunoLabel(alunoNames);
+                              const alunoTitle = showParaMim
+                                ? "Disponível apenas para você"
+                                : alunoNames.length > 0
+                                  ? `Disponível apenas para: ${alunoNames.join(", ")}`
+                                  : "Disponível para aluno(s) específico(s)";
+
+                              return (
+                                <div
+                                  key={ex.id}
+                                  className={`exerciseCard ${canCreate ? "canEdit" : ""}`}
+                                  onClick={() => navigate(`/dashboard/exercicios/${ex.id}`)}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      navigate(`/dashboard/exercicios/${ex.id}`);
+                                    }
+                                  }}
+                                >
+                                  {canCreate && (
+                                    <div className="exerciseActions">
+                                      <button
+                                        className="exerciseEditBtn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEdit(ex);
+                                        }}
+                                        title="Editar exercício"
+                                      >
+                                        ✏️
+                                      </button>
+                                      <button
+                                        className="exerciseDeleteBtn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDelete(ex.id);
+                                        }}
+                                        title="Deletar exercício"
+                                      >
+                                        🗑️
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  <div className="exerciseHeader">
+                                    <div className="exerciseInfo">
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <h3 className="exerciseTitle">{ex.titulo}</h3>
+                                        { }
+                                        {ex.publishedAt && new Date(ex.publishedAt) > new Date() && (
+                                          <span className="exerciseBadge" style={{ background: "#3b82f6", color: "white" }} title="Exercício programado para publicação">
+                                            📅 Programado
+                                          </span>
+                                        )}
+                                        {(() => {
+                                          if (!ex.tipoExercicio) return null;
+                                          let icon = "📝";
+                                          let text = "Exercício";
+                                          let color = "var(--text)";
+                                          let bg = "var(--background-secondary)";
+
+                                          switch (ex.tipoExercicio) {
+                                            case "codigo":
+                                              icon = "💻"; text = "Código";
+                                              color = "#3b82f6"; bg = "rgba(59, 130, 246, 0.1)";
+                                              break;
+                                            case "escrita":
+                                              icon = "✍️"; text = "Escrita";
+                                              color = "#f43f5e"; bg = "rgba(244, 63, 94, 0.1)";
+                                              break;
+                                            case "mouse":
+                                              icon = "🖱️"; text = "Mouse";
+                                              color = "#8b5cf6"; bg = "rgba(139, 92, 246, 0.1)";
+                                              break;
+                                            case "multipla":
+                                              icon = "❓"; text = "Quiz";
+                                              color = "#f59e0b"; bg = "rgba(245, 158, 11, 0.1)";
+                                              break;
+                                            case "atalho":
+                                              icon = "⌨️";
+                                              if (ex.atalho_tipo === "copiar-colar") text = "Atalho: Copiar/Colar";
+                                              else if (ex.atalho_tipo === "copiar-colar-imagens") text = "Atalho: Imagens";
+                                              else if (ex.atalho_tipo === "selecionar-deletar") text = "Atalho: Deletar";
+                                              else text = "Atalho";
+                                              color = "#10b981"; bg = "rgba(16, 185, 129, 0.1)";
+                                              break;
+                                          }
+
+                                          return (
+                                            <span
+                                              className="exerciseBadge"
+                                              style={{ color, background: bg, borderColor: color + '40' }}
+                                              title={`Tipo: ${text}`}
+                                            >
+                                              {icon} {text}
+                                            </span>
+                                          );
+                                        })()}
+                                      </div>
+                                      <div className="exerciseModule">
+                                        {ex.modulo}
+                                        {ex.tema && (
+                                          <span className="exerciseTopic">{ex.tema}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="exerciseMeta">
+                                      <div className={`exerciseDeadline ${ex.prazo && new Date(ex.prazo) < new Date() ? "overdue" : ""
+                                        }`}>
+                                        {ex.prazo
+                                          ? new Date(ex.prazo).toLocaleDateString("pt-BR", {
+                                            day: "2-digit",
+                                            month: "short",
+                                            hour: "2-digit",
+                                            minute: "2-digit"
+                                          })
+                                          : "Sem prazo"
+                                        }
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="exerciseDescription">{ex.descricao}</div>
+
+                                  {/* Badges de acesso/turmas */}
+                                  <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                    {hasAlunoAssignment ? (
+                                      <span
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "4px",
+                                          padding: "4px 10px",
+                                          fontSize: "11px",
+                                          fontWeight: 700,
+                                          borderRadius: "12px",
+                                          background: "rgba(34, 197, 94, 0.15)",
+                                          color: "#15803d",
+                                          border: "1px solid rgba(34, 197, 94, 0.3)",
+                                        }}
+                                        title={alunoTitle}
+                                      >
+                                        👤 {alunoLabel}
+                                      </span>
+                                    ) : ex.turmas && ex.turmas.length > 0 ? (
+                                      <>
+                                        <span
+                                          style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "4px",
+                                            padding: "4px 10px",
+                                            fontSize: "11px",
+                                            fontWeight: 700,
+                                            borderRadius: "12px",
+                                            background: "rgba(59, 130, 246, 0.15)",
+                                            color: "#1e40af",
+                                            border: "1px solid rgba(59, 130, 246, 0.3)",
+                                          }}
+                                        >
+                                          🏛️ {ex.turmas.length} turma{ex.turmas.length > 1 ? "s" : ""}
+                                        </span>
+                                        {ex.turmas.map((turma) => (
+                                          <span
+                                            key={turma.id}
+                                            style={{
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              gap: "4px",
+                                              padding: "4px 10px",
+                                              fontSize: "10px",
+                                              fontWeight: 600,
+                                              borderRadius: "12px",
+                                              background:
+                                                turma.tipo === "turma"
+                                                  ? "rgba(59, 130, 246, 0.1)"
+                                                  : "rgba(168, 85, 247, 0.1)",
+                                              color:
+                                                turma.tipo === "turma" ? "#2563eb" : "#a855f7",
+                                              border:
+                                                turma.tipo === "turma"
+                                                  ? "1px solid rgba(59, 130, 246, 0.2)"
+                                                  : "1px solid rgba(168, 85, 247, 0.2)",
+                                            }}
+                                            title={`${turma.tipo}: ${turma.nome}`}
+                                          >
+                                            {turma.nome}
+                                          </span>
+                                        ))}
+                                      </>
+                                    ) : (
+                                      <span
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "4px",
+                                          padding: "4px 10px",
+                                          fontSize: "11px",
+                                          fontWeight: 700,
+                                          borderRadius: "12px",
+                                          background: "rgba(34, 197, 94, 0.15)",
+                                          color: "#15803d",
+                                          border: "1px solid rgba(34, 197, 94, 0.3)",
+                                        }}
+                                        title="Disponível para todos os alunos"
+                                      >
+                                        🌐 Para Todos
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <Pagination
+                            currentPage={currentPage}
+                            itemsPerPage={itemsPerPage}
+                            totalItems={filteredExercises.length}
+                            onPageChange={setCurrentPage}
+                            onItemsPerPageChange={setItemsPerPage}
+                          />
+                        </>
+                      );
+                    })()}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
         )}
 
         {/* MODAL DE CONFIRMAÇÃO PARA DELETAR */}
