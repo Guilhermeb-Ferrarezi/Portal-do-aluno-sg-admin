@@ -325,7 +325,9 @@ export default function ExerciseDetail() {
       // Preparar resposta
       const respostaFinal = isMultipla
         ? JSON.stringify(respostasMultipla)
-        : (resposta.trim() || (tipoRenderizacao === "atalho" ? "Atalho completado" : ""));
+        : tipoRenderizacao === "atalho"
+        ? "Você conseguiu, Parabéns!"
+        : resposta.trim();
 
       const result = await enviarSubmissao(id, {
         resposta: respostaFinal,
