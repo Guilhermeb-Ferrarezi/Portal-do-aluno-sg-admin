@@ -891,10 +891,9 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: normal;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   background: rgba(200, 200, 200, 0.1);
   color: #666;
   flex-shrink: 0;
