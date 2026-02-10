@@ -1627,36 +1627,10 @@ export default function ExerciciosPage() {
                                     }
                                   }}
                                 >
-                                  {canCreate && (
-                                    <div className="exerciseActions">
-                                      <button
-                                        className="exerciseEditBtn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEdit(ex);
-                                        }}
-                                        title="Editar exercício"
-                                      >
-                                        ✏️
-                                      </button>
-                                      <button
-                                        className="exerciseDeleteBtn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDelete(ex.id);
-                                        }}
-                                        title="Deletar exercício"
-                                      >
-                                        🗑️
-                                      </button>
-                                    </div>
-                                  )}
-
                                   <div className="exerciseHeader">
                                     <div className="exerciseInfo">
                                       <div className="exerciseTitleContainer">
                                         <h3 className="exerciseTitle">{ex.titulo}</h3>
-                                        { }
                                         {ex.publishedAt && new Date(ex.publishedAt) > new Date() && (
                                           <span
                                             className="exerciseBadge"
@@ -1727,19 +1701,45 @@ export default function ExerciciosPage() {
                                         )}
                                       </div>
                                     </div>
-                                    <div className="exerciseMeta">
-                                      <div className={`exerciseDeadline ${ex.prazo && new Date(ex.prazo) < new Date() ? "overdue" : ""
-                                        }`}>
-                                        {ex.prazo
-                                          ? new Date(ex.prazo).toLocaleDateString("pt-BR", {
-                                            day: "2-digit",
-                                            month: "short",
-                                            hour: "2-digit",
-                                            minute: "2-digit"
-                                          })
-                                          : "Sem prazo"
-                                        }
+                                    <div className="exerciseMetaAndActions">
+                                      <div className="exerciseMeta">
+                                        <div className={`exerciseDeadline ${ex.prazo && new Date(ex.prazo) < new Date() ? "overdue" : ""
+                                          }`}>
+                                          {ex.prazo
+                                            ? new Date(ex.prazo).toLocaleDateString("pt-BR", {
+                                              day: "2-digit",
+                                              month: "short",
+                                              hour: "2-digit",
+                                              minute: "2-digit"
+                                            })
+                                            : "Sem prazo"}
+                                        </div>
                                       </div>
+
+                                      {canCreate && (
+                                        <div className="exerciseActions">
+                                          <button
+                                            className="exerciseEditBtn"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEdit(ex);
+                                            }}
+                                            title="Editar exercício"
+                                          >
+                                            ✏️
+                                          </button>
+                                          <button
+                                            className="exerciseDeleteBtn"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDelete(ex.id);
+                                            }}
+                                            title="Deletar exercício"
+                                          >
+                                            🗑️
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 
@@ -1851,7 +1851,8 @@ export default function ExerciciosPage() {
               )}
             </div>
           </>
-        )}
+        )
+        }
 
         {/* MODAL DE CONFIRMAÇÃO PARA DELETAR */}
         <ConfirmModal
@@ -1865,7 +1866,7 @@ export default function ExerciciosPage() {
           danger={true}
           isLoading={saving}
         />
-      </div>
-    </DashboardLayout>
+      </div >
+    </DashboardLayout >
   );
 }
