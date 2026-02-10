@@ -22,7 +22,7 @@ export type ShortcutTrainingBoxHandle = {
 
 const SHORTCUT_LABELS: Record<ShortcutType, string> = {
   "copiar-colar": "Copiar e Colar (Botão Direito)",
-  "copiar-colar-imagens": "Copiar e Colar Imagens (Ctrl+C, Ctrl+V)",
+  "copiar-colar-imagens": "Copiar e Colar Texto (Ctrl+C, Ctrl+V)",
   "selecionar-deletar": "Selecionar Tudo e Deletar (Ctrl+A, Delete)",
 };
 
@@ -33,7 +33,7 @@ const SHORTCUTS: Record<ShortcutType, { keys: Set<string>; description: string }
   },
   "copiar-colar-imagens": {
     keys: new Set(["copiar", "colar"]),
-    description: "Use Ctrl+C para copiar a imagem e Ctrl+V para colar",
+    description: "Use Ctrl+C para copiar o texto e Ctrl+V para colar no campo à direita",
   },
   "selecionar-deletar": {
     keys: new Set(["selecionar-tudo", "deletar"]),

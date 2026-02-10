@@ -145,7 +145,7 @@ export default function ExerciseDetail() {
   // Atualiza amostra quando exercício ou tipo mudar
   React.useEffect(() => {
     if (!exercicio) return;
-    if (currentAtalhoTipo === "copiar-colar-imagens" || currentAtalhoTipo === "copiar-colar") {
+    if (currentAtalhoTipo === "copiar-colar") {
       const svgImage = (color: string, text: string) =>
         `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
       const images = [
@@ -156,6 +156,7 @@ export default function ExerciseDetail() {
       setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
     } else {
       const texts = [
+        "Copie este texto de exemplo: O rápido castor marrom salta sobre o cão preguiçoso.",
         "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
         "Exemplo: 12345 - teste rápido de copiar e colar!",
         "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
@@ -759,7 +760,7 @@ export default function ExerciseDetail() {
                       <ShortcutTrainingBox
                         ref={shortcutBoxRef}
                         title="⌨️ Pratique o Atalho"
-                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita" }
+                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie o texto abaixo (Ctrl+C) e cole no campo à direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita" }
                         shortcutType={atalhoTipo}
                         sample={atalhoSample}
                         onComplete={(events) => {
@@ -770,7 +771,7 @@ export default function ExerciseDetail() {
 
                       <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "flex-start" }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "selecionar-deletar" ? "Texto de exemplo" : "Imagem de exemplo"}</label>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Imagem de exemplo" : "Texto de exemplo"}</label>
 
                           {atalhoTipo === "copiar-colar" ? (
                             <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
@@ -781,9 +782,13 @@ export default function ExerciseDetail() {
                               />
                             </div>
                           ) : atalhoTipo === "copiar-colar-imagens" ? (
-                            <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
-                              <img src={atalhoSample} alt="Exemplo" style={{ width: "100%", display: "block" }} />
-                            </div>
+                            <textarea
+                              className="edTextarea"
+                              readOnly
+                              value={atalhoSample}
+                              rows={6}
+                              style={{ resize: "none", userSelect: "all" }}
+                            />
                           ) : atalhoTipo === "selecionar-deletar" ? (
                             <div
                               ref={sampleRef}
@@ -809,7 +814,7 @@ export default function ExerciseDetail() {
                             <button
                               className="templateBtnView"
                               onClick={() => {
-                                if (atalhoTipo === "copiar-colar-imagens" || atalhoTipo === "copiar-colar") {
+                                if (atalhoTipo === "copiar-colar") {
                                   const svgImage = (color: string, text: string) =>
                                     `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
                                   const images = [
@@ -820,6 +825,7 @@ export default function ExerciseDetail() {
                                   setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
                                 } else {
                                   const texts = [
+                                    "Copie este texto de exemplo: O rápido castor marrom salta sobre o cão preguiçoso.",
                                     "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
                                     "Exemplo: 12345 - teste rápido de copiar e colar!",
                                     "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
@@ -838,7 +844,7 @@ export default function ExerciseDetail() {
 
                         {/* Campo onde usuário cola o texto/imagem */}
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Cole a imagem aqui (Botão Direito → Colar)" : atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Cole a imagem aqui (Botão Direito → Colar)" : atalhoTipo === "copiar-colar-imagens" ? "Cole o texto aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
 
                           {atalhoTipo === "copiar-colar" ? (
                             <div
@@ -898,17 +904,20 @@ export default function ExerciseDetail() {
                               )}
                             </div>
                           ) : atalhoTipo === "copiar-colar-imagens" ? (
-                            <div
+                            <textarea
                               className="edTextarea"
-                              onPaste={handleImagePaste}
-                              style={{ minHeight: 140, padding: 12, borderRadius: 8, background: "var(--card)", overflow: "auto" }}
-                            >
-                              {resposta && (resposta.startsWith("data:image") ? (
-                                <img src={resposta} alt="Pasted" style={{ maxWidth: "100%", display: "block" }} />
-                              ) : (
-                                <div style={{ whiteSpace: "pre-wrap" }}>{resposta}</div>
-                              ))}
-                            </div>
+                              placeholder="Cole o texto aqui (Ctrl+V)"
+                              value={resposta}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setResposta(val);
+                                if (val.trim() === atalhoSample.trim()) {
+                                  setAtalhoCompleted(true);
+                                }
+                              }}
+                              rows={6}
+                              style={{ resize: "none", border: resposta.trim() === atalhoSample.trim() && resposta.length > 0 ? "2px solid rgba(34,197,94,0.6)" : undefined }}
+                            />
                           ) : atalhoTipo === "selecionar-deletar" ? (
                             <div style={{ marginTop: 6, color: "#9CA3AF", fontSize: 13 }}>
                               Selecione todo o texto à esquerda e pressione Delete ou Backspace para completar o exercício.
@@ -929,7 +938,7 @@ export default function ExerciseDetail() {
                           </div>
                           {atalhoAutoNotice && (
                             <div style={{ marginTop: 8, color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
-                              ✅ Imagem detectada — enviada automaticamente
+                              ✅ Resposta enviada automaticamente
                             </div>
                           )}
                         </div>
@@ -1184,23 +1193,25 @@ export default function ExerciseDetail() {
                 </div>
               </ConditionalFieldAnimation>
 
-              {/* BOTÃO ENVIAR - Desabilitado quando tipo "Nenhum" sem seleção */}
-              <AnimatedButton
-                className="edSubmitBtn"
-                onClick={handleEnviar}
-                disabled={
-                  resposta.trim().length === 0 ||
-                  prazoVencido ||
-                  (tipoExercicio === "nenhum" && !selectedTipoNenhum)
-                }
-                loading={enviando}
-              >
-                {prazoVencido
-                  ? "❌ Prazo Expirado"
-                  : tipoExercicio === "nenhum" && !selectedTipoNenhum
-                  ? "👇 Selecione um tipo acima"
-                  : "✨ Enviar Resposta"}
-              </AnimatedButton>
+              {/* BOTÃO ENVIAR - Oculto para atalhos (auto-submit) */}
+              {tipoRenderizacao !== "atalho" && (
+                <AnimatedButton
+                  className="edSubmitBtn"
+                  onClick={handleEnviar}
+                  disabled={
+                    resposta.trim().length === 0 ||
+                    prazoVencido ||
+                    (tipoExercicio === "nenhum" && !selectedTipoNenhum)
+                  }
+                  loading={enviando}
+                >
+                  {prazoVencido
+                    ? "❌ Prazo Expirado"
+                    : tipoExercicio === "nenhum" && !selectedTipoNenhum
+                    ? "👇 Selecione um tipo acima"
+                    : "✨ Enviar Resposta"}
+                </AnimatedButton>
+              )}
 
               {/* DICA - Mostra apenas quando há um tipo selecionado */}
               {(tipoExercicio !== "nenhum" || (tipoExercicio === "nenhum" && selectedTipoNenhum)) && (
