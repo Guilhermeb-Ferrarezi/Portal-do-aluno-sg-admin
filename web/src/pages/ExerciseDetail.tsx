@@ -82,7 +82,6 @@ export default function ExerciseDetail() {
   const [atalhoCompleted, setAtalhoCompleted] = React.useState(false);
   const [atalhoAutoSubmitted, setAtalhoAutoSubmitted] = React.useState(false);
   const [atalhoAutoNotice, setAtalhoAutoNotice] = React.useState(false);
-  const [isDragOver, setIsDragOver] = React.useState(false);
 
   // Carregar exercício
   React.useEffect(() => {
@@ -146,10 +145,12 @@ export default function ExerciseDetail() {
   React.useEffect(() => {
     if (!exercicio) return;
     if (currentAtalhoTipo === "copiar-colar-imagens" || currentAtalhoTipo === "copiar-colar") {
+      const svgImage = (color: string, text: string) =>
+        `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
       const images = [
-        "https://via.placeholder.com/420x220/4F46E5/FFFFFF?text=Imagem+Exemplo+1",
-        "https://via.placeholder.com/420x220/059669/FFFFFF?text=Imagem+Exemplo+2",
-        "https://via.placeholder.com/420x220/DC2626/FFFFFF?text=Imagem+Exemplo+3"
+        svgImage("#4F46E5", "Imagem Exemplo 1"),
+        svgImage("#059669", "Imagem Exemplo 2"),
+        svgImage("#DC2626", "Imagem Exemplo 3")
       ];
       setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
     } else {
@@ -756,7 +757,7 @@ export default function ExerciseDetail() {
                     <div>
                       <ShortcutTrainingBox
                         title="⌨️ Pratique o Atalho"
-                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Copie (Ctrl+C) e cole (Ctrl+V) ou arraste a imagem para a caixa à direita" }
+                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Copie a imagem com Ctrl+C e cole na caixa à direita com Ctrl+V" }
                         shortcutType={atalhoTipo}
                         sample={atalhoSample}
                         onComplete={(events) => {
@@ -770,20 +771,12 @@ export default function ExerciseDetail() {
                           <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "selecionar-deletar" ? "Texto de exemplo" : "Imagem de exemplo"}</label>
 
                           {atalhoTipo === "copiar-colar" ? (
-                            <div style={{ borderRadius: 8, overflow: "hidden", border: "2px dashed rgba(99,102,241,0.4)", position: "relative" }}>
+                            <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
                               <img
                                 src={atalhoSample}
-                                alt="Arraste esta imagem"
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.setData("text/plain", atalhoSample);
-                                  e.dataTransfer.effectAllowed = "copy";
-                                }}
-                                style={{ width: "100%", display: "block", cursor: "grab" }}
+                                alt="Copie esta imagem"
+                                style={{ width: "100%", display: "block" }}
                               />
-                              <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.7)", color: "#fff", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, pointerEvents: "none" }}>
-                                Arraste para a direita
-                              </div>
                             </div>
                           ) : atalhoTipo === "copiar-colar-imagens" ? (
                             <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -815,10 +808,12 @@ export default function ExerciseDetail() {
                               className="templateBtnView"
                               onClick={() => {
                                 if (atalhoTipo === "copiar-colar-imagens" || atalhoTipo === "copiar-colar") {
+                                  const svgImage = (color: string, text: string) =>
+                                    `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
                                   const images = [
-                                    "https://via.placeholder.com/420x220/4F46E5/FFFFFF?text=Imagem+Exemplo+1",
-                                    "https://via.placeholder.com/420x220/059669/FFFFFF?text=Imagem+Exemplo+2",
-                                    "https://via.placeholder.com/420x220/DC2626/FFFFFF?text=Imagem+Exemplo+3"
+                                    svgImage("#4F46E5", "Imagem Exemplo 1"),
+                                    svgImage("#059669", "Imagem Exemplo 2"),
+                                    svgImage("#DC2626", "Imagem Exemplo 3")
                                   ];
                                   setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
                                 } else {
@@ -832,7 +827,6 @@ export default function ExerciseDetail() {
                                 }
                                 setAtalhoCompleted(false);
                                 setResposta("");
-                                setIsDragOver(false);
                               }}
                             >
                               🔁 Novo exemplo
@@ -842,23 +836,11 @@ export default function ExerciseDetail() {
 
                         {/* Campo onde usuário cola o texto/imagem */}
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Solte ou cole a imagem aqui" : atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
 
                           {atalhoTipo === "copiar-colar" ? (
                             <div
                               tabIndex={0}
-                              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setIsDragOver(true); }}
-                              onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                              onDragLeave={() => setIsDragOver(false)}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                setIsDragOver(false);
-                                const url = e.dataTransfer.getData("text/plain");
-                                if (url) {
-                                  setResposta(url);
-                                  setAtalhoCompleted(true);
-                                }
-                              }}
                               onPaste={(e) => {
                                 const items = e.clipboardData?.items;
                                 if (!items) return;
@@ -878,7 +860,7 @@ export default function ExerciseDetail() {
                                   }
                                 }
                                 const text = e.clipboardData.getData("text/plain");
-                                if (text && text.startsWith("http")) {
+                                if (text) {
                                   setResposta(text);
                                   setAtalhoCompleted(true);
                                   e.preventDefault();
@@ -888,13 +870,13 @@ export default function ExerciseDetail() {
                                 minHeight: 220,
                                 padding: 20,
                                 borderRadius: 8,
-                                border: resposta ? "2px solid rgba(34,197,94,0.5)" : isDragOver ? "2px dashed rgba(99,102,241,0.8)" : "2px dashed rgba(255,255,255,0.2)",
-                                background: resposta ? "rgba(34,197,94,0.05)" : isDragOver ? "rgba(99,102,241,0.1)" : "rgba(0,0,0,0.2)",
+                                border: resposta ? "2px solid rgba(34,197,94,0.5)" : "2px dashed rgba(255,255,255,0.2)",
+                                background: resposta ? "rgba(34,197,94,0.05)" : "rgba(0,0,0,0.2)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 transition: "all 0.3s ease",
-                                cursor: "default",
+                                cursor: "text",
                                 outline: "none"
                               }}
                             >
@@ -902,12 +884,12 @@ export default function ExerciseDetail() {
                                 resposta.startsWith("data:image") ? (
                                   <img src={resposta} alt="Imagem colada" style={{ maxWidth: "100%", borderRadius: 8, display: "block" }} />
                                 ) : (
-                                  <img src={resposta} alt="Imagem solta" style={{ maxWidth: "100%", borderRadius: 8, display: "block" }} />
+                                  <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", color: "rgba(255,255,255,0.8)" }}>{resposta}</div>
                                 )
                               ) : (
-                                <div style={{ textAlign: "center", color: isDragOver ? "rgba(99,102,241,0.9)" : "rgba(255,255,255,0.5)" }}>
-                                  <div style={{ fontSize: 36, marginBottom: 8 }}>{isDragOver ? "📥" : "🖼️"}</div>
-                                  <div style={{ fontSize: 14, fontWeight: 600 }}>{isDragOver ? "Solte aqui!" : "Arraste ou cole a imagem aqui (Ctrl+V)"}</div>
+                                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
+                                  <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
+                                  <div style={{ fontSize: 14, fontWeight: 600 }}>Clique aqui e cole com Ctrl+V</div>
                                 </div>
                               )}
                             </div>
