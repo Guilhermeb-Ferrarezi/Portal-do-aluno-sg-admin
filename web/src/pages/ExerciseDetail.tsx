@@ -301,7 +301,7 @@ export default function ExerciseDetail() {
         setErroSubmissao(`Por favor, responda todas as ${totalQuestoes} questões.`);
         return;
       }
-    } else if (resposta.trim().length === 0) {
+    } else if (resposta.trim().length === 0 && tipoRenderizacao !== "atalho") {
       setErroSubmissao("A resposta não pode estar vazia");
       return;
     }
@@ -317,11 +317,15 @@ export default function ExerciseDetail() {
       if (tipoResposta === "nenhum" && selectedTipoNenhum) {
         tipoResposta = selectedTipoNenhum;
       }
+      // API só aceita "codigo" ou "texto" - mapear tipos especiais
+      if (tipoResposta !== "codigo") {
+        tipoResposta = "texto";
+      }
 
       // Preparar resposta
       const respostaFinal = isMultipla
         ? JSON.stringify(respostasMultipla)
-        : resposta.trim();
+        : (resposta.trim() || (tipoRenderizacao === "atalho" ? "Atalho completado" : ""));
 
       const result = await enviarSubmissao(id, {
         resposta: respostaFinal,
