@@ -161,11 +161,11 @@ export default function ExerciseDetail() {
       setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
     } else {
       const texts = [
-        "Copie este texto de exemplo: O rápido castor marrom salta sobre o cão preguiçoso.",
-        "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-        "Exemplo: 12345 - teste rápido de copiar e colar!",
-        "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
-        "Treino: Abacaxi, banana, uva, morango, limão."
+        "O rápido castor marrom salta sobre o cão preguiçoso.",
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "12345 - teste rápido de copiar e colar!",
+        "Abacaxi, banana, uva, morango, limão.",
+        "Frase exemplo para copiar e colar."
       ];
       setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
     }
@@ -902,13 +902,13 @@ export default function ExerciseDetail() {
                                     ];
                                     setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
                                   } else {
-                                    const texts = [
-                                      "Copie este texto de exemplo: O rápido castor marrom salta sobre o cão preguiçoso.",
-                                      "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                                      "Exemplo: 12345 - teste rápido de copiar e colar!",
-                                      "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
-                                      "Treino: Abacaxi, banana, uva, morango, limão."
-                                    ];
+                                  const texts = [
+                                    "O rápido castor marrom salta sobre o cão preguiçoso.",
+                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                                    "12345 - teste rápido de copiar e colar!",
+                                    "Abacaxi, banana, uva, morango, limão.",
+                                    "Frase exemplo para copiar e colar."
+                                  ];
                                     setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
                                   }
                                   setAtalhoCompleted(false);
