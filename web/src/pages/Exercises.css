@@ -985,6 +985,46 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
     font-size: 14px;
     padding: 10px;
   }
+
+  /* Filtros Mobile Otimizados */
+  .filtersSection {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .filterRow {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+  }
+
+  /* Grid de 2 colunas para os selects */
+  .filterRow:last-child {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  
+  /* Opcional: Se tiver número ímpar de selects, o último ocupa tudo */
+  .filterRow:last-child .filterGroup:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
+  .filterGroup {
+    min-width: 0; /* Permitir flex-shrink */
+  }
+
+  .filterGroup select,
+  .filterGroup input {
+    height: 48px;
+    min-height: 48px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -992,4 +1032,29 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
     grid-template-columns: 1fr;
     gap: 12px;
   }
+}
+
+/* Filtros Desktop/Tablet Defaults */
+.filtersSection {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  flex: 1;
+  min-width: 180px;
 }
