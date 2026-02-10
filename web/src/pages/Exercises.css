@@ -632,7 +632,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .exerciseTitleContainer {
@@ -647,10 +647,10 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   font-size: 20px;
   font-weight: 800;
   color: var(--text);
-  margin: 0 0 8px 0;
+  margin: 0;
   line-height: 1.3;
-  letter-spacing: -0.3px;
-  overflow-wrap: anywhere;
+  letter-spacing: -0.5px;
+  overflow-wrap: break-word;
 }
 
 .exerciseModule {
@@ -658,9 +658,10 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   color: var(--muted);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   row-gap: 6px;
+  margin-top: 2px;
 }
 
 .exerciseModule::before {
@@ -715,16 +716,16 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseTopic {
-  display: inline-block;
-  margin-top: 12px;
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
   background: rgba(59, 130, 246, 0.08);
-  color: #2563eb;
+  color: #3b82f6;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  position: relative;
-  z-index: 1;
+  border: 1px solid rgba(59, 130, 246, 0.1);
+  letter-spacing: 0.3px;
 }
 
 .exerciseTopic::before {

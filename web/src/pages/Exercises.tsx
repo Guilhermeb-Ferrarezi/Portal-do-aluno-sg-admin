@@ -1658,7 +1658,15 @@ export default function ExerciciosPage() {
                                         <h3 className="exerciseTitle">{ex.titulo}</h3>
                                         { }
                                         {ex.publishedAt && new Date(ex.publishedAt) > new Date() && (
-                                          <span className="exerciseBadge" style={{ background: "#3b82f6", color: "white" }} title="Exercício programado para publicação">
+                                          <span
+                                            className="exerciseBadge"
+                                            style={{
+                                              background: "rgba(59, 130, 246, 0.1)",
+                                              color: "#3b82f6",
+                                              borderColor: "rgba(59, 130, 246, 0.2)"
+                                            }}
+                                            title="Exercício programado para publicação"
+                                          >
                                             📅 Programado
                                           </span>
                                         )}
@@ -1699,7 +1707,12 @@ export default function ExerciciosPage() {
                                           return (
                                             <span
                                               className="exerciseBadge"
-                                              style={{ color, background: bg, borderColor: color + '40' }}
+                                              style={{
+                                                color,
+                                                background: bg,
+                                                borderColor: color + '30',
+                                                boxShadow: `0 2px 10px ${color}15`
+                                              }}
                                               title={`Tipo: ${text}`}
                                             >
                                               {icon} {text}
