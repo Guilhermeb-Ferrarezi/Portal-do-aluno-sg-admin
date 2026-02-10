@@ -134,7 +134,7 @@
 .sideSectionHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 12px 14px;
   border-radius: 12px;
   color: rgba(255, 255, 255, 0.7);
@@ -145,13 +145,17 @@
   font-size: 14px;
   font-weight: 500;
   width: 100%;
-  justify-content: space-between;
+  justify-content: flex-start;
   transition: all 0.2s ease;
 }
 
 .sideSectionHeader:hover {
   background: rgba(255,255,255,0.08);
   color: #ffffff;
+}
+
+.sideSectionHeader .sideExpand {
+  margin-left: auto;
 }
 
 .sideExpand {
@@ -181,7 +185,7 @@
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.6);
   background: transparent;
-  border: 1px solid transparent; /* No border by default */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Borda sutil */
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
@@ -204,6 +208,7 @@
 
 .sideTurmaItem:hover {
   background: rgba(255,255,255,0.05);
+  border-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   padding-left: 16px; /* Slight movement */
 }
@@ -615,6 +620,11 @@
   .sbBottom { padding: 16px; display: flex; justify-content: center; }
 }
 
+/* Esconder hamburger no desktop */
+.hamburger {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .appShell { margin-left: 0; }
   .sidebar { transform: translateX(-100%); }
@@ -630,10 +640,22 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    background: transparent;
-    border: none;
-    font-size: 24px;
+    background: var(--background);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 22px;
     color: var(--text);
+    z-index: 1001; /* Acima da sidebar */
+    position: relative;
+    transition: all 0.2s ease;
+  }
+  
+  .hamburger:hover {
+    background: var(--background-hover);
+  }
+  
+  .hamburger:active {
+    transform: scale(0.95);
   }
 }
 
