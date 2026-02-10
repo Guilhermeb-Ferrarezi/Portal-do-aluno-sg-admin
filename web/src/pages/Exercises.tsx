@@ -75,6 +75,7 @@ export default function ExerciciosPage() {
   const [saving, setSaving] = React.useState(false);
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
   const [editandoId, setEditandoId] = React.useState<string | null>(null);
+  const [activeSection, setActiveSection] = React.useState<"criar" | "lista">("lista");
 
   // Filtros
   const [moduloFiltro, setModuloFiltro] = React.useState("");
@@ -290,6 +291,7 @@ export default function ExerciciosPage() {
   }
 
   function handleEdit(exercicio: Exercicio) {
+    setActiveSection("criar");
     setTitulo(exercicio.titulo);
     setDescricao(exercicio.descricao);
     setGabarito("");
@@ -376,6 +378,7 @@ export default function ExerciciosPage() {
   }
 
   function handleCancel() {
+    setActiveSection("lista");
     setTitulo("");
     setDescricao("");
     setGabarito("");
@@ -468,6 +471,28 @@ export default function ExerciciosPage() {
           </button>
         </div>
 
+        {canCreate && (
+          <div className="exercisesTabs">
+            <span className="exercisesTabsLabel">Exibir:</span>
+            <div className="exercisesTabsGroup">
+              <button
+                type="button"
+                className={`exercisesTab ${activeSection === "criar" ? "active" : ""}`}
+                onClick={() => setActiveSection("criar")}
+              >
+                Criar exercícios
+              </button>
+              <button
+                type="button"
+                className={`exercisesTab ${activeSection === "lista" ? "active" : ""}`}
+                onClick={() => setActiveSection("lista")}
+              >
+                Exercícios
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* MENSAGENS */}
         {erro && (
           <div className="exMessage error">
@@ -496,7 +521,7 @@ export default function ExerciciosPage() {
         )}
 
         {/* SEÇÃO DE CRIAR */}
-        {canCreate && (
+        {canCreate && activeSection === "criar" && (
           <FadeInUp duration={0.28}>
           <div className="createExerciseCard">
             <h2 className="exFormTitle">Criar novo exercício</h2>
@@ -1453,6 +1478,8 @@ export default function ExerciciosPage() {
         )}
 
         {/* FILTROS DE EXERCÍCIOS */}
+        {activeSection === "lista" && (
+        <>
         <div className="filtersSection">
           {/* Linha 1: Busca por título */}
           <div className="filterRow">
@@ -1784,6 +1811,8 @@ export default function ExerciciosPage() {
             </>
           )}
         </div>
+        </>
+        )}
 
         {/* MODAL DE CONFIRMAÇÃO PARA DELETAR */}
         <ConfirmModal
