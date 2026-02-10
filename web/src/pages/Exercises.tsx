@@ -184,18 +184,6 @@ export default function ExerciciosPage() {
       let descricaoFinal = descricao.trim();
       let tituloFinal = titulo.trim();
 
-      // Apenas auto-gerar títulos para Informática (Programação usa títulos customizados)
-      if (categoria === "informatica" && componenteInterativo) {
-        let nomeComponente = "";
-        if (componenteInterativo === "mouse") {
-          nomeComponente = "Mouse";
-        } else if (componenteInterativo === "multipla") {
-          nomeComponente = "Pergunta Múltipla";
-        }
-
-        tituloFinal = `Dia ${diaNumero}: ${nomeComponente}`;
-      }
-
       // Determinar o `tipoExercicio` explicitamente a partir das seleções do formulário
       let tipoSelecionado: string | undefined = undefined;
       if (categoria === "programacao") {
@@ -930,7 +918,7 @@ export default function ExerciciosPage() {
                         placeholder="Digite o número do dia"
                       />
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                        Título será: "Dia {diaNumero}: {componenteInterativo === "mouse" ? "Mouse" : "Pergunta Múltipla"}"
+                        Usado apenas para organização interna (não altera o título automaticamente).
                       </small>
                     </div>
                   </ConditionalFieldAnimation>
