@@ -1654,7 +1654,7 @@ export default function ExerciciosPage() {
 
                                   <div className="exerciseHeader">
                                     <div className="exerciseInfo">
-                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 6 }}>
                                         <h3 className="exerciseTitle">{ex.titulo}</h3>
                                         { }
                                         {ex.publishedAt && new Date(ex.publishedAt) > new Date() && (
