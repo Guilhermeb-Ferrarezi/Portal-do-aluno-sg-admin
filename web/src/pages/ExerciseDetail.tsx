@@ -877,13 +877,7 @@ export default function ExerciseDetail() {
                                     }
                                   }
                                 }
-                                const text = e.clipboardData.getData("text/plain");
-                                if (text) {
-                                  setResposta(text);
-                                  setAtalhoCompleted(true);
-                                  shortcutBoxRef.current?.detectAction("colar");
-                                  e.preventDefault();
-                                }
+                                // Não aceitar texto no modo de copiar/colar imagem
                               }}
                               style={{
                                 minHeight: 220,

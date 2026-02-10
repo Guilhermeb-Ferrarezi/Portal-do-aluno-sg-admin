@@ -1176,7 +1176,7 @@ export default function ExerciciosPage() {
                         value="copiar-colar"
                         checked={atalhoTipo === "copiar-colar"}
                         onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                        label="Copiar e Colar"
+                        label="Copiar e Colar Texto"
                         icon="📋"
                       />
                       <AnimatedRadioLabel
@@ -1184,7 +1184,7 @@ export default function ExerciciosPage() {
                         value="copiar-colar-imagens"
                         checked={atalhoTipo === "copiar-colar-imagens"}
                         onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                        label="Copiar e Colar Imagens"
+                        label="Copiar e Colar Imagem"
                         icon="🖼️"
                       />
                       <AnimatedRadioLabel
