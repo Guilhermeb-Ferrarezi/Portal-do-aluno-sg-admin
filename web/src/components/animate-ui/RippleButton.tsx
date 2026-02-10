@@ -1,19 +1,14 @@
 import React, { useRef } from 'react';
 
-interface RippleButtonProps {
+interface RippleButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-  disabled?: boolean;
-  type?: 'button' | 'submit' | 'reset';
 }
 
 export function RippleButton({
   children,
-  onClick,
   className = '',
-  disabled = false,
-  type = 'button',
+  onClick,
+  ...props
 }: RippleButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -36,36 +31,32 @@ export function RippleButton({
 
     setTimeout(() => ripple.remove(), 600);
 
-    onClick?.();
+    onClick?.(e);
   };
 
   return (
     <button
       ref={buttonRef}
-      type={type}
-      disabled={disabled}
       onClick={handleClick}
       className={`ripple-button ${className}`}
-      style={{
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'all 0.3s ease',
-      }}
+      {...props}
     >
       {children}
       <style>{`
         .ripple-button {
           position: relative;
           overflow: hidden;
+          isolation: isolate; /* Create stacking context */
         }
 
         .ripple {
           position: absolute;
           border-radius: 50%;
-          background: rgba(255, 255, 255, 0.6);
+          background: rgba(255, 255, 255, 0.4);
           transform: scale(0);
           animation: ripple-animation 0.6s ease-out;
           pointer-events: none;
+          z-index: 10;
         }
 
         @keyframes ripple-animation {
