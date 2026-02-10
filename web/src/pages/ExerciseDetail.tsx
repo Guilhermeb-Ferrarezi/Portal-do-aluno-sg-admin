@@ -808,13 +808,13 @@ export default function ExerciseDetail() {
 
                     return (
                       <div>
-                        <ShortcutTrainingBox
-                          ref={shortcutBoxRef}
-                          title="⌨️ Pratique o Atalho"
-                          instruction={atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo à direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita"}
-                          shortcutType={atalhoTipo}
-                          sample={atalhoSample}
-                          onComplete={(events) => {
+                      <ShortcutTrainingBox
+                        ref={shortcutBoxRef}
+                        title="⌨️ Pratique o Atalho"
+                        instruction={atalhoTipo === "copiar-colar" ? "" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita"}
+                        shortcutType={atalhoTipo}
+                        sample={atalhoSample}
+                        onComplete={(events) => {
                             console.log("Atalho completado:", events);
                             setAtalhoCompleted(true);
                           }}
@@ -834,11 +834,11 @@ export default function ExerciseDetail() {
                               </div>
                             ) : atalhoTipo === "copiar-colar" ? (
                               <textarea
-                                className="edTextarea"
-                                readOnly
-                                value={atalhoSample}
-                                rows={6}
-                                style={{ resize: "none", userSelect: "all" }}
+                              className="edTextarea"
+                              readOnly
+                              value={atalhoSample}
+                              rows={6}
+                              style={{ resize: "none", userSelect: "text", cursor: "text" }}
                                 onCopy={(e) => {
                                   const target = e.currentTarget;
                                   const start = target.selectionStart ?? 0;

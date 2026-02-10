@@ -258,7 +258,7 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
         </div>
       </div>
 
-      <p className="shortcutInstruction">{instruction}</p>
+      {instruction && <p className="shortcutInstruction">{instruction}</p>}
 
       <div className="shortcutArea">
         <div className="shortcutBox">
@@ -282,7 +282,7 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
                     }
 
                     return (
-                      <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap" }}>{sample}</div>
+                      <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap", userSelect: "text", cursor: "text" }}>{sample}</div>
                     );
                   })()}
                 </div>
