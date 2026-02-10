@@ -724,12 +724,67 @@ body {
     height: 100vh;
     width: 280px;
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.3s ease;
+    opacity: 0;
     z-index: 1000;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
   }
 
   .sidebar.open {
     transform: translateX(0);
+    opacity: 1;
+  }
+
+  /* Animação escalonada para os itens da sidebar quando ela abre */
+  .sidebar.open .sbItem,
+  .sidebar.open .sideItem,
+  .sidebar.open .sideSectionHeader,
+  .sidebar.open .sideTurmaItem {
+    animation: slideInFromLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+  }
+
+  .sidebar.open .sbItem:nth-child(1) { animation-delay: 0.05s; }
+  .sidebar.open .sbItem:nth-child(2) { animation-delay: 0.08s; }
+  .sidebar.open .sbItem:nth-child(3) { animation-delay: 0.11s; }
+  .sidebar.open .sbItem:nth-child(4) { animation-delay: 0.14s; }
+  .sidebar.open .sbItem:nth-child(5) { animation-delay: 0.17s; }
+  .sidebar.open .sbItem:nth-child(6) { animation-delay: 0.20s; }
+  .sidebar.open .sbItem:nth-child(7) { animation-delay: 0.23s; }
+  .sidebar.open .sbItem:nth-child(8) { animation-delay: 0.26s; }
+  .sidebar.open .sbItem:nth-child(9) { animation-delay: 0.29s; }
+  .sidebar.open .sbItem:nth-child(10) { animation-delay: 0.32s; }
+
+  .sidebar.open .sbTop {
+    animation: fadeInScale 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+    animation-delay: 0.02s;
+  }
+
+  .sidebar.open .sbBottom {
+    animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+    animation-delay: 0.15s;
+  }
+
+  @keyframes slideInFromLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .sidebarOverlay {
@@ -740,7 +795,19 @@ body {
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
-    animation: fadeIn 0.2s ease;
+    animation: overlayFadeIn 0.3s ease forwards;
+    backdrop-filter: blur(2px);
+  }
+
+  @keyframes overlayFadeIn {
+    from {
+      opacity: 0;
+      backdrop-filter: blur(0px);
+    }
+    to {
+      opacity: 1;
+      backdrop-filter: blur(2px);
+    }
   }
 
   .hamburger {
@@ -755,11 +822,17 @@ body {
     font-size: 24px;
     cursor: pointer;
     border-radius: 10px;
-    transition: background 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
   }
 
   .hamburger:hover {
     background: var(--line);
+    transform: scale(1.05);
+  }
+
+  .hamburger:active {
+    transform: scale(0.95);
   }
 
   .topbar {

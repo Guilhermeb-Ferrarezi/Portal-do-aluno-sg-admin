@@ -21,19 +21,19 @@ export type ShortcutTrainingBoxHandle = {
 };
 
 const SHORTCUT_LABELS: Record<ShortcutType, string> = {
-  "copiar-colar": "Copiar e Colar (Botão Direito)",
-  "copiar-colar-imagens": "Copiar e Colar Texto (Ctrl+C, Ctrl+V)",
+  "copiar-colar": "Copiar e Colar Texto (Ctrl+C, Ctrl+V)",
+  "copiar-colar-imagens": "Copiar e Colar Imagem (Botão Direito)",
   "selecionar-deletar": "Selecionar Tudo e Deletar (Ctrl+A, Delete)",
 };
 
 const SHORTCUTS: Record<ShortcutType, { keys: Set<string>; description: string }> = {
   "copiar-colar": {
     keys: new Set(["copiar", "colar"]),
-    description: "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita",
+    description: "Use Ctrl+C para copiar o texto e Ctrl+V para colar no campo à direita",
   },
   "copiar-colar-imagens": {
     keys: new Set(["copiar", "colar"]),
-    description: "Use Ctrl+C para copiar o texto e Ctrl+V para colar no campo à direita",
+    description: "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita",
   },
   "selecionar-deletar": {
     keys: new Set(["selecionar-tudo", "deletar"]),
@@ -99,8 +99,8 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
   const handleKeyDown = React.useCallback(
     (e: KeyboardEvent) => {
       if (!boxRef.current || isComplete) return;
-      // Tipo copiar-colar usa botão direito, não teclado
-      if (shortcutType === "copiar-colar") return;
+      // Tipo copiar-colar-imagens usa botão direito, não teclado
+      if (shortcutType === "copiar-colar-imagens") return;
 
       const key = e.key.toLowerCase();
       const isCtrlCmd = e.ctrlKey || e.metaKey;
@@ -135,9 +135,9 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
     };
   }, [handleKeyDown]);
 
-  // Listeners para tipo copiar-colar: detecta botão direito (contextmenu) e paste
+  // Listeners para tipo copiar-colar-imagens: detecta botão direito (contextmenu) e paste
   React.useEffect(() => {
-    if (shortcutType !== "copiar-colar") return;
+    if (shortcutType !== "copiar-colar-imagens") return;
     if (isComplete) return;
 
     const handleContextMenu = (e: MouseEvent) => {
@@ -224,9 +224,9 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
     );
   };
 
-  // Labels dos passos para copiar-colar (botão direito)
+  // Labels dos passos para copiar-colar-imagens (botão direito)
   const getKeyIcon = (key: string) => {
-    if (key === "copiar") return shortcutType === "copiar-colar" ? "🖱️" : "📋";
+    if (key === "copiar") return shortcutType === "copiar-colar-imagens" ? "🖱️" : "📋";
     if (key === "colar") return "📌";
     if (key === "selecionar-tudo") return "✅";
     if (key === "deletar") return "🗑️";
@@ -234,8 +234,8 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
   };
 
   const getKeyName = (key: string) => {
-    if (key === "copiar") return shortcutType === "copiar-colar" ? "Copiar (Botão Direito → Copiar imagem)" : "Copiar (Ctrl+C)";
-    if (key === "colar") return shortcutType === "copiar-colar" ? "Colar (Ctrl+V)" : "Colar (Ctrl+V)";
+    if (key === "copiar") return shortcutType === "copiar-colar-imagens" ? "Copiar (Botão Direito → Copiar imagem)" : "Copiar (Ctrl+C)";
+    if (key === "colar") return shortcutType === "copiar-colar-imagens" ? "Colar (Botão Direito → Colar)" : "Colar (Ctrl+V)";
     if (key === "selecionar-tudo") return "Selecionar (Ctrl+A)";
     if (key === "deletar") return "Deletar";
     return key;
@@ -291,7 +291,7 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
           )}
 
           <div className="shortcutLabel">
-            {shortcutType === "copiar-colar" ? "🖱️" : "🎹"} {SHORTCUT_LABELS[shortcutType]}
+            {shortcutType === "copiar-colar-imagens" ? "🖱️" : "🎹"} {SHORTCUT_LABELS[shortcutType]}
           </div>
           <p className="shortcutHint">{shortcutConfig.description}</p>
 

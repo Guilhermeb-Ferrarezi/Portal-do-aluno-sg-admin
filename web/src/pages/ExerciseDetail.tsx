@@ -147,7 +147,7 @@ export default function ExerciseDetail() {
   // Atualiza amostra quando exercício ou tipo mudar
   React.useEffect(() => {
     if (!exercicio) return;
-    if (currentAtalhoTipo === "copiar-colar") {
+    if (currentAtalhoTipo === "copiar-colar-imagens") {
       const svgImage = (color: string, text: string) =>
         `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
       const images = [
@@ -769,7 +769,7 @@ export default function ExerciseDetail() {
                       <ShortcutTrainingBox
                         ref={shortcutBoxRef}
                         title="⌨️ Pratique o Atalho"
-                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie o texto abaixo (Ctrl+C) e cole no campo à direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita" }
+                        instruction={ atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo à direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita" }
                         shortcutType={atalhoTipo}
                         sample={atalhoSample}
                         onComplete={(events) => {
@@ -780,9 +780,9 @@ export default function ExerciseDetail() {
 
                       <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "flex-start" }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Imagem de exemplo" : "Texto de exemplo"}</label>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Imagem de exemplo" : "Texto de exemplo"}</label>
 
-                          {atalhoTipo === "copiar-colar" ? (
+                          {atalhoTipo === "copiar-colar-imagens" ? (
                             <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
                               <img
                                 src={atalhoSample}
@@ -790,7 +790,7 @@ export default function ExerciseDetail() {
                                 style={{ width: "100%", display: "block" }}
                               />
                             </div>
-                          ) : atalhoTipo === "copiar-colar-imagens" ? (
+                          ) : atalhoTipo === "copiar-colar" ? (
                             <textarea
                               className="edTextarea"
                               readOnly
@@ -823,7 +823,7 @@ export default function ExerciseDetail() {
                             <button
                               className="templateBtnView"
                               onClick={() => {
-                                if (atalhoTipo === "copiar-colar") {
+                                if (atalhoTipo === "copiar-colar-imagens") {
                                   const svgImage = (color: string, text: string) =>
                                     `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
                                   const images = [
@@ -853,9 +853,9 @@ export default function ExerciseDetail() {
 
                         {/* Campo onde usuário cola o texto/imagem */}
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Cole a imagem aqui (Botão Direito → Colar)" : atalhoTipo === "copiar-colar-imagens" ? "Cole o texto aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Botão Direito → Colar)" : atalhoTipo === "copiar-colar" ? "Cole o texto aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
 
-                          {atalhoTipo === "copiar-colar" ? (
+                          {atalhoTipo === "copiar-colar-imagens" ? (
                             <div
                               tabIndex={0}
                               onPaste={(e) => {
@@ -912,7 +912,7 @@ export default function ExerciseDetail() {
                                 </div>
                               )}
                             </div>
-                          ) : atalhoTipo === "copiar-colar-imagens" ? (
+                          ) : atalhoTipo === "copiar-colar" ? (
                             <textarea
                               className="edTextarea"
                               placeholder="Cole o texto aqui (Ctrl+V)"
