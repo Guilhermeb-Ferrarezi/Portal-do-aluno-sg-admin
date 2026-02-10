@@ -468,15 +468,12 @@ export default function ExerciseDetail() {
                         let displayIcon = "📝";
 
                         if (exercicio.mouse_regras) {
-                          displayType = "mouse";
                           displayIcon = "🖱️";
                           displayText = "Mouse";
                         } else if (exercicio.multipla_regras) {
-                          displayType = "multipla";
                           displayIcon = "❓";
                           displayText = "Quiz (Múltipla Escolha)";
                         } else if (exercicio.atalho_tipo) {
-                          displayType = "atalho";
                           displayIcon = "⌨️";
                           if (exercicio.atalho_tipo === "copiar-colar") {
                             displayText = "Atalho: Copiar/Colar";
