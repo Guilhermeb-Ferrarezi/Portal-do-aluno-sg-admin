@@ -887,16 +887,19 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 .exerciseBadge {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.2;
   white-space: normal;
   max-width: 100%;
+  min-width: 0;
   overflow-wrap: anywhere;
   background: rgba(200, 200, 200, 0.1);
   color: #666;
-  flex-shrink: 0;
+  flex: 0 1 auto;
 }
 
 .exercisesList::-webkit-scrollbar {
