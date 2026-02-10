@@ -108,6 +108,8 @@ export default function ExerciseDetail() {
     if (atalhoAutoSubmitted) return;
     // Apenas enviar se estamos em um exercício válido
     if (!exercicio) return;
+    // Não auto-enviar se já enviou e não permite repetição
+    if (submissoes.length > 0 && !(exercicio.permitir_repeticao ?? false)) return;
     // Chamar função de envio existente
     (async () => {
       try {
@@ -400,6 +402,7 @@ export default function ExerciseDetail() {
 
   const prazoData = exercicio.prazo ? new Date(exercicio.prazo) : null;
   const prazoVencido = prazoData ? prazoData < new Date() : false;
+  const jaEnviou = submissoes.length > 0 && !(exercicio.permitir_repeticao ?? false);
   const temaTema = exercicio.tema || "Sem tema";
   let tipoExercicio = exercicio.tipoExercicio || "texto";
 
@@ -1199,8 +1202,23 @@ export default function ExerciseDetail() {
                 </div>
               </ConditionalFieldAnimation>
 
-              {/* BOTÃO ENVIAR - Oculto para atalhos (auto-submit) */}
-              {tipoRenderizacao !== "atalho" && (
+              {/* AVISO - Já enviou e não pode repetir */}
+              <ConditionalFieldAnimation isVisible={jaEnviou} duration={0.3}>
+                <div style={{
+                  padding: "14px 18px",
+                  background: "rgba(34, 197, 94, 0.1)",
+                  border: "1px solid rgba(34, 197, 94, 0.3)",
+                  borderRadius: "10px",
+                  color: "#166534",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                }}>
+                  ✅ <strong>Resposta já enviada.</strong> Você já completou este exercício.
+                </div>
+              </ConditionalFieldAnimation>
+
+              {/* BOTÃO ENVIAR - Oculto para atalhos (auto-submit) e quando já enviou */}
+              {tipoRenderizacao !== "atalho" && !jaEnviou && (
                 <AnimatedButton
                   className="edSubmitBtn"
                   onClick={handleEnviar}

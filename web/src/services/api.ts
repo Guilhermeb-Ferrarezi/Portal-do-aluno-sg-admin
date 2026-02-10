@@ -60,6 +60,7 @@ export type Exercicio = {
   mouse_regras?: string | null;
   multipla_regras?: string | null;
   atalho_tipo?: "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar" | null;
+  permitir_repeticao?: boolean;
   createdAt: string;
   turmas?: Turma[];
   alunos?: UserRef[];

@@ -235,7 +235,7 @@ export function submissoesRouter(jwtSecret: string) {
         // Verificar se exercício existe e buscar prazo
         const userRole = req.user?.role;
         const params: any[] = [exercicioId];
-        let query = `SELECT id, descricao, gabarito, tipo_exercicio, prazo, multipla_regras
+        let query = `SELECT id, descricao, gabarito, tipo_exercicio, prazo, multipla_regras, permitir_repeticao
           FROM exercicios e
           WHERE e.id = $1 AND e.publicado = true AND (e.published_at IS NULL OR e.published_at <= NOW())`;
 
@@ -284,6 +284,20 @@ export function submissoesRouter(jwtSecret: string) {
           });
         }
 
+        // Bloquear re-submissão se não permitir repetição
+        const permitirRepeticao = exRow.permitir_repeticao ?? false;
+        if (!permitirRepeticao) {
+          const existingSubmission = await pool.query(
+            `SELECT id FROM submissoes WHERE exercicio_id = $1 AND aluno_id = $2 LIMIT 1`,
+            [exercicioId, alunoId]
+          );
+          if (existingSubmission.rows.length > 0) {
+            return res.status(400).json({
+              message: "Você já enviou uma resposta para este exercício."
+            });
+          }
+        }
+
         const { resposta, tipo_resposta, linguagem } = parsed.data;
 
         // Validar múltipla escolha completude
@@ -297,15 +311,19 @@ export function submissoesRouter(jwtSecret: string) {
         }
 
         // Detectar tipo de exercício e validar
+        const tipoExercicio = exRow.tipo_exercicio;
         let notaAuto = null;
-        if (multiplaRegras) {
+        if (tipoExercicio === "atalho") {
+          // Atalhos completados = 100% sempre
+          notaAuto = 100;
+        } else if (multiplaRegras) {
           // Múltipla escolha - validação automática
           notaAuto = validarMultiplaEscolha(resposta, multiplaRegras);
         } else if (gabarito) {
           // Validação normal por gabarito
           notaAuto = corrigirAutomaticamente(resposta, gabarito, tipo_resposta);
         }
-        const verificacaoDescricao = calcularScoreAderencia(resposta, tipo_resposta, descricaoExercicio, gabarito);
+        const verificacaoDescricao = tipoExercicio === "atalho" ? 100 : calcularScoreAderencia(resposta, tipo_resposta, descricaoExercicio, gabarito);
 
         // Inserir submissão
         const result = await pool.query<SubmissaoRow>(

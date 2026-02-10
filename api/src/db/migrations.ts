@@ -134,6 +134,18 @@ export async function initializeDatabaseTables() {
       console.warn("⚠️ Coluna atalho_tipo já existe ou erro ao adicionar:", (error as any).message);
     }
 
+    // Adicionar coluna permitir_repeticao na tabela exercicios se não existir
+    console.log("🔁 Adicionando suporte a permitir_repeticao na tabela exercicios...");
+    try {
+      await pool.query(`
+        ALTER TABLE exercicios
+        ADD COLUMN IF NOT EXISTS permitir_repeticao BOOLEAN DEFAULT false;
+      `);
+      console.log("✅ Coluna permitir_repeticao adicionada!");
+    } catch (error) {
+      console.warn("⚠️ Coluna permitir_repeticao já existe ou erro ao adicionar:", (error as any).message);
+    }
+
     console.log("✨ Banco de dados inicializado com sucesso!");
   } catch (error) {
     console.error("❌ Erro ao inicializar banco de dados:", error);

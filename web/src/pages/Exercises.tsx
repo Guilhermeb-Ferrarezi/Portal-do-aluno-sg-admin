@@ -68,6 +68,7 @@ export default function ExerciciosPage() {
   }]);
   // Tipos de atalho para exercícios de atalho
   const [atalhoTipo, setAtalhoTipo] = React.useState<"copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar">("copiar-colar");
+  const [permitirRepeticao, setPermitirRepeticao] = React.useState(false);
   const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
   const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
@@ -230,6 +231,7 @@ export default function ExerciciosPage() {
         ...(componenteInterativo === "atalho" ? {
           atalho_tipo: atalhoTipo
         } : {}),
+        permitir_repeticao: permitirRepeticao,
       };
 
       if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
@@ -263,6 +265,7 @@ export default function ExerciciosPage() {
       setDiaNumero(1);
       setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
       setAtalhoTipo("copiar-colar");
+      setPermitirRepeticao(false);
       setTurmasSelecionadas([]);
       setAlunosSelecionados([]);
       setModoAtribuicao("turma");
@@ -351,6 +354,8 @@ export default function ExerciciosPage() {
       setComponenteInterativo("");
     }
 
+    setPermitirRepeticao(exercicio.permitir_repeticao ?? false);
+
     // Restaurar diaNumero do título (se aplicável)
     const diaMatch = exercicio.titulo.match(/^Dia (\d+):/);
     if (diaMatch) {
@@ -382,6 +387,7 @@ export default function ExerciciosPage() {
     setComponenteInterativo("");
     setDiaNumero(1);
     setAtalhoTipo("copiar-colar");
+    setPermitirRepeticao(false);
     setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
     setMultiplaQuestoes([{
       pergunta: "",
@@ -1196,6 +1202,22 @@ export default function ExerciciosPage() {
                   </div>
                 </ScaleIn>
               )}
+
+              {/* PERMITIR REPETIÇÃO */}
+              <div className="exInputRow">
+                <div className="exInputGroup">
+                  <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                    <AnimatedToggle
+                      checked={permitirRepeticao}
+                      onChange={setPermitirRepeticao}
+                    />
+                    Permitir repetição
+                  </label>
+                  <small style={{ color: "#666", marginTop: "4px" }}>
+                    Se ativado, alunos podem enviar múltiplas respostas
+                  </small>
+                </div>
+              </div>
 
               <div className="exInputRow">
                 <div className="exInputGroup">
