@@ -132,7 +132,9 @@ export default function ShortcutTrainingBox({
     if (shortcutType !== "copiar-colar") return;
     if (isComplete) return;
 
-    const handleContextMenu = () => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName !== "IMG") return;
       detectAction("copiar");
     };
 
