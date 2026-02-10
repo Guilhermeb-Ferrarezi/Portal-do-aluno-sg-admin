@@ -757,7 +757,7 @@ export default function ExerciseDetail() {
                     <div>
                       <ShortcutTrainingBox
                         title="⌨️ Pratique o Atalho"
-                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Copie a imagem com Ctrl+C e cole na caixa à direita com Ctrl+V" }
+                        instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita" }
                         shortcutType={atalhoTipo}
                         sample={atalhoSample}
                         onComplete={(events) => {
@@ -836,7 +836,7 @@ export default function ExerciseDetail() {
 
                         {/* Campo onde usuário cola o texto/imagem */}
                         <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar" ? "Cole a imagem aqui (Botão Direito → Colar)" : atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área esquerda para selecionar e apagar)" : "Cole aqui"}</label>
 
                           {atalhoTipo === "copiar-colar" ? (
                             <div
@@ -888,8 +888,8 @@ export default function ExerciseDetail() {
                                 )
                               ) : (
                                 <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
-                                  <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
-                                  <div style={{ fontSize: 14, fontWeight: 600 }}>Clique aqui e cole com Ctrl+V</div>
+                                  <div style={{ fontSize: 36, marginBottom: 8 }}>🖱️</div>
+                                  <div style={{ fontSize: 14, fontWeight: 600 }}>Clique aqui com botão direito → Colar</div>
                                 </div>
                               )}
                             </div>

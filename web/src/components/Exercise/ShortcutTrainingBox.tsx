@@ -17,7 +17,7 @@ type ShortcutTrainingBoxProps = {
 };
 
 const SHORTCUT_LABELS: Record<ShortcutType, string> = {
-  "copiar-colar": "Copiar e Colar (Ctrl+C, Ctrl+V)",
+  "copiar-colar": "Copiar e Colar (Botão Direito)",
   "copiar-colar-imagens": "Copiar e Colar Imagens (Ctrl+C, Ctrl+V)",
   "selecionar-deletar": "Selecionar Tudo e Deletar (Ctrl+A, Delete)",
 };
@@ -25,7 +25,7 @@ const SHORTCUT_LABELS: Record<ShortcutType, string> = {
 const SHORTCUTS: Record<ShortcutType, { keys: Set<string>; description: string }> = {
   "copiar-colar": {
     keys: new Set(["copiar", "colar"]),
-    description: "Use Ctrl+C para copiar e Ctrl+V para colar",
+    description: "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita",
   },
   "copiar-colar-imagens": {
     keys: new Set(["copiar", "colar"]),
@@ -54,59 +54,70 @@ export default function ShortcutTrainingBox({
   const shortcutConfig = SHORTCUTS[shortcutType];
   const requiredKeys = shortcutConfig.keys;
 
+  // Função reutilizável para registrar uma ação detectada
+  const detectAction = React.useCallback(
+    (detectedAction: string) => {
+      if (isComplete) return;
+
+      setPressedKeys((prev) => new Set([...prev, detectedAction]));
+
+      // Verificar se completou
+      let allKeysPressed = true;
+      for (const requiredKey of requiredKeys) {
+        if (!pressedKeys.has(requiredKey) && requiredKey !== detectedAction) {
+          allKeysPressed = false;
+          break;
+        }
+      }
+
+      if (allKeysPressed) {
+        const newEvent: ShortcutEvent = {
+          type: shortcutType,
+          timestamp: Date.now(),
+        };
+        const updatedEvents = [...events, newEvent];
+        setEvents(updatedEvents);
+        setIsComplete(true);
+        setFeedback("✅ Parabéns! Você conseguiu!");
+        onComplete?.(updatedEvents);
+      } else {
+        setFeedback(`✓ ${detectedAction.replace("-", " ")} detectado!`);
+      }
+    },
+    [isComplete, pressedKeys, requiredKeys, events, shortcutType, onComplete]
+  );
+
+  // Listener de teclado (para tipos que usam Ctrl+C/V, Ctrl+A, Delete)
   const handleKeyDown = React.useCallback(
     (e: KeyboardEvent) => {
       if (!boxRef.current || isComplete) return;
+      // Tipo copiar-colar usa botão direito, não teclado
+      if (shortcutType === "copiar-colar") return;
 
       const key = e.key.toLowerCase();
       const isCtrlCmd = e.ctrlKey || e.metaKey;
 
+      let detectedActionKey = "";
 
-      let detectedAction = "";
-
-      // Detectar atalhos específicos
       if (isCtrlCmd && key === "c") {
-        detectedAction = "copiar";
+        detectedActionKey = "copiar";
         e.preventDefault();
       } else if (isCtrlCmd && key === "v") {
-        detectedAction = "colar";
+        detectedActionKey = "colar";
         e.preventDefault();
       } else if (isCtrlCmd && key === "a") {
-        detectedAction = "selecionar-tudo";
+        detectedActionKey = "selecionar-tudo";
         e.preventDefault();
       } else if (key === "delete") {
-        detectedAction = "deletar";
+        detectedActionKey = "deletar";
         e.preventDefault();
       }
 
-      if (detectedAction) {
-        setPressedKeys((prev) => new Set([...prev, detectedAction]));
-
-        // Verificar se completou
-        let allKeysPressed = true;
-        for (const requiredKey of requiredKeys) {
-          if (!pressedKeys.has(requiredKey) && requiredKey !== detectedAction) {
-            allKeysPressed = false;
-            break;
-          }
-        }
-
-        if (allKeysPressed) {
-          const newEvent: ShortcutEvent = {
-            type: shortcutType,
-            timestamp: Date.now(),
-          };
-          const updatedEvents = [...events, newEvent];
-          setEvents(updatedEvents);
-          setIsComplete(true);
-          setFeedback("✅ Parabéns! Você conseguiu!");
-          onComplete?.(updatedEvents);
-        } else {
-          setFeedback(`✓ ${detectedAction.replace("-", " ")} detectado!`);
-        }
+      if (detectedActionKey) {
+        detectAction(detectedActionKey);
       }
     },
-    [isComplete, pressedKeys, requiredKeys, events, shortcutType, onComplete]
+    [isComplete, shortcutType, detectAction]
   );
 
   React.useEffect(() => {
@@ -116,6 +127,27 @@ export default function ShortcutTrainingBox({
     };
   }, [handleKeyDown]);
 
+  // Listeners para tipo copiar-colar: detecta botão direito (contextmenu) e paste
+  React.useEffect(() => {
+    if (shortcutType !== "copiar-colar") return;
+    if (isComplete) return;
+
+    const handleContextMenu = () => {
+      detectAction("copiar");
+    };
+
+    const handlePaste = () => {
+      detectAction("colar");
+    };
+
+    window.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("paste", handlePaste);
+    return () => {
+      window.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("paste", handlePaste);
+    };
+  }, [shortcutType, isComplete, detectAction]);
+
   const getProgressText = () => {
     const completed = Array.from(pressedKeys).length;
     const total = requiredKeys.size;
@@ -123,7 +155,6 @@ export default function ShortcutTrainingBox({
   };
 
   const renderImageTrainingLayout = () => {
-    // Sempre use a amostra como imagem (já validada no ExerciseDetail)
     const fallbackColor = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
 
     return (
@@ -139,7 +170,7 @@ export default function ShortcutTrainingBox({
                 src={sample}
                 alt="Imagem para copiar"
                 style={{ width: "100%", display: "block", cursor: "pointer", minHeight: 180, objectFit: "cover" }}
-                title="Clique ou use Ctrl+C para copiar"
+                title="Clique com botão direito → Copiar imagem"
                 onError={() => setImageError(true)}
               />
             ) : (
@@ -182,11 +213,28 @@ export default function ShortcutTrainingBox({
             }}
             tabIndex={0}
           >
-            Cola a imagem aqui com Ctrl+V
+            Botão direito → Colar
           </div>
         </div>
       </div>
     );
+  };
+
+  // Labels dos passos para copiar-colar (botão direito)
+  const getKeyIcon = (key: string) => {
+    if (key === "copiar") return shortcutType === "copiar-colar" ? "🖱️" : "📋";
+    if (key === "colar") return "📌";
+    if (key === "selecionar-tudo") return "✅";
+    if (key === "deletar") return "🗑️";
+    return "";
+  };
+
+  const getKeyName = (key: string) => {
+    if (key === "copiar") return shortcutType === "copiar-colar" ? "Copiar (Botão Direito → Copiar imagem)" : "Copiar (Ctrl+C)";
+    if (key === "colar") return shortcutType === "copiar-colar" ? "Colar (Botão Direito → Colar)" : "Colar (Ctrl+V)";
+    if (key === "selecionar-tudo") return "Selecionar (Ctrl+A)";
+    if (key === "deletar") return "Deletar";
+    return key;
   };
 
   return (
@@ -239,7 +287,7 @@ export default function ShortcutTrainingBox({
           )}
 
           <div className="shortcutLabel">
-            🎹 {SHORTCUT_LABELS[shortcutType]}
+            {shortcutType === "copiar-colar" ? "🖱️" : "🎹"} {SHORTCUT_LABELS[shortcutType]}
           </div>
           <p className="shortcutHint">{shortcutConfig.description}</p>
 
@@ -250,16 +298,10 @@ export default function ShortcutTrainingBox({
                 className={`keyItem ${pressedKeys.has(key) ? "completed" : ""}`}
               >
                 <span className="keyIcon">
-                  {key === "copiar" && "📋"}
-                  {key === "colar" && "📌"}
-                  {key === "selecionar-tudo" && "✅"}
-                  {key === "deletar" && "🗑️"}
+                  {getKeyIcon(key)}
                 </span>
                 <span className="keyName">
-                  {key === "copiar" && "Copiar (Ctrl+C)"}
-                  {key === "colar" && "Colar (Ctrl+V)"}
-                  {key === "selecionar-tudo" && "Selecionar (Ctrl+A)"}
-                  {key === "deletar" && "Deletar"}
+                  {getKeyName(key)}
                 </span>
                 <span className={`keyStatus ${pressedKeys.has(key) ? "done" : "pending"}`}>
                   {pressedKeys.has(key) ? "✓" : "○"}
