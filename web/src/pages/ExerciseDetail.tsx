@@ -227,6 +227,34 @@ export default function ExerciseDetail() {
     return () => window.removeEventListener("paste", handler as EventListener);
   }, [exercicio, handleImagePaste]);
 
+  // Listener global de copy para capturar texto de qualquer lugar da página
+  React.useEffect(() => {
+    const handleGlobalCopy = () => {
+      try {
+        if (!exercicio) return;
+        const localTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
+        if (localTipo !== "copiar-colar") return;
+
+        const selection = window.getSelection();
+        const copiedText = selection?.toString() || "";
+        const normalizedCopied = copiedText.trim();
+        const normalizedExpected = atalhoSample.trim();
+
+        if (normalizedCopied && normalizedCopied === normalizedExpected) {
+          setAtalhoTextCopied(true);
+          setAtalhoTextNotice("Texto copiado. Agora cole no campo ao lado.");
+          setAtalhoTextNoticeType("info");
+          shortcutBoxRef.current?.detectAction("copiar");
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    window.addEventListener("copy", handleGlobalCopy);
+    return () => window.removeEventListener("copy", handleGlobalCopy);
+  }, [exercicio, atalhoSample]);
+
 
   // Carregar submissoes dos alunos (admin/prof)
   React.useEffect(() => {
