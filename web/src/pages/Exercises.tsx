@@ -43,7 +43,7 @@ export default function ExerciciosPage() {
     }
   }, [isTemplate, publishNow]);
   const [categoria, setCategoria] = React.useState("programacao"); // programacao ou informatica
-  const [componenteInterativo, setComponenteInterativo] = React.useState(""); // nenhum, mouse, multipla, escrita, ou código
+  const [componenteInterativo, setComponenteInterativo] = React.useState("nenhum"); // nenhum, mouse, multipla, escrita, ou código
   const [diaNumero, setDiaNumero] = React.useState(1); // Número do dia para componentes interativos
   // Regras para Mouse Interativo
   const [mouseRegras, setMouseRegras] = React.useState({
@@ -187,7 +187,7 @@ export default function ExerciciosPage() {
       // Determinar o `tipoExercicio` explicitamente a partir das seleções do formulário
       let tipoSelecionado: string | undefined = undefined;
       if (categoria === "programacao") {
-        if (componenteInterativo === "") tipoSelecionado = "nenhum";
+        if (componenteInterativo === "") tipoSelecionado = "codigo"; // Monaco
         else tipoSelecionado = componenteInterativo || undefined;
       } else {
         // Para informática, o valor vazio representa 'nenhum'
