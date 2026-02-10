@@ -16,6 +16,10 @@ type ShortcutTrainingBoxProps = {
   sample?: string;
 };
 
+export type ShortcutTrainingBoxHandle = {
+  detectAction: (action: string) => void;
+};
+
 const SHORTCUT_LABELS: Record<ShortcutType, string> = {
   "copiar-colar": "Copiar e Colar (Botão Direito)",
   "copiar-colar-imagens": "Copiar e Colar Imagens (Ctrl+C, Ctrl+V)",
@@ -37,13 +41,13 @@ const SHORTCUTS: Record<ShortcutType, { keys: Set<string>; description: string }
   },
 };
 
-export default function ShortcutTrainingBox({
+const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, ShortcutTrainingBoxProps>(({
   title,
   instruction,
   shortcutType,
   onComplete,
   sample,
-}: ShortcutTrainingBoxProps) {
+}, ref) => {
   const boxRef = React.useRef<HTMLDivElement>(null);
   const [events, setEvents] = React.useState<ShortcutEvent[]>([]);
   const [isComplete, setIsComplete] = React.useState(false);
@@ -53,6 +57,10 @@ export default function ShortcutTrainingBox({
 
   const shortcutConfig = SHORTCUTS[shortcutType];
   const requiredKeys = shortcutConfig.keys;
+
+  React.useImperativeHandle(ref, () => ({
+    detectAction: (action: string) => detectAction(action),
+  }));
 
   // Função reutilizável para registrar uma ação detectada
   const detectAction = React.useCallback(
@@ -138,15 +146,9 @@ export default function ShortcutTrainingBox({
       detectAction("copiar");
     };
 
-    const handlePaste = () => {
-      detectAction("colar");
-    };
-
     window.addEventListener("contextmenu", handleContextMenu);
-    window.addEventListener("paste", handlePaste);
     return () => {
       window.removeEventListener("contextmenu", handleContextMenu);
-      window.removeEventListener("paste", handlePaste);
     };
   }, [shortcutType, isComplete, detectAction]);
 
@@ -233,7 +235,7 @@ export default function ShortcutTrainingBox({
 
   const getKeyName = (key: string) => {
     if (key === "copiar") return shortcutType === "copiar-colar" ? "Copiar (Botão Direito → Copiar imagem)" : "Copiar (Ctrl+C)";
-    if (key === "colar") return shortcutType === "copiar-colar" ? "Colar (Botão Direito → Colar)" : "Colar (Ctrl+V)";
+    if (key === "colar") return shortcutType === "copiar-colar" ? "Colar (Ctrl+V)" : "Colar (Ctrl+V)";
     if (key === "selecionar-tudo") return "Selecionar (Ctrl+A)";
     if (key === "deletar") return "Deletar";
     return key;
@@ -328,4 +330,6 @@ export default function ShortcutTrainingBox({
       </div>
     </div>
   );
-}
+});
+
+export default ShortcutTrainingBox;

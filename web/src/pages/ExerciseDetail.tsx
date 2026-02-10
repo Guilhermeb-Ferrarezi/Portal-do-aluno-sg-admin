@@ -5,7 +5,7 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import MonacoEditor from "../components/MonacoEditor";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
-import ShortcutTrainingBox from "../components/Exercise/ShortcutTrainingBox";
+import ShortcutTrainingBox, { type ShortcutTrainingBoxHandle } from "../components/Exercise/ShortcutTrainingBox";
 import { FadeInUp, AnimatedButton, PulseLoader, ConditionalFieldAnimation, AnimatedToast } from "../components/animate-ui";
 import {
   obterExercicio,
@@ -138,6 +138,7 @@ export default function ExerciseDetail() {
 
   // Refs e handlers para exercícios do tipo ATALHO (devem ficar no topo do componente)
   const sampleRef = React.useRef<HTMLDivElement | null>(null);
+  const shortcutBoxRef = React.useRef<ShortcutTrainingBoxHandle>(null);
 
   const currentAtalhoTipo = exercicio ? ((exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar") : "copiar-colar";
 
@@ -206,7 +207,7 @@ export default function ExerciseDetail() {
       try {
         if (!exercicio) return;
         const localTipo = (exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar";
-        if (localTipo !== "copiar-colar-imagens" && localTipo !== "copiar-colar") return;
+        if (localTipo !== "copiar-colar-imagens") return;
         handleImagePaste(e);
       } catch (err) {
         // ignore
@@ -756,6 +757,7 @@ export default function ExerciseDetail() {
                   return (
                     <div>
                       <ShortcutTrainingBox
+                        ref={shortcutBoxRef}
                         title="⌨️ Pratique o Atalho"
                         instruction={ atalhoTipo === "copiar-colar-imagens" ? "Copie a imagem abaixo e cole na caixa à direita (Ctrl+C → Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita" }
                         shortcutType={atalhoTipo}
@@ -852,6 +854,7 @@ export default function ExerciseDetail() {
                                       reader.onload = () => {
                                         setResposta(reader.result as string);
                                         setAtalhoCompleted(true);
+                                        shortcutBoxRef.current?.detectAction("colar");
                                       };
                                       reader.readAsDataURL(file);
                                       e.preventDefault();
@@ -863,6 +866,7 @@ export default function ExerciseDetail() {
                                 if (text) {
                                   setResposta(text);
                                   setAtalhoCompleted(true);
+                                  shortcutBoxRef.current?.detectAction("colar");
                                   e.preventDefault();
                                 }
                               }}
