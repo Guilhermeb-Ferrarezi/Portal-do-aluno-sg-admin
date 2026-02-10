@@ -808,13 +808,13 @@ export default function ExerciseDetail() {
 
                     return (
                       <div>
-                      <ShortcutTrainingBox
-                        ref={shortcutBoxRef}
-                        title="⌨️ Pratique o Atalho"
-                        instruction={atalhoTipo === "copiar-colar" ? "" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita"}
-                        shortcutType={atalhoTipo}
-                        sample={atalhoSample}
-                        onComplete={(events) => {
+                        <ShortcutTrainingBox
+                          ref={shortcutBoxRef}
+                          title="⌨️ Pratique o Atalho"
+                          instruction={atalhoTipo === "copiar-colar" ? "" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita"}
+                          shortcutType={atalhoTipo}
+                          sample={atalhoSample}
+                          onComplete={(events) => {
                             console.log("Atalho completado:", events);
                             setAtalhoCompleted(true);
                           }}
@@ -829,16 +829,24 @@ export default function ExerciseDetail() {
                                 <img
                                   src={atalhoSample}
                                   alt="Copie esta imagem"
-                                  style={{ width: "100%", display: "block" }}
+                                  style={{ width: "100%", display: "block", cursor: "pointer" }}
+                                  title="Clique com botão direito → Copiar imagem"
+                                  onContextMenu={() => {
+                                    // Marca que o usuário clicou com botão direito na imagem correta
+                                    setAtalhoTextCopied(true);
+                                    setAtalhoTextNotice("Agora cole a imagem no campo ao lado.");
+                                    setAtalhoTextNoticeType("info");
+                                    shortcutBoxRef.current?.detectAction("copiar");
+                                  }}
                                 />
                               </div>
                             ) : atalhoTipo === "copiar-colar" ? (
                               <textarea
-                              className="edTextarea"
-                              readOnly
-                              value={atalhoSample}
-                              rows={6}
-                              style={{ resize: "none", userSelect: "text", cursor: "text" }}
+                                className="edTextarea"
+                                readOnly
+                                value={atalhoSample}
+                                rows={6}
+                                style={{ resize: "none", userSelect: "text", cursor: "text" }}
                                 onCopy={(e) => {
                                   const target = e.currentTarget;
                                   const start = target.selectionStart ?? 0;
@@ -902,13 +910,13 @@ export default function ExerciseDetail() {
                                     ];
                                     setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
                                   } else {
-                                  const texts = [
-                                    "O rápido castor marrom salta sobre o cão preguiçoso.",
-                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                                    "12345 - teste rápido de copiar e colar!",
-                                    "Abacaxi, banana, uva, morango, limão.",
-                                    "Frase exemplo para copiar e colar."
-                                  ];
+                                    const texts = [
+                                      "O rápido castor marrom salta sobre o cão preguiçoso.",
+                                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                                      "12345 - teste rápido de copiar e colar!",
+                                      "Abacaxi, banana, uva, morango, limão.",
+                                      "Frase exemplo para copiar e colar."
+                                    ];
                                     setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
                                   }
                                   setAtalhoCompleted(false);
@@ -933,6 +941,15 @@ export default function ExerciseDetail() {
                                 onPaste={(e) => {
                                   const items = e.clipboardData?.items;
                                   if (!items) return;
+
+                                  // Verifica se copiou a imagem do exemplo primeiro
+                                  if (!atalhoTextCopied) {
+                                    setAtalhoTextNotice("Primeiro clique com botão direito na imagem de exemplo e selecione 'Copiar imagem'.");
+                                    setAtalhoTextNoticeType("error");
+                                    e.preventDefault();
+                                    return;
+                                  }
+
                                   for (let i = 0; i < items.length; i++) {
                                     if (items[i].type.indexOf("image") !== -1) {
                                       const file = items[i].getAsFile();
@@ -941,6 +958,8 @@ export default function ExerciseDetail() {
                                         reader.onload = () => {
                                           setResposta(reader.result as string);
                                           setAtalhoCompleted(true);
+                                          setAtalhoTextNotice("Imagem colada corretamente!");
+                                          setAtalhoTextNoticeType("success");
                                           shortcutBoxRef.current?.detectAction("colar");
                                         };
                                         reader.readAsDataURL(file);
@@ -1025,7 +1044,7 @@ export default function ExerciseDetail() {
                               />
                             )}
 
-                            {atalhoTipo === "copiar-colar" && atalhoTextNotice && (
+                            {(atalhoTipo === "copiar-colar" || atalhoTipo === "copiar-colar-imagens") && atalhoTextNotice && (
                               <div
                                 style={{
                                   ...atalhoTextNoticeStyle,
