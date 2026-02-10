@@ -99,8 +99,8 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
   const handleKeyDown = React.useCallback(
     (e: KeyboardEvent) => {
       if (!boxRef.current || isComplete) return;
-      // Tipo copiar-colar-imagens usa botão direito, não teclado
-      if (shortcutType === "copiar-colar-imagens") return;
+      // Tipos copiar-colar e copiar-colar-imagens não usam teclado
+      if (shortcutType === "copiar-colar" || shortcutType === "copiar-colar-imagens") return;
 
       const key = e.key.toLowerCase();
       const isCtrlCmd = e.ctrlKey || e.metaKey;

@@ -80,6 +80,9 @@ export default function ExerciseDetail() {
   // Para exercícios de ATALHO: texto de exemplo e estado de conclusão
   const [atalhoSample, setAtalhoSample] = React.useState("");
   const [atalhoCompleted, setAtalhoCompleted] = React.useState(false);
+  const [atalhoTextCopied, setAtalhoTextCopied] = React.useState(false);
+  const [atalhoTextNotice, setAtalhoTextNotice] = React.useState<string | null>(null);
+  const [atalhoTextNoticeType, setAtalhoTextNoticeType] = React.useState<"info" | "error" | "success">("info");
   const [atalhoAutoSubmitted, setAtalhoAutoSubmitted] = React.useState(false);
   const [atalhoAutoNotice, setAtalhoAutoNotice] = React.useState(false);
 
@@ -167,6 +170,9 @@ export default function ExerciseDetail() {
       setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
     }
     setAtalhoCompleted(false);
+    setAtalhoTextCopied(false);
+    setAtalhoTextNotice(null);
+    setAtalhoTextNoticeType("info");
   }, [exercicio, currentAtalhoTipo]);
 
   // Handler para colagem de imagens (quando aplicável) — pode ser usado em onPaste ou no listener global
@@ -413,6 +419,12 @@ export default function ExerciseDetail() {
 
   // Usar tipoExercicio para renderização (já considera selectedTipoNenhum)
   const tipoRenderizacao = tipoExercicio;
+  const atalhoTextNoticeStyle =
+    atalhoTextNoticeType === "success"
+      ? { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" }
+      : atalhoTextNoticeType === "error"
+      ? { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }
+      : { background: "#dbeafe", color: "#1e40af", border: "1px solid #bfdbfe" };
 
   return (
     <DashboardLayout
@@ -797,6 +809,33 @@ export default function ExerciseDetail() {
                               value={atalhoSample}
                               rows={6}
                               style={{ resize: "none", userSelect: "all" }}
+                              onCopy={(e) => {
+                                const target = e.currentTarget;
+                                const start = target.selectionStart ?? 0;
+                                const end = target.selectionEnd ?? 0;
+                                const selectedText = target.value.substring(start, end);
+                                const normalizedSelected = selectedText.trim();
+                                const normalizedExpected = atalhoSample.trim();
+
+                                if (!normalizedSelected) {
+                                  setAtalhoTextCopied(false);
+                                  setAtalhoTextNotice("Selecione o texto inteiro antes de copiar.");
+                                  setAtalhoTextNoticeType("error");
+                                  return;
+                                }
+
+                                if (normalizedSelected !== normalizedExpected) {
+                                  setAtalhoTextCopied(false);
+                                  setAtalhoTextNotice("Copie o texto completo de exemplo para continuar.");
+                                  setAtalhoTextNoticeType("error");
+                                  return;
+                                }
+
+                                setAtalhoTextCopied(true);
+                                setAtalhoTextNotice("Texto copiado. Agora cole no campo ao lado.");
+                                setAtalhoTextNoticeType("info");
+                                shortcutBoxRef.current?.detectAction("copiar");
+                              }}
                             />
                           ) : atalhoTipo === "selecionar-deletar" ? (
                             <div
@@ -844,6 +883,9 @@ export default function ExerciseDetail() {
                                 }
                                 setAtalhoCompleted(false);
                                 setResposta("");
+                                setAtalhoTextCopied(false);
+                                setAtalhoTextNotice(null);
+                                setAtalhoTextNoticeType("info");
                               }}
                             >
                               🔁 Novo exemplo
@@ -911,15 +953,32 @@ export default function ExerciseDetail() {
                               className="edTextarea"
                               placeholder="Cole o texto aqui (Ctrl+V)"
                               value={resposta}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setResposta(val);
-                                if (val.trim() === atalhoSample.trim()) {
+                              readOnly
+                              onPaste={(e) => {
+                                const text = e.clipboardData.getData("text/plain");
+                                const expected = atalhoSample.trim();
+                                const pasted = text.trim();
+                                const copiedOk = atalhoTextCopied;
+
+                                setResposta(text);
+                                if (!copiedOk) {
+                                  setAtalhoCompleted(false);
+                                  setAtalhoTextNotice("Primeiro copie o texto de exemplo antes de colar.");
+                                  setAtalhoTextNoticeType("error");
+                                } else if (pasted !== expected) {
+                                  setAtalhoCompleted(false);
+                                  setAtalhoTextNotice("O texto colado n\u00e3o corresponde ao exemplo.");
+                                  setAtalhoTextNoticeType("error");
+                                } else {
                                   setAtalhoCompleted(true);
+                                  setAtalhoTextNotice("Texto colado corretamente!");
+                                  setAtalhoTextNoticeType("success");
+                                  shortcutBoxRef.current?.detectAction("colar");
                                 }
+                                e.preventDefault();
                               }}
                               rows={6}
-                              style={{ resize: "none", border: resposta.trim() === atalhoSample.trim() && resposta.length > 0 ? "2px solid rgba(34,197,94,0.6)" : undefined }}
+                              style={{ resize: "none", border: atalhoCompleted ? "2px solid rgba(34,197,94,0.6)" : undefined }}
                             />
                           ) : atalhoTipo === "selecionar-deletar" ? (
                             <div style={{ marginTop: 6, color: "#9CA3AF", fontSize: 13 }}>
@@ -934,6 +993,21 @@ export default function ExerciseDetail() {
                               rows={6}
                               style={{ resize: "vertical" }}
                             />
+                          )}
+
+                          {atalhoTipo === "copiar-colar" && atalhoTextNotice && (
+                            <div
+                              style={{
+                                ...atalhoTextNoticeStyle,
+                                marginTop: 8,
+                                padding: "8px 10px",
+                                borderRadius: 6,
+                                fontSize: 13,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {atalhoTextNotice}
+                            </div>
                           )}
 
                           <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>

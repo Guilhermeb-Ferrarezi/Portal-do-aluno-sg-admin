@@ -91,6 +91,13 @@ export default function DashboardLayout({
               <div className="sbBrandSub">Portal do Aluno</div>
             </div>
           </div>
+          <button
+            className="sbCloseBtn"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Fechar menu"
+          >
+            ✕
+          </button>
         </div>
 
         <nav className="sbNav">
