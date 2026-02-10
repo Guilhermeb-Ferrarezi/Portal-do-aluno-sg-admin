@@ -464,7 +464,6 @@ export default function ExerciseDetail() {
                     <strong>
                       {(() => {
                         // Determinar tipo real baseado nos campos
-                        let displayType = tipoExercicio;
                         let displayText = "Exercício";
                         let displayIcon = "📝";
 
