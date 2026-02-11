@@ -22,7 +22,7 @@ export async function initializeDatabaseTables() {
 
     // Se não houver usuários, criar um admin inicial (senha padrão 'admin123' ou `INIT_ADMIN_PASSWORD`)
     const usersCount = await pool.query(`SELECT COUNT(*)::int as cnt FROM users`);
-    if (usersCount.rows[0].cnt === 0) {
+    if (Number(usersCount.rows[0].cnt) === 0) {
       const defaultPassword = process.env.INIT_ADMIN_PASSWORD ?? "admin123";
       const hash = bcrypt.hashSync(defaultPassword, 10);
       await pool.query(`INSERT INTO users (usuario, nome, senha_hash, role, ativo) VALUES ('admin','Admin',$1,'admin',true)`, [hash]);
