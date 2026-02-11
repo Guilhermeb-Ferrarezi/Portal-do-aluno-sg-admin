@@ -805,10 +805,9 @@ export default function ExerciseDetail() {
                           ) : atalhoTipo === "copiar-colar" ? (
                             <textarea
                               className="edTextarea"
-                              readOnly
                               value={atalhoSample}
                               rows={6}
-                              style={{ resize: "none", userSelect: "all" }}
+                              style={{ resize: "none"}}
                               onCopy={(e) => {
                                 const target = e.currentTarget;
                                 const start = target.selectionStart ?? 0;
@@ -851,7 +850,6 @@ export default function ExerciseDetail() {
                           ) : (
                             <textarea
                               className="edTextarea"
-                              readOnly
                               value={atalhoSample}
                               rows={6}
                               style={{ resize: "vertical" }}

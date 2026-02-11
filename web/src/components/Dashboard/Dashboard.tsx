@@ -233,8 +233,8 @@ export default function Dashboard() {
   const ranking = 5;
 
   return (
-    <FadeInUp>
-      <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
+    <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
+      <FadeInUp>
         {/* SEÇÃO 1: ESTATÍSTICAS */}
         <section className="grid3">
           {(role !== "aluno" || turmas.length > 0) && (
@@ -541,7 +541,7 @@ export default function Dashboard() {
             </GradientBackground>
           </motion.div>
         </section>
-      </DashboardLayout>
-    </FadeInUp>
+      </FadeInUp>
+    </DashboardLayout>
   );
 }
