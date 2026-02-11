@@ -1,8 +1,98 @@
 import { pool } from "../db";
+import bcrypt from "bcrypt";
 
 export async function initializeDatabaseTables() {
   try {
     console.log("📊 Inicializando tabelas do banco de dados...");
+
+    // ===== Criar tabela users (base) =====
+    console.log("👥 Criando tabela users se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        usuario VARCHAR(100) UNIQUE NOT NULL,
+        nome VARCHAR(255) NOT NULL,
+        senha_hash TEXT NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'aluno' CHECK (role IN ('admin','professor','aluno')),
+        ativo BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log("✅ Tabela users criada/verificada!");
+
+    // Se não houver usuários, criar um admin inicial (senha padrão 'admin123' ou `INIT_ADMIN_PASSWORD`)
+    const usersCount = await pool.query(`SELECT COUNT(*)::int as cnt FROM users`);
+    if (usersCount.rows[0].cnt === 0) {
+      const defaultPassword = process.env.INIT_ADMIN_PASSWORD ?? "admin123";
+      const hash = bcrypt.hashSync(defaultPassword, 10);
+      await pool.query(`INSERT INTO users (usuario, nome, senha_hash, role, ativo) VALUES ('admin','Admin',$1,'admin',true)`, [hash]);
+      console.log("🔧 Admin inicial criado: usuario=admin (senha padrão definida)");
+    }
+
+    // ===== Criar tabela turmas =====
+    console.log("🏫 Criando tabela turmas se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS turmas (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nome VARCHAR(255) NOT NULL,
+        tipo VARCHAR(20) NOT NULL DEFAULT 'turma',
+        categoria VARCHAR(50) DEFAULT 'programacao',
+        professor_id UUID REFERENCES users(id),
+        descricao TEXT,
+        ativo BOOLEAN DEFAULT true,
+        data_inicio TIMESTAMP NULL,
+        duracao_semanas INTEGER DEFAULT 12,
+        cronograma_ativo BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log("✅ Tabela turmas criada/verificada!");
+
+    // ===== Criar tabela materiais =====
+    console.log("📦 Criando tabela materiais se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS materiais (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        titulo VARCHAR(255) NOT NULL,
+        tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('arquivo','link')),
+        modulo VARCHAR(100) NOT NULL,
+        descricao TEXT,
+        url TEXT,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log("✅ Tabela materiais criada/verificada!");
+
+    // ===== Criar tabela exercicios =====
+    console.log("✍️ Criando tabela exercicios se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS exercicios (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        titulo VARCHAR(255) NOT NULL,
+        descricao TEXT NOT NULL,
+        modulo VARCHAR(100) NOT NULL,
+        tema VARCHAR(255),
+        prazo TIMESTAMP NULL,
+        publicado BOOLEAN DEFAULT false,
+        published_at TIMESTAMP NULL,
+        created_by UUID REFERENCES users(id),
+        tipo_exercicio VARCHAR(50),
+        gabarito TEXT,
+        linguagem_esperada VARCHAR(100),
+        is_template BOOLEAN DEFAULT false,
+        categoria VARCHAR(100) DEFAULT 'programacao',
+        mouse_regras TEXT,
+        multipla_regras TEXT,
+        atalho_tipo VARCHAR(50),
+        permitir_repeticao BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log("✅ Tabela exercicios criada/verificada!");
 
     // Criar tabela videoaulas se não existir
     console.log("🎬 Criando tabela videoaulas...");
