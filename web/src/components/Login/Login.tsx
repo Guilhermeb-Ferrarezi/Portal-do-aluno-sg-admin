@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import "./Login.css";
 import { login } from "../../services/api";
 import { useNavigate } from "react-router-dom";
+import { notifyAuthChanged } from "../../auth/auth";
 
 function EyeIcon() {
   return (
@@ -157,6 +158,7 @@ export default function Login() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("nome", data.user?.nome ?? "");
       localStorage.setItem("role", data.user?.role ?? "aluno");
+      notifyAuthChanged();
 
       setSucesso(data.message ?? "Login realizado!");
       setErro(null);

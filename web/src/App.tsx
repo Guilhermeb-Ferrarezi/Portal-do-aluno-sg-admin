@@ -1,8 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useTheme } from "./hooks/useTheme";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { ToastProvider } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
+import { getToken, getTokenExpiryMs, isTokenExpired, logout, onAuthChanged } from "./auth/auth";
 
 import Login from "./components/Login/Login";
 import Dashboard from "./components/Dashboard/Dashboard";
@@ -20,6 +22,78 @@ import PerfilPage from "./pages/Perfil";
 
 function AppContent() {
   useTheme();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let timeoutId: number | null = null;
+    const MAX_TIMEOUT_MS = 2_147_483_647;
+
+    const clearExpiryTimer = () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    const forceLogout = () => {
+      logout();
+      navigate("/login", { replace: true });
+    };
+
+    const scheduleExpiry = () => {
+      clearExpiryTimer();
+      const expMs = getTokenExpiryMs();
+      if (!expMs) return;
+
+      const delay = expMs - Date.now();
+      if (delay <= 0) {
+        forceLogout();
+        return;
+      }
+
+      if (delay > MAX_TIMEOUT_MS) {
+        timeoutId = window.setTimeout(syncAuth, MAX_TIMEOUT_MS);
+        return;
+      }
+
+      timeoutId = window.setTimeout(forceLogout, delay);
+    };
+
+    const syncAuth = () => {
+      const token = getToken();
+      if (!token) {
+        clearExpiryTimer();
+        return;
+      }
+
+      if (isTokenExpired(token)) {
+        forceLogout();
+        return;
+      }
+
+      scheduleExpiry();
+    };
+
+    syncAuth();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key !== "token") return;
+      if (!e.newValue) {
+        navigate("/login", { replace: true });
+        return;
+      }
+      syncAuth();
+    };
+
+    const unsubscribe = onAuthChanged(syncAuth);
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      clearExpiryTimer();
+      window.removeEventListener("storage", handleStorage);
+      unsubscribe();
+    };
+  }, [navigate]);
 
   return (
     <Routes>

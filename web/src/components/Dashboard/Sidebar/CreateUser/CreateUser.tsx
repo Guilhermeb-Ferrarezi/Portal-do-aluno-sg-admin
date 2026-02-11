@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { useNavigate } from "react-router-dom";
-import { getName, getRole, getToken, getUserId } from "../../../../auth/auth";
+import { getName, getRole, getToken, getUserId, isTokenExpired, logout } from "../../../../auth/auth";
 import { listarTurmas, apiFetch, type User } from "../../../../services/api";
 import DashboardLayout from "../../DashboardLayout";
 import "./CreateUser.css";
@@ -85,6 +85,11 @@ export default function CreateUser() {
       navigate("/login", { replace: true });
       return;
     }
+    if (isTokenExpired(token)) {
+      logout();
+      navigate("/login", { replace: true });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -106,6 +111,12 @@ export default function CreateUser() {
       });
 
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        logout();
+        navigate("/login", { replace: true });
+        return;
+      }
 
       if (!res.ok) {
         setMsg({ text: data?.message ?? "Erro ao criar usuário", type: "error" });

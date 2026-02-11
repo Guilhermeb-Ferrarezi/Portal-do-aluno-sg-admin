@@ -12,6 +12,9 @@
   margin-left: var(--sidebar-width);
   background-color: var(--bg);
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  margin: 0;
+  width: calc(100% - var(--sidebar-width));
 }
 
 /* SIDEBAR */
@@ -19,6 +22,7 @@
   position: fixed;
   left: 0;
   top: 0;
+  bottom: 0;
   height: 100vh;
   height: 100dvh;
   width: var(--sidebar-width);
@@ -33,6 +37,8 @@
   z-index: 50;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 4px 0 24px rgba(0,0,0,0.02);
+  margin: 0;
+  padding: 0;
 }
 
 /* Sidebar Brand */
@@ -636,7 +642,10 @@
 /* RESPONSIVE */
 @media (max-width: 1100px) and (min-width: 769px) {
   .sidebar { width: var(--sidebar-width-collapsed); }
-  .appShell { margin-left: var(--sidebar-width-collapsed); }
+  .appShell { 
+    margin-left: var(--sidebar-width-collapsed); 
+    width: calc(100% - var(--sidebar-width-collapsed));
+  }
   
   .sbBrandName, .sbBrandSub, .sbUserName, .sbUserSub, .sbItem span:not(.sbIcon), 
   .sideSection, .sbDots { display: none; }
@@ -654,7 +663,10 @@
 }
 
 @media (max-width: 768px) {
-  .appShell { margin-left: 0; }
+  .appShell { 
+    margin-left: 0; 
+    width: 100%;
+  }
   .sidebar { transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
   

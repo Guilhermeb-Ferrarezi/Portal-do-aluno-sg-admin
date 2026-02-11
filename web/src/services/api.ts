@@ -1,4 +1,5 @@
 // src/services/api.ts
+import { getToken, isTokenExpired, logout } from "../auth/auth";
 type Role = "admin" | "professor" | "aluno";
 
 export type UserRef = {
@@ -9,6 +10,23 @@ export type UserRef = {
 
 export const API_BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? "/api"
+
+function getAuthHeader() {
+  let token = getToken();
+  if (token && isTokenExpired(token)) {
+    logout();
+    token = null;
+  }
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function handleUnauthorized(message: string): never {
+  logout();
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.assign("/login");
+  }
+  throw new Error(message);
+}
 
 async function parseError(res: Response) {
   const data = await res.json().catch(() => null);
@@ -31,18 +49,22 @@ export async function login(dados: { usuario: string; senha: string }) {
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}) {
-  const token = localStorage.getItem("token");
-
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getAuthHeader(),
     },
   });
 
-  if (!res.ok) throw new Error(await parseError(res));
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
   return (await res.json()) as T;
 }
 
@@ -422,30 +444,40 @@ export async function obterMaterial(id: string) {
 }
 
 export async function criarMaterial(dados: FormData) {
-  const token = localStorage.getItem("token");
   const res = await fetch(`${API_BASE_URL}/materiais`, {
     method: "POST",
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getAuthHeader(),
     },
     body: dados,
   });
 
-  if (!res.ok) throw new Error(await parseError(res));
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
   return res.json() as Promise<{ message: string; material: Material }>;
 }
 
 export async function atualizarMaterial(id: string, dados: FormData) {
-  const token = localStorage.getItem("token");
   const res = await fetch(`${API_BASE_URL}/materiais/${id}`, {
     method: "PUT",
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getAuthHeader(),
     },
     body: dados,
   });
 
-  if (!res.ok) throw new Error(await parseError(res));
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
   return res.json() as Promise<{ message: string; material: Material }>;
 }
 
@@ -479,30 +511,40 @@ export async function obterVideoaula(id: string) {
 }
 
 export async function criarVideoaula(dados: FormData) {
-  const token = localStorage.getItem("token");
   const res = await fetch(`${API_BASE_URL}/videoaulas`, {
     method: "POST",
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getAuthHeader(),
     },
     body: dados,
   });
 
-  if (!res.ok) throw new Error(await parseError(res));
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
   return res.json() as Promise<{ message: string; videoaula: Videoaula }>;
 }
 
 export async function atualizarVideoaula(id: string, dados: FormData) {
-  const token = localStorage.getItem("token");
   const res = await fetch(`${API_BASE_URL}/videoaulas/${id}`, {
     method: "PUT",
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getAuthHeader(),
     },
     body: dados,
   });
 
-  if (!res.ok) throw new Error(await parseError(res));
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
   return res.json() as Promise<{ message: string; videoaula: Videoaula }>;
 }
 
