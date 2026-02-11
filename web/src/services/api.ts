@@ -17,7 +17,9 @@ function getAuthHeader() {
     logout();
     token = null;
   }
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 function handleUnauthorized(message: string): never {
@@ -26,6 +28,27 @@ function handleUnauthorized(message: string): never {
     window.location.assign("/login");
   }
   throw new Error(message);
+}
+
+function buildJsonHeaders(base?: HeadersInit) {
+  const headers = new Headers(base);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const auth = getAuthHeader();
+  if (auth.Authorization) {
+    headers.set("Authorization", auth.Authorization);
+  }
+  return headers;
+}
+
+function buildAuthHeaders(base?: HeadersInit) {
+  const headers = new Headers(base);
+  const auth = getAuthHeader();
+  if (auth.Authorization) {
+    headers.set("Authorization", auth.Authorization);
+  }
+  return headers;
 }
 
 async function parseError(res: Response) {
@@ -51,11 +74,7 @@ export async function login(dados: { usuario: string; senha: string }) {
 export async function apiFetch<T>(path: string, options: RequestInit = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-      ...getAuthHeader(),
-    },
+    headers: buildJsonHeaders(options.headers),
   });
 
   if (!res.ok) {
@@ -446,9 +465,7 @@ export async function obterMaterial(id: string) {
 export async function criarMaterial(dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/materiais`, {
     method: "POST",
-    headers: {
-      ...getAuthHeader(),
-    },
+    headers: buildAuthHeaders(),
     body: dados,
   });
 
@@ -465,9 +482,7 @@ export async function criarMaterial(dados: FormData) {
 export async function atualizarMaterial(id: string, dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/materiais/${id}`, {
     method: "PUT",
-    headers: {
-      ...getAuthHeader(),
-    },
+    headers: buildAuthHeaders(),
     body: dados,
   });
 
@@ -513,9 +528,7 @@ export async function obterVideoaula(id: string) {
 export async function criarVideoaula(dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/videoaulas`, {
     method: "POST",
-    headers: {
-      ...getAuthHeader(),
-    },
+    headers: buildAuthHeaders(),
     body: dados,
   });
 
@@ -532,9 +545,7 @@ export async function criarVideoaula(dados: FormData) {
 export async function atualizarVideoaula(id: string, dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/videoaulas/${id}`, {
     method: "PUT",
-    headers: {
-      ...getAuthHeader(),
-    },
+    headers: buildAuthHeaders(),
     body: dados,
   });
 
