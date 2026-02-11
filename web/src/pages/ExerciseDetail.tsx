@@ -198,6 +198,31 @@ export default function ExerciseDetail() {
     return false;
   }, []);
 
+  // Handler para cópia do texto de exemplo (atalho copiar-colar)
+  const handleAtalhoTextCopy = React.useCallback((selectedText: string) => {
+    const normalizedSelected = selectedText.trim();
+    const normalizedExpected = atalhoSample.trim();
+
+    if (!normalizedSelected) {
+      setAtalhoTextCopied(false);
+      setAtalhoTextNotice("Selecione o texto inteiro antes de copiar.");
+      setAtalhoTextNoticeType("error");
+      return;
+    }
+
+    if (normalizedSelected !== normalizedExpected) {
+      setAtalhoTextCopied(false);
+      setAtalhoTextNotice("Copie o texto completo de exemplo para continuar.");
+      setAtalhoTextNoticeType("error");
+      return;
+    }
+
+    setAtalhoTextCopied(true);
+    setAtalhoTextNotice("Texto copiado. Agora cole no campo ao lado.");
+    setAtalhoTextNoticeType("info");
+    shortcutBoxRef.current?.detectAction("copiar");
+  }, [atalhoSample]);
+
   // Handler para input na amostra (selecionar e apagar)
   const handleSampleInput = React.useCallback(() => {
     const el = sampleRef.current;
@@ -784,6 +809,11 @@ export default function ExerciseDetail() {
                         instruction={ atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo à direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem → Copiar imagem, depois cole no campo à direita" }
                         shortcutType={atalhoTipo}
                         sample={atalhoSample}
+                        onSampleCopy={(selectedText) => {
+                          if (atalhoTipo === "copiar-colar") {
+                            handleAtalhoTextCopy(selectedText);
+                          }
+                        }}
                         onComplete={(events) => {
                           console.log("Atalho completado:", events);
                           setAtalhoCompleted(true);
@@ -813,27 +843,7 @@ export default function ExerciseDetail() {
                                 const start = target.selectionStart ?? 0;
                                 const end = target.selectionEnd ?? 0;
                                 const selectedText = target.value.substring(start, end);
-                                const normalizedSelected = selectedText.trim();
-                                const normalizedExpected = atalhoSample.trim();
-
-                                if (!normalizedSelected) {
-                                  setAtalhoTextCopied(false);
-                                  setAtalhoTextNotice("Selecione o texto inteiro antes de copiar.");
-                                  setAtalhoTextNoticeType("error");
-                                  return;
-                                }
-
-                                if (normalizedSelected !== normalizedExpected) {
-                                  setAtalhoTextCopied(false);
-                                  setAtalhoTextNotice("Copie o texto completo de exemplo para continuar.");
-                                  setAtalhoTextNoticeType("error");
-                                  return;
-                                }
-
-                                setAtalhoTextCopied(true);
-                                setAtalhoTextNotice("Texto copiado. Agora cole no campo ao lado.");
-                                setAtalhoTextNoticeType("info");
-                                shortcutBoxRef.current?.detectAction("copiar");
+                                handleAtalhoTextCopy(selectedText);
                               }}
                             />
                           ) : atalhoTipo === "selecionar-deletar" ? (

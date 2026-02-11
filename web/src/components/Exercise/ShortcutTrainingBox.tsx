@@ -14,6 +14,7 @@ type ShortcutTrainingBoxProps = {
   shortcutType: ShortcutType;
   onComplete?: (events: ShortcutEvent[]) => void;
   sample?: string;
+  onSampleCopy?: (selectedText: string) => void;
 };
 
 export type ShortcutTrainingBoxHandle = {
@@ -47,6 +48,7 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
   shortcutType,
   onComplete,
   sample,
+  onSampleCopy,
 }, ref) => {
   const boxRef = React.useRef<HTMLDivElement>(null);
   const [events, setEvents] = React.useState<ShortcutEvent[]>([]);
@@ -282,7 +284,23 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
                     }
 
                     return (
-                      <div style={{ padding: 8, background: "var(--card)", borderRadius: 8, whiteSpace: "pre-wrap", userSelect: "text", cursor: "text" }}>{sample}</div>
+                      <div
+                        style={{
+                          padding: 8,
+                          background: "var(--card)",
+                          borderRadius: 8,
+                          whiteSpace: "pre-wrap",
+                          userSelect: "text",
+                          cursor: "text"
+                        }}
+                        onCopy={() => {
+                          if (!onSampleCopy) return;
+                          const selectedText = window.getSelection()?.toString() ?? "";
+                          onSampleCopy(selectedText);
+                        }}
+                      >
+                        {sample}
+                      </div>
                     );
                   })()}
                 </div>
