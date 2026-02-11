@@ -432,6 +432,13 @@
   width: 100%;
 }
 
+/* Dashboard spacing between sections */
+.dashboardSections {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
 /* CARDS & GRIDS */
 .grid3 {
   display: grid;

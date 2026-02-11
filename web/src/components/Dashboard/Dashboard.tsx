@@ -235,312 +235,314 @@ export default function Dashboard() {
   return (
     <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
       <FadeInUp>
-        {/* SEÇÃO 1: ESTATÍSTICAS */}
-        <section className="grid3">
-          {(role !== "aluno" || turmas.length > 0) && (
+        <div className="dashboardSections">
+          {/* SEÇÃO 1: ESTATÍSTICAS */}
+          <section className="grid3">
+            {(role !== "aluno" || turmas.length > 0) && (
+              <motion.div
+                className="card"
+                initial={false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0 * 0.1, duration: 0.3 }}
+              >
+                <div className="cardHead">
+                  <div>
+                    <div className="kicker">Turmas</div>
+                    <div className="big">{role === "aluno" ? turmas.length : turmasResponsavel}</div>
+                  </div>
+                </div>
+                <div className="kv">
+                  <div className="kvRow">
+                    <span>{role === "aluno" ? "Turmas registrado" : "Turmas responsável"}</span>
+                    <strong>{role === "aluno" ? turmas.length : turmasResponsavel}</strong>
+                  </div>
+                  {isAdmin && (
+                    <div className="kvRow">
+                      <span>Total no sistema</span>
+                      <strong style={{ color: "var(--muted)", fontSize: "14px" }}>{totalTurmasDoSistema}</strong>
+                    </div>
+                  )}
+                  {role === "professor" && (
+                    <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "8px", lineHeight: "1.5" }}>
+                      {turmasResponsavel > 0
+                        ? `Você está responsável por ${turmasResponsavel} turma${turmasResponsavel !== 1 ? "s" : ""}.`
+                        : "Você não está responsável por nenhuma turma ainda."}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {(role !== "aluno" ? totalAlunos > 0 : turmas.length > 0) && (
+              <motion.div
+                className="card"
+                initial={false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1 * 0.1, duration: 0.3 }}
+              >
+                <div className="cardHead">
+                  <div>
+                    <div className="kicker">ALUNOS</div>
+                    <div className="big">{totalAlunos}</div>
+                  </div>
+                </div>
+                <div className="kv">
+                  <div className="kvRow">
+                    <span>Alunos nas {isAdmin ? "minhas turmas" : "turma"}</span>
+                    <strong>{totalAlunos}</strong>
+                  </div>
+                  {isAdmin && (
+                    <div className="kvRow">
+                      <span>Total no sistema</span>
+                      <strong style={{ color: "var(--muted)", fontSize: "14px" }}>{totalAlunosDoSistema}</strong>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             <motion.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0 * 0.1, duration: 0.3 }}
+              transition={{ delay: 2 * 0.1, duration: 0.3 }}
             >
               <div className="cardHead">
                 <div>
-                  <div className="kicker">Turmas</div>
-                  <div className="big">{role === "aluno" ? turmas.length : turmasResponsavel}</div>
+                  <div className="kicker">EXERCÍCIOS</div>
+                  <div className="big">{totalExercicios}</div>
                 </div>
               </div>
               <div className="kv">
                 <div className="kvRow">
-                  <span>{role === "aluno" ? "Turmas registrado" : "Turmas responsável"}</span>
-                  <strong>{role === "aluno" ? turmas.length : turmasResponsavel}</strong>
+                  <span>Pendentes</span>
+                  <strong style={{ color: "var(--red)" }}>{exerciciosPendentes}</strong>
                 </div>
-                {isAdmin && (
-                  <div className="kvRow">
-                    <span>Total no sistema</span>
-                    <strong style={{ color: "var(--muted)", fontSize: "14px" }}>{totalTurmasDoSistema}</strong>
-                  </div>
-                )}
-                {role === "professor" && (
-                  <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "8px", lineHeight: "1.5" }}>
-                    {turmasResponsavel > 0
-                      ? `Você está responsável por ${turmasResponsavel} turma${turmasResponsavel !== 1 ? "s" : ""}.`
-                      : "Você não está responsável por nenhuma turma ainda."}
-                  </div>
-                )}
               </div>
             </motion.div>
-          )}
+          </section>
 
-          {(role !== "aluno" ? totalAlunos > 0 : turmas.length > 0) && (
+          {/* SEÇÃO 2: PROGRESSO E ATIVIDADES */}
+          <section className="grid2">
             <motion.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1 * 0.1, duration: 0.3 }}
+              transition={{ delay: 3 * 0.1, duration: 0.3 }}
             >
-              <div className="cardHead">
-                <div>
-                  <div className="kicker">ALUNOS</div>
-                  <div className="big">{totalAlunos}</div>
-                </div>
-              </div>
-              <div className="kv">
-                <div className="kvRow">
-                  <span>Alunos nas {isAdmin ? "minhas turmas" : "turma"}</span>
-                  <strong>{totalAlunos}</strong>
-                </div>
-                {isAdmin && (
-                  <div className="kvRow">
-                    <span>Total no sistema</span>
-                    <strong style={{ color: "var(--muted)", fontSize: "14px" }}>{totalAlunosDoSistema}</strong>
+              <div className="cardTitle">Exercícios Recentes</div>
+              <div className="taskList">
+                {exerciciosRecentes.length === 0 ? (
+                  <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
+                    Nenhum exercício disponível
                   </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          <motion.div
-            className="card"
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2 * 0.1, duration: 0.3 }}
-          >
-            <div className="cardHead">
-              <div>
-                <div className="kicker">EXERCÍCIOS</div>
-                <div className="big">{totalExercicios}</div>
-              </div>
-            </div>
-            <div className="kv">
-              <div className="kvRow">
-                <span>Pendentes</span>
-                <strong style={{ color: "var(--red)" }}>{exerciciosPendentes}</strong>
-              </div>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* SEÇÃO 2: PROGRESSO E ATIVIDADES */}
-        <section className="grid2">
-          <motion.div
-            className="card"
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 3 * 0.1, duration: 0.3 }}
-          >
-            <div className="cardTitle">Exercícios Recentes</div>
-            <div className="taskList">
-              {exerciciosRecentes.length === 0 ? (
-                <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
-                  Nenhum exercício disponível
-                </div>
-              ) : (
-                exerciciosRecentes.map((ex) => {
-                  const isPassed =
-                    ex.prazo && new Date(ex.prazo) < new Date();
-                  const isProgrammed =
-                    ex.publishedAt ? new Date(ex.publishedAt) > new Date() : false;
-                  return (
-                    <div
-                      key={ex.id}
-                      className="taskRow"
-                      onClick={() => navigate(`/dashboard/exercicios/${ex.id}`)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ")
-                          navigate(`/dashboard/exercicios/${ex.id}`);
-                      }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <span
-                        className={`taskDot ${isProgrammed ? "blue" : isPassed ? "red" : "gray"}`}
-                        aria-hidden="true"
-                      />
-                      <div className="taskText">
-                        <div className="taskTitle" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          {ex.titulo}
-                          {isProgrammed && (
-                            <span style={{
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              background: "#3b82f6",
-                              color: "white",
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                              whiteSpace: "nowrap"
-                            }}>
-                              📅 Programado
-                            </span>
-                          )}
-                        </div>
-                        <div className="mutedSmall">
-                          {isProgrammed && ex.publishedAt
-                            ? `Publicação: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
-                            : ex.prazo
-                            ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
-                            : "Sem prazo"}
+                ) : (
+                  exerciciosRecentes.map((ex) => {
+                    const isPassed =
+                      ex.prazo && new Date(ex.prazo) < new Date();
+                    const isProgrammed =
+                      ex.publishedAt ? new Date(ex.publishedAt) > new Date() : false;
+                    return (
+                      <div
+                        key={ex.id}
+                        className="taskRow"
+                        onClick={() => navigate(`/dashboard/exercicios/${ex.id}`)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ")
+                            navigate(`/dashboard/exercicios/${ex.id}`);
+                        }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <span
+                          className={`taskDot ${isProgrammed ? "blue" : isPassed ? "red" : "gray"}`}
+                          aria-hidden="true"
+                        />
+                        <div className="taskText">
+                          <div className="taskTitle" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {ex.titulo}
+                            {isProgrammed && (
+                              <span style={{
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                background: "#3b82f6",
+                                color: "white",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                whiteSpace: "nowrap"
+                              }}>
+                                📅 Programado
+                              </span>
+                            )}
+                          </div>
+                          <div className="mutedSmall">
+                            {isProgrammed && ex.publishedAt
+                              ? `Publicação: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
+                              : ex.prazo
+                              ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
+                              : "Sem prazo"}
+                          </div>
                         </div>
                       </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="card"
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 4 * 0.1, duration: 0.3 }}
+            >
+              <div className="cardHead">
+                <div>
+                  <div className="kicker">PROGRESSO</div>
+                  <div className="big">{progresso.overall}%</div>
+                </div>
+                <RingProgress value={progresso.overall} />
+              </div>
+              <div className="kv" style={{ marginTop: "12px" }}>
+                <div className="kvRow">
+                  <span>Módulos</span>
+                  <strong>{progresso.modulos}</strong>
+                </div>
+                <div className="kvRow">
+                  <span>Exercícios</span>
+                  <strong>{progresso.exercicios}</strong>
+                </div>
+              </div>
+            </motion.div>
+          </section>
+
+          {/* SEÇÃO 3: INFORMAÇÕES ADICIONAIS */}
+          <section className="grid2">
+            <motion.div
+              className="card"
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 5 * 0.1, duration: 0.3 }}
+            >
+              <div className="cardHead">
+                <div>
+                  <div className="kicker">SEQUÊNCIA</div>
+                  <div className="big">
+                    {streak} <span className="bigSub">dias</span>
+                  </div>
+                </div>
+                <div className="streakBadge" aria-hidden="true">
+                  🔥
+                </div>
+              </div>
+              <p className="muted">
+                {streak > 0
+                  ? "Continue assim! Você está em uma ótima sequência de estudos."
+                  : "Envie uma atividade hoje para iniciar sua sequência."}
+              </p>
+            </motion.div>
+
+            <motion.div
+              className="card"
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 6 * 0.1, duration: 0.3 }}
+            >
+              <div className="cardTitle">Seu Desempenho</div>
+              <div className="perf">
+                <div className="perfRow">
+                  <span className="muted">Média de notas</span>
+                  <strong>
+                    {mediaNota !== null && !isNaN(mediaNota)
+                      ? `${mediaNota.toFixed(1)}/10`
+                      : "Nenhum exercício corrigido"}
+                  </strong>
+                </div>
+                {mediaNota !== null && !isNaN(mediaNota) ? (
+                  <>
+                    <div className="bar">
+                      <div
+                        className="barFillGreen"
+                        style={{ width: `${Math.min(mediaNota * 10, 100)}%` }}
+                      />
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </motion.div>
-
-          <motion.div
-            className="card"
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 4 * 0.1, duration: 0.3 }}
-          >
-            <div className="cardHead">
-              <div>
-                <div className="kicker">PROGRESSO</div>
-                <div className="big">{progresso.overall}%</div>
-              </div>
-              <RingProgress value={progresso.overall} />
-            </div>
-            <div className="kv" style={{ marginTop: "12px" }}>
-              <div className="kvRow">
-                <span>Módulos</span>
-                <strong>{progresso.modulos}</strong>
-              </div>
-              <div className="kvRow">
-                <span>Exercícios</span>
-                <strong>{progresso.exercicios}</strong>
-              </div>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* SEÇÃO 3: INFORMAÇÕES ADICIONAIS */}
-        <section className="grid2">
-          <motion.div
-            className="card"
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 5 * 0.1, duration: 0.3 }}
-          >
-            <div className="cardHead">
-              <div>
-                <div className="kicker">SEQUÊNCIA</div>
-                <div className="big">
-                  {streak} <span className="bigSub">dias</span>
-                </div>
-              </div>
-              <div className="streakBadge" aria-hidden="true">
-                🔥
-              </div>
-            </div>
-            <p className="muted">
-              {streak > 0
-                ? "Continue assim! Você está em uma ótima sequência de estudos."
-                : "Envie uma atividade hoje para iniciar sua sequência."}
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="card"
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 6 * 0.1, duration: 0.3 }}
-          >
-            <div className="cardTitle">Seu Desempenho</div>
-            <div className="perf">
-              <div className="perfRow">
-                <span className="muted">Média de notas</span>
-                <strong>
-                  {mediaNota !== null && !isNaN(mediaNota)
-                    ? `${mediaNota.toFixed(1)}/10`
-                    : "Nenhum exercício corrigido"}
-                </strong>
-              </div>
-              {mediaNota !== null && !isNaN(mediaNota) ? (
-                <>
-                  <div className="bar">
-                    <div
-                      className="barFillGreen"
-                      style={{ width: `${Math.min(mediaNota * 10, 100)}%` }}
-                    />
+                    <div className="perfRow" style={{ marginTop: 14 }}>
+                      <span className="muted">Ranking</span>
+                      <strong>#{ranking}</strong>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mutedSmall" style={{ marginTop: 10 }}>
+                    Envie um exercício e aguarde a correção para ver sua média.
                   </div>
-                  <div className="perfRow" style={{ marginTop: 14 }}>
-                    <span className="muted">Ranking</span>
-                    <strong>#{ranking}</strong>
-                  </div>
-                </>
-              ) : (
-                <div className="mutedSmall" style={{ marginTop: 10 }}>
-                  Envie um exercício e aguarde a correção para ver sua média.
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </section>
+                )}
+              </div>
+            </motion.div>
+          </section>
 
-        {/* SEÇÃO 4: AÇÕES RÁPIDAS */}
-        <section>
-          <motion.div
-            initial={false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 7 * 0.1, duration: 0.3 }}
-          >
-            <GradientBackground className="card">
-              <div className="cardTitle">Ações Rápidas</div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                  gap: "12px",
-                  marginTop: "16px",
-                }}
-              >
-                <RippleButton
-                  onClick={() => navigate("/dashboard/exercicios")}
-                  className="dashboardActionBtn"
+          {/* SEÇÃO 4: AÇÕES RÁPIDAS */}
+          <section>
+            <motion.div
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 7 * 0.1, duration: 0.3 }}
+            >
+              <GradientBackground className="card">
+                <div className="cardTitle">Ações Rápidas</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                    gap: "12px",
+                    marginTop: "16px",
+                  }}
                 >
-                  ✍️ Exercícios
-                </RippleButton>
-
-                {(role === "admin" || role === "professor" || turmas.length > 0) && (
                   <RippleButton
-                    onClick={() => navigate("/dashboard/turmas")}
+                    onClick={() => navigate("/dashboard/exercicios")}
                     className="dashboardActionBtn"
                   >
-                    🏫 Turmas
+                    ✍️ Exercícios
                   </RippleButton>
-                )}
 
-                {canCreateUser && (
-                  <>
+                  {(role === "admin" || role === "professor" || turmas.length > 0) && (
                     <RippleButton
-                      onClick={() => navigate("/dashboard/criar-usuario")}
+                      onClick={() => navigate("/dashboard/turmas")}
                       className="dashboardActionBtn"
                     >
-                      ➕ Criar Usuário
+                      🏫 Turmas
                     </RippleButton>
+                  )}
 
-                    <RippleButton
-                      onClick={() => navigate("/dashboard/usuarios")}
-                      className="dashboardActionBtn"
-                    >
-                      🔑 Gerenciar Usuários
-                    </RippleButton>
+                  {canCreateUser && (
+                    <>
+                      <RippleButton
+                        onClick={() => navigate("/dashboard/criar-usuario")}
+                        className="dashboardActionBtn"
+                      >
+                        ➕ Criar Usuário
+                      </RippleButton>
 
-                    <RippleButton
-                      onClick={() => navigate("/dashboard/templates")}
-                      className="dashboardActionBtn"
-                    >
-                      📦 Templates
-                    </RippleButton>
-                  </>
-                )}
-              </div>
-            </GradientBackground>
-          </motion.div>
-        </section>
+                      <RippleButton
+                        onClick={() => navigate("/dashboard/usuarios")}
+                        className="dashboardActionBtn"
+                      >
+                        🔑 Gerenciar Usuários
+                      </RippleButton>
+
+                      <RippleButton
+                        onClick={() => navigate("/dashboard/templates")}
+                        className="dashboardActionBtn"
+                      >
+                        📦 Templates
+                      </RippleButton>
+                    </>
+                  )}
+                </div>
+              </GradientBackground>
+            </motion.div>
+          </section>
+        </div>
       </FadeInUp>
     </DashboardLayout>
   );
