@@ -5,6 +5,7 @@ import { pool } from "../db";
 import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
+import { logActivity } from "../utils/activityLog";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -378,7 +379,21 @@ export function videoaulasRouter(jwtSecret: string) {
         );
 
         const videoaula = transformVideoaula(videoaulaCompleta.rows[0]);
-        res.status(201).json({ message: "Videoaula criada com sucesso", videoaula });
+                logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "create",
+          entityType: "videoaula",
+          entityId: videoaulaId,
+          metadata: {
+            titulo: data.titulo,
+            tipo: data.tipo,
+            modulo: data.modulo,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+res.status(201).json({ message: "Videoaula criada com sucesso", videoaula });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Erro ao criar videoaula" });
@@ -552,7 +567,21 @@ export function videoaulasRouter(jwtSecret: string) {
         );
 
         const updatedVideoaula = transformVideoaula(videoaulaCompleta.rows[0]);
-        res.json({
+                logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "update",
+          entityType: "videoaula",
+          entityId: id,
+          metadata: {
+            titulo: updatedVideoaula.titulo,
+            tipo: updatedVideoaula.tipo,
+            modulo: updatedVideoaula.modulo,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+res.json({
           message: "Videoaula atualizada com sucesso",
           videoaula: updatedVideoaula,
         });
@@ -608,7 +637,17 @@ export function videoaulasRouter(jwtSecret: string) {
         // Deletar do banco
         void await pool.query("DELETE FROM videoaulas WHERE id = $1", [id]);
 
-        res.json({ message: "Videoaula deletada com sucesso" });
+                logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "delete",
+          entityType: "videoaula",
+          entityId: id,
+          metadata: { id },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+res.json({ message: "Videoaula deletada com sucesso" });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Erro ao deletar videoaula" });

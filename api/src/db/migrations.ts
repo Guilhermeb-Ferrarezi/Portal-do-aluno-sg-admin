@@ -236,6 +236,32 @@ export async function initializeDatabaseTables() {
       console.warn("⚠️ Coluna permitir_repeticao já existe ou erro ao adicionar:", (error as any).message);
     }
 
+    // ===== Criar tabela activity_logs =====
+    console.log("?? Criando tabela activity_logs se n?o existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        actor_role VARCHAR(20),
+        action VARCHAR(50) NOT NULL,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id UUID,
+        metadata JSONB,
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log("? Tabela activity_logs criada/verificada!");
+
+    console.log("?? Criando ?ndices para activity_logs...");
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_actor_id ON activity_logs(actor_id);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
+    `);
+    console.log("? ?ndices de activity_logs criados!");
+
     console.log("✨ Banco de dados inicializado com sucesso!");
   } catch (error) {
     console.error("❌ Erro ao inicializar banco de dados:", error);

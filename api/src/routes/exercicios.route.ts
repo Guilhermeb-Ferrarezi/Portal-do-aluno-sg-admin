@@ -4,6 +4,7 @@ import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../utils/activityLog";
 
 type DBDate = string | Date;
 type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho";
@@ -422,7 +423,25 @@ export function exerciciosRouter(jwtSecret: string) {
           );
         }
       }
-      return res.status(201).json({
+      
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "create",
+        entityType: row.is_template ? "template" : "exercicio",
+        entityId: row.id,
+        metadata: {
+          titulo: row.titulo,
+          modulo: row.modulo,
+          publicado: row.publicado,
+          categoria: row.categoria,
+          turmaIds,
+          alunoIds,
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+        return res.status(201).json({
         message: "Exercício criado!",
         exercicio: {
           id: row.id,
@@ -545,6 +564,22 @@ export function exerciciosRouter(jwtSecret: string) {
           }
         }
       }
+      
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "update",
+        entityType: row.is_template ? "template" : "exercicio",
+        entityId: row.id,
+        metadata: {
+          titulo: row.titulo,
+          modulo: row.modulo,
+          publicado: row.publicado,
+          categoria: row.categoria,
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
       return res.json({
         message: "Exercício atualizado!",
         exercicio: {
@@ -600,6 +635,17 @@ export function exerciciosRouter(jwtSecret: string) {
         `DELETE FROM exercicios WHERE id = $1`,
         [id]
       );
+
+      
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "delete",
+        entityType: "exercicio",
+        entityId: id,
+        metadata: { id },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
 
       return res.json({ message: "Exercício deletado com sucesso" });
     }
@@ -691,7 +737,21 @@ export function exerciciosRouter(jwtSecret: string) {
         );
 
         const newExercicio = result.rows[0];
-        return res.status(201).json({
+        
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "duplicate",
+          entityType: "template",
+          entityId: newExercicio.id,
+          metadata: {
+            sourceTemplateId: id,
+            titulo: newExercicio.titulo,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+      return res.status(201).json({
           message: "Template duplicado com sucesso!",
           exercicio: {
             id: newExercicio.id,
@@ -731,7 +791,21 @@ export function exerciciosRouter(jwtSecret: string) {
         }
 
         const updated = result.rows[0];
-        return res.json({
+        
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: updated.is_template ? "mark_template" : "unmark_template",
+          entityType: "exercicio",
+          entityId: updated.id,
+          metadata: {
+            titulo: updated.titulo,
+            is_template: updated.is_template,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+      return res.json({
           message: `Exercício marcado como ${updated.is_template ? "template" : "exercício normal"}`,
           exercicio: {
             id: updated.id,

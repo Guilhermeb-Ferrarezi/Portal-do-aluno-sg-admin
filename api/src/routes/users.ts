@@ -5,6 +5,7 @@ import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest, Role } from "../middlewares/auth";
+import { logActivity } from "../utils/activityLog";
 
 type DbUserRow = {
   id: string;
@@ -216,6 +217,22 @@ export function usersRouter(jwtSecret: string) {
         );
 
         const u = created.rows[0];
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "create",
+          entityType: "user",
+          entityId: u.id,
+          metadata: {
+            usuario: u.usuario,
+            nome: u.nome,
+            role: u.role,
+            ativo: u.ativo,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
         return res.status(201).json({
           message: "Usuário criado com sucesso!",
           user: {
@@ -303,6 +320,23 @@ export function usersRouter(jwtSecret: string) {
         }
 
         const u = updated.rows[0];
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "update",
+          entityType: "user",
+          entityId: u.id,
+          metadata: {
+            updatedFields: Object.keys(parsed.data),
+            usuario: u.usuario,
+            nome: u.nome,
+            role: u.role,
+            ativo: u.ativo,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
         return res.json({
           message: "Usuário atualizado com sucesso!",
           user: {
@@ -349,6 +383,16 @@ export function usersRouter(jwtSecret: string) {
         if (!deleted.rowCount) {
           return res.status(404).json({ message: "Usuário não encontrado" });
         }
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "delete",
+          entityType: "user",
+          entityId: id,
+          metadata: { id },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
 
         return res.json({ message: "Usuário deletado com sucesso!" });
       } catch (err) {

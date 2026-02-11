@@ -5,6 +5,7 @@ import { pool } from "../db";
 import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
+import { logActivity } from "../utils/activityLog";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -364,7 +365,21 @@ export function materiaisRouter(jwtSecret: string) {
         );
 
         const material = transformMaterial(materialCompleto.rows[0]);
-        res.status(201).json({ message: "Material criado com sucesso", material });
+                logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "create",
+          entityType: "material",
+          entityId: materialId,
+          metadata: {
+            titulo: data.titulo,
+            tipo: data.tipo,
+            modulo: data.modulo,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+res.status(201).json({ message: "Material criado com sucesso", material });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Erro ao criar material" });
@@ -542,7 +557,21 @@ export function materiaisRouter(jwtSecret: string) {
         );
 
         const updatedMaterial = transformMaterial(materialCompleto.rows[0]);
-        res.json({ message: "Material atualizado com sucesso", material: updatedMaterial });
+                logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "update",
+          entityType: "material",
+          entityId: id,
+          metadata: {
+            titulo: updatedMaterial.titulo,
+            tipo: updatedMaterial.tipo,
+            modulo: updatedMaterial.modulo,
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+res.json({ message: "Material atualizado com sucesso", material: updatedMaterial });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Erro ao atualizar material" });
@@ -593,7 +622,17 @@ export function materiaisRouter(jwtSecret: string) {
         // Deletar do banco
         void await pool.query("DELETE FROM materiais WHERE id = $1", [id]);
 
-        res.json({ message: "Material deletado com sucesso" });
+                logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "delete",
+          entityType: "material",
+          entityId: id,
+          metadata: { id },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+res.json({ message: "Material deletado com sucesso" });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Erro ao deletar material" });

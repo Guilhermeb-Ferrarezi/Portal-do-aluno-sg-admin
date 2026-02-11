@@ -50,6 +50,7 @@ export default function DashboardLayout({
   const isPerfil = location.pathname === "/dashboard/perfil";
   const isCreateUser = location.pathname === "/dashboard/criar-usuario";
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
+  const isActivityLogs = location.pathname === "/dashboard/logs";
 
   function handleLogout() {
     logout();
@@ -210,6 +211,13 @@ export default function DashboardLayout({
                   🔑
                 </span>
                 Gerenciar Usuários
+              </Link>
+
+              <Link className={`sbItem ${isActivityLogs ? "active" : ""}`} to="/dashboard/logs">
+                <span className="sbIcon" aria-hidden="true">
+                  LOG
+                </span>
+                Logs de Atividade
               </Link>
 
               <Link

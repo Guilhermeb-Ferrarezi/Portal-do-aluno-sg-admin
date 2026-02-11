@@ -13,6 +13,7 @@ import ExerciciosPage from "./pages/Exercises";
 import ExerciseDetail from "./pages/ExerciseDetail";
 import ExerciseTemplates from "./pages/ExerciseTemplates";
 import AdminUsersPage from "./pages/AdminUsers";
+import ActivityLogsPage from "./pages/ActivityLogs";
 import Turmas from "./pages/Turmas";
 import TurmaDetail from "./pages/TurmaDetail";
 import TrilhaCursoPage from "./pages/TrilhaCurso";
@@ -146,6 +147,11 @@ function AppContent() {
             <Route
               path="/usuarios"
               element={<Navigate to="/dashboard/usuarios" replace />}
+            />
+            <Route path="/dashboard/logs" element={<ActivityLogsPage />} />
+            <Route
+              path="/logs"
+              element={<Navigate to="/dashboard/logs" replace />}
             />
           </Route>
 

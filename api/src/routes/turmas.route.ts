@@ -4,6 +4,7 @@ import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
+import { logActivity } from "../utils/activityLog";
 
 type DbTurmaRow = {
   id: string;
@@ -229,6 +230,23 @@ export function turmasRouter(jwtSecret: string) {
       );
 
       const row = created.rows[0];
+      
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "create",
+        entityType: "turma",
+        entityId: created.rows[0]?.id ?? null,
+        metadata: {
+          nome,
+          tipo,
+          categoria,
+          professor_id,
+          ativo: true,
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
       return res.status(201).json({
         message: "Turma criada com sucesso!",
         turma: {
@@ -341,6 +359,19 @@ export function turmasRouter(jwtSecret: string) {
         [...valores, id]
       );
       const row = updated.rows[0];
+      
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "update",
+        entityType: "turma",
+        entityId: id,
+        metadata: {
+          updatedFields: Object.keys(parsed.data),
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
       return res.json({
         message: "Turma atualizada!",
         turma: {
@@ -390,6 +421,17 @@ export function turmasRouter(jwtSecret: string) {
 
       // Deletar relações (cascata automática no banco)
       await pool.query(`DELETE FROM turmas WHERE id = $1`, [id]);
+
+      
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "delete",
+        entityType: "turma",
+        entityId: id,
+        metadata: { id },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
 
       return res.json({ message: "Turma deletada com sucesso" });
     }
