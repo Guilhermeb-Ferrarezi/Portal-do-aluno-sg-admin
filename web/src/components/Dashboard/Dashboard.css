@@ -9,11 +9,11 @@
 .appShell {
   min-height: 100vh;
   display: flex;
-  margin-left: var(--sidebar-width);
   background-color: var(--bg);
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0;
   margin: 0;
+  margin-left: var(--sidebar-width);
   width: calc(100% - var(--sidebar-width));
 }
 
