@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import "./ConfirmModal.css";
 
 type ConfirmModalProps = {
@@ -25,7 +26,7 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modalOverlay" onClick={onCancel}>
       <div className="modalContent" onClick={(e) => e.stopPropagation()}>
         <h3 className="modalTitle">{title}</h3>
@@ -47,6 +48,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

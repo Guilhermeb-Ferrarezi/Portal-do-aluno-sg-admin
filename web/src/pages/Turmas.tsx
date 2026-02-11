@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
@@ -7,7 +8,6 @@ import {
   PulseLoader,
   AnimatedButton,
   AnimatedToast,
-  ConditionalFieldAnimation,
   AnimatedSelect,
   AnimatedToggle,
 } from "../components/animate-ui";
@@ -750,7 +750,7 @@ export default function TurmasPage() {
         />
 
         {/* MODAL ADICIONAR ALUNOS */}
-        <ConditionalFieldAnimation isVisible={modalAdicionarAberto}>
+        {modalAdicionarAberto && createPortal(
           <div className="modalOverlay" onClick={fecharModalAdicionar}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <h3>Adicionar alunos à turma: {turmaAcabadaCriar?.nome}</h3>
@@ -805,8 +805,9 @@ export default function TurmasPage() {
                 </AnimatedButton>
               </div>
             </div>
-          </div>
-        </ConditionalFieldAnimation>
+          </div>,
+          document.body
+        )}
         </div>
       </FadeInUp>
     </DashboardLayout>

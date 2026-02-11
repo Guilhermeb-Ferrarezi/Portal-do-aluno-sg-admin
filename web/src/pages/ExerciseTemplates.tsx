@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { getRole } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
@@ -6,7 +7,6 @@ import Pagination from "../components/Pagination";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
 import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
-import { ConditionalFieldAnimation } from "../components/animate-ui/ConditionalFieldAnimation";
 import { apiFetch, type Turma } from "../services/api";
 import "./ExerciseTemplates.css";
 
@@ -352,8 +352,8 @@ export default function ExerciseTemplates() {
         )}
 
           {/* MODAL ENVIAR TAREFA */}
-          <ConditionalFieldAnimation isVisible={modalAberto}>
-            {(() => {
+          {modalAberto && createPortal(
+            (() => {
               const templateAtual = templates.find(t => t.id === templateSelecionado);
               const isInformatica = templateAtual?.categoria === "informatica";
               return (
@@ -531,8 +531,9 @@ export default function ExerciseTemplates() {
                   </div>
                 </div>
               );
-            })()}
-          </ConditionalFieldAnimation>
+            })(),
+            document.body
+          )}
         </div>
       </FadeInUp>
     </DashboardLayout>

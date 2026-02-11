@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import { getRole } from "../auth/auth";
 import {
@@ -12,7 +13,6 @@ import {
   FadeInUp,
   AnimatedButton,
   AnimatedToast,
-  ConditionalFieldAnimation,
   AnimatedSelect,
   AnimatedToggle,
 } from "../components/animate-ui";
@@ -465,7 +465,7 @@ export default function PerfilPage() {
         </section>
 
         {/* MODAL DE ALTERAR SENHA */}
-        <ConditionalFieldAnimation isVisible={modalSenha}>
+        {modalSenha && createPortal(
           <div className="modalOverlay" onClick={closeSenhaModal}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <h3>Alterar Senha</h3>
@@ -552,8 +552,9 @@ export default function PerfilPage() {
                 </AnimatedButton>
               </div>
             </div>
-          </div>
-        </ConditionalFieldAnimation>
+          </div>,
+          document.body
+        )}
         </div>
       </FadeInUp>
     </DashboardLayout>

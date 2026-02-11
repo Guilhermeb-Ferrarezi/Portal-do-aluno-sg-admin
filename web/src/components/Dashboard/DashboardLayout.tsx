@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import React from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, getUserId, hasRole, logout } from "../../auth/auth";
 import { listarTurmas, type Turma } from "../../services/api";
@@ -290,7 +291,7 @@ export default function DashboardLayout({
       </div>
 
       {/* MODAL SELEÇÃO DE TURMA */}
-      {modalSelecionarTurmaAberto && (
+      {modalSelecionarTurmaAberto && createPortal(
         <div className="modalOverlay" onClick={() => setModalSelecionarTurmaAberto(false)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
             <h3>Selecione sua turma</h3>
@@ -322,7 +323,8 @@ export default function DashboardLayout({
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

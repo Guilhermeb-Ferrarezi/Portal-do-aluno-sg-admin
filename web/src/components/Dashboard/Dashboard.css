@@ -20,14 +20,16 @@
   left: 0;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   width: var(--sidebar-width);
-  background: var(--sidebar-color, #0f172a); 
+  background: var(--sidebar-color, #0f172a);
   /* Fallback to dark if var not set, though index.css sets it */
   color: #ffffff;
   display: flex;
   flex-direction: column;
   border-right: 1px solid rgba(255,255,255,0.05); /* Subtle border */
   overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 50;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 4px 0 24px rgba(0,0,0,0.02);
@@ -322,6 +324,7 @@
   flex-direction: column;
   min-width: 0;
   width: 100%;
+  overscroll-behavior: contain;
 }
 
 .topbar {
