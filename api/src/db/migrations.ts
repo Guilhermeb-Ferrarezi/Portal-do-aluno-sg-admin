@@ -4,10 +4,10 @@ import bcrypt from "bcrypt";
 export async function initializeDatabaseTables() {
   try {
     console.log("")
-    console.log(" Inicializando tabelas do banco de dados...");
+    console.log("🚀 Inicializando tabelas do banco de dados...");
 
     // ===== Criar tabela users (base) =====
-    console.log(" Criando tabela users se não existir...")
+    console.log("🧱 Criando tabela users se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,7 +19,7 @@ export async function initializeDatabaseTables() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log(" Tabela users criada/verificada!");
+    console.log("✅ Tabela users criada/verificada!");
 
     // Se não houver usuários, criar um admin inicial (senha padrão 'admin123' ou `INIT_ADMIN_PASSWORD`)
     const usersCount = await pool.query(`SELECT COUNT(*)::int as cnt FROM users`);
@@ -27,11 +27,11 @@ export async function initializeDatabaseTables() {
       const defaultPassword = process.env.INIT_ADMIN_PASSWORD || ""; 
       const hash = bcrypt.hashSync(defaultPassword, 10);
       await pool.query(`INSERT INTO users (usuario, nome, senha_hash, role, ativo) VALUES ('admin','Admin',$1,'admin',true)`, [hash]);
-      console.log(" Admin inicial criado: usuario=admin (senha padrão definida)");
+      console.log("👑 Admin inicial criado: usuario=admin (senha padrao definida)");
     }
 
     // ===== Criar tabela refresh_tokens =====
-    console.log(" Criando tabela refresh_tokens se nao existir...");
+    console.log("🧱 Criando tabela refresh_tokens se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -46,10 +46,10 @@ export async function initializeDatabaseTables() {
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
     `);
-    console.log(" Tabela refresh_tokens criada/verificada!");
+    console.log("✅ Tabela refresh_tokens criada/verificada!");
 
     // ===== Criar tabela turmas =====
-    console.log(" Criando tabela turmas se não existir...");
+    console.log("🧱 Criando tabela turmas se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS turmas (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -66,10 +66,10 @@ export async function initializeDatabaseTables() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log(" Tabela turmas criada/verificada!");
+    console.log("✅ Tabela turmas criada/verificada!");
 
     // ===== Criar tabela materiais =====
-    console.log(" Criando tabela materiais se não existir...");
+    console.log("🧱 Criando tabela materiais se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS materiais (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,10 +83,10 @@ export async function initializeDatabaseTables() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log(" Tabela materiais criada/verificada!");
+    console.log("✅ Tabela materiais criada/verificada!");
 
     // ===== Criar tabela exercicios =====
-    console.log("️ Criando tabela exercicios se não existir...");
+    console.log("🧱 Criando tabela exercicios se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS exercicios (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -114,10 +114,10 @@ export async function initializeDatabaseTables() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log(" Tabela exercicios criada/verificada!");
+    console.log("✅ Tabela exercicios criada/verificada!");
 
     // ===== Criar tabela submissoes =====
-    console.log(" Criando tabela submissoes se não existir...");
+    console.log("🧱 Criando tabela submissoes se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS submissoes (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -140,10 +140,10 @@ export async function initializeDatabaseTables() {
       CREATE INDEX IF NOT EXISTS idx_submissoes_exercicio ON submissoes(exercicio_id);
       CREATE INDEX IF NOT EXISTS idx_submissoes_aluno ON submissoes(aluno_id);
     `);
-    console.log(" Tabela submissoes criada/verificada!");
+    console.log("✅ Tabela submissoes criada/verificada!");
 
     // ===== Criar tabela aluno_turma =====
-    console.log(" Criando tabela aluno_turma se não existir...");
+    console.log("🧱 Criando tabela aluno_turma se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS aluno_turma (
         aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -156,10 +156,10 @@ export async function initializeDatabaseTables() {
       CREATE INDEX IF NOT EXISTS idx_aluno_turma_aluno_id ON aluno_turma(aluno_id);
       CREATE INDEX IF NOT EXISTS idx_aluno_turma_turma_id ON aluno_turma(turma_id);
     `);
-    console.log(" Tabela aluno_turma criada/verificada!");
+    console.log("✅ Tabela aluno_turma criada/verificada!");
 
     // ===== Criar tabela exercicio_turma =====
-    console.log("️ Criando tabela exercicio_turma se não existir...");
+    console.log("🧱 Criando tabela exercicio_turma se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS exercicio_turma (
         exercicio_id UUID NOT NULL REFERENCES exercicios(id) ON DELETE CASCADE,
@@ -172,10 +172,10 @@ export async function initializeDatabaseTables() {
       CREATE INDEX IF NOT EXISTS idx_exercicio_turma_exercicio_id ON exercicio_turma(exercicio_id);
       CREATE INDEX IF NOT EXISTS idx_exercicio_turma_turma_id ON exercicio_turma(turma_id);
     `);
-    console.log(" Tabela exercicio_turma criada/verificada!");
+    console.log("✅ Tabela exercicio_turma criada/verificada!");
 
     // ===== Criar tabela cronograma_turma =====
-    console.log(" Criando tabela cronograma_turma se não existir...");
+    console.log("🧱 Criando tabela cronograma_turma se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS cronograma_turma (
         turma_id UUID NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
@@ -190,10 +190,10 @@ export async function initializeDatabaseTables() {
       CREATE INDEX IF NOT EXISTS idx_cronograma_turma_turma_id ON cronograma_turma(turma_id);
       CREATE INDEX IF NOT EXISTS idx_cronograma_turma_exercicio_id ON cronograma_turma(exercicio_id);
     `);
-    console.log(" Tabela cronograma_turma criada/verificada!");
+    console.log("✅ Tabela cronograma_turma criada/verificada!");
 
     // Criar tabela videoaulas se não existir
-    console.log(" Criando tabela videoaulas...");
+    console.log("🧱 Criando tabela videoaulas...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS videoaulas (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -208,10 +208,10 @@ export async function initializeDatabaseTables() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log(" Tabela videoaulas criada/verificada!");
+    console.log("✅ Tabela videoaulas criada/verificada!");
 
     // Criar tabela material_turma se não existir
-    console.log(" Criando tabela material_turma...");
+    console.log("🧱 Criando tabela material_turma...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS material_turma (
         material_id UUID NOT NULL REFERENCES materiais(id) ON DELETE CASCADE,
@@ -220,18 +220,18 @@ export async function initializeDatabaseTables() {
         UNIQUE(material_id, turma_id)
       );
     `);
-    console.log(" Tabela material_turma criada/verificada!");
+    console.log("✅ Tabela material_turma criada/verificada!");
 
     // Criar índices para material_turma
-    console.log(" Criando índices para material_turma...");
+    console.log("🧭 Criando indices para material_turma...");
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_material_turma_material_id ON material_turma(material_id);
       CREATE INDEX IF NOT EXISTS idx_material_turma_turma_id ON material_turma(turma_id);
     `);
-    console.log(" Índices de material_turma criados!");
+    console.log("✅ Indices de material_turma criados!");
 
     // Criar tabela videoaula_turma se não existir
-    console.log(" Criando tabela videoaula_turma...");
+    console.log("🧱 Criando tabela videoaula_turma...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS videoaula_turma (
         videoaula_id UUID NOT NULL REFERENCES videoaulas(id) ON DELETE CASCADE,
@@ -240,18 +240,18 @@ export async function initializeDatabaseTables() {
         UNIQUE(videoaula_id, turma_id)
       );
     `);
-    console.log(" Tabela videoaula_turma criada/verificada!");
+    console.log("✅ Tabela videoaula_turma criada/verificada!");
 
     // Criar índices para videoaula_turma
-    console.log(" Criando índices para videoaula_turma...");
+    console.log("🧭 Criando indices para videoaula_turma...");
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_videoaula_turma_videoaula_id ON videoaula_turma(videoaula_id);
       CREATE INDEX IF NOT EXISTS idx_videoaula_turma_turma_id ON videoaula_turma(turma_id);
     `);
-    console.log(" Índices de videoaula_turma criados!");
+    console.log("✅ Indices de videoaula_turma criados!");
 
     // Criar tabela material_aluno se não existir
-    console.log(" Criando tabela material_aluno...");
+    console.log("🧱 Criando tabela material_aluno...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS material_aluno (
         material_id UUID NOT NULL REFERENCES materiais(id) ON DELETE CASCADE,
@@ -260,18 +260,18 @@ export async function initializeDatabaseTables() {
         UNIQUE(material_id, aluno_id)
       );
     `);
-    console.log(" Tabela material_aluno criada/verificada!");
+    console.log("✅ Tabela material_aluno criada/verificada!");
 
     // Criar índices para material_aluno
-    console.log(" Criando índices para material_aluno...");
+    console.log("🧭 Criando indices para material_aluno...");
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_material_aluno_material_id ON material_aluno(material_id);
       CREATE INDEX IF NOT EXISTS idx_material_aluno_aluno_id ON material_aluno(aluno_id);
     `);
-    console.log(" Índices de material_aluno criados!");
+    console.log("✅ Indices de material_aluno criados!");
 
     // Criar tabela videoaula_aluno se não existir
-    console.log(" Criando tabela videoaula_aluno...");
+    console.log("🧱 Criando tabela videoaula_aluno...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS videoaula_aluno (
         videoaula_id UUID NOT NULL REFERENCES videoaulas(id) ON DELETE CASCADE,
@@ -280,18 +280,18 @@ export async function initializeDatabaseTables() {
         UNIQUE(videoaula_id, aluno_id)
       );
     `);
-    console.log(" Tabela videoaula_aluno criada/verificada!");
+    console.log("✅ Tabela videoaula_aluno criada/verificada!");
 
     // Criar índices para videoaula_aluno
-    console.log(" Criando índices para videoaula_aluno...");
+    console.log("🧭 Criando indices para videoaula_aluno...");
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_videoaula_aluno_videoaula_id ON videoaula_aluno(videoaula_id);
       CREATE INDEX IF NOT EXISTS idx_videoaula_aluno_aluno_id ON videoaula_aluno(aluno_id);
     `);
-    console.log(" Índices de videoaula_aluno criados!");
+    console.log("✅ Indices de videoaula_aluno criados!");
 
     // Criar tabela exercicio_aluno se não existir
-    console.log("️ Criando tabela exercicio_aluno...");
+    console.log("🧱 Criando tabela exercicio_aluno...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS exercicio_aluno (
         exercicio_id UUID NOT NULL REFERENCES exercicios(id) ON DELETE CASCADE,
@@ -300,15 +300,15 @@ export async function initializeDatabaseTables() {
         UNIQUE(exercicio_id, aluno_id)
       );
     `);
-    console.log(" Tabela exercicio_aluno criada/verificada!");
+    console.log("✅ Tabela exercicio_aluno criada/verificada!");
 
     // Criar índices para exercicio_aluno
-    console.log(" Criando índices para exercicio_aluno...");
+    console.log("🧭 Criando indices para exercicio_aluno...");
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_exercicio_aluno_exercicio_id ON exercicio_aluno(exercicio_id);
       CREATE INDEX IF NOT EXISTS idx_exercicio_aluno_aluno_id ON exercicio_aluno(aluno_id);
     `);
-    console.log(" Índices de exercicio_aluno criados!");
+    console.log("✅ Indices de exercicio_aluno criados!");
 
     // Adicionar coluna atalho_tipo na tabela exercicios se não existir
     console.log("⌨️ Adicionando suporte a atalhos na tabela exercicios...");
@@ -317,25 +317,25 @@ export async function initializeDatabaseTables() {
         ALTER TABLE exercicios
         ADD COLUMN IF NOT EXISTS atalho_tipo VARCHAR(50) CHECK (atalho_tipo IN ('copiar-colar', 'copiar-colar-imagens', 'selecionar-deletar'));
       `);
-      console.log(" Coluna atalho_tipo adicionada!");
+      console.log("✅ Coluna atalho_tipo adicionada!");
     } catch (error) {
-      console.warn("️ Coluna atalho_tipo já existe ou erro ao adicionar:", (error as any).message);
+      console.warn("⚠️ Coluna atalho_tipo ja existe ou erro ao adicionar:", (error as any).message);
     }
 
     // Adicionar coluna permitir_repeticao na tabela exercicios se não existir
-    console.log(" Adicionando suporte a permitir_repeticao na tabela exercicios...");
+    console.log("➕ Adicionando suporte a permitir_repeticao na tabela exercicios...");
     try {
       await pool.query(`
         ALTER TABLE exercicios
         ADD COLUMN IF NOT EXISTS permitir_repeticao BOOLEAN DEFAULT false;
       `);
-      console.log(" Coluna permitir_repeticao adicionada!");
+      console.log("✅ Coluna permitir_repeticao adicionada!");
     } catch (error) {
-      console.warn("️ Coluna permitir_repeticao já existe ou erro ao adicionar:", (error as any).message);
+      console.warn("⚠️ Coluna permitir_repeticao ja existe ou erro ao adicionar:", (error as any).message);
     }
 
     // Adicionar colunas de política de tentativas
-    console.log(" Adicionando suporte a política de tentativas na tabela exercicios...");
+    console.log("➕ Adicionando suporte a politica de tentativas na tabela exercicios...");
     try {
       await pool.query(`
         ALTER TABLE exercicios
@@ -349,13 +349,13 @@ export async function initializeDatabaseTables() {
         ALTER TABLE exercicios
         ADD COLUMN IF NOT EXISTS intervalo_reenvio INTEGER DEFAULT NULL;
       `);
-      console.log(" Colunas de política de tentativas adicionadas!");
+      console.log("✅ Colunas de politica de tentativas adicionadas!");
     } catch (error) {
-      console.warn("️ Erro ao adicionar colunas de tentativas:", (error as any).message);
+      console.warn("⚠️ Erro ao adicionar colunas de tentativas:", (error as any).message);
     }
 
     // Adicionar colunas de anexos em submissoes
-    console.log(" Adicionando suporte a anexos na tabela submissoes...");
+    console.log("➕ Adicionando suporte a anexos na tabela submissoes...");
     try {
       await pool.query(`
         ALTER TABLE submissoes
@@ -365,13 +365,13 @@ export async function initializeDatabaseTables() {
         ALTER TABLE submissoes
         ADD COLUMN IF NOT EXISTS arquivo_nome TEXT DEFAULT NULL;
       `);
-      console.log(" Colunas de anexos adicionadas!");
+      console.log("✅ Colunas de anexos adicionadas!");
     } catch (error) {
-      console.warn("️ Erro ao adicionar colunas de anexos:", (error as any).message);
+      console.warn("⚠️ Erro ao adicionar colunas de anexos:", (error as any).message);
     }
 
     // ===== Criar tabela activity_logs =====
-    console.log("?? Criando tabela activity_logs se n?o existir...");
+    console.log("🧱 Criando tabela activity_logs se nao existir...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS activity_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -386,19 +386,19 @@ export async function initializeDatabaseTables() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log("? Tabela activity_logs criada/verificada!");
+    console.log("✅ Tabela activity_logs criada/verificada!");
 
-    console.log("?? Criando ?ndices para activity_logs...");
+    console.log("🧭 Criando indices para activity_logs...");
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_activity_logs_actor_id ON activity_logs(actor_id);
       CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
     `);
-    console.log("? ?ndices de activity_logs criados!");
+    console.log("✅ Indices de activity_logs criados!");
 
-    console.log(" Banco de dados inicializado com sucesso!");
+    console.log("🎉 Banco de dados inicializado com sucesso!");
   } catch (error) {
-    console.error(" Erro ao inicializar banco de dados:", error);
+    console.error("❌ Erro ao inicializar banco de dados:", error);
     throw error;
   }
 }
