@@ -253,7 +253,7 @@ export default function Dashboard() {
                 </div>
                 <div className="kv">
                   <div className="kvRow">
-                    <span>{role === "aluno" ? "Turmas registrado" : "Turmas responsável"}</span>
+                    <span>{role === "aluno" ? "Turmas registradas" : "Turmas sob responsabilidade"}</span>
                     <strong>{role === "aluno" ? turmas.length : turmasResponsavel}</strong>
                   </div>
                   {isAdmin && (
@@ -288,7 +288,7 @@ export default function Dashboard() {
                 </div>
                 <div className="kv">
                   <div className="kvRow">
-                    <span>Alunos nas {isAdmin ? "minhas turmas" : "turma"}</span>
+                    <span>Alunos nas {isAdmin ? "minhas turmas" : "turmas"}</span>
                     <strong>{totalAlunos}</strong>
                   </div>
                   {isAdmin && (
@@ -380,8 +380,8 @@ export default function Dashboard() {
                             {isProgrammed && ex.publishedAt
                               ? `Publicação: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
                               : ex.prazo
-                              ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
-                              : "Sem prazo"}
+                                ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
+                                : "Sem prazo"}
                           </div>
                         </div>
                       </div>

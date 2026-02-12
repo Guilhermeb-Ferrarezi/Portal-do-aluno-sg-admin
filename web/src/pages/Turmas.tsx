@@ -47,7 +47,7 @@ export default function TurmasPage() {
   const [turmasAll, setTurmasAll] = React.useState<Turma[]>([]);
   const [filtroTurmas, setFiltroTurmas] = React.useState<"minhas" | "todas">("minhas");
   const [loading, setLoading] = React.useState(false);
-  const [toastMsg, setToastMsg] = React.useState<{type: 'success'|'error'; msg: string} | null>(null);
+  const [toastMsg, setToastMsg] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -366,13 +366,13 @@ export default function TurmasPage() {
     role === "admin" && filtroTurmas === "minhas"
       ? "Nenhuma turma vinculada a você"
       : role === "aluno"
-      ? "Não registrado em nenhuma turma"
-      : "Nenhuma turma registrada";
+        ? "Não registrado em nenhuma turma"
+        : "Nenhuma turma registrada";
   const emptyDescription = !canCreate
     ? "Você ainda não está registrado em nenhuma turma. Aguarde administrador adicioná-lo a uma turma."
     : role === "admin" && filtroTurmas === "minhas"
-    ? "Crie uma turma ou altere para \"Todas\" para ver todas as turmas."
-    : "Crie sua primeira turma preenchendo o formulario acima.";
+      ? "Crie uma turma ou altere para \"Todas\" para ver todas as turmas."
+      : "Crie sua primeira turma preenchendo o formulario acima.";
 
   return (
     <DashboardLayout
@@ -387,427 +387,427 @@ export default function TurmasPage() {
             duration={3000}
             onClose={() => setToastMsg(null)}
           />
-        {/* HEADER */}
-        <div className="turmasHeader">
-          {role === "admin" ? (
-            <div className="turmasHeaderLeft">
-              <span className="turmasFilterLabel">Exibir:</span>
-              <div className="turmasFilter">
-                <button
-                  type="button"
-                  className={`turmasFilterBtn ${filtroTurmas === "minhas" ? "active" : ""}`}
-                  onClick={() => setFiltroTurmas("minhas")}
-                >
-                  Minhas
-                </button>
-                <button
-                  type="button"
-                  className={`turmasFilterBtn ${filtroTurmas === "todas" ? "active" : ""}`}
-                  onClick={() => setFiltroTurmas("todas")}
-                >
-                  Todas
-                </button>
+          {/* HEADER */}
+          <div className="turmasHeader">
+            {role === "admin" ? (
+              <div className="turmasHeaderLeft">
+                <span className="turmasFilterLabel">Exibir:</span>
+                <div className="turmasFilter">
+                  <button
+                    type="button"
+                    className={`turmasFilterBtn ${filtroTurmas === "minhas" ? "active" : ""}`}
+                    onClick={() => setFiltroTurmas("minhas")}
+                  >
+                    Minhas
+                  </button>
+                  <button
+                    type="button"
+                    className={`turmasFilterBtn ${filtroTurmas === "todas" ? "active" : ""}`}
+                    onClick={() => setFiltroTurmas("todas")}
+                  >
+                    Todas
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div />
-          )}
-          <button className="refreshBtn" onClick={load} disabled={loading}>
-            {loading ? "⏳ Carregando..." : "🔄 Atualizar"}
-          </button>
-        </div>
+            ) : (
+              <div />
+            )}
+            <button className="refreshBtn" onClick={load} disabled={loading}>
+              {loading ? "⏳ Carregando..." : "🔄 Atualizar"}
+            </button>
+          </div>
 
-        {/* FORMULÁRIO */}
-        {canCreate && (
-          <div className="turmaFormCard">
-            <h2 className="turmaFormTitle">
-              {editandoId ? "Editar Turma" : "Criar Nova Turma"}
-            </h2>
+          {/* FORMULÁRIO */}
+          {canCreate && (
+            <div className="turmaFormCard">
+              <h2 className="turmaFormTitle">
+                {editandoId ? "Editar Turma" : "Criar Nova Turma"}
+              </h2>
 
-            <form onSubmit={handleSubmit} className="turmaForm">
-              <div className="turmaInputGroup">
-                <label className="turmaLabel">Nome da Turma *</label>
-                <input
-                  className="turmaInput"
-                  placeholder="ex: Turma A 2024"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="turmaInputGroup">
-                <label className="turmaLabel">Tipo *</label>
-                <AnimatedSelect
-                  className="turmaSelect"
-                  value={tipo}
-                  onChange={(e) => setTipo(e.target.value as "turma" | "particular")}
-                >
-                  <option value="turma">Turma (Grupo)</option>
-                  <option value="particular">Particular</option>
-                </AnimatedSelect>
-              </div>
-
-              <div className="turmaInputGroup">
-                <label className="turmaLabel">Categoria *</label>
-                <AnimatedSelect
-                  className="turmaSelect"
-                  value={categoria}
-                  onChange={(e) => setCategoria(e.target.value as "programacao" | "informatica")}
-                >
-                  <option value="programacao">Programação</option>
-                  <option value="informatica">Informática</option>
-                </AnimatedSelect>
-              </div>
-
-              {role === "admin" && (
+              <form onSubmit={handleSubmit} className="turmaForm">
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Responsável pela Turma</label>
+                  <label className="turmaLabel">Nome da Turma *</label>
+                  <input
+                    className="turmaInput"
+                    placeholder="ex: Turma A 2024"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Tipo *</label>
                   <AnimatedSelect
                     className="turmaSelect"
-                    value={professorId}
-                    onChange={(e) => setProfessorId(e.target.value)}
+                    value={tipo}
+                    onChange={(e) => setTipo(e.target.value as "turma" | "particular")}
                   >
-                    <option value="">Nenhum responsável</option>
-                    {professores.map((prof) => (
-                      <option key={prof.id} value={prof.id}>
-                        {prof.nome} ({prof.role === "admin" ? "Admin" : "Professor"})
-                      </option>
-                    ))}
+                    <option value="turma">Turma (Grupo)</option>
+                    <option value="particular">Particular</option>
                   </AnimatedSelect>
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                    Deixe em branco para nenhum responsável, ou selecione um admin/professor
-                  </small>
-                </div>
-              )}
-
-              <div className="turmaInputGroup">
-                <label className="turmaLabel">Descrição</label>
-                <textarea
-                  className="turmaTextarea"
-                  placeholder="Descrição opcional da turma..."
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                />
-              </div>
-
-                            {/* CRONOGRAMA */}
-              <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
-                <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
-                  Configuracao de Cronograma (Opcional)
-                </h3>
-
-                <div className="turmaInputGroup">
-                  <label className="turmaLabel">Data de Inicio da Turma</label>
-                  <input
-                    type="date"
-                    className="turmaInput"
-                    value={dataInicio}
-                    onChange={(e) => setDataInicio(e.target.value)}
-                  />
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                    Data em que a turma comeca (para liberacao semanal de exercicios)
-                  </small>
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Duracao do Cronograma (semanas)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    className="turmaInput"
-                    value={duracaoSemanas}
-                    onChange={(e) => setDuracaoSemanas(parseInt(e.target.value) || 12)}
-                  />
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                    Quantas semanas tera o cronograma (padrao: 12 semanas)
-                  </small>
-                </div>
-
-                <div className="turmaInputGroup">
-                  <label style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <AnimatedToggle
-                      checked={cronogramaAtivo}
-                      onChange={setCronogramaAtivo}
-                    />
-                    <span className="turmaLabel" style={{ margin: 0 }}>Ativar Cronograma Automatico</span>
-                  </label>
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                    Se ativado, os exercicios serao liberados automaticamente conforme o cronograma
-                  </small>
-                </div>
-              </div>
-
-              <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
-                <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
-                  Adicionar templates ao cronograma
-                </h3>
-
-                <div className="turmaInputGroup">
-                  <label className="turmaLabel">Semana para liberar</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={duracaoSemanas}
-                    className="turmaInput"
-                    value={semanaTemplates}
-                    onChange={(e) => setSemanaTemplates(parseInt(e.target.value) || 1)}
-                  />
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                    Escolha a semana do cronograma para esses templates
-                  </small>
-                </div>
-
-                {carregandoTemplates ? (
-                  <div style={{ color: "var(--muted)", fontSize: 13 }}>Carregando templates...</div>
-                ) : (() => {
-                  const filtrados = templatesDisponiveis.filter((template) => (template.categoria || "programacao") === categoria);
-                  return filtrados.length === 0 ? (
-                    <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                      {templatesDisponiveis.length === 0
-                        ? "Nenhum template cadastrado."
-                        : `Nenhum template de ${categoria === "informatica" ? "Informática" : "Programação"} encontrado.`}
-                    </div>
-                  ) : (
-                    <div className="templatesSelectorList">
-                      {filtrados.map((template) => (
-                        <label key={template.id} className="templateCheckboxItem">
-                          <input
-                            type="checkbox"
-                            checked={templatesSelecionados.includes(template.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setTemplatesSelecionados([...templatesSelecionados, template.id]);
-                              } else {
-                                setTemplatesSelecionados(
-                                  templatesSelecionados.filter((id) => id !== template.id)
-                                );
-                              }
-                            }}
-                          />
-                          <div className="templateCheckboxInfo">
-                            <div className="templateCheckboxTitle">{template.titulo}</div>
-                            <div className="templateCheckboxMeta">{template.modulo || "Sem modulo"}</div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                {!cronogramaAtivo && (
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, display: "block" }}>
-                    O cronograma esta desativado. Os templates serao salvos, mas nao serao liberados automaticamente.
-                  </small>
-                )}
-              </div>
-
-              <div className="turmaActions">
-                <AnimatedButton
-                  type="submit"
-                  className="turmaSubmitBtn"
-                  disabled={disabled}
-                >
-                  {saving
-                    ? "⏳ Salvando..."
-                    : editandoId
-                    ? "💾 Atualizar Turma"
-                    : "➕ Criar Turma"}
-                </AnimatedButton>
-                {editandoId && (
-                  <AnimatedButton
-                    type="button"
-                    className="turmaCancelBtn"
-                    onClick={handleCancel}
-                    disabled={saving}
+                  <label className="turmaLabel">Categoria *</label>
+                  <AnimatedSelect
+                    className="turmaSelect"
+                    value={categoria}
+                    onChange={(e) => setCategoria(e.target.value as "programacao" | "informatica")}
                   >
-                    ❌ Cancelar
-                  </AnimatedButton>
+                    <option value="programacao">Programação</option>
+                    <option value="informatica">Informática</option>
+                  </AnimatedSelect>
+                </div>
+
+                {role === "admin" && (
+                  <div className="turmaInputGroup">
+                    <label className="turmaLabel">Responsável pela Turma</label>
+                    <AnimatedSelect
+                      className="turmaSelect"
+                      value={professorId}
+                      onChange={(e) => setProfessorId(e.target.value)}
+                    >
+                      <option value="">Nenhum responsável</option>
+                      {professores.map((prof) => (
+                        <option key={prof.id} value={prof.id}>
+                          {prof.nome} ({prof.role === "admin" ? "Admin" : "Professor"})
+                        </option>
+                      ))}
+                    </AnimatedSelect>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                      Deixe em branco para nenhum responsável, ou selecione um admin/professor
+                    </small>
+                  </div>
                 )}
+
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Descrição</label>
+                  <textarea
+                    className="turmaTextarea"
+                    placeholder="Descrição opcional da turma..."
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
+                  />
+                </div>
+
+                {/* CRONOGRAMA */}
+                <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
+                  <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
+                    Configuração de Cronograma (Opcional)
+                  </h3>
+
+                  <div className="turmaInputGroup">
+                    <label className="turmaLabel">Data de Início da Turma</label>
+                    <input
+                      type="date"
+                      className="turmaInput"
+                      value={dataInicio}
+                      onChange={(e) => setDataInicio(e.target.value)}
+                    />
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                      Data em que a turma começa (para liberação semanal de exercícios)
+                    </small>
+                  </div>
+
+                  <div className="turmaInputGroup">
+                    <label className="turmaLabel">Duração do Cronograma (semanas)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="52"
+                      className="turmaInput"
+                      value={duracaoSemanas}
+                      onChange={(e) => setDuracaoSemanas(parseInt(e.target.value) || 12)}
+                    />
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                      Quantas semanas terá o cronograma (padrão: 12 semanas)
+                    </small>
+                  </div>
+
+                  <div className="turmaInputGroup">
+                    <label style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <AnimatedToggle
+                        checked={cronogramaAtivo}
+                        onChange={setCronogramaAtivo}
+                      />
+                      <span className="turmaLabel" style={{ margin: 0 }}>Ativar Cronograma Automático</span>
+                    </label>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                      Se ativado, os exercícios serão liberados automaticamente conforme o cronograma
+                    </small>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
+                  <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
+                    Adicionar templates ao cronograma
+                  </h3>
+
+                  <div className="turmaInputGroup">
+                    <label className="turmaLabel">Semana para liberar</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={duracaoSemanas}
+                      className="turmaInput"
+                      value={semanaTemplates}
+                      onChange={(e) => setSemanaTemplates(parseInt(e.target.value) || 1)}
+                    />
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                      Escolha a semana do cronograma para esses templates
+                    </small>
+                  </div>
+
+                  {carregandoTemplates ? (
+                    <div style={{ color: "var(--muted)", fontSize: 13 }}>Carregando templates...</div>
+                  ) : (() => {
+                    const filtrados = templatesDisponiveis.filter((template) => (template.categoria || "programacao") === categoria);
+                    return filtrados.length === 0 ? (
+                      <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                        {templatesDisponiveis.length === 0
+                          ? "Nenhum template cadastrado."
+                          : `Nenhum template de ${categoria === "informatica" ? "Informática" : "Programação"} encontrado.`}
+                      </div>
+                    ) : (
+                      <div className="templatesSelectorList">
+                        {filtrados.map((template) => (
+                          <label key={template.id} className="templateCheckboxItem">
+                            <input
+                              type="checkbox"
+                              checked={templatesSelecionados.includes(template.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setTemplatesSelecionados([...templatesSelecionados, template.id]);
+                                } else {
+                                  setTemplatesSelecionados(
+                                    templatesSelecionados.filter((id) => id !== template.id)
+                                  );
+                                }
+                              }}
+                            />
+                            <div className="templateCheckboxInfo">
+                              <div className="templateCheckboxTitle">{template.titulo}</div>
+                              <div className="templateCheckboxMeta">{template.modulo || "Sem modulo"}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {!cronogramaAtivo && (
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, display: "block" }}>
+                      O cronograma está desativado. Os templates serão salvos, mas não serão liberados automaticamente.
+                    </small>
+                  )}
+                </div>
+
+                <div className="turmaActions">
+                  <AnimatedButton
+                    type="submit"
+                    className="turmaSubmitBtn"
+                    disabled={disabled}
+                  >
+                    {saving
+                      ? "⏳ Salvando..."
+                      : editandoId
+                        ? "💾 Atualizar Turma"
+                        : "➕ Criar Turma"}
+                  </AnimatedButton>
+                  {editandoId && (
+                    <AnimatedButton
+                      type="button"
+                      className="turmaCancelBtn"
+                      onClick={handleCancel}
+                      disabled={saving}
+                    >
+                      ❌ Cancelar
+                    </AnimatedButton>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* LISTA DE TURMAS */}
+          <div>
+            {loading && turmas.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "2rem" }}>
+                <PulseLoader size="large" text="Carregando turmas..." />
               </div>
-            </form>
-          </div>
-        )}
+            ) : !loading && turmas.length === 0 ? (
+              <div className="emptyState">
+                <div className="emptyIcon">📚</div>
+                <div className="emptyTitle">{emptyTitle}</div>
+                <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
+                  {emptyDescription}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="turmasList">
+                  {(() => {
+                    const startIndex = (currentPage - 1) * itemsPerPage;
+                    const endIndex = startIndex + itemsPerPage;
+                    const paginatedTurmas = turmas.slice(startIndex, endIndex);
 
-        {/* LISTA DE TURMAS */}
-        <div>
-          {loading && turmas.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "2rem" }}>
-              <PulseLoader size="large" text="Carregando turmas..." />
-            </div>
-          ) : !loading && turmas.length === 0 ? (
-            <div className="emptyState">
-              <div className="emptyIcon">📚</div>
-              <div className="emptyTitle">{emptyTitle}</div>
-              <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
-                {emptyDescription}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="turmasList">
-                {(() => {
-                  const startIndex = (currentPage - 1) * itemsPerPage;
-                  const endIndex = startIndex + itemsPerPage;
-                  const paginatedTurmas = turmas.slice(startIndex, endIndex);
+                    return paginatedTurmas.map((turma, i) => (
+                      <FadeInUp key={turma.id} delay={i * 0.05}>
+                        <div className="turmaCard">
+                          <div className="turmaCardHeader">
+                            <div className="turmaCardInfo">
+                              <h3 className="turmaCardTitle">{turma.nome}</h3>
+                              <span className={`turmaBadge tipo-${turma.tipo}`}>
+                                {turma.tipo === "turma" ? "👥 Grupo" : "👤 Particular"}
+                              </span>
+                            </div>
+                            {canCreate && (
+                              <div className="turmaCardActions">
+                                <AnimatedButton
+                                  className="turmaEditBtn"
+                                  onClick={() => handleEdit(turma)}
+                                  title="Editar turma"
+                                >
+                                  ✏️
+                                </AnimatedButton>
+                                <AnimatedButton
+                                  className="turmaDeleteBtn"
+                                  onClick={() => abrirModalDeletar(turma.id, turma.nome)}
+                                  title="Deletar turma"
+                                >
+                                  🗑️
+                                </AnimatedButton>
+                              </div>
+                            )}
+                          </div>
 
-                  return paginatedTurmas.map((turma, i) => (
-                    <FadeInUp key={turma.id} delay={i * 0.05}>
-                    <div className="turmaCard">
-                      <div className="turmaCardHeader">
-                        <div className="turmaCardInfo">
-                          <h3 className="turmaCardTitle">{turma.nome}</h3>
-                          <span className={`turmaBadge tipo-${turma.tipo}`}>
-                            {turma.tipo === "turma" ? "👥 Grupo" : "👤 Particular"}
-                          </span>
-                        </div>
-                        {canCreate && (
-                          <div className="turmaCardActions">
+                          {turma.descricao && (
+                            <p className="turmaCardDescription">{turma.descricao}</p>
+                          )}
+
+                          <div className="turmaCardStats">
+                            <div className="statItem">
+                              <span className="statIcon">👥</span>
+                              <span className="statText">Alunos</span>
+                            </div>
+                            <div className="statItem">
+                              <span className="statIcon">📅</span>
+                              <span className="statText">
+                                {new Date(turma.createdAt).toLocaleDateString("pt-BR", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="turmaCardFooter">
+                            {canCreate && (
+                              <AnimatedButton
+                                className="turmaManageBtn"
+                                onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
+                              >
+                                👥 Gerenciar Alunos
+                              </AnimatedButton>
+                            )}
                             <AnimatedButton
-                              className="turmaEditBtn"
-                              onClick={() => handleEdit(turma)}
-                              title="Editar turma"
+                              className="turmaViewBtn"
+                              onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
                             >
-                              ✏️
-                            </AnimatedButton>
-                            <AnimatedButton
-                              className="turmaDeleteBtn"
-                              onClick={() => abrirModalDeletar(turma.id, turma.nome)}
-                              title="Deletar turma"
-                            >
-                              🗑️
+                              Ver Detalhes →
                             </AnimatedButton>
                           </div>
-                        )}
-                      </div>
-
-                      {turma.descricao && (
-                        <p className="turmaCardDescription">{turma.descricao}</p>
-                      )}
-
-                      <div className="turmaCardStats">
-                        <div className="statItem">
-                          <span className="statIcon">👥</span>
-                          <span className="statText">Alunos</span>
                         </div>
-                        <div className="statItem">
-                          <span className="statIcon">📅</span>
-                          <span className="statText">
-                            {new Date(turma.createdAt).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="turmaCardFooter">
-                        {canCreate && (
-                          <AnimatedButton
-                            className="turmaManageBtn"
-                            onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
-                          >
-                            👥 Gerenciar Alunos
-                          </AnimatedButton>
-                        )}
-                        <AnimatedButton
-                          className="turmaViewBtn"
-                          onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
-                        >
-                          Ver Detalhes →
-                        </AnimatedButton>
-                      </div>
-                    </div>
-                    </FadeInUp>
-                  ));
-                })()}
-              </div>
-
-              <Pagination
-                currentPage={currentPage}
-                itemsPerPage={itemsPerPage}
-                totalItems={turmas.length}
-                onPageChange={setCurrentPage}
-                onItemsPerPageChange={setItemsPerPage}
-              />
-            </>
-          )}
-        </div>
-
-        {/* MODAL DE CONFIRMAÇÃO */}
-        <ConfirmModal
-          isOpen={modalDeletar.isOpen}
-          title="Deletar Turma"
-          message={`Tem certeza que deseja deletar "${modalDeletar.turmaNome}"? Todos os alunos serão removidos desta turma.`}
-          confirmText="Deletar"
-          cancelText="Cancelar"
-          onConfirm={confirmarDeletar}
-          onCancel={fecharModalDeletar}
-          danger={true}
-          isLoading={saving}
-        />
-
-        {/* MODAL ADICIONAR ALUNOS */}
-        {modalAdicionarAberto && createPortal(
-          <div className="modalOverlay" onClick={fecharModalAdicionar}>
-            <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-              <h3>Adicionar alunos à turma: {turmaAcabadaCriar?.nome}</h3>
-
-              {alunosDisponiveis.length === 0 ? (
-                <p style={{ color: "var(--muted)", textAlign: "center" }}>
-                  Nenhum aluno disponível para adicionar.
-                </p>
-              ) : (
-                <div className="alunosSelectorList">
-                  {alunosDisponiveis.map((aluno) => (
-                    <label key={aluno.id} className="alunoCheckboxItem">
-                      <input
-                        type="checkbox"
-                        checked={alunosSelecionados.includes(aluno.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setAlunosSelecionados([...alunosSelecionados, aluno.id]);
-                          } else {
-                            setAlunosSelecionados(
-                              alunosSelecionados.filter((id) => id !== aluno.id)
-                            );
-                          }
-                        }}
-                      />
-                      <span className="alunoCheckboxAvatar">
-                        {aluno.nome.slice(0, 1).toUpperCase()}
-                      </span>
-                      <div className="alunoCheckboxInfo">
-                        <div className="alunoCheckboxName">{aluno.nome}</div>
-                        <div className="alunoCheckboxUser">@{aluno.usuario}</div>
-                      </div>
-                    </label>
-                  ))}
+                      </FadeInUp>
+                    ));
+                  })()}
                 </div>
-              )}
 
-              <div className="modalActions">
-                <AnimatedButton
-                  onClick={fecharModalAdicionar}
-                  className="modalBtnCancel"
-                  disabled={adicionando}
-                >
-                  Pular por enquanto
-                </AnimatedButton>
-                <AnimatedButton
-                  onClick={handleAdicionarAlunos}
-                  className="modalBtnConfirm"
-                  disabled={adicionando || alunosSelecionados.length === 0}
-                >
-                  {adicionando ? "⏳ Adicionando..." : "Adicionar"}
-                </AnimatedButton>
+                <Pagination
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={turmas.length}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={setItemsPerPage}
+                />
+              </>
+            )}
+          </div>
+
+          {/* MODAL DE CONFIRMAÇÃO */}
+          <ConfirmModal
+            isOpen={modalDeletar.isOpen}
+            title="Deletar Turma"
+            message={`Tem certeza que deseja deletar "${modalDeletar.turmaNome}"? Todos os alunos serão removidos desta turma.`}
+            confirmText="Deletar"
+            cancelText="Cancelar"
+            onConfirm={confirmarDeletar}
+            onCancel={fecharModalDeletar}
+            danger={true}
+            isLoading={saving}
+          />
+
+          {/* MODAL ADICIONAR ALUNOS */}
+          {modalAdicionarAberto && createPortal(
+            <div className="modalOverlay" onClick={fecharModalAdicionar}>
+              <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+                <h3>Adicionar alunos à turma: {turmaAcabadaCriar?.nome}</h3>
+
+                {alunosDisponiveis.length === 0 ? (
+                  <p style={{ color: "var(--muted)", textAlign: "center" }}>
+                    Nenhum aluno disponível para adicionar.
+                  </p>
+                ) : (
+                  <div className="alunosSelectorList">
+                    {alunosDisponiveis.map((aluno) => (
+                      <label key={aluno.id} className="alunoCheckboxItem">
+                        <input
+                          type="checkbox"
+                          checked={alunosSelecionados.includes(aluno.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAlunosSelecionados([...alunosSelecionados, aluno.id]);
+                            } else {
+                              setAlunosSelecionados(
+                                alunosSelecionados.filter((id) => id !== aluno.id)
+                              );
+                            }
+                          }}
+                        />
+                        <span className="alunoCheckboxAvatar">
+                          {aluno.nome.slice(0, 1).toUpperCase()}
+                        </span>
+                        <div className="alunoCheckboxInfo">
+                          <div className="alunoCheckboxName">{aluno.nome}</div>
+                          <div className="alunoCheckboxUser">@{aluno.usuario}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                <div className="modalActions">
+                  <AnimatedButton
+                    onClick={fecharModalAdicionar}
+                    className="modalBtnCancel"
+                    disabled={adicionando}
+                  >
+                    Pular por enquanto
+                  </AnimatedButton>
+                  <AnimatedButton
+                    onClick={handleAdicionarAlunos}
+                    className="modalBtnConfirm"
+                    disabled={adicionando || alunosSelecionados.length === 0}
+                  >
+                    {adicionando ? "⏳ Adicionando..." : "Adicionar"}
+                  </AnimatedButton>
+                </div>
               </div>
-            </div>
-          </div>,
-          document.body
-        )}
+            </div>,
+            document.body
+          )}
         </div>
       </FadeInUp>
     </DashboardLayout>
