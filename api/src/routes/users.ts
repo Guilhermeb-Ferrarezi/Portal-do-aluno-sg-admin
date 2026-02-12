@@ -16,10 +16,14 @@ type DbUserRow = {
   created_at: string; // pode ser Date dependendo do pg, mas string funciona bem
 };
 
+const passwordSchema = z
+  .string()
+  .min(6, "Senha muito curta")
+
 const createUserSchema = z.object({
   usuario: z.string().min(3, "Usuário muito curto"),
   nome: z.string().min(2, "Nome obrigatório"),
-  senha: z.string().min(6, "Senha muito curta"),
+  senha: passwordSchema,
   role: z.enum(["admin", "professor", "aluno"]).optional(),
   ativo: z.boolean().optional(),
 });
@@ -37,7 +41,7 @@ const updateUserSchema = z.object({
 
 const changePasswordSchema = z.object({
   senhaAtual: z.string().min(1, "Senha atual obrigatória"),
-  novaSenha: z.string().min(6, "Senha muito curta"),
+  novaSenha: passwordSchema,
 });
 
 export function usersRouter(jwtSecret: string) {

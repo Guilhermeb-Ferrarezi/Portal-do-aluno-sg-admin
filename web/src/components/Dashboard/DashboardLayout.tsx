@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import React from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getName, getRole, getUserId, hasRole, logout } from "../../auth/auth";
-import { listarTurmas, type Turma } from "../../services/api";
+import { getName, getRole, getUserId, hasRole } from "../../auth/auth";
+import { listarTurmas, logoutWithServer, type Turma } from "../../services/api";
 import {
   GraduationCap,
   X,
@@ -79,8 +79,9 @@ export default function DashboardLayout({
   const isActivityLogs = location.pathname === "/dashboard/logs";
 
   function handleLogout() {
-    logout();
-    navigate("/login", { replace: true });
+    void logoutWithServer().finally(() => {
+      navigate("/login", { replace: true });
+    });
   }
 
   const turmasVinculadas =

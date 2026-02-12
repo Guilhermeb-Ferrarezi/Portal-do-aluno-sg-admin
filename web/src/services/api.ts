@@ -1,5 +1,12 @@
 // src/services/api.ts
-import { getToken, isTokenExpired, logout } from "../auth/auth";
+import {
+  getToken,
+  isTokenExpired,
+  logout,
+  getRefreshToken,
+  setToken,
+  setRefreshToken,
+} from "../auth/auth";
 type Role = "admin" | "professor" | "aluno";
 
 export type UserRef = {
@@ -11,15 +18,45 @@ export type UserRef = {
 export const API_BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? "/api"
 
-function getAuthHeader() {
-  let token = getToken();
-  if (token && isTokenExpired(token)) {
-    logout();
-    token = null;
-  }
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      token?: string;
+      refreshToken?: string;
+    };
+
+    if (data.token) setToken(data.token);
+    if (data.refreshToken) setRefreshToken(data.refreshToken);
+
+    return data.token ?? null;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
+
+async function ensureAccessToken(): Promise<string | null> {
+  const token = getToken();
+  if (token && !isTokenExpired(token)) return token;
+
+  const refreshed = await refreshAccessToken();
+  return refreshed ?? null;
 }
 
 function handleUnauthorized(message: string): never {
@@ -30,24 +67,20 @@ function handleUnauthorized(message: string): never {
   throw new Error(message);
 }
 
-function buildJsonHeaders(base?: HeadersInit) {
+async function buildJsonHeaders(base?: HeadersInit) {
   const headers = new Headers(base);
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const auth = getAuthHeader();
-  if (auth.Authorization) {
-    headers.set("Authorization", auth.Authorization);
-  }
+  const token = await ensureAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   return headers;
 }
 
-function buildAuthHeaders(base?: HeadersInit) {
+async function buildAuthHeaders(base?: HeadersInit) {
   const headers = new Headers(base);
-  const auth = getAuthHeader();
-  if (auth.Authorization) {
-    headers.set("Authorization", auth.Authorization);
-  }
+  const token = await ensureAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   return headers;
 }
 
@@ -67,19 +100,48 @@ export async function login(dados: { usuario: string; senha: string }) {
   return res.json() as Promise<{
     message: string;
     token: string;
+    refreshToken: string;
     user: { id: string; usuario: string; nome: string; role: Role };
   }>;
 }
 
+export async function logoutWithServer() {
+  const refreshToken = getRefreshToken();
+  logout();
+  if (!refreshToken) return;
+
+  try {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // best-effort revoke
+  }
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}) {
+  const headers = await buildJsonHeaders(options.headers);
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: buildJsonHeaders(options.headers),
+    headers,
   });
 
   if (!res.ok) {
     const message = await parseError(res);
     if (res.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed && !path.startsWith("/auth/refresh")) {
+        const retryHeaders = await buildJsonHeaders(options.headers);
+        const retry = await fetch(`${API_BASE_URL}${path}`, {
+          ...options,
+          headers: retryHeaders,
+        });
+        if (retry.ok) {
+          return (await retry.json()) as T;
+        }
+      }
       handleUnauthorized(message);
     }
     throw new Error(message);
@@ -246,7 +308,7 @@ export async function enviarSubmissaoComArquivo(exercicioId: string, dados: {
 
   const res = await fetch(`${API_BASE_URL}/exercicios/${exercicioId}/submissoes`, {
     method: "POST",
-    headers: buildAuthHeaders(),
+    headers: await buildAuthHeaders(),
     body: form,
   });
 
@@ -526,7 +588,7 @@ export async function obterMaterial(id: string) {
 export async function criarMaterial(dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/materiais`, {
     method: "POST",
-    headers: buildAuthHeaders(),
+    headers: await buildAuthHeaders(),
     body: dados,
   });
 
@@ -543,7 +605,7 @@ export async function criarMaterial(dados: FormData) {
 export async function atualizarMaterial(id: string, dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/materiais/${id}`, {
     method: "PUT",
-    headers: buildAuthHeaders(),
+    headers: await buildAuthHeaders(),
     body: dados,
   });
 
@@ -589,7 +651,7 @@ export async function obterVideoaula(id: string) {
 export async function criarVideoaula(dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/videoaulas`, {
     method: "POST",
-    headers: buildAuthHeaders(),
+    headers: await buildAuthHeaders(),
     body: dados,
   });
 
@@ -606,7 +668,7 @@ export async function criarVideoaula(dados: FormData) {
 export async function atualizarVideoaula(id: string, dados: FormData) {
   const res = await fetch(`${API_BASE_URL}/videoaulas/${id}`, {
     method: "PUT",
-    headers: buildAuthHeaders(),
+    headers: await buildAuthHeaders(),
     body: dados,
   });
 

@@ -624,6 +624,8 @@
   display:flex;
   flex-direction:column;
 }
+
+.alunosSelectorList {
   margin: 16px 0;
   max-height: 400px;
   overflow-y: auto;

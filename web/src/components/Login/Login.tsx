@@ -156,6 +156,7 @@ export default function Login() {
 
       // salva auth
       localStorage.setItem("token", data.token);
+      localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("nome", data.user?.nome ?? "");
       localStorage.setItem("role", data.user?.role ?? "aluno");
       notifyAuthChanged();

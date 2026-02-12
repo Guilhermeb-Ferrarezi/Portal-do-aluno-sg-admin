@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
@@ -17,6 +19,8 @@ import { initializeDatabaseTables } from "./db/migrations";
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   JWT_SECRET: z.string().min(10),
+  JWT_EXPIRES_IN: z.string().default("24h"),
+  REFRESH_TOKEN_EXPIRES_IN: z.string().default("30d"),
   CORS_ORIGIN: z
     .string()
     .default("http://localhost:5173,https://portaldoaluno.santos-tech.com"),
@@ -26,6 +30,9 @@ const env = envSchema.parse(process.env);
 const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
 
 const app = express();
+app.set("trust proxy", 1);
+
+app.use(helmet());
 
 app.use(
   cors({
@@ -34,13 +41,33 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+
+const apiLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+});
+
+app.use(apiLimiter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // ===== ROTAS SEM PREFIXO (local / simples) =====
-app.use("/auth", authRouter(env.JWT_SECRET));
+app.use(
+  "/auth",
+  loginLimiter,
+  authRouter(env.JWT_SECRET, env.JWT_EXPIRES_IN, env.REFRESH_TOKEN_EXPIRES_IN)
+);
 app.use(usersRouter(env.JWT_SECRET));
 app.use(exerciciosRouter(env.JWT_SECRET));
 app.use(submissoesRouter(env.JWT_SECRET));
@@ -50,7 +77,11 @@ app.use(videoaulasRouter(env.JWT_SECRET));
 app.use(activityLogsRouter(env.JWT_SECRET));
 
 // ===== ROTAS COM /api (pra prod/proxy) =====
-app.use("/api/auth", authRouter(env.JWT_SECRET));
+app.use(
+  "/api/auth",
+  loginLimiter,
+  authRouter(env.JWT_SECRET, env.JWT_EXPIRES_IN, env.REFRESH_TOKEN_EXPIRES_IN)
+);
 app.use("/api", usersRouter(env.JWT_SECRET));
 // (se usersRouter registra /users, vira /api/users)
 app.use("/api", exerciciosRouter(env.JWT_SECRET));
@@ -65,7 +96,7 @@ app.use("/api", videoaulasRouter(env.JWT_SECRET));
 // (se videoaulasRouter registra /videoaulas, vira /api/videoaulas)
 app.use("/api", activityLogsRouter(env.JWT_SECRET));
 
-// handler de 404 (pra você enxergar rota errada rápido)
+// handler de 404
 app.use((req, res) => {
   res.status(404).json({
     message: "Not Found",

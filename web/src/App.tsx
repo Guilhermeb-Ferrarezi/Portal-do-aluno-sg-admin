@@ -4,7 +4,8 @@ import { useTheme } from "./hooks/useTheme";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { ToastProvider } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
-import { getToken, getTokenExpiryMs, isTokenExpired, logout, onAuthChanged } from "./auth/auth";
+import { getToken, getTokenExpiryMs, isTokenExpired, onAuthChanged } from "./auth/auth";
+import { logoutWithServer } from "./services/api";
 
 import Login from "./components/Login/Login";
 import Dashboard from "./components/Dashboard/Dashboard";
@@ -37,8 +38,9 @@ function AppContent() {
     };
 
     const forceLogout = () => {
-      logout();
-      navigate("/login", { replace: true });
+      void logoutWithServer().finally(() => {
+        navigate("/login", { replace: true });
+      });
     };
 
     const scheduleExpiry = () => {

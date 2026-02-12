@@ -627,81 +627,90 @@ export default function ExerciciosPage() {
                   />
                 </div>
 
-                {/* CATEGORIA - PROGRAMAÇÃO vs INFORMATICA */}
+                {/* CATEGORIA - PROGRAMACAO vs INFORMATICA */}
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                      <input
-                        type="radio"
-                        name="categoria"
-                        value="programacao"
-                        checked={categoria === "programacao"}
-                        onChange={(e) => {
-                          setCategoria(e.target.value as any);
-                          setComponenteInterativo("");
-                        }}
-                        style={{ marginRight: "8px", cursor: "pointer" }}
-                      />
-                      <span style={{ fontWeight: 600 }}>{iconLabel(<Laptop size={14} />, "Programação")}</span>
-                    </label>
-                  </div>
+                    <div className="exToggleGroup">
+                      <label className={`exToggleOption ${categoria === "programacao" ? "active" : ""}`}>
+                        <input
+                          className="exToggleInput"
+                          type="radio"
+                          name="categoria"
+                          value="programacao"
+                          checked={categoria === "programacao"}
+                          onChange={(e) => {
+                            setCategoria(e.target.value as any);
+                            setComponenteInterativo("");
+                          }}
+                        />
+                        <span className="exToggleDot" aria-hidden="true" />
+                        <span className="exToggleLabel">
+                          {iconLabel(<Laptop size={14} />, "Programacao")}
+                        </span>
+                      </label>
 
-                  <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                      <input
-                        type="radio"
-                        name="categoria"
-                        value="informatica"
-                        checked={categoria === "informatica"}
-                        onChange={(e) => {
-                          setCategoria(e.target.value as any);
-                          setComponenteInterativo("");
-                        }}
-                        style={{ marginRight: "8px", cursor: "pointer" }}
-                      />
-                      <span style={{ fontWeight: 600 }}>{iconLabel(<Monitor size={14} />, "Informática")}</span>
-                    </label>
+                      <label className={`exToggleOption ${categoria === "informatica" ? "active" : ""}`}>
+                        <input
+                          className="exToggleInput"
+                          type="radio"
+                          name="categoria"
+                          value="informatica"
+                          checked={categoria === "informatica"}
+                          onChange={(e) => {
+                            setCategoria(e.target.value as any);
+                            setComponenteInterativo("");
+                          }}
+                        />
+                        <span className="exToggleDot" aria-hidden="true" />
+                        <span className="exToggleLabel">
+                          {iconLabel(<Monitor size={14} />, "Informatica")}
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 {/* TEMPLATE VS ATIVIDADE */}
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                      <input
-                        type="radio"
-                        name="tipoAtividade"
-                        value="atividade"
-                        checked={!isTemplate}
-                        onChange={() => setIsTemplate(false)}
-                        style={{ marginRight: "8px", cursor: "pointer" }}
-                      />
-                      <span style={{ fontWeight: 600 }}>{iconLabel(<ClipboardList size={14} />, "Atividade Padrão")}</span>
-                    </label>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      Atividade padrão para a turma
-                    </small>
-                  </div>
+                    <div className="exToggleGroup">
+                      <label className={`exToggleOption ${!isTemplate ? "active" : ""}`}>
+                        <input
+                          className="exToggleInput"
+                          type="radio"
+                          name="tipoAtividade"
+                          value="atividade"
+                          checked={!isTemplate}
+                          onChange={() => setIsTemplate(false)}
+                        />
+                        <span className="exToggleDot" aria-hidden="true" />
+                        <span className="exToggleLabel">
+                          {iconLabel(<ClipboardList size={14} />, "Atividade Padrao")}
+                        </span>
+                      </label>
 
-                  <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                      <input
-                        type="radio"
-                        name="tipoAtividade"
-                        value="template"
-                        checked={isTemplate}
-                        onChange={() => setIsTemplate(true)}
-                        style={{ marginRight: "8px", cursor: "pointer" }}
-                      />
-                      <span style={{ fontWeight: 600 }}>{iconLabel(<Package size={14} />, "Template (Reutilizável)")}</span>
-                    </label>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      Template reutilizável
+                      <label className={`exToggleOption ${isTemplate ? "active" : ""}`}>
+                        <input
+                          className="exToggleInput"
+                          type="radio"
+                          name="tipoAtividade"
+                          value="template"
+                          checked={isTemplate}
+                          onChange={() => setIsTemplate(true)}
+                        />
+                        <span className="exToggleDot" aria-hidden="true" />
+                        <span className="exToggleLabel">
+                          {iconLabel(<Package size={14} />, "Template (Reutilizavel)")}
+                        </span>
+                      </label>
+                    </div>
+                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 6, display: "block" }}>
+                      {isTemplate ? "Template reutilizavel" : "Atividade padrao para a turma"}
                     </small>
                   </div>
                 </div>
 
-                {/* COMPONENTES INTERATIVOS - Para Programação */}
+                {/* COMPONENTES INTERATIVOS - Para Programacao */}
                 {categoria === "programacao" && (
                   <>
                     <div className="exInputGroup">

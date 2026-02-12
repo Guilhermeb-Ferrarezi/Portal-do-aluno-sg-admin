@@ -24,11 +24,29 @@ export async function initializeDatabaseTables() {
     // Se não houver usuários, criar um admin inicial (senha padrão 'admin123' ou `INIT_ADMIN_PASSWORD`)
     const usersCount = await pool.query(`SELECT COUNT(*)::int as cnt FROM users`);
     if (Number(usersCount.rows[0].cnt) === 0) {
-      const defaultPassword = process.env.INIT_ADMIN_PASSWORD ?? "admin123";
+      const defaultPassword = process.env.INIT_ADMIN_PASSWORD || ""; 
       const hash = bcrypt.hashSync(defaultPassword, 10);
       await pool.query(`INSERT INTO users (usuario, nome, senha_hash, role, ativo) VALUES ('admin','Admin',$1,'admin',true)`, [hash]);
       console.log(" Admin inicial criado: usuario=admin (senha padrão definida)");
     }
+
+    // ===== Criar tabela refresh_tokens =====
+    console.log(" Criando tabela refresh_tokens se nao existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        revoked_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+    `);
+    console.log(" Tabela refresh_tokens criada/verificada!");
 
     // ===== Criar tabela turmas =====
     console.log(" Criando tabela turmas se não existir...");

@@ -1,7 +1,7 @@
 ﻿import React from "react";
 import { useNavigate } from "react-router-dom";
-import { getName, getRole, getToken, getUserId, isTokenExpired, logout } from "../../../../auth/auth";
-import { listarTurmas, apiFetch, type User } from "../../../../services/api";
+import { getName, getRole, getToken, getUserId, isTokenExpired } from "../../../../auth/auth";
+import { listarTurmas, apiFetch, logoutWithServer, type User } from "../../../../services/api";
 import DashboardLayout from "../../DashboardLayout";
 import "./CreateUser.css";
 
@@ -86,7 +86,7 @@ export default function CreateUser() {
       return;
     }
     if (isTokenExpired(token)) {
-      logout();
+      await logoutWithServer();
       navigate("/login", { replace: true });
       return;
     }
@@ -113,7 +113,7 @@ export default function CreateUser() {
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 401) {
-        logout();
+        await logoutWithServer();
         navigate("/login", { replace: true });
         return;
       }

@@ -14,6 +14,18 @@ export function getToken(): string | null {
   return localStorage.getItem("token");
 }
 
+export function setToken(token: string) {
+  localStorage.setItem("token", token);
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem("refreshToken");
+}
+
+export function setRefreshToken(token: string) {
+  localStorage.setItem("refreshToken", token);
+}
+
 function decodeBase64Url(input: string): string {
   const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
@@ -82,7 +94,8 @@ export function getName(): string | null {
 
 export function isLoggedIn(): boolean {
   const token = getToken();
-  return !!token && token.length > 10 && !isTokenExpired(token);
+  if (token && token.length > 10 && !isTokenExpired(token)) return true;
+  return !!getRefreshToken();
 }
 
 export function hasRole(allowed: Role[]): boolean {
@@ -92,6 +105,7 @@ export function hasRole(allowed: Role[]): boolean {
 
 export function logout() {
   localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
   localStorage.removeItem("nome");
   localStorage.removeItem("role");
   notifyAuthChanged();
