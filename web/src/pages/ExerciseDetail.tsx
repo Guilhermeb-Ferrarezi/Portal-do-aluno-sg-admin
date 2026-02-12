@@ -976,8 +976,6 @@ export default function ExerciseDetail() {
             {/* COLUNA DIREITA: RESPONDER */}
             <div className="exerciseDetailRight">
               <div className="edCard edResponder">
-                <h2 className="edSubtitle">{iconLabel(<PenLine size={16} />, "Envie sua resposta")}</h2>
-
 
                 {/* MENSAGENS */}
                 <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
