@@ -176,7 +176,7 @@ export default function Login() {
               intervalRef.current = null;
             }
 
-            // ✅ navega fora do render: aqui é callback de intervalo
+            // navega fora do render: aqui é callback de intervalo
             // troca "/dashboard" se tua rota for "/Home"
             navigate("/dashboard", { replace: true });
             return 0;

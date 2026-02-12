@@ -6,7 +6,7 @@ interface AnimatedRadioLabelProps {
   checked: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   label: string;
-  icon?: string;
+  icon?: React.ReactNode;
   className?: string;
 }
 
@@ -49,8 +49,8 @@ export function AnimatedRadioLabel({
           accentColor: 'var(--red)',
         }}
       />
-      <span>
-        {icon && <span style={{ marginRight: '4px' }}>{icon}</span>}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        {icon ? <span style={{ display: 'inline-flex' }}>{icon}</span> : null}
         {label}
       </span>
 

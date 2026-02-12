@@ -1,5 +1,6 @@
 import Modal from './Modal';
 import { AnimatedButton } from './animate-ui';
+import { Loader2 } from 'lucide-react';
 import './ConfirmDialog.css';
 
 export interface ConfirmDialogProps {
@@ -45,7 +46,13 @@ export default function ConfirmDialog({
             onClick={onConfirm}
             disabled={isLoading}
           >
-            {isLoading ? '⏳ Processando...' : confirmText}
+            {isLoading ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Loader2 size={16} /> Processando...
+              </span>
+            ) : (
+              confirmText
+            )}
           </AnimatedButton>
         </div>
       }

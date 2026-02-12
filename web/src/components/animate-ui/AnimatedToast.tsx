@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, XCircle, Info } from 'lucide-react';
 
 interface AnimatedToastProps {
   message: string | null;
@@ -43,9 +44,9 @@ export function AnimatedToast({
   }[type];
 
   const icon = {
-    success: '✅',
-    error: '❌',
-    info: 'ℹ️',
+    success: <CheckCircle size={18} />,
+    error: <XCircle size={18} />,
+    info: <Info size={18} />,
   }[type];
   return (
     <AnimatePresence>
@@ -80,7 +81,7 @@ export function AnimatedToast({
               lineHeight: '1.4',
             }}
           >
-            <span style={{ flexShrink: 0, fontSize: '16px' }}>{icon}</span>
+            <span style={{ flexShrink: 0, display: 'inline-flex' }}>{icon}</span>
             <span style={{ flex: 1 }}>{message}</span>
           </div>
         </motion.div>

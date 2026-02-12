@@ -1,7 +1,9 @@
 
+import type { ReactNode } from "react";
+
 interface FlipButtonProps {
-  front: string;
-  back: string;
+  front: ReactNode;
+  back: ReactNode;
   onClick?: () => void;
   className?: string;
   disabled?: boolean;

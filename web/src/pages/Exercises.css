@@ -239,7 +239,7 @@
 }
 
 .exFormTitle::before {
-  content: '➕';
+  content: '';
   font-size: 32px;
   background: linear-gradient(135deg, var(--red) 0%, #d41c28 100%);
   -webkit-background-clip: text;
@@ -413,7 +413,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exSubmitBtn::after {
-  content: '📤';
+  content: '';
   font-size: 20px;
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease;
   position: relative;
@@ -471,7 +471,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exFormNote::before {
-  content: '💡';
+  content: '';
   font-size: 18px;
   flex-shrink: 0;
   display: flex;
@@ -685,7 +685,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseModule::before {
-  content: '📚';
+  content: '';
   font-size: 14px;
 }
 
@@ -716,7 +716,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseDeadline::before {
-  content: '⏱️';
+  content: '';
 }
 
 .exerciseDescription {

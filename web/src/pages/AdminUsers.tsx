@@ -16,6 +16,13 @@ import {
   type User,
 } from "../services/api";
 import "./AdminUsers.css";
+import {
+  GraduationCap,
+  User as UserIcon,
+  KeyRound,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 
 export default function AdminUsersPage() {
   const [usuarios, setUsuarios] = React.useState<User[]>([]);
@@ -39,6 +46,28 @@ export default function AdminUsersPage() {
     tipo: "sucesso" | "erro";
     mensagem: string;
   } | null>(null);
+  const roleLabel = (role: string) => {
+    const baseStyle = { display: "inline-flex", alignItems: "center", gap: 6 };
+    if (role === "aluno") {
+      return (
+        <span style={baseStyle}>
+          <GraduationCap size={14} /> Aluno
+        </span>
+      );
+    }
+    if (role === "professor") {
+      return (
+        <span style={baseStyle}>
+          <UserIcon size={14} /> Professor
+        </span>
+      );
+    }
+    return (
+      <span style={baseStyle}>
+        <KeyRound size={14} /> Admin
+      </span>
+    );
+  };
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -234,7 +263,7 @@ export default function AdminUsersPage() {
                 <div className="searchBox">
                   <input
                     type="text"
-                    placeholder="🔍 Buscar por nome ou usuário..."
+                    placeholder="Buscar por nome ou usuário..."
                     value={busca}
                     onChange={(e) => {
                       setBusca(e.target.value);
@@ -253,10 +282,10 @@ export default function AdminUsersPage() {
                   }}
                   className="filterSelect"
                 >
-                  <option value="todos">👥 Todos os tipos</option>
-                  <option value="aluno">🎓 Alunos</option>
-                  <option value="professor">👨‍🏫 Professores</option>
-                  <option value="admin">🔑 Admins</option>
+                  <option value="todos">Todos os tipos</option>
+                  <option value="aluno">Alunos</option>
+                  <option value="professor">Professores</option>
+                  <option value="admin">Admins</option>
                 </AnimatedSelect>
               </div>
             </div>
@@ -290,11 +319,7 @@ export default function AdminUsersPage() {
                             <td className="usuarioCell">{usuario.usuario}</td>
                             <td>
                               <span className={`roleTag role-${usuario.role}`}>
-                                {usuario.role === "aluno"
-                                  ? "🎓 Aluno"
-                                  : usuario.role === "professor"
-                                  ? "👨‍🏫 Professor"
-                                  : "🔑 Admin"}
+                                {roleLabel(usuario.role)}
                               </span>
                             </td>
                             <td className="actionCell">
@@ -303,14 +328,14 @@ export default function AdminUsersPage() {
                                 onClick={() => abrirEditar(usuario)}
                                 title="Editar usuário"
                               >
-                                ✏️
+                                <Pencil size={16} />
                               </AnimatedButton>
                               <AnimatedButton
                                 className="btnDelete"
                                 onClick={() => setUsuarioDeletar(usuario)}
                                 title="Deletar usuário"
                               >
-                                🗑️
+                                <Trash2 size={16} />
                               </AnimatedButton>
                             </td>
                           </tr>
@@ -375,11 +400,7 @@ export default function AdminUsersPage() {
             <div className="formGroup">
               <label className="formLabel">Tipo</label>
               <p style={{ margin: "8px 0", fontSize: "14px" }}>
-                {editandoUsuario?.role === "aluno"
-                  ? "🎓 Aluno"
-                  : editandoUsuario?.role === "professor"
-                  ? "👨‍🏫 Professor"
-                  : "🔑 Admin"}
+                {editandoUsuario?.role ? roleLabel(editandoUsuario.role) : "-"}
               </p>
               <small style={{ color: "var(--muted)", fontSize: "12px" }}>
                 Alterar o tipo de usuário requer alteração manual no banco de dados

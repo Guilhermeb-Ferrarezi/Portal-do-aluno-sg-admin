@@ -8,6 +8,20 @@ import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
 import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
 import { apiFetch, type Turma } from "../services/api";
+import {
+  Trash2,
+  Send,
+  Sparkles,
+  ClipboardList,
+  Laptop,
+  Monitor,
+  Code,
+  FileText,
+  Copy,
+  Loader2,
+  XCircle,
+  BookOpen,
+} from "lucide-react";
 import "./ExerciseTemplates.css";
 
 type Template = {
@@ -24,6 +38,12 @@ type Template = {
 export default function ExerciseTemplates() {
   const navigate = useNavigate();
   const role = getRole();
+  const iconLabel = (icon: React.ReactNode, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
 
   const [templates, setTemplates] = React.useState<Template[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -84,7 +104,7 @@ export default function ExerciseTemplates() {
         }
       );
 
-      setMensagem("✅ Exercício duplicado com sucesso! Redirecionando...");
+      setMensagem("Exercício duplicado com sucesso! Redirecionando...");
       setTimeout(() => {
         navigate(`/dashboard/exercicios/${response.exercicio.id}`);
       }, 1500);
@@ -107,7 +127,7 @@ export default function ExerciseTemplates() {
         method: "DELETE",
       });
 
-      setMensagem("✅ Template deletado com sucesso!");
+      setMensagem("Template deletado com sucesso!");
       setTemplates(templates.filter(t => t.id !== templateId));
       setTimeout(() => setMensagem(null), 3000);
     } catch (error) {
@@ -172,7 +192,7 @@ export default function ExerciseTemplates() {
         });
       }
 
-      setMensagem(`✅ Tarefa enviada para ${turmasSelecionadas.length} turma(s)!`);
+      setMensagem(`Tarefa enviada para ${turmasSelecionadas.length} turma(s)!`);
       setModalAberto(false);
       setTemplateSelecionado(null);
       setTurmasSelecionadas([]);
@@ -203,7 +223,7 @@ export default function ExerciseTemplates() {
 
   return (
     <DashboardLayout
-      title="📦 Templates de Exercícios"
+      title="Templates de Exercícios"
       subtitle="Gerenciar exercícios pré-prontos reutilizáveis"
     >
       <FadeInUp duration={0.28}>
@@ -218,7 +238,7 @@ export default function ExerciseTemplates() {
                 className="btnCreateTemplate"
                 onClick={() => navigate("/dashboard/exercicios")}
               >
-                ✨ Criar Novo Template
+                {iconLabel(<Sparkles size={16} />, "Criar Novo Template")}
               </AnimatedButton>
             </div>
           </FadeInUp>
@@ -242,7 +262,9 @@ export default function ExerciseTemplates() {
           {templates.length === 0 ? (
             <FadeInUp duration={0.28} delay={0.16}>
               <div className="templateEmpty">
-                <div className="templateEmptyIcon">📋</div>
+                <div className="templateEmptyIcon" style={{ display: "inline-flex" }}>
+                  <ClipboardList size={22} />
+                </div>
                 <h3>Nenhum template criado ainda</h3>
                 <p>Vá para Exercícios e marque exercícios como templates para reutilizá-los!</p>
                 <AnimatedButton
@@ -274,10 +296,14 @@ export default function ExerciseTemplates() {
                                     <span className="templateModule">{template.modulo}</span>
                                     {template.tema && <span className="templateTheme">{template.tema}</span>}
                                     <span className={`templateCategory category-${template.categoria}`}>
-                                      {template.categoria === "informatica" ? "💻 Informática" : "🖥️ Programação"}
+                                      {template.categoria === "informatica"
+                                        ? iconLabel(<Monitor size={14} />, "Informática")
+                                        : iconLabel(<Laptop size={14} />, "Programação")}
                                     </span>
                                     <span className={`templateType type-${template.tipoExercicio}`}>
-                                      {template.tipoExercicio === "codigo" ? "💻 Código" : "✍️ Texto"}
+                                      {template.tipoExercicio === "codigo"
+                                        ? iconLabel(<Code size={14} />, "Código")
+                                        : iconLabel(<FileText size={14} />, "Texto")}
                                     </span>
                                   </p>
                                 </div>
@@ -288,7 +314,7 @@ export default function ExerciseTemplates() {
                                   disabled={duplicando === template.id}
                                   loading={duplicando === template.id}
                                 >
-                                  {duplicando === template.id ? "⏳" : "📋"}
+                                  {duplicando === template.id ? <Loader2 size={14} /> : <Copy size={14} />}
                                 </AnimatedButton>
                               </div>
 
@@ -307,7 +333,7 @@ export default function ExerciseTemplates() {
                                     onClick={() => abrirModalEnviarTarefa(template.id)}
                                     title="Enviar template para turmas"
                                   >
-                                    📤 Enviar
+                                    {iconLabel(<Send size={14} />, "Enviar")}
                                   </AnimatedButton>
                                   <AnimatedButton
                                     className="templateBtnView"
@@ -326,7 +352,7 @@ export default function ExerciseTemplates() {
                                       color: "var(--red)",
                                     }}
                                   >
-                                    {deletando === template.id ? "⏳" : "🗑️"}
+                                    {deletando === template.id ? <Loader2 size={14} /> : <Trash2 size={14} />}
                                   </AnimatedButton>
                                 </div>
                               </div>
@@ -364,7 +390,7 @@ export default function ExerciseTemplates() {
                   <div className="modalContent" onClick={(e) => e.stopPropagation()}>
                     <FadeInUp duration={0.28}>
                       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                        <h3 style={{ margin: 0 }}>📤 Enviar Template para Turmas</h3>
+                        <h3 style={{ margin: 0 }}>{iconLabel(<Send size={16} />, "Enviar Template para Turmas")}</h3>
                         {templateAtual && (
                           <span style={{
                             padding: "4px 12px",
@@ -374,7 +400,9 @@ export default function ExerciseTemplates() {
                             fontSize: "12px",
                             fontWeight: 600,
                           }}>
-                            {isInformatica ? "💻 Informática" : "🖥️ Programação"}
+                            {isInformatica
+                              ? iconLabel(<Monitor size={14} />, "Informática")
+                              : iconLabel(<Laptop size={14} />, "Programação")}
                           </span>
                         )}
                       </div>
@@ -389,7 +417,9 @@ export default function ExerciseTemplates() {
                   <>
                     {erro && (
                       <div style={{ padding: "12px", background: "rgba(225, 29, 46, 0.1)", borderRadius: "4px", marginBottom: "16px", color: "var(--red)" }}>
-                        ❌ {erro}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <XCircle size={14} /> {erro}
+                        </span>
                       </div>
                     )}
 
@@ -405,7 +435,10 @@ export default function ExerciseTemplates() {
                   ) : (
                     <>
                       <div style={{ padding: "12px", background: isInformatica ? "rgba(59, 130, 246, 0.1)" : "rgba(34, 197, 94, 0.1)", borderRadius: "4px", marginBottom: "16px", fontSize: "13px", color: isInformatica ? "#3b82f6" : "#22c55e" }}>
-                        📚 Mostrando turmas de <strong>{isInformatica ? "Informática" : "Programação"}</strong> com cronograma ativo
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <BookOpen size={14} /> Mostrando turmas de{" "}
+                          <strong>{isInformatica ? "Informática" : "Programação"}</strong> com cronograma ativo
+                        </span>
                       </div>
 
                       <div style={{ marginBottom: "20px" }}>
@@ -435,7 +468,7 @@ export default function ExerciseTemplates() {
                         </label>
                         <input
                           type="text"
-                          placeholder="🔍 Buscar turmas..."
+                          placeholder="Buscar turmas..."
                           value={turmaBuscaFiltro}
                           onChange={(e) => setTurmaBuscaFiltro(e.target.value)}
                           style={{
@@ -524,7 +557,9 @@ export default function ExerciseTemplates() {
                             opacity: (enviandoTarefa || turmasSelecionadas.length === 0) ? 0.6 : 1,
                           }}
                         >
-                          {enviandoTarefa ? "⏳ Enviando..." : "📤 Enviar Tarefa"}
+                          {enviandoTarefa
+                            ? iconLabel(<Loader2 size={16} />, "Enviando...")
+                            : iconLabel(<Send size={16} />, "Enviar Tarefa")}
                         </AnimatedButton>
                       </div>
                     </FadeInUp>

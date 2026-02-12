@@ -104,7 +104,7 @@ function AppContent() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* ✅ exercícios: qualquer logado (admin/prof/aluno) */}
+          {/* exercícios: qualquer logado (admin/prof/aluno) */}
           <Route path="/dashboard/exercicios" element={<ExerciciosPage />} />
           <Route
             path="/dashboard/exercicios/:id"
@@ -115,19 +115,19 @@ function AppContent() {
             element={<Navigate to="/dashboard/exercicios" replace />}
           />
 
-          {/* ✅ trilha do curso: qualquer logado */}
+          {/* trilha do curso: qualquer logado */}
           <Route path="/dashboard/trilha" element={<TrilhaCursoPage />} />
 
-          {/* ✅ materiais: qualquer logado */}
+          {/* materiais: qualquer logado */}
           <Route path="/dashboard/materiais" element={<MateriaisPage />} />
 
-          {/* ✅ videoaulas bônus: qualquer logado */}
+          {/* videoaulas bônus: qualquer logado */}
           <Route
             path="/dashboard/videoaulas"
             element={<VideoaulaBonusPage />}
           />
 
-          {/* ✅ perfil: qualquer logado */}
+          {/* perfil: qualquer logado */}
           <Route path="/dashboard/perfil" element={<PerfilPage />} />
 
           <Route path="/dashboard/turmas/:id" element={<TurmaDetail />} />

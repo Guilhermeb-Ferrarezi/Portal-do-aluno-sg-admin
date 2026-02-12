@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { Loader2 } from "lucide-react";
 import "./ConfirmModal.css";
 
 type ConfirmModalProps = {
@@ -44,7 +45,13 @@ export default function ConfirmModal({
             onClick={onConfirm}
             disabled={isLoading}
           >
-            {isLoading ? "⏳ Processando..." : confirmText}
+            {isLoading ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Loader2 size={16} /> Processando...
+              </span>
+            ) : (
+              confirmText
+            )}
           </button>
         </div>
       </div>

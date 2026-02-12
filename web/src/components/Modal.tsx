@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import './Modal.css';
 
 export interface ModalProps {
@@ -146,7 +147,7 @@ export default function Modal({
                 aria-label="Fechar modal"
                 data-autofocus
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 

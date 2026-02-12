@@ -6,6 +6,7 @@ import {
   AnimatedButton,
   AnimatedToast,
 } from "../components/animate-ui";
+import { CheckCircle, PenLine } from "lucide-react";
 import "./TrilhaCurso.css";
 
 type Modulo = {
@@ -151,7 +152,9 @@ export default function TrilhaCursoPage() {
                 </div>
                 <div className="moduloBadge">
                   {modulo.progresso === 100 ? (
-                    <span className="badgeConcluido">✓ Concluído</span>
+                    <span className="badgeConcluido" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle size={14} /> Concluído
+                    </span>
                   ) : (
                     <span className="badgeEmProgresso">{modulo.progresso}%</span>
                   )}
@@ -184,7 +187,9 @@ export default function TrilhaCursoPage() {
               {/* Estatísticas */}
               <div className="moduloStats">
                 <div className="statItem">
-                  <span className="statIcon">✍️</span>
+                  <span className="statIcon" style={{ display: "inline-flex" }}>
+                    <PenLine size={18} />
+                  </span>
                   <span className="statText">
                     {modulo.exerciciosConcluidos}/{modulo.exercicios} exercícios
                   </span>

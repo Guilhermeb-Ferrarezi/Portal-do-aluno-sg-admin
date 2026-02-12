@@ -5,7 +5,7 @@ export function startWeeklyExerciseReleaseJob() {
   // Rodar todo dia às 00:01
   cron.schedule("1 0 * * *", async () => {
     try {
-      console.log("🔄 Verificando liberação de exercícios semanais...");
+      console.log(" Verificando liberação de exercícios semanais...");
 
       const turmasAtivas = await pool.query(`
         SELECT id, nome, data_inicio, duracao_semanas
@@ -52,12 +52,12 @@ export function startWeeklyExerciseReleaseJob() {
           `, [ex.exercicio_id, id]);
         }
 
-        console.log(`✅ Liberados ${exercicios.rowCount} exercício(s) para turma "${nome}" (semana ${semanaAtual})`);
+        console.log(` Liberados ${exercicios.rowCount} exercício(s) para turma "${nome}" (semana ${semanaAtual})`);
       }
     } catch (error) {
-      console.error("❌ Erro ao liberar exercícios semanais:", error);
+      console.error(" Erro ao liberar exercícios semanais:", error);
     }
   });
 
-  console.log("📅 Job de liberação semanal iniciado (diariamente às 00:01)");
+  console.log(" Job de liberação semanal iniciado (diariamente às 00:01)");
 }

@@ -5,6 +5,24 @@ import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
 import { ScaleIn } from "../components/animate-ui/ScaleIn";
 import { listarActivityLogs, type ActivityLog } from "../services/api";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Copy,
+  User,
+  School,
+  FilePenLine,
+  Package,
+  FileText,
+  Film,
+  Search,
+  X,
+  SlidersHorizontal,
+  ClipboardList,
+  Paperclip,
+  RefreshCcw,
+} from "lucide-react";
 import "./ActivityLogs.css";
 
 type Filters = {
@@ -43,20 +61,20 @@ const ENTITY_OPTIONS = [
   { value: "videoaula", label: "Videoaula" },
 ];
 
-const ACTION_CONFIG: Record<string, { icon: string; label: string; className: string }> = {
-  create: { icon: "+", label: "Criação", className: "actionCreate" },
-  update: { icon: "✎", label: "Atualização", className: "actionUpdate" },
-  delete: { icon: "✕", label: "Exclusão", className: "actionDelete" },
-  duplicate: { icon: "⧉", label: "Duplicação", className: "actionDuplicate" },
+const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
+  create: { icon: <Plus size={14} />, label: "Criação", className: "actionCreate" },
+  update: { icon: <Pencil size={14} />, label: "Atualização", className: "actionUpdate" },
+  delete: { icon: <Trash2 size={14} />, label: "Exclusão", className: "actionDelete" },
+  duplicate: { icon: <Copy size={14} />, label: "Duplicação", className: "actionDuplicate" },
 };
 
-const ENTITY_CONFIG: Record<string, { icon: string; label: string }> = {
-  user: { icon: "👤", label: "Usuário" },
-  turma: { icon: "🏫", label: "Turma" },
-  exercicio: { icon: "✍️", label: "Exercício" },
-  template: { icon: "📦", label: "Template" },
-  material: { icon: "📄", label: "Material" },
-  videoaula: { icon: "🎬", label: "Videoaula" },
+const ENTITY_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = {
+  user: { icon: <User size={14} />, label: "Usuário" },
+  turma: { icon: <School size={14} />, label: "Turma" },
+  exercicio: { icon: <FilePenLine size={14} />, label: "Exercício" },
+  template: { icon: <Package size={14} />, label: "Template" },
+  material: { icon: <FileText size={14} />, label: "Material" },
+  videoaula: { icon: <Film size={14} />, label: "Videoaula" },
 };
 
 function formatDate(value: string) {
@@ -188,7 +206,9 @@ export default function ActivityLogsPage() {
             <ScaleIn delay={0.1}>
               <div className="alStatCard">
                 <div className="alStatIcon alStatIconUpdate">
-                  <span>✎</span>
+                  <span style={{ display: "inline-flex" }}>
+                    <Pencil size={16} />
+                  </span>
                 </div>
                 <div className="alStatInfo">
                   <span className="alStatValue">{stats.update || 0}</span>
@@ -199,7 +219,9 @@ export default function ActivityLogsPage() {
             <ScaleIn delay={0.15}>
               <div className="alStatCard">
                 <div className="alStatIcon alStatIconDelete">
-                  <span>✕</span>
+                  <span style={{ display: "inline-flex" }}>
+                    <Trash2 size={16} />
+                  </span>
                 </div>
                 <div className="alStatInfo">
                   <span className="alStatValue">{stats.delete || 0}</span>
@@ -213,7 +235,9 @@ export default function ActivityLogsPage() {
           <div className="alToolbar">
             <div className="alSearchRow">
               <div className="alSearchWrap">
-                <span className="alSearchIcon">🔍</span>
+                <span className="alSearchIcon" style={{ display: "inline-flex" }}>
+                  <Search size={16} />
+                </span>
                 <input
                   type="text"
                   className="alSearchInput"
@@ -228,12 +252,14 @@ export default function ActivityLogsPage() {
                     onClick={() => setDraft((prev) => ({ ...prev, q: "" }))}
                     aria-label="Limpar busca"
                   >
-                    ✕
+                    <X size={14} />
                   </button>
                 )}
               </div>
               <AnimatedButton className="alBtnFilter" onClick={() => setShowFilters(!showFilters)}>
-                <span className="alFilterIcon">⚙</span>
+                <span className="alFilterIcon" style={{ display: "inline-flex" }}>
+                  <SlidersHorizontal size={16} />
+                </span>
                 Filtros
                 {hasActiveFilters && <span className="alFilterDot" />}
               </AnimatedButton>
@@ -241,7 +267,7 @@ export default function ActivityLogsPage() {
                 Buscar
               </AnimatedButton>
               <AnimatedButton className="alBtnRefresh" onClick={carregarLogs} title="Atualizar">
-                ↻
+                <RefreshCcw size={16} />
               </AnimatedButton>
             </div>
 
@@ -331,7 +357,9 @@ export default function ActivityLogsPage() {
             </div>
           ) : logs.length === 0 ? (
             <div className="alEmptyState">
-              <span className="alEmptyIcon">📋</span>
+              <span className="alEmptyIcon" style={{ display: "inline-flex" }}>
+                <ClipboardList size={20} />
+              </span>
               <span className="alEmptyTitle">Nenhum log encontrado</span>
               <span className="alEmptyText">
                 {hasActiveFilters
@@ -355,7 +383,7 @@ export default function ActivityLogsPage() {
                     className: "actionDefault",
                   };
                   const entityCfg = ENTITY_CONFIG[log.entityType] || {
-                    icon: "📎",
+                    icon: <Paperclip size={14} />,
                     label: log.entityType,
                   };
                   const actorName = log.actorNome || log.actorUsuario || "Sistema";

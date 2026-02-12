@@ -15,6 +15,18 @@ import {
   AnimatedRadioLabel,
 } from "../components/animate-ui";
 import {
+  FileText,
+  Link as LinkIcon,
+  Users,
+  User as UserIcon,
+  BookOpen,
+  Landmark,
+  Globe,
+  Trash2,
+  Download,
+  Plus,
+} from "lucide-react";
+import {
   listarMateriais,
   criarMaterial,
   deletarMaterial,
@@ -33,6 +45,12 @@ export default function MateriaisPage() {
   const userId = getUserId();
   const isStaff = role === "admin" || role === "professor";
   const { addToast } = useToast();
+  const iconLabel = (icon: React.ReactNode, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
 
   // Carregar materiais com cache
   const { data: materiais, loading, error, refetch } = useCachedData(
@@ -301,7 +319,7 @@ export default function MateriaisPage() {
               <div className="searchBox">
                 <input
                   type="text"
-                  placeholder="🔍 Buscar materiais..."
+                  placeholder="Buscar materiais..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   className="searchInput"
@@ -315,8 +333,8 @@ export default function MateriaisPage() {
                 className="filterSelect"
               >
                 <option value="todos">Todos os tipos</option>
-                <option value="arquivo">📄 Arquivos</option>
-                <option value="link">🔗 Links</option>
+                <option value="arquivo">Arquivos</option>
+                <option value="link">Links</option>
               </AnimatedSelect>
 
               {/* Filtro de Módulo */}
@@ -339,7 +357,7 @@ export default function MateriaisPage() {
                 onChange={(e) => setTurmaFiltro(e.target.value)}
                 className="filterSelect"
               >
-                <option value="todas">👥 Todas as turmas</option>
+                <option value="todas">Todas as turmas</option>
                 {turmasDisponiveis.map((turma) => (
                   <option key={turma.id} value={turma.id}>
                     {turma.nome}
@@ -357,7 +375,7 @@ export default function MateriaisPage() {
                   setFormError(null);
                 }}
               >
-                ➕ Adicionar Material
+                {iconLabel(<Plus size={14} />, "Adicionar Material")}
               </AnimatedButton>
             )}
           </div>
@@ -366,7 +384,7 @@ export default function MateriaisPage() {
           <div>
             {materiaisFiltrados.length === 0 ? (
               <div className="emptyState">
-                <div className="emptyIcon">📚</div>
+                <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
                 <div className="emptyTitle">
                   {materiais.length === 0
                     ? "Nenhum material disponível"
@@ -411,7 +429,7 @@ export default function MateriaisPage() {
                               <div className="materialCard">
                                 <div className="materialHeader">
                                   <div className="materialIcon">
-                                    {material.tipo === "arquivo" ? "📄" : "🔗"}
+                                    {material.tipo === "arquivo" ? <FileText size={14} /> : <LinkIcon size={14} />}
                                   </div>
                                   <div className="materialInfo">
                                     <h3 className="materialTitulo">{material.titulo}</h3>
@@ -456,7 +474,7 @@ export default function MateriaisPage() {
                                         }}
                                         title={alunoTitle}
                                       >
-                                        👤 {alunoLabel}
+                                        {iconLabel(<UserIcon size={12} />, alunoLabel)}
                                       </span>
                                     </PopInBadge>
                                   ) : material.turmas && material.turmas.length > 0 ? (
@@ -476,7 +494,7 @@ export default function MateriaisPage() {
                                             border: "1px solid rgba(59, 130, 246, 0.3)",
                                           }}
                                         >
-                                          🏛️ {material.turmas.length} turma{material.turmas.length > 1 ? "s" : ""}
+                                          {iconLabel(<Landmark size={12} />, `${material.turmas.length} turma${material.turmas.length > 1 ? "s" : ""}`)}
                                         </span>
                                       </PopInBadge>
                                       {material.turmas.map((turma, idx) => (
@@ -525,7 +543,7 @@ export default function MateriaisPage() {
                                         }}
                                         title="Disponível para todos os alunos"
                                       >
-                                        🌐 Para Todos
+                                        {iconLabel(<Globe size={12} />, "Para Todos")}
                                       </span>
                                     </PopInBadge>
                                   )}
@@ -537,8 +555,8 @@ export default function MateriaisPage() {
                                     onClick={() => handleDownload(material)}
                                   >
                                     {material.tipo === "arquivo"
-                                      ? "⬇️ Baixar"
-                                      : "🌐 Abrir Link"}
+                                      ? iconLabel(<Download size={14} />, "Baixar")
+                                      : iconLabel(<Globe size={14} />, "Abrir Link")}
                                   </AnimatedButton>
 
                                   {canUpload && (
@@ -547,7 +565,7 @@ export default function MateriaisPage() {
                                       className="materialDeleteBtn"
                                       title="Deletar"
                                     >
-                                      🗑️
+                                      <Trash2 size={14} />
                                     </AnimatedButton>
                                   )}
                                 </div>
@@ -644,7 +662,7 @@ export default function MateriaisPage() {
                       checked={formTipo === "arquivo"}
                       onChange={() => setFormTipo("arquivo")}
                     />
-                    <span>📄 Arquivo</span>
+                    {iconLabel(<FileText size={14} />, "Arquivo")}
                   </label>
                   <label className="radioLabel">
                     <input
@@ -654,7 +672,7 @@ export default function MateriaisPage() {
                       checked={formTipo === "link"}
                       onChange={() => setFormTipo("link")}
                     />
-                    <span>🔗 Link</span>
+                    {iconLabel(<LinkIcon size={14} />, "Link")}
                   </label>
                 </div>
               </div>
@@ -682,7 +700,7 @@ export default function MateriaisPage() {
                       setAlunosSelecionados([]);
                     }}
                     label="Turma Específica"
-                    icon="👥"
+                    icon={<Users size={14} />}
                   />
                   <AnimatedRadioLabel
                     name="modoAtribuicao"
@@ -693,7 +711,7 @@ export default function MateriaisPage() {
                       setTurmasSelecionadas([]);
                     }}
                     label="Aluno Específico"
-                    icon="👤"
+                    icon={<UserIcon size={14} />}
                   />
                 </div>
               </div>
@@ -733,7 +751,7 @@ export default function MateriaisPage() {
                     <input
                       type="text"
                       className="formInput"
-                      placeholder="🔍 Digite nome ou usuário..."
+                      placeholder="Digite nome ou usuário..."
                       value={alunoFiltro}
                       onChange={(e) => setAlunoFiltro(e.target.value)}
                     />

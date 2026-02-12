@@ -18,7 +18,29 @@ import {
   type Submissao,
 } from "../services/api";
 import "./ExerciseDetail.css";
-import { Keyboard } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  BarChart3,
+  CheckCircle,
+  Clock,
+  Code,
+  FileText,
+  Globe,
+  Info,
+  ListChecks,
+  Loader2,
+  MousePointer,
+  PenLine,
+  Pin,
+  RefreshCcw,
+  Rocket,
+  Send,
+  Settings,
+  Keyboard,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
 
 // Helper: Determina qual tipo de exercício renderizar baseado nos campos
 function determinarTipoRenderizacao(exercicio: Exercicio | null) {
@@ -48,6 +70,12 @@ export default function ExerciseDetail() {
   const navigate = useNavigate();
   const role = getRole();
   const canReview = role === "admin" || role === "professor";
+  const iconLabel = (icon: React.ReactNode, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
 
   // Exercício
   const [exercicio, setExercicio] = React.useState<Exercicio | null>(null);
@@ -337,7 +365,7 @@ export default function ExerciseDetail() {
       console.log = originalLog;
       console.error = originalError;
 
-      setOutputTeste(logs.length > 0 ? logs.join("\n") : "✅ Código executado sem erros!");
+      setOutputTeste(logs.length > 0 ? logs.join("\n") : "Código executado sem erros!");
     } catch (error) {
       console.log = originalLog;
       console.error = originalError;
@@ -417,16 +445,16 @@ export default function ExerciseDetail() {
       const score = result.submissao?.nota;
       if (isMultipla && score !== null && score !== undefined) {
         if (score >= 70) {
-          setSucessoMsg(`✅ Parabéns! Você acertou e obteve ${score}% de aproveitamento!`);
+          setSucessoMsg(`Parabéns! Você acertou e obteve ${score}% de aproveitamento!`);
         } else {
-          setAvisoMsg(`⚠️ Você obteve ${score}% de acertos. Revise e tente novamente.`);
+          setAvisoMsg(`Você obteve ${score}% de acertos. Revise e tente novamente.`);
         }
       } else {
         const verScore = result.submissao?.verificacaoDescricao;
         if (verScore !== null && verScore !== undefined && verScore < 50) {
-          setAvisoMsg("⚠️ Resposta enviada, mas parece fora do jeito esperado. Revise o enunciado.");
+          setAvisoMsg("Resposta enviada, mas parece fora do jeito esperado. Revise o enunciado.");
         } else {
-          setSucessoMsg("✅ Resposta enviada com sucesso!");
+          setSucessoMsg("Resposta enviada com sucesso!");
         }
       }
 
@@ -493,7 +521,7 @@ export default function ExerciseDetail() {
         <div className="exerciseDetailContainer">
           <FadeInUp delay={0.1} duration={0.4}>
             <div className="exMessage error">
-              <span>❌</span>
+              <span><XCircle size={16} /></span>
               <span>{erroEx || "Exercício não encontrado"}</span>
             </div>
           </FadeInUp>
@@ -501,7 +529,7 @@ export default function ExerciseDetail() {
             className="btnBack"
             onClick={() => navigate("/dashboard/exercicios")}
           >
-            ? Voltar aos exercícios
+            {iconLabel(<ArrowLeft size={16} />, "Voltar aos exercícios")}
           </AnimatedButton>
         </div>
       </DashboardLayout>
@@ -563,7 +591,7 @@ export default function ExerciseDetail() {
             className="btnBack"
             onClick={() => navigate("/dashboard/exercicios")}
           >
-            ? Voltar aos exercícios
+            {iconLabel(<ArrowLeft size={16} />, "Voltar aos exercícios")}
           </AnimatedButton>
 
           {/* GRID 2 COLUNAS */}
@@ -588,12 +616,12 @@ export default function ExerciseDetail() {
                     <span className="edLabel">Tipo:</span>
                     <strong>
                       {tipoExercicio === "nenhum"
-                        ? "🌐 Nenhum (Consulta)"
+                        ? iconLabel(<Globe size={14} />, "Nenhum (Consulta)")
                         : tipoExercicio === "codigo"
-                          ? "💻 Código"
+                          ? iconLabel(<Code size={14} />, "Código")
                           : tipoExercicio === "escrita"
-                            ? "✍️ Escrita"
-                            : "📄 Digitação"
+                            ? iconLabel(<PenLine size={14} />, "Escrita")
+                            : iconLabel(<FileText size={14} />, "Digitação")
                       }
                     </strong>
                   </div>
@@ -640,7 +668,7 @@ export default function ExerciseDetail() {
               {/* TENTATIVAS ANTERIORES */}
               <ConditionalFieldAnimation isVisible={submissoes.length > 0} duration={0.3}>
                 <div className="edCard edTentativas">
-                  <h3 className="edSubtitle">📊 Minhas Tentativas ({submissoes.length})</h3>
+                  <h3 className="edSubtitle">{iconLabel(<BarChart3 size={16} />, `Minhas Tentativas (${submissoes.length})`)}</h3>
 
                   <div className="tentativasList">
                     {submissoes.map((sub, idx) => (
@@ -655,7 +683,7 @@ export default function ExerciseDetail() {
                                 fontSize: "12px",
                                 fontWeight: "bold",
                               }}>
-                                ? ATRASADA
+                                {iconLabel(<Clock size={12} />, "ATRASADA")}
                               </span>
                             )}
                           </div>
@@ -715,7 +743,7 @@ export default function ExerciseDetail() {
               {canReview && (
                 <ConditionalFieldAnimation isVisible={true} duration={0.3}>
                   <div className="edCard edTentativas">
-                    <h3 className="edSubtitle">📄 Respostas dos alunos ({submissoesRecebidas.length})</h3>
+                    <h3 className="edSubtitle">{iconLabel(<FileText size={16} />, `Respostas dos alunos (${submissoesRecebidas.length})`)}</h3>
 
                     {loadingRecebidas ? (
                       <div style={{ padding: "20px", textAlign: "center" }}>
@@ -948,27 +976,27 @@ export default function ExerciseDetail() {
             {/* COLUNA DIREITA: RESPONDER */}
             <div className="exerciseDetailRight">
               <div className="edCard edResponder">
-                <h2 className="edSubtitle">📝 Envie sua resposta</h2>
+                <h2 className="edSubtitle">{iconLabel(<PenLine size={16} />, "Envie sua resposta")}</h2>
 
 
                 {/* MENSAGENS */}
                 <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
                   <div className="exMessage error">
-                    <span>❌</span>
+                    <span><XCircle size={16} /></span>
                     <span>{erroSubmissao}</span>
                   </div>
                 </ConditionalFieldAnimation>
 
                 <ConditionalFieldAnimation isVisible={!!sucessoMsg} duration={0.25}>
                   <div className="exMessage success">
-                    <span>✅</span>
+                    <span><CheckCircle size={16} /></span>
                     <span>{sucessoMsg}</span>
                   </div>
                 </ConditionalFieldAnimation>
 
                 <ConditionalFieldAnimation isVisible={!!avisoMsg} duration={0.25}>
                   <div className="exMessage warning">
-                    <span>⚠️</span>
+                    <span><AlertTriangle size={16} /></span>
                     <span>{avisoMsg}</span>
                   </div>
                 </ConditionalFieldAnimation>
@@ -987,12 +1015,12 @@ export default function ExerciseDetail() {
                           {(mouseRegras.clicksSimples || mouseRegras.duplosClicks || mouseRegras.clicksDireitos) && (
                             <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #bfdbfe" }}>
                               <p style={{ fontSize: 12, color: "#1e40af", margin: "0 0 6px 0", fontWeight: 600 }}>
-                                Ž¯ Regras de Sucesso:
+                                {iconLabel(<Settings size={14} />, "Regras de Sucesso:")}
                               </p>
                               <ul style={{ fontSize: 12, color: "#1e40af", margin: 0, paddingLeft: "20px" }}>
-                                {mouseRegras.clicksSimples > 0 && <li>–🖱️ {mouseRegras.clicksSimples} cliques esquerdos</li>}
-                                {mouseRegras.duplosClicks > 0 && <li>–🖱️–🖱️ {mouseRegras.duplosClicks} duplos cliques</li>}
-                                {mouseRegras.clicksDireitos > 0 && <li>–🖱️→ {mouseRegras.clicksDireitos} cliques direitos</li>}
+                                {mouseRegras.clicksSimples > 0 && <li>{iconLabel(<MousePointer size={12} />, `${mouseRegras.clicksSimples} cliques esquerdos`)}</li>}
+                                {mouseRegras.duplosClicks > 0 && <li>{iconLabel(<MousePointer size={12} />, `${mouseRegras.duplosClicks} duplos cliques`)}</li>}
+                                {mouseRegras.clicksDireitos > 0 && <li>{iconLabel(<MousePointer size={12} />, `${mouseRegras.clicksDireitos} cliques direitos`)}</li>}
                               </ul>
                             </div>
                           )}
@@ -1004,14 +1032,14 @@ export default function ExerciseDetail() {
                           rules={mouseRegras}
                           onComplete={() => {
                             setMouseCompleted(true);
-                            setSucessoMsg("✅ Parabéns! Você completou o desafio do Mouse!");
+                            setSucessoMsg("Parabéns! Você completou o desafio do Mouse!");
                           }}
                         />
 
                         <ConditionalFieldAnimation isVisible={mouseCompleted} duration={0.3}>
                           <div style={{ marginTop: "16px", padding: "12px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: "8px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
-                              ✅ Desafio completado! Agora você pode enviar sua submissão.
+                              <CheckCircle size={16} /> Desafio completado! Agora você pode enviar sua submissão.
                             </p>
                           </div>
                         </ConditionalFieldAnimation>
@@ -1037,7 +1065,7 @@ export default function ExerciseDetail() {
                     if (!multiplaRegras.questoes || multiplaRegras.questoes.length === 0) {
                       return (
                         <div style={{ padding: "16px", background: "#fee2e2", borderRadius: "8px" }}>
-                          ⚠️ Este exercício não possui questões configuradas.
+                          <AlertTriangle size={16} /> Este exercício não possui questões configuradas.
                         </div>
                       );
                     }
@@ -1046,9 +1074,9 @@ export default function ExerciseDetail() {
                       <div>
                         {/* Instruçíµes */}
                         <div style={{ padding: "16px", background: "#f0f9ff", borderRadius: "8px", marginBottom: "20px" }}>
-                          <p style={{ fontWeight: 600, color: "#1e40af" }}>📌 {exercicio.descricao}</p>
+                          <p style={{ fontWeight: 600, color: "#1e40af" }}>{iconLabel(<Pin size={14} />, exercicio.descricao)}</p>
                           <p style={{ fontSize: 12, color: "#1e40af" }}>
-                            ℹ️ Responda todas as {multiplaRegras.questoes.length} questões
+                            {iconLabel(<Info size={14} />, `Responda todas as ${multiplaRegras.questoes.length} questões`)}
                           </p>
                         </div>
 
@@ -1070,7 +1098,7 @@ export default function ExerciseDetail() {
                         <FadeInUp delay={0.1} duration={0.3}>
                           <div style={{ padding: "12px", background: "#f0fdf4", borderRadius: "8px", marginTop: "16px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
-                              📊 Progresso: {Object.keys(respostasMultipla).length} / {multiplaRegras.questoes.length} respondidas
+                              {iconLabel(<BarChart3 size={14} />, `Progresso: ${Object.keys(respostasMultipla).length} / ${multiplaRegras.questoes.length} respondidas`)}
                             </p>
                           </div>
                         </FadeInUp>
@@ -1096,7 +1124,7 @@ export default function ExerciseDetail() {
                       <div>
                         <ShortcutTrainingBox
                           ref={shortcutBoxRef}
-                          title="? Pratique o Atalho"
+                          title="Pratique o Atalho"
                           instruction={atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo à direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem â†’ Copiar imagem, depois cole no campo à direita"}
                           shortcutType={atalhoTipo}
                           sample={atalhoSample}
@@ -1187,7 +1215,7 @@ export default function ExerciseDetail() {
                                   setAtalhoTextNoticeType("info");
                                 }}
                               >
-                                🔄 Novo exemplo
+                                {iconLabel(<RefreshCcw size={14} />, "Novo exemplo")}
                               </button>
                             </div>
                           </div>
@@ -1310,11 +1338,13 @@ export default function ExerciseDetail() {
                             )}
 
                             <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>
-                              {atalhoCompleted ? "✅ Atalho completado" : "? Complete o exercício de atalho para treinar"}
+                              {atalhoCompleted
+                                ? iconLabel(<CheckCircle size={16} />, "Atalho completado")
+                                : iconLabel(<Info size={14} />, "Complete o exercício de atalho para treinar")}
                             </div>
                             {atalhoAutoNotice && (
                               <div style={{ marginTop: 8, color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
-                                ✅ Resposta enviada automaticamente
+                                {iconLabel(<CheckCircle size={16} />, "Resposta enviada automaticamente")}
                               </div>
                             )}
                           </div>
@@ -1334,7 +1364,7 @@ export default function ExerciseDetail() {
                         borderRadius: "12px",
                       }}>
                         <h3 style={{ marginTop: 0, marginBottom: "16px", color: "#2563eb", fontSize: "18px", fontWeight: "600" }}>
-                          👇 Selecione o tipo de resposta
+                          {iconLabel(<ArrowDown size={16} />, "Selecione o tipo de resposta")}
                         </h3>
                         <p style={{ marginBottom: "20px", color: "var(--text)", fontSize: "14px" }}>
                           Escolha como você gostaria de responder este exercício:
@@ -1362,7 +1392,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            💻 Código
+                            {iconLabel(<Code size={14} />, "Código")}
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("escrita")}
@@ -1386,7 +1416,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            ✍️ Escrita
+                            {iconLabel(<PenLine size={14} />, "Escrita")}
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("texto")}
@@ -1410,7 +1440,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            📄 Digitação
+                            {iconLabel(<FileText size={14} />, "Digitação")}
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("multipla")}
@@ -1434,7 +1464,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            🔘 Múltipla Escolha
+                            {iconLabel(<ListChecks size={14} />, "Múltipla Escolha")}
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("mouse")}
@@ -1458,7 +1488,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            🖱️ Mouse Interativo
+                            {iconLabel(<MousePointer size={14} />, "Mouse Interativo")}
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("atalho")}
@@ -1482,7 +1512,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            ⌨️ Atalho
+                            {iconLabel(<Keyboard size={14} />, "Atalho")}
                           </button>
                         </div>
                       </div>
@@ -1510,7 +1540,7 @@ export default function ExerciseDetail() {
                         onClick={handleTestarCodigo}
                         disabled={resposta.trim().length === 0 || linguagem !== "javascript"}
                       >
-                        🚀 Testar Código
+                        {iconLabel(<Rocket size={16} />, "Testar Código")}
                       </AnimatedButton>
                       <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
                         Teste local disponível apenas para JavaScript. Outras linguagens serão avaliadas pelo professor.
@@ -1519,14 +1549,14 @@ export default function ExerciseDetail() {
                       {/* OUTPUT DO TESTE */}
                       <ConditionalFieldAnimation isVisible={!!erroTeste} duration={0.3}>
                         <div className="edTestOutput error">
-                          <div className="edTestLabel">❌ Erro:</div>
+                          <div className="edTestLabel"><XCircle size={16} /> Erro:</div>
                           <pre>{erroTeste}</pre>
                         </div>
                       </ConditionalFieldAnimation>
 
                       <ConditionalFieldAnimation isVisible={!!outputTeste && !erroTeste} duration={0.3}>
                         <div className="edTestOutput success">
-                          <div className="edTestLabel">📊 Output:</div>
+                          <div className="edTestLabel">{iconLabel(<BarChart3 size={14} />, "Output:")}</div>
                           <pre>{outputTeste}</pre>
                         </div>
                       </ConditionalFieldAnimation>
@@ -1598,7 +1628,7 @@ export default function ExerciseDetail() {
                     fontSize: "14px",
                     fontWeight: "500",
                   }}>
-                    ⏰ <strong>Prazo expirado:</strong> Não é mais possível enviar respostas para este exercício.
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Clock size={14} /> <strong>Prazo expirado:</strong></span> Não é mais possível enviar respostas para este exercício.
                   </div>
                 </ConditionalFieldAnimation>
 
@@ -1613,7 +1643,7 @@ export default function ExerciseDetail() {
                     fontSize: "14px",
                     fontWeight: "500",
                   }}>
-                    ✅ <strong>Resposta já enviada.</strong> Você já completou este exercício.
+                    <CheckCircle size={16} /> <strong>Resposta já enviada.</strong> Você já completou este exercício.
                   </div>
                 </ConditionalFieldAnimation>
                 <ConditionalFieldAnimation isVisible={limiteTentativas} duration={0.3}>
@@ -1626,7 +1656,7 @@ export default function ExerciseDetail() {
                     fontSize: "14px",
                     fontWeight: "500",
                   }}>
-                    ❌ <strong>Limite de tentativas atingido.</strong>
+                    <XCircle size={16} /> <strong>Limite de tentativas atingido.</strong>
                   </div>
                 </ConditionalFieldAnimation>
 
@@ -1640,7 +1670,7 @@ export default function ExerciseDetail() {
                     fontSize: "14px",
                     fontWeight: "500",
                   }}>
-                    ⏳ Aguarde {minutosRestantes} minuto(s) para tentar novamente.
+                    {iconLabel(<Loader2 size={14} />, `Aguarde ${minutosRestantes} minuto(s) para tentar novamente.`)}
                   </div>
                 </ConditionalFieldAnimation>
 
@@ -1659,14 +1689,14 @@ export default function ExerciseDetail() {
                     loading={enviando}
                   >
                     {prazoVencido
-                      ? "❌ Prazo Expirado"
+                      ? iconLabel(<XCircle size={16} />, "Prazo Expirado")
                       : limiteTentativas
-                        ? "❌ Limite atingido"
+                        ? iconLabel(<XCircle size={16} />, "Limite atingido")
                         : cooldownAtivo
-                          ? "⏳ Aguarde o intervalo"
+                          ? iconLabel(<Loader2 size={14} />, "Aguarde o intervalo")
                           : tipoExercicio === "nenhum" && !selectedTipoNenhum
-                            ? "👇 Selecione um tipo acima"
-                            : "✨ Enviar Resposta"}
+                            ? iconLabel(<ArrowDown size={16} />, "Selecione um tipo acima")
+                            : iconLabel(<Send size={16} />, "Enviar Resposta")}
                   </AnimatedButton>
                 )}
                 {/* DICA - Mostra apenas quando há um tipo selecionado */}

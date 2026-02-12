@@ -7,6 +7,21 @@ import { getRole, getUserId, hasRole } from "../auth/auth";
 import { useToast } from "../contexts/ToastContext";
 import { useCachedData } from "../hooks/useCachedData";
 import {
+  Search,
+  Users,
+  Plus,
+  Film,
+  User as UserIcon,
+  Landmark,
+  Globe,
+  Trash2,
+  Clock,
+  Youtube,
+  FolderUp,
+  Play,
+  Check,
+} from "lucide-react";
+import {
   FadeInUp,
   PopInBadge,
   PulseLoader,
@@ -33,6 +48,12 @@ export default function VideoaulaBonusPage() {
   const userId = getUserId();
   const isStaff = role === "admin" || role === "professor";
   const { addToast } = useToast();
+  const iconLabel = (icon: React.ReactNode, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
 
   // Carregar videoaulas com cache
   const { data: videoaulas, loading, error, refetch } = useCachedData(
@@ -315,9 +336,12 @@ export default function VideoaulaBonusPage() {
           <div className="filtrosRow">
             {/* Busca */}
             <div className="searchBox">
+              <span className="searchIcon" style={{ display: "inline-flex" }}>
+                <Search size={16} />
+              </span>
               <input
                 type="text"
-                placeholder="🔍 Buscar videoaulas..."
+                placeholder="Buscar videoaulas..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 className="searchInput"
@@ -344,7 +368,7 @@ export default function VideoaulaBonusPage() {
               onChange={(e) => setTurmaFiltro(e.target.value)}
               className="filterSelect"
             >
-              <option value="todas">👥 Todas as turmas</option>
+              <option value="todas">Todas as turmas</option>
               {turmasDisponiveis.map((turma) => (
                 <option key={turma.id} value={turma.id}>
                   {turma.nome}
@@ -354,21 +378,23 @@ export default function VideoaulaBonusPage() {
           </div>
 
           {/* Botão de Upload (apenas para admin/professor) */}
-          {canUpload && (
-            <AnimatedButton
-              className="uploadBtn"
-              onClick={() => setModalAberto(true)}
-            >
-              ➕ Adicionar Videoaula
-            </AnimatedButton>
-          )}
+            {canUpload && (
+              <AnimatedButton
+                className="uploadBtn"
+                onClick={() => setModalAberto(true)}
+              >
+                {iconLabel(<Plus size={16} />, "Adicionar Videoaula")}
+              </AnimatedButton>
+            )}
         </div>
 
         {/* GRID DE VIDEOAULAS */}
         <div>
           {videoaulasFiltradas.length === 0 ? (
             <div className="emptyState">
-              <div className="emptyIcon">🎬</div>
+              <div className="emptyIcon" style={{ display: "inline-flex" }}>
+                <Film size={22} />
+              </div>
               <div className="emptyTitle">
                 {videoaulas.length === 0
                   ? "Nenhuma videoaula disponível"
@@ -454,7 +480,7 @@ export default function VideoaulaBonusPage() {
                           }}
                           title={alunoTitle}
                         >
-                          👤 {alunoLabel}
+                          {iconLabel(<UserIcon size={12} />, alunoLabel)}
                         </span>
                         </PopInBadge>
                       ) : videoaula.turmas && videoaula.turmas.length > 0 ? (
@@ -474,7 +500,10 @@ export default function VideoaulaBonusPage() {
                               border: "1px solid rgba(59, 130, 246, 0.3)",
                             }}
                           >
-                            🏛️ {videoaula.turmas.length} turma{videoaula.turmas.length > 1 ? "s" : ""}
+                            {iconLabel(
+                              <Landmark size={12} />,
+                              `${videoaula.turmas.length} turma${videoaula.turmas.length > 1 ? "s" : ""}`
+                            )}
                           </span>
                           </PopInBadge>
                           {videoaula.turmas.map((turma, idx) => (
@@ -523,7 +552,7 @@ export default function VideoaulaBonusPage() {
                           }}
                           title="Disponível para todos os alunos"
                         >
-                          🌐 Para Todos
+                          {iconLabel(<Globe size={12} />, "Para Todos")}
                         </span>
                         </PopInBadge>
                       )}
@@ -540,7 +569,7 @@ export default function VideoaulaBonusPage() {
                           className="assistirBtn"
                           onClick={() => handleAssistir(videoaula)}
                         >
-                          ▶️ Assistir
+                          {iconLabel(<Play size={16} />, "Assistir")}
                         </AnimatedButton>
                         {canUpload && (
                           <AnimatedButton
@@ -548,7 +577,7 @@ export default function VideoaulaBonusPage() {
                             onClick={() => setDeleteTarget(videoaula)}
                             title="Deletar"
                           >
-                            🗑️
+                            <Trash2 size={16} />
                           </AnimatedButton>
                         )}
                       </div>
@@ -623,7 +652,9 @@ export default function VideoaulaBonusPage() {
           <div className="videoInfo" style={{ padding: '0' }}>
             <div className="infoRow">
               <span className="modulo">{videoSelecionado?.modulo}</span>
-              <span className="duracao">⏱️ {videoSelecionado?.duracao}</span>
+              <span className="duracao">
+                {iconLabel(<Clock size={14} />, videoSelecionado?.duracao || "")}
+              </span>
             </div>
             <p className="descricao">{videoSelecionado?.descricao}</p>
             <div className="infoFooter">
@@ -723,7 +754,7 @@ export default function VideoaulaBonusPage() {
                         setFormData({ ...formData, tipo: e.target.value as "youtube" | "vimeo" | "arquivo" })
                       }
                     />
-                    <span>🎥 YouTube</span>
+                    {iconLabel(<Youtube size={16} />, "YouTube")}
                   </label>
                   <label className="radioLabel">
                     <input
@@ -735,7 +766,7 @@ export default function VideoaulaBonusPage() {
                         setFormData({ ...formData, tipo: e.target.value as "youtube" | "vimeo" | "arquivo" })
                       }
                     />
-                    <span>📁 Upload Local</span>
+                    {iconLabel(<FolderUp size={16} />, "Upload Local")}
                   </label>
                 </div>
               </div>
@@ -765,7 +796,7 @@ export default function VideoaulaBonusPage() {
                       setAlunosSelecionados([]);
                     }}
                     label="Turma Específica"
-                    icon="👥"
+                    icon={<Users size={14} />}
                   />
                   <AnimatedRadioLabel
                     name="modoAtribuicao"
@@ -776,7 +807,7 @@ export default function VideoaulaBonusPage() {
                       setTurmasSelecionadas([]);
                     }}
                     label="Aluno Específico"
-                    icon="👤"
+                    icon={<UserIcon size={14} />}
                   />
                 </div>
               </div>
@@ -816,7 +847,7 @@ export default function VideoaulaBonusPage() {
                     <input
                       type="text"
                       className="formInput"
-                      placeholder="🔍 Digite nome ou usuário..."
+                      placeholder="Digite nome ou usuário..."
                       value={alunoFiltro}
                       onChange={(e) => setAlunoFiltro(e.target.value)}
                     />
@@ -881,7 +912,11 @@ export default function VideoaulaBonusPage() {
                     />
                     <span className="fileInputLabel">
                       {formData.arquivo
-                        ? `✓ ${formData.arquivo.name}`
+                        ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <Check size={16} /> {formData.arquivo.name}
+                          </span>
+                        )
                         : "Selecione um arquivo de vídeo (MP4, WebM, etc)"}
                     </span>
                   </label>

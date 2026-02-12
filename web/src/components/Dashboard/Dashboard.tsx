@@ -16,6 +16,15 @@ import {
   type Submissao,
   type Turma,
 } from "../../services/api";
+import {
+  Calendar,
+  Flame,
+  PenLine,
+  School,
+  Plus,
+  KeyRound,
+  Package,
+} from "lucide-react";
 
 function toDateKey(date: Date) {
   const year = date.getFullYear();
@@ -372,7 +381,9 @@ export default function Dashboard() {
                                 borderRadius: "4px",
                                 whiteSpace: "nowrap"
                               }}>
-                                📅 Programado
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <Calendar size={14} /> Programado
+                                </span>
                               </span>
                             )}
                           </div>
@@ -433,7 +444,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="streakBadge" aria-hidden="true">
-                  🔥
+                  <Flame size={18} />
                 </div>
               </div>
               <p className="muted">
@@ -502,7 +513,9 @@ export default function Dashboard() {
                     onClick={() => navigate("/dashboard/exercicios")}
                     className="dashboardActionBtn"
                   >
-                    ✍️ Exercícios
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <PenLine size={16} /> Exercícios
+                    </span>
                   </RippleButton>
 
                   {(role === "admin" || role === "professor" || turmas.length > 0) && (
@@ -510,7 +523,9 @@ export default function Dashboard() {
                       onClick={() => navigate("/dashboard/turmas")}
                       className="dashboardActionBtn"
                     >
-                      🏫 Turmas
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <School size={16} /> Turmas
+                      </span>
                     </RippleButton>
                   )}
 
@@ -520,21 +535,27 @@ export default function Dashboard() {
                         onClick={() => navigate("/dashboard/criar-usuario")}
                         className="dashboardActionBtn"
                       >
-                        ➕ Criar Usuário
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <Plus size={16} /> Criar Usuário
+                        </span>
                       </RippleButton>
 
                       <RippleButton
                         onClick={() => navigate("/dashboard/usuarios")}
                         className="dashboardActionBtn"
                       >
-                        🔑 Gerenciar Usuários
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <KeyRound size={16} /> Gerenciar Usuários
+                        </span>
                       </RippleButton>
 
                       <RippleButton
                         onClick={() => navigate("/dashboard/templates")}
                         className="dashboardActionBtn"
                       >
-                        📦 Templates
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <Package size={16} /> Templates
+                        </span>
                       </RippleButton>
                     </>
                   )}

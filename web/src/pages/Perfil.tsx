@@ -16,6 +16,18 @@ import {
   AnimatedSelect,
   AnimatedToggle,
 } from "../components/animate-ui";
+import {
+  Users,
+  Flame,
+  BookOpen,
+  User as UserIcon,
+  Laptop,
+  Monitor,
+  CheckCircle,
+  XCircle,
+  Circle,
+  Loader2,
+} from "lucide-react";
 import "./Perfil.css";
 
 type UserStats = {
@@ -34,6 +46,12 @@ type ProfileSettings = {
 };
 
 const SETTINGS_KEY = "perfil_settings";
+const iconLabel = (icon: React.ReactNode, label: string) => (
+  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    {icon}
+    <span>{label}</span>
+  </span>
+);
 
 const defaultSettings: ProfileSettings = {
   emailNotificacoes: true,
@@ -127,7 +145,7 @@ export default function PerfilPage() {
 
 
   const handleChangeSenha = async () => {
-    console.log("🔐 handleChangeSenha iniciado");
+    console.log("handleChangeSenha iniciado");
 
     // Validações
     if (!senhaAtual?.trim()) {
@@ -155,13 +173,13 @@ export default function PerfilPage() {
     setFeedback(null);
 
     try {
-      console.log("📤 Enviando requisição...");
+      console.log("Enviando requisição...");
       const result = await alterarMinhaSenha({
         senhaAtual: senhaAtual.trim(),
         novaSenha: novaSenha.trim()
       });
 
-      console.log("✅ Sucesso:", result);
+      console.log("Sucesso:", result);
       closeSenhaModal();
       setFeedback({
         type: "success",
@@ -169,7 +187,7 @@ export default function PerfilPage() {
       });
 
     } catch (error) {
-      console.error("❌ Erro:", error);
+      console.error("Erro:", error);
       setFeedback({
         type: "error",
         message: error instanceof Error ? error.message : "Erro ao alterar senha",
@@ -244,7 +262,7 @@ export default function PerfilPage() {
 
           {feedback && (
             <div className={`perfilMessage ${feedback.type}`}>
-              <span>{feedback.type === "success" ? "✅" : "❌"}</span>
+              <span>{feedback.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}</span>
               <span>{feedback.message}</span>
             </div>
           )}
@@ -398,7 +416,7 @@ export default function PerfilPage() {
 
             <div className="statsGrid">
               <div className="statCard">
-                <div className="statIcon">✅</div>
+                <div className="statIcon"><CheckCircle size={18} /></div>
                 <div className="statInfo">
                   <div className="statValue">{stats.exerciciosFeitos}</div>
                   <div className="statLabel">Exercícios Feitos</div>
@@ -414,7 +432,7 @@ export default function PerfilPage() {
               </div>
 
               <div className="statCard">
-                <div className="statIcon">👥</div>
+                <div className="statIcon"><Users size={18} /></div>
                 <div className="statInfo">
                   <div className="statValue">{stats.turmasInscritas}</div>
                   <div className="statLabel">Turmas Inscritas</div>
@@ -422,7 +440,7 @@ export default function PerfilPage() {
               </div>
 
               <div className="statCard">
-                <div className="statIcon">🔥</div>
+                <div className="statIcon"><Flame size={18} /></div>
                 <div className="statInfo">
                   <div className="statValue">{stats.diasSequencia}</div>
                   <div className="statLabel">Dias de Sequência</div>
@@ -439,19 +457,19 @@ export default function PerfilPage() {
 
             {turmas.length === 0 ? (
               <div className="emptyState">
-                <div className="emptyIcon">📚</div>
+                <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
                 <p>Você não está inscrito em nenhuma turma</p>
               </div>
             ) : (
               <div className="turmasList">
                 {turmas.map((turma) => (
                   <div key={turma.id} className="turmaItem">
-                    <div className="turmaIcon">{turma.tipo === "turma" ? "👥" : "👤"}</div>
+                    <div className="turmaIcon">{turma.tipo === "turma" ? <Users size={16} /> : <UserIcon size={16} />}</div>
                     <div className="turmaInfo">
                       <h3 className="turmaNome">{turma.nome}</h3>
                       <div className="turmaMeta">
                         <span className="badge badgeCategoria">
-                          {turma.categoria === "programacao" ? "💻 Programação" : "🖥️ Informática"}
+                          {turma.categoria === "programacao" ? iconLabel(<Laptop size={14} />, "Programação") : iconLabel(<Monitor size={14} />, "Informática")}
                         </span>
                         <span className="badge badgeTipo">
                           {turma.tipo === "turma" ? "Grupo" : "Particular"}
@@ -493,10 +511,10 @@ export default function PerfilPage() {
                     autoComplete="new-password"
                   />
                   {novaSenha && novaSenha.length < 6 && (
-                    <small className="formHint error">❌ Mínimo 6 caracteres</small>
+                    <small className="formHint error">{iconLabel(<XCircle size={12} />, "Mínimo 6 caracteres")}</small>
                   )}
                   {novaSenha && novaSenha.length >= 6 && (
-                    <small className="formHint success">✅ Senha forte</small>
+                    <small className="formHint success">{iconLabel(<CheckCircle size={12} />, "Senha forte")}</small>
                   )}
                 </div>
 
@@ -511,10 +529,10 @@ export default function PerfilPage() {
                     autoComplete="new-password"
                   />
                   {confirmarSenha && novaSenha === confirmarSenha && (
-                    <small className="formHint success">✅ Senhas coincidem</small>
+                    <small className="formHint success">{iconLabel(<CheckCircle size={12} />, "Senhas coincidem")}</small>
                   )}
                   {confirmarSenha && novaSenha !== confirmarSenha && (
-                    <small className="formHint error">❌ As senhas não coincidem</small>
+                    <small className="formHint error">{iconLabel(<XCircle size={12} />, "As senhas não coincidem")}</small>
                   )}
                 </div>
 
@@ -522,13 +540,13 @@ export default function PerfilPage() {
                   <p style={{ margin: "0 0 8px 0", fontSize: "13px", fontWeight: "600", color: "var(--text)" }}>Requisitos:</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
                     <div style={{ color: senhaAtual ? "#16a34a" : "var(--muted)" }}>
-                      {senhaAtual ? "✅" : "○"} Senha atual preenchida
+                      {senhaAtual ? <CheckCircle size={14} /> : <Circle size={12} />} Senha atual preenchida
                     </div>
                     <div style={{ color: novaSenha && novaSenha.length >= 6 ? "#16a34a" : "var(--muted)" }}>
-                      {novaSenha && novaSenha.length >= 6 ? "✅" : "○"} Nova senha com 6+ caracteres
+                      {novaSenha && novaSenha.length >= 6 ? <CheckCircle size={14} /> : <Circle size={12} />} Nova senha com 6+ caracteres
                     </div>
                     <div style={{ color: confirmarSenha && novaSenha === confirmarSenha ? "#16a34a" : "var(--muted)" }}>
-                      {confirmarSenha && novaSenha === confirmarSenha ? "✅" : "○"} Confirmação igual
+                      {confirmarSenha && novaSenha === confirmarSenha ? <CheckCircle size={14} /> : <Circle size={12} />} Confirmação igual
                     </div>
                   </div>
                 </div>
@@ -548,7 +566,7 @@ export default function PerfilPage() {
                     disabled={savingSenha}
                     loading={savingSenha}
                   >
-                    {savingSenha ? "⏳ Alterando..." : "✅ Alterar Senha"}
+                    {savingSenha ? iconLabel(<Loader2 size={14} />, "Alterando...") : iconLabel(<CheckCircle size={14} />, "Alterar Senha")}
                   </AnimatedButton>
                 </div>
               </div>

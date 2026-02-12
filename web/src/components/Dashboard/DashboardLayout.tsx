@@ -4,6 +4,32 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, getUserId, hasRole, logout } from "../../auth/auth";
 import { listarTurmas, type Turma } from "../../services/api";
+import {
+  GraduationCap,
+  X,
+  Home,
+  Compass,
+  PenLine,
+  FileText,
+  Play,
+  School,
+  ClipboardList,
+  Users,
+  User,
+  Plus,
+  Package,
+  KeyRound,
+  BarChart3,
+  Bell,
+  Settings,
+  Menu,
+  LogOut,
+  Laptop,
+  Monitor,
+  ChevronDown,
+  ChevronRight,
+  ArrowRight,
+} from "lucide-react";
 import "./Dashboard.css";
 
 type DashboardLayoutProps = {
@@ -86,7 +112,7 @@ export default function DashboardLayout({
         <div className="sbTop">
           <div className="sbBrand">
             <div className="sbLogo" aria-hidden="true">
-              🎓
+              <GraduationCap size={20} />
             </div>
             <div className="sbBrandText">
               <div className="sbBrandName">Santos Tech</div>
@@ -98,38 +124,38 @@ export default function DashboardLayout({
             onClick={() => setSidebarOpen(false)}
             aria-label="Fechar menu"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
         <nav className="sbNav">
           <Link className={`sbItem ${isDashboard ? "active" : ""}`} to="/dashboard">
             <span className="sbIcon" aria-hidden="true">
-              🏠
+              <Home size={18} />
             </span>
             Dashboard
           </Link>
           <Link className={`sbItem ${isTrilha ? "active" : ""}`} to="/dashboard/trilha">
             <span className="sbIcon" aria-hidden="true">
-              🧭
+              <Compass size={18} />
             </span>
             Trilha do Curso
           </Link>
           <Link className={`sbItem ${isExercicios ? "active" : ""}`} to="/dashboard/exercicios">
             <span className="sbIcon" aria-hidden="true">
-              ✍️
+              <PenLine size={18} />
             </span>
             Exercícios
           </Link>
           <Link className={`sbItem ${isMateriais ? "active" : ""}`} to="/dashboard/materiais">
             <span className="sbIcon" aria-hidden="true">
-              📄
+              <FileText size={18} />
             </span>
             Materiais
           </Link>
           <Link className={`sbItem ${isVideoaulas ? "active" : ""}`} to="/dashboard/videoaulas">
             <span className="sbIcon" aria-hidden="true">
-              ▶️
+              <Play size={18} />
             </span>
             Videoaulas Bônus
           </Link>
@@ -140,7 +166,9 @@ export default function DashboardLayout({
               onClick={handleMinhasTurmas}
               style={{ textAlign: "left" }}
             >
-              <span className="sbIcon" aria-hidden="true">🏫</span>
+              <span className="sbIcon" aria-hidden="true">
+                <School size={18} />
+              </span>
               <span>Turmas</span>
             </button>
           ) : null}
@@ -151,10 +179,12 @@ export default function DashboardLayout({
                 className="sideSectionHeader"
                 onClick={() => setExpandirTurmas(!expandirTurmas)}
               >
-                <span className="sbIcon" aria-hidden="true">📋</span>
+                <span className="sbIcon" aria-hidden="true">
+                  <ClipboardList size={18} />
+                </span>
                 <span>Minhas Turmas</span>
                 <span className="sideExpand" aria-hidden="true">
-                  {expandirTurmas ? "▼" : "▶"}
+                  {expandirTurmas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </span>
               </button>
 
@@ -170,7 +200,7 @@ export default function DashboardLayout({
                         >
                           <span className="sideTurmaName">{turma.nome}</span>
                           <span className="sideTurmaBadge">
-                            {turma.tipo === "turma" ? "👥" : "👤"}
+                            {turma.tipo === "turma" ? <Users size={14} /> : <User size={14} />}
                           </span>
                         </button>
                       ))}
@@ -183,7 +213,10 @@ export default function DashboardLayout({
                     className="sideCreateTurmaBtn"
                     onClick={() => navigate("/dashboard/turmas")}
                   >
-                    <span aria-hidden="true">➕</span> Criar turma
+                    <span aria-hidden="true" style={{ display: "inline-flex" }}>
+                      <Plus size={14} />
+                    </span>{" "}
+                    Criar turma
                   </button>
                 </div>
               )}
@@ -192,7 +225,7 @@ export default function DashboardLayout({
 
           <Link className={`sbItem ${isPerfil ? "active" : ""}`} to="/dashboard/perfil">
             <span className="sbIcon" aria-hidden="true">
-              👤
+              <User size={18} />
             </span>
             Perfil
           </Link>
@@ -201,21 +234,21 @@ export default function DashboardLayout({
             <>
               <Link className={`sbItem ${isTemplates ? "active" : ""}`} to="/dashboard/templates">
                 <span className="sbIcon" aria-hidden="true">
-                  📦
+                  <Package size={18} />
                 </span>
                 Templates
               </Link>
 
               <Link className={`sbItem ${isAdminUsers ? "active" : ""}`} to="/dashboard/usuarios">
                 <span className="sbIcon" aria-hidden="true">
-                  🔑
+                  <KeyRound size={18} />
                 </span>
                 Gerenciar Usuários
               </Link>
 
               <Link className={`sbItem ${isActivityLogs ? "active" : ""}`} to="/dashboard/logs">
                 <span className="sbIcon" aria-hidden="true">
-                  📊
+                  <BarChart3 size={18} />
                 </span>
                 Logs de Atividade
               </Link>
@@ -225,7 +258,7 @@ export default function DashboardLayout({
                 to="/dashboard/criar-usuario"
               >
                 <span className="sbIcon" aria-hidden="true">
-                  ➕
+                  <Plus size={18} />
                 </span>
                 Criar usuário
               </Link>
@@ -248,7 +281,7 @@ export default function DashboardLayout({
               title="Sair"
               aria-label="Sair"
             >
-              ⎋
+              <LogOut size={16} />
             </button>
           </div>
         </div>
@@ -272,7 +305,7 @@ export default function DashboardLayout({
             aria-label="Abrir menu"
             aria-expanded={sidebarOpen}
           >
-            {sidebarOpen ? "✕" : "☰"}
+            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
 
           <div>
@@ -282,7 +315,7 @@ export default function DashboardLayout({
 
           <div className="topActions">
             <button className="iconBtn" aria-label="Notificações" type="button">
-              🔔 <span className="dot" />
+              <Bell size={18} /> <span className="dot" />
             </button>
             <button
               className="iconBtn"
@@ -290,7 +323,7 @@ export default function DashboardLayout({
               type="button"
               onClick={() => navigate("/dashboard/perfil")}
             >
-              ⚙️
+              <Settings size={18} />
             </button>
           </div>
         </header>
@@ -320,13 +353,31 @@ export default function DashboardLayout({
                   <div className="turmaSelectorInfo">
                     <div className="turmaSelectorName">{turma.nome}</div>
                     <div className="turmaSelectorMeta">
-                      {turma.tipo === "turma" ? "👥 Turma (Grupo)" : "👤 Turma Particular"}
+                      {turma.tipo === "turma" ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <Users size={14} /> Turma (Grupo)
+                        </span>
+                      ) : (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <User size={14} /> Turma Particular
+                        </span>
+                      )}
                       {turma.categoria && (
-                        <> • {turma.categoria === "programacao" ? "💻 Programação" : "🖥️ Informática"}</>
+                        <>{" - "}{turma.categoria === "programacao"
+                          ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <Laptop size={14} /> Programação
+                            </span>
+                          )
+                          : (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <Monitor size={14} /> Informática
+                            </span>
+                          )}</>
                       )}
                     </div>
                   </div>
-                  <span className="turmaSelectorArrow">→</span>
+                  <span className="turmaSelectorArrow" aria-hidden="true"><ArrowRight size={16} /></span>
                 </button>
               ))}
             </div>

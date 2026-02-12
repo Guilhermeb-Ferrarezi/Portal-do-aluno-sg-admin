@@ -1,4 +1,13 @@
 import React from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  CheckCircle,
+  ClipboardList,
+  MousePointer,
+  MousePointerClick,
+} from "lucide-react";
 import "./ExerciseComponents.css";
 
 type MouseEvent = {
@@ -178,7 +187,9 @@ export default function MouseInteractiveBox({
               top: `${cursor.y}px`,
             }}
           >
-            <div className="mouseCursorArrow">👆</div>
+            <div className="mouseCursorArrow">
+              <ArrowUp size={16} />
+            </div>
           </div>
         )}
 
@@ -194,15 +205,27 @@ export default function MouseInteractiveBox({
             title={`${event.type} em ${new Date(event.timestamp).toLocaleTimeString()}`}
           >
             <span className="mouseEventLabel">
-              {event.type === "click" && "🖱️"}
-              {event.type === "double-click" && "🖱️🖱️"}
-              {event.type === "right-click" && "🖱️→"}
+              {event.type === "click" && <MousePointerClick size={14} />}
+              {event.type === "double-click" && (
+                <span style={{ display: "inline-flex", gap: 2 }}>
+                  <MousePointerClick size={14} />
+                  <MousePointerClick size={14} />
+                </span>
+              )}
+              {event.type === "right-click" && (
+                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  <MousePointer size={14} />
+                  <ArrowRight size={12} />
+                </span>
+              )}
             </span>
           </div>
         ))}
 
         <div className="mouseBoxContent">
-          <p className="mouseBoxHint">👈 Clique, duplo-clique ou clique direito aqui</p>
+          <p className="mouseBoxHint" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <ArrowLeft size={14} /> Clique, duplo-clique ou clique direito aqui
+          </p>
         </div>
       </div>
 
@@ -216,23 +239,42 @@ export default function MouseInteractiveBox({
           marginTop: "12px",
         }}>
           <p style={{ fontSize: 13, fontWeight: 600, color: isComplete ? "#166534" : "#22c55e", margin: "0 0 8px 0" }}>
-            {isComplete ? "✅ Desafio Completo!" : "📋 Progresso do Desafio:"}
+            {isComplete ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <CheckCircle size={14} /> Desafio Completo!
+              </span>
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <ClipboardList size={14} /> Progresso do Desafio:
+              </span>
+            )}
           </p>
 
           <div style={{ fontSize: 12, color: isComplete ? "#166534" : "#166534", lineHeight: "1.6" }}>
             {rules.clicksSimples && rules.clicksSimples > 0 && (
               <div style={{ marginBottom: "4px" }}>
-                🖱️ Cliques esquerdos: <strong>{events.filter(e => e.type === "click").length} / {rules.clicksSimples}</strong>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <MousePointer size={14} /> Cliques esquerdos:
+                </span>{" "}
+                <strong>{events.filter(e => e.type === "click").length} / {rules.clicksSimples}</strong>
               </div>
             )}
             {rules.duplosClicks && rules.duplosClicks > 0 && (
               <div style={{ marginBottom: "4px" }}>
-                🖱️🖱️ Duplos cliques: <strong>{events.filter(e => e.type === "double-click").length} / {rules.duplosClicks}</strong>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <MousePointerClick size={14} />
+                  <MousePointerClick size={14} /> Duplos cliques:
+                </span>{" "}
+                <strong>{events.filter(e => e.type === "double-click").length} / {rules.duplosClicks}</strong>
               </div>
             )}
             {rules.clicksDireitos && rules.clicksDireitos > 0 && (
               <div style={{ marginBottom: "4px" }}>
-                🖱️→ Cliques direitos: <strong>{events.filter(e => e.type === "right-click").length} / {rules.clicksDireitos}</strong>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <MousePointer size={14} />
+                  <ArrowRight size={12} /> Cliques direitos:
+                </span>{" "}
+                <strong>{events.filter(e => e.type === "right-click").length} / {rules.clicksDireitos}</strong>
               </div>
             )}
           </div>

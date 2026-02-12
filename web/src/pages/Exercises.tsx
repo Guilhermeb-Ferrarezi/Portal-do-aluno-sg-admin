@@ -8,6 +8,38 @@ import MonacoEditor from "../components/MonacoEditor";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
 import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, ConditionalFieldAnimation, AnimatedSelect, FadeInUp, AnimatedToggle } from "../components/animate-ui";
+import {
+  RefreshCcw,
+  Loader2,
+  Laptop,
+  Monitor,
+  ClipboardList,
+  Package,
+  Code,
+  PenLine,
+  ListChecks,
+  MousePointer,
+  Keyboard,
+  Image,
+  Trash2,
+  Plus,
+  Eye,
+  Settings,
+  AlertTriangle,
+  Save,
+  Sparkles,
+  XCircle,
+  X,
+  Lightbulb,
+  Info,
+  Users,
+  User as UserIcon,
+  Globe,
+  Landmark,
+  BookOpen,
+  Pencil,
+  Calendar,
+} from "lucide-react";
 import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
@@ -19,6 +51,12 @@ export default function ExerciciosPage() {
   const isStaff = role === "admin" || role === "professor";
   const canCreate = isStaff;
   const canManageTemplates = role === "admin";
+  const iconLabel = (icon: React.ReactNode, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
 
   const [items, setItems] = React.useState<Exercicio[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -515,7 +553,9 @@ export default function ExerciciosPage() {
             )}
           </div>
           <button className="refreshBtn" onClick={load} disabled={loading}>
-            {loading ? "⏳ Carregando..." : "🔄 Atualizar"}
+            {loading
+              ? iconLabel(<Loader2 size={16} />, "Carregando...")
+              : iconLabel(<RefreshCcw size={16} />, "Atualizar")}
           </button>
         </div>
 
@@ -544,7 +584,9 @@ export default function ExerciciosPage() {
         {/* MENSAGENS */}
         {erro && (
           <div className="exMessage error">
-            <span>❌</span>
+            <span>
+              <XCircle size={16} />
+            </span>
             <span>{erro}</span>
           </div>
         )}
@@ -600,7 +642,7 @@ export default function ExerciciosPage() {
                         }}
                         style={{ marginRight: "8px", cursor: "pointer" }}
                       />
-                      <span style={{ fontWeight: 600 }}>💻 Programação</span>
+                      <span style={{ fontWeight: 600 }}>{iconLabel(<Laptop size={14} />, "Programação")}</span>
                     </label>
                   </div>
 
@@ -617,7 +659,7 @@ export default function ExerciciosPage() {
                         }}
                         style={{ marginRight: "8px", cursor: "pointer" }}
                       />
-                      <span style={{ fontWeight: 600 }}>📚 Informática</span>
+                      <span style={{ fontWeight: 600 }}>{iconLabel(<Monitor size={14} />, "Informática")}</span>
                     </label>
                   </div>
                 </div>
@@ -634,7 +676,7 @@ export default function ExerciciosPage() {
                         onChange={() => setIsTemplate(false)}
                         style={{ marginRight: "8px", cursor: "pointer" }}
                       />
-                      <span style={{ fontWeight: 600 }}>📝 Atividade Padrão</span>
+                      <span style={{ fontWeight: 600 }}>{iconLabel(<ClipboardList size={14} />, "Atividade Padrão")}</span>
                     </label>
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                       Atividade padrão para a turma
@@ -651,7 +693,7 @@ export default function ExerciciosPage() {
                         onChange={() => setIsTemplate(true)}
                         style={{ marginRight: "8px", cursor: "pointer" }}
                       />
-                      <span style={{ fontWeight: 600 }}>📦 Template (Reutilizável)</span>
+                      <span style={{ fontWeight: 600 }}>{iconLabel(<Package size={14} />, "Template (Reutilizável)")}</span>
                     </label>
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                       Template reutilizável
@@ -671,7 +713,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === "nenhum"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Nenhum (Normal)"
-                          icon="📝"
+                          icon={<ClipboardList size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="tipoExercicio"
@@ -679,7 +721,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === ""}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Código (Monaco)"
-                          icon="💻"
+                          icon={<Code size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="tipoExercicio"
@@ -687,7 +729,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === "escrita"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Escrita"
-                          icon="✍️"
+                          icon={<PenLine size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="tipoExercicio"
@@ -695,7 +737,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === "multipla"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Múltipla Escolha"
-                          icon="❓"
+                          icon={<ListChecks size={14} />} 
                         />
                       </div>
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
@@ -747,7 +789,7 @@ export default function ExerciciosPage() {
                         <>
                           <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", margin: "0 0 12px 0" }}>
-                              ❓ Configurar Questões de Múltipla Escolha:
+                              {iconLabel(<ListChecks size={14} />, "Configurar Questões de Múltipla Escolha:")}
                             </p>
 
                             {multiplaQuestoes.map((questao, qIndex) => (
@@ -825,7 +867,7 @@ export default function ExerciciosPage() {
                                       fontWeight: 600,
                                     }}
                                   >
-                                    🗑️ Remover Questão
+                                    {iconLabel(<Trash2 size={14} />, "Remover Questão")}
                                   </button>
                                 )}
                               </div>
@@ -859,13 +901,13 @@ export default function ExerciciosPage() {
                                 marginTop: "8px",
                               }}
                             >
-                              ➕ Adicionar Outra Questão
+                              {iconLabel(<Plus size={14} />, "Adicionar Outra Questão")}
                             </button>
                           </div>
 
                           <div style={{ background: "var(--background-secondary)", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>
-                              👁️ Pré-visualização:
+                              {iconLabel(<Eye size={14} />, "Pré-visualização:")}
                             </p>
                             {multiplaQuestoes.map((questao, idx) => (
                               <div key={idx} style={{ marginBottom: "16px" }}>
@@ -896,7 +938,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === ""}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Nenhum (Normal)"
-                          icon="📝"
+                          icon={<ClipboardList size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
@@ -904,7 +946,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === "escrita"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Escrita"
-                          icon="✍️"
+                          icon={<PenLine size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
@@ -912,7 +954,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === "mouse"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Mouse"
-                          icon="🖱️"
+                          icon={<MousePointer size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
@@ -920,7 +962,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === "multipla"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Múltipla Escolha"
-                          icon="❓"
+                          icon={<ListChecks size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
@@ -928,7 +970,7 @@ export default function ExerciciosPage() {
                           checked={componenteInterativo === "atalho"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
                           label="Atalho"
-                          icon="⌨️"
+                          icon={<Keyboard size={14} />} 
                         />
                       </div>
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
@@ -978,7 +1020,7 @@ export default function ExerciciosPage() {
                       <>
                         <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
                           <p style={{ fontSize: 13, fontWeight: 600, color: "#1e40af", margin: "0 0 12px 0" }}>
-                            ⚙️ Definir Regras de Sucesso:
+                            {iconLabel(<Settings size={14} />, "Definir Regras de Sucesso:")}
                           </p>
 
                           <div className="exInputRow">
@@ -1035,10 +1077,10 @@ export default function ExerciciosPage() {
                         marginTop: "16px",
                       }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "12px" }}>
-                          📋 PREVIEW - Como o aluno vai ver:
+                          {iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}
                         </p>
                         <MouseInteractiveBox
-                          title="🖱️ Interação com Mouse"
+                          title="Interação com Mouse"
                           instruction="Clique, duplo-clique ou clique direito para registrar suas ações"
                         />
                       </div>
@@ -1054,7 +1096,7 @@ export default function ExerciciosPage() {
                         marginTop: "16px",
                       }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "16px" }}>
-                          📋 Criar Questões ({multiplaQuestoes.length})
+                          {iconLabel(<ListChecks size={14} />, "Criar Questões")} ({multiplaQuestoes.length})
                         </p>
 
                         {/* Loop através de cada questão */}
@@ -1168,7 +1210,7 @@ export default function ExerciciosPage() {
                                   fontWeight: 500,
                                 }}
                               >
-                                ❌ Remover Questão
+                                {iconLabel(<Trash2 size={14} />, "Remover Questão")}
                               </button>
                             )}
                           </div>
@@ -1201,7 +1243,7 @@ export default function ExerciciosPage() {
                             marginBottom: "16px",
                           }}
                         >
-                          ➕ Adicionar Outra Questão
+                          {iconLabel(<Plus size={14} />, "Adicionar Outra Questão")}
                         </button>
 
                         {/* PREVIEW DINÂMICO DA PRIMEIRA QUESTÃO */}
@@ -1214,7 +1256,7 @@ export default function ExerciciosPage() {
                             marginTop: "16px",
                           }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#0c4a6e", marginTop: 0, marginBottom: "12px" }}>
-                              👁️ PREVIEW - Como o aluno vai ver:
+                              {iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}
                             </p>
                             <MultipleChoiceQuestion
                               question={`Q1: ${multiplaQuestoes[0].pergunta}`}
@@ -1240,7 +1282,7 @@ export default function ExerciciosPage() {
                           checked={atalhoTipo === "copiar-colar"}
                           onChange={(e) => setAtalhoTipo(e.target.value as any)}
                           label="Copiar e Colar Texto"
-                          icon="📋"
+                          icon={<ClipboardList size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="atalhoTipo"
@@ -1248,7 +1290,7 @@ export default function ExerciciosPage() {
                           checked={atalhoTipo === "copiar-colar-imagens"}
                           onChange={(e) => setAtalhoTipo(e.target.value as any)}
                           label="Copiar e Colar Imagem"
-                          icon="🖼️"
+                          icon={<Image size={14} />} 
                         />
                         <AnimatedRadioLabel
                           name="atalhoTipo"
@@ -1256,7 +1298,7 @@ export default function ExerciciosPage() {
                           checked={atalhoTipo === "selecionar-deletar"}
                           onChange={(e) => setAtalhoTipo(e.target.value as any)}
                           label="Selecionar Tudo e Deletar"
-                          icon="🗑️"
+                          icon={<Trash2 size={14} />} 
                         />
                       </div>
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
@@ -1370,7 +1412,7 @@ export default function ExerciciosPage() {
                 <ConditionalFieldAnimation isVisible={!publishNow && !isTemplate}>
                   <div className="exInputRow">
                     <div className="exInputGroup" style={{ cursor: "pointer" }}>
-                      <label className="exLabel" style={{ cursor: "pointer" }}>📅 Agendar Publicação</label>
+                      <label className="exLabel" style={{ cursor: "pointer" }}>{iconLabel(<Calendar size={14} />, "Agendar Publicação")}</label>
                       <input
                         className="exInput"
                         type="datetime-local"
@@ -1388,7 +1430,7 @@ export default function ExerciciosPage() {
 
                 {isTemplate && (
                   <div style={{ padding: "12px", background: "#dbeafe", borderRadius: "4px", color: "#075985", fontSize: "14px", marginTop: "12px" }}>
-                    ℹ️ Templates são sempre publicados imediatamente para poderem ser reutilizados
+                    {iconLabel(<Info size={16} />, "Templates são sempre publicados imediatamente para poderem ser reutilizados")}
                   </div>
                 )}
 
@@ -1409,7 +1451,7 @@ export default function ExerciciosPage() {
                             }}
                             style={{ marginRight: "6px", cursor: "pointer" }}
                           />
-                          👥 Turma Específica
+                          {iconLabel(<Users size={14} />, "Turma Específica")}
                         </label>
                         <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
                           <input
@@ -1423,7 +1465,7 @@ export default function ExerciciosPage() {
                             }}
                             style={{ marginRight: "6px", cursor: "pointer" }}
                           />
-                          👤 Aluno Específico
+                          {iconLabel(<UserIcon size={14} />, "Aluno Específico")}
                         </label>
                       </div>
                     </div>
@@ -1461,7 +1503,7 @@ export default function ExerciciosPage() {
                           <input
                             type="text"
                             className="exInput"
-                            placeholder="🔍 Digite nome ou usuário..."
+                            placeholder="Digite nome ou usuário..."
                             value={alunoFiltro}
                             onChange={(e) => setAlunoFiltro(e.target.value)}
                             style={{ width: "100%" }}
@@ -1516,7 +1558,7 @@ export default function ExerciciosPage() {
                       fontSize: "13px",
                       fontWeight: "500",
                     }}>
-                      ⚠️ <strong>Tipo "Nenhum"</strong> é apenas um seletor para alunos. Não é possível publicar um exercício com este tipo. Escolha um tipo válido: Código, Escrita ou Digitação.
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} /> <strong>Tipo "Nenhum"</strong></span> é apenas um seletor para alunos. Não é possível publicar um exercício com este tipo. Escolha um tipo válido: Código, Escrita ou Digitação.
                     </div>
                   </ConditionalFieldAnimation>
                 )}
@@ -1529,7 +1571,9 @@ export default function ExerciciosPage() {
                     loading={saving}
                     style={{ flex: 1 }}
                   >
-                    {editandoId ? "💾 Atualizar Exercício" : "✨ Publicar Exercício"}
+                    {editandoId
+                      ? iconLabel(<Save size={16} />, "Atualizar Exercício")
+                      : iconLabel(<Sparkles size={16} />, "Publicar Exercício")}
                   </AnimatedButton>
                   {editandoId && (
                     <AnimatedButton
@@ -1541,13 +1585,13 @@ export default function ExerciciosPage() {
                         flex: 1,
                       }}
                     >
-                      ❌ Cancelar
+                      {iconLabel(<X size={16} />, "Cancelar")}
                     </AnimatedButton>
                   )}
                 </div>
 
                 <div className="exFormNote">
-                  💡 Exercícios podem ser publicados para turmas, alunos específicos ou para todos.
+                  {iconLabel(<Lightbulb size={16} />, "Exercícios podem ser publicados para turmas, alunos específicos ou para todos.")}
                 </div>
               </div>
             </div>
@@ -1564,7 +1608,7 @@ export default function ExerciciosPage() {
                   <input
                     className="exInput"
                     type="text"
-                    placeholder="🔍 Buscar por título..."
+                    placeholder="Buscar por título..."
                     value={buscaFiltro}
                     onChange={(e) => setBuscaFiltro(e.target.value)}
                     style={{ width: "100%" }}
@@ -1582,7 +1626,7 @@ export default function ExerciciosPage() {
                     onChange={(e) => setModuloFiltro(e.target.value)}
                     style={{ minWidth: 160 }}
                   >
-                    <option value="">📚 Todos os Módulos</option>
+                    <option value="">Todos os Módulos</option>
                     {Array.from(new Set(items.map((ex) => ex.modulo)))
                       .sort()
                       .map((mod) => (
@@ -1601,9 +1645,9 @@ export default function ExerciciosPage() {
                     onChange={(e) => setTipoFiltro(e.target.value)}
                     style={{ minWidth: 160 }}
                   >
-                    <option value="">📝 Todos os Tipos</option>
-                    <option value="codigo">💻 Código</option>
-                    <option value="texto">📄 Texto</option>
+                    <option value="">Todos os Tipos</option>
+                    <option value="codigo">Código</option>
+                    <option value="texto">Texto</option>
                   </select>
                 </div>
 
@@ -1616,7 +1660,7 @@ export default function ExerciciosPage() {
                       onChange={(e) => setTurmaFiltro(e.target.value)}
                       style={{ minWidth: 180 }}
                     >
-                      <option value="todas">👥 Todas as turmas</option>
+                      <option value="todas">Todas as turmas</option>
                       {turmasDisponiveis.map((turma) => (
                         <option key={turma.id} value={turma.id}>
                           {turma.nome}
@@ -1654,7 +1698,7 @@ export default function ExerciciosPage() {
                 </div>
               ) : !loading && items.length === 0 ? (
                 <div className="emptyState">
-                  <div className="emptyIcon">📚</div>
+                  <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
                   <div className="emptyTitle">Nenhum exercício disponível</div>
                   <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
                     Volte mais tarde para novos exercícios!
@@ -1784,30 +1828,30 @@ export default function ExerciciosPage() {
                                         })()}
                                         {(() => {
                                           if (!ex.tipoExercicio) return null;
-                                          let icon = "📝";
+                                          let iconEl: React.ReactNode = <ClipboardList size={14} />;
                                           let text = "Exercício";
                                           let color = "var(--text)";
                                           let bg = "var(--background-secondary)";
 
                                           switch (ex.tipoExercicio) {
                                             case "codigo":
-                                              icon = "💻"; text = "Código";
+                                              iconEl = <Code size={14} />; text = "Código";
                                               color = "#3b82f6"; bg = "rgba(59, 130, 246, 0.1)";
                                               break;
                                             case "escrita":
-                                              icon = "✍️"; text = "Escrita";
+                                              iconEl = <PenLine size={14} />; text = "Escrita";
                                               color = "#f43f5e"; bg = "rgba(244, 63, 94, 0.1)";
                                               break;
                                             case "mouse":
-                                              icon = "🖱️"; text = "Mouse";
+                                              iconEl = <MousePointer size={14} />; text = "Mouse";
                                               color = "#8b5cf6"; bg = "rgba(139, 92, 246, 0.1)";
                                               break;
                                             case "multipla":
-                                              icon = "❓"; text = "Quiz";
+                                              iconEl = <ListChecks size={14} />; text = "Quiz";
                                               color = "#f59e0b"; bg = "rgba(245, 158, 11, 0.1)";
                                               break;
                                             case "atalho":
-                                              icon = "⌨️";
+                                              iconEl = <Keyboard size={14} />;
                                               if (ex.atalho_tipo === "copiar-colar") text = "Atalho: Copiar/Colar";
                                               else if (ex.atalho_tipo === "copiar-colar-imagens") text = "Atalho: Imagens";
                                               else if (ex.atalho_tipo === "selecionar-deletar") text = "Atalho: Deletar";
@@ -1827,7 +1871,7 @@ export default function ExerciciosPage() {
                                               }}
                                               title={`Tipo: ${text}`}
                                             >
-                                              {icon} {text}
+                                              {iconLabel(iconEl, text)}
                                             </span>
                                           );
                                         })()}
@@ -1864,7 +1908,7 @@ export default function ExerciciosPage() {
                                             }}
                                             title="Editar exercício"
                                           >
-                                            ✏️
+                                            <Pencil size={14} />
                                           </button>
                                           <button
                                             className="exerciseDeleteBtn"
@@ -1874,7 +1918,7 @@ export default function ExerciciosPage() {
                                             }}
                                             title="Deletar exercício"
                                           >
-                                            🗑️
+                                            <Trash2 size={14} />
                                           </button>
                                         </div>
                                       )}
@@ -1901,7 +1945,7 @@ export default function ExerciciosPage() {
                                         }}
                                         title={alunoTitle}
                                       >
-                                        👤 {alunoLabel}
+                                        {iconLabel(<UserIcon size={12} />, alunoLabel)}
                                       </span>
                                     ) : ex.turmas && ex.turmas.length > 0 ? (
                                       <>
@@ -1919,7 +1963,7 @@ export default function ExerciciosPage() {
                                             border: "1px solid rgba(59, 130, 246, 0.3)",
                                           }}
                                         >
-                                          🏛️ {ex.turmas.length} turma{ex.turmas.length > 1 ? "s" : ""}
+                                          {iconLabel(<Landmark size={12} />, `${ex.turmas.length} turma${ex.turmas.length > 1 ? "s" : ""}`)}
                                         </span>
                                         {ex.turmas.map((turma) => (
                                           <span
@@ -1965,7 +2009,7 @@ export default function ExerciciosPage() {
                                         }}
                                         title="Disponível para todos os alunos"
                                       >
-                                        🌐 Para Todos
+                                        {iconLabel(<Globe size={12} />, "Para Todos")}
                                       </span>
                                     )}
                                   </div>

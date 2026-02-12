@@ -1,6 +1,26 @@
 ﻿import React from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  Info,
+  Users,
+  BookOpen,
+  Calendar,
+  Lock,
+  Laptop,
+  Monitor,
+  ArrowLeft,
+  ArrowRight,
+  Plus,
+  Trash2,
+  AlertTriangle,
+  Pin,
+  Clock,
+  RefreshCcw,
+  CheckCircle,
+  Pause,
+  Loader2,
+} from "lucide-react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import { FlipButton, FadeInUp, AnimatedButton, AnimatedToast, ConditionalFieldAnimation } from "../components/animate-ui";
 import {
@@ -53,6 +73,12 @@ export default function TurmaDetailPage() {
   const [templateSelecionado, setTemplateSelecionado] = React.useState<string>("");
   const [semanaSelecionada, setSemanaSelecionada] = React.useState<number>(1);
   const [abaSelecionada, setAbaSelecionada] = React.useState<"info" | "alunos" | "exercicios" | "cronograma">("info");
+  const iconLabel = (icon: React.ReactNode, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
 
   async function load() {
     if (!id) return;
@@ -347,7 +373,7 @@ export default function TurmaDetailPage() {
                 borderBottom: abaSelecionada === "info" ? "2px solid var(--primary)" : "none",
               }}
             >
-              ℹ️ Informações
+              {iconLabel(<Info size={16} />, "Informações")}
             </AnimatedButton>
             <AnimatedButton
               onClick={() => setAbaSelecionada("alunos")}
@@ -363,7 +389,7 @@ export default function TurmaDetailPage() {
                 borderBottom: abaSelecionada === "alunos" ? "2px solid var(--primary)" : "none",
               }}
             >
-              👥 Alunos
+              {iconLabel(<Users size={16} />, "Alunos")}
             </AnimatedButton>
             <AnimatedButton
               onClick={() => setAbaSelecionada("exercicios")}
@@ -379,7 +405,7 @@ export default function TurmaDetailPage() {
                 borderBottom: abaSelecionada === "exercicios" ? "2px solid var(--primary)" : "none",
               }}
             >
-              📚 Exercícios
+              {iconLabel(<BookOpen size={16} />, "Exercícios")}
             </AnimatedButton>
             {canManageTurmas && turma.dataInicio && (
               <AnimatedButton
@@ -396,7 +422,7 @@ export default function TurmaDetailPage() {
                   borderBottom: abaSelecionada === "cronograma" ? "2px solid var(--primary)" : "none",
                 }}
               >
-                📅 Cronograma
+                {iconLabel(<Calendar size={16} />, "Cronograma")}
               </AnimatedButton>
             )}
           </div>
@@ -409,8 +435,14 @@ export default function TurmaDetailPage() {
             <div>
               <h3 className="turmaInfoTitle">{turma.nome}</h3>
               <p className="turmaInfoMeta">
-                {turma.tipo === "turma" ? "👥 Turma (Grupo)" : "🔒 Turma Particular"}
-                {turma.categoria && <> • {turma.categoria === "programacao" ? "💻 Programação" : "🖥️ Informática"}</>}
+                {turma.tipo === "turma"
+                  ? iconLabel(<Users size={14} />, "Turma (Grupo)")
+                  : iconLabel(<Lock size={14} />, "Turma Particular")}
+                {turma.categoria && (
+                  <> • {turma.categoria === "programacao"
+                    ? iconLabel(<Laptop size={14} />, "Programação")
+                    : iconLabel(<Monitor size={14} />, "Informática")}</>
+                )}
                 {turma.descricao && <> • {turma.descricao}</>}
               </p>
             </div>
@@ -419,7 +451,7 @@ export default function TurmaDetailPage() {
               className="btnBack"
               onClick={() => navigate(backPath)}
             >
-              ← Voltar
+              {iconLabel(<ArrowLeft size={16} />, "Voltar")}
             </AnimatedButton>
           </div>
 
@@ -469,14 +501,14 @@ export default function TurmaDetailPage() {
         <div className="turmaSection">
           <div className="turmaSectionHeader">
             <h2 className="turmaSectionTitle">
-              👥 Alunos ({turma.alunos.length})
+              {iconLabel(<Users size={18} />, `Alunos (${turma.alunos.length})`)}
             </h2>
             {(role === "admin" || role === "professor") && (
               <AnimatedButton
                 onClick={abrirModalAdicionar}
                 className="btnAdicionarAluno"
               >
-                ➕ Adicionar aluno
+                {iconLabel(<Plus size={16} />, "Adicionar aluno")}
               </AnimatedButton>
             )}
           </div>
@@ -500,7 +532,7 @@ export default function TurmaDetailPage() {
                   </div>
                   {(role === "admin" || role === "professor") && (
                     <FlipButton
-                      front="🗑️"
+                      front={<Trash2 size={16} />}
                       back="Remover?"
                       onClick={() => handleRemoverAluno(aluno.id)}
                     />
@@ -516,7 +548,7 @@ export default function TurmaDetailPage() {
         {abaSelecionada === "exercicios" && turma.exercicios.length > 0 && (
           <div className="turmaSection">
             <h2 className="turmaSectionTitle">
-              📚 Exercícios Atribuídos ({turma.exercicios.length})
+              {iconLabel(<BookOpen size={18} />, `Exercícios Atribuídos (${turma.exercicios.length})`)}
             </h2>
 
             <div className="exerciciosList">
@@ -532,7 +564,7 @@ export default function TurmaDetailPage() {
                       navigate(`/dashboard/exercicios/${ex.id}`)
                     }
                   >
-                    Ver →
+                    {iconLabel(<ArrowRight size={16} />, "Ver")}
                   </AnimatedButton>
                 </div>
               ))}
@@ -543,23 +575,34 @@ export default function TurmaDetailPage() {
         {/* SEÇÃO DE CRONOGRAMA */}
         {abaSelecionada === "cronograma" && (
           <div className="turmaSection">
-            <h2 className="turmaSectionTitle">📅 Cronograma Semanal</h2>
+            <h2 className="turmaSectionTitle">
+              {iconLabel(<Calendar size={18} />, "Cronograma Semanal")}
+            </h2>
 
             {!turma.dataInicio ? (
               <div className="cronogramaWarning">
-                ⚠️ Configure a data de início da turma para usar o cronograma
+                {iconLabel(<AlertTriangle size={16} />, "Configure a data de início da turma para usar o cronograma")}
               </div>
             ) : (
               <>
                 <div className="cronogramaInfoBox">
                   <p className="cronogramaInfoLine">
-                    <strong>📌 Início:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
+                    <strong><Pin size={14} /> Início:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
                   </p>
                   <p className="cronogramaInfoLine">
-                    <strong>⏱️ Duração:</strong> {turma.duracaoSemanas} semanas
+                    <strong><Clock size={14} /> Duração:</strong> {turma.duracaoSemanas} semanas
                   </p>
                   <p className="cronogramaInfoLine">
-                    <strong>🔄 Status:</strong> {turma.cronogramaAtivo ? "✅ Cronograma Ativo" : "⏸️ Cronograma Pausado"}
+                    <strong><RefreshCcw size={14} /> Status:</strong>{" "}
+                    {turma.cronogramaAtivo ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <CheckCircle size={14} /> Cronograma Ativo
+                      </span>
+                    ) : (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <Pause size={14} /> Cronograma Pausado
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -572,7 +615,9 @@ export default function TurmaDetailPage() {
                     {/* Seletor para adicionar template - apenas para admins */}
                     {role === "admin" ? (
                     <div className="addTemplateBox">
-                      <h3 className="templateBoxTitle">➕ Adicionar Template a uma Semana</h3>
+                      <h3 className="templateBoxTitle">
+                        {iconLabel(<Plus size={16} />, "Adicionar Template a uma Semana")}
+                      </h3>
 
                       <div className="templateBoxControls">
                         <div className="templateBoxField">
@@ -622,7 +667,7 @@ export default function TurmaDetailPage() {
                     ) : (
                     <div className="cronogramaAdminOnly">
                       <p className="cronogramaAdminOnlyText">
-                        ℹ️ Apenas administradores podem adicionar templates ao cronograma.
+                        {iconLabel(<Info size={16} />, "Apenas administradores podem adicionar templates ao cronograma.")}
                       </p>
                     </div>
                     )}
@@ -667,7 +712,7 @@ export default function TurmaDetailPage() {
                                     disabled={salvandoCronograma}
                                     className="btnRemoverExercicio"
                                   >
-                                    🗑️ Remover
+                                    {iconLabel(<Trash2 size={16} />, "Remover")}
                                   </AnimatedButton>
                                 </div>
                               ))}
@@ -740,7 +785,7 @@ export default function TurmaDetailPage() {
                   className="modalBtnConfirm"
                   disabled={adicionando || alunosSelecionados.length === 0}
                 >
-                  {adicionando ? "⏳ Adicionando..." : "Adicionar"}
+                  {adicionando ? iconLabel(<Loader2 size={16} />, "Adicionando...") : "Adicionar"}
                 </AnimatedButton>
               </div>
             </div>

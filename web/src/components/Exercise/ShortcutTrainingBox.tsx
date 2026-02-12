@@ -1,4 +1,17 @@
 import React from "react";
+import {
+  CheckCircle,
+  Check,
+  Circle,
+  MousePointer,
+  ClipboardList,
+  Pin,
+  Camera,
+  Image,
+  Trash2,
+  Keyboard,
+  Sparkles,
+} from "lucide-react";
 import "./ExerciseComponents.css";
 
 type ShortcutType = "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar";
@@ -88,10 +101,10 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
         const updatedEvents = [...events, newEvent];
         setEvents(updatedEvents);
         setIsComplete(true);
-        setFeedback("✅ Parabéns! Você conseguiu!");
+        setFeedback("Parabéns! Você conseguiu!");
         onComplete?.(updatedEvents);
       } else {
-        setFeedback(`✓ ${detectedAction.replace("-", " ")} detectado!`);
+        setFeedback(`${detectedAction.replace("-", " ")} detectado!`);
       }
     },
     [isComplete, pressedKeys, requiredKeys, events, shortcutType, onComplete]
@@ -168,7 +181,9 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
         {/* Campo Esquerdo - Imagem para Copiar */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "rgba(255,255,255,0.7)" }}>
-            📷 Imagem - Copie aqui
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Camera size={16} /> Imagem - Copie aqui
+            </span>
           </div>
           <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)" }}>
             {sample && !imageError ? (
@@ -181,7 +196,9 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
               />
             ) : (
               <div style={{ width: "100%", minHeight: 180, background: fallbackColor, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 14, fontWeight: 600 }}>
-                📸 Imagem de Exemplo
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Image size={16} /> Imagem de Exemplo
+                </span>
               </div>
             )}
           </div>
@@ -190,7 +207,9 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
         {/* Campo Direito - Área para Colar */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "rgba(255,255,255,0.7)" }}>
-            📌 Cole aqui a imagem
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Pin size={16} /> Cole aqui a imagem
+            </span>
           </div>
           <div
             style={{
@@ -212,7 +231,7 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
               if (items) {
                 for (let i = 0; i < items.length; i++) {
                   if (items[i].type.indexOf("image") !== -1) {
-                    setFeedback("✓ Imagem colada detectada!");
+                    setFeedback("Imagem colada detectada!");
                   }
                 }
               }
@@ -227,12 +246,12 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
   };
 
   // Labels dos passos para copiar-colar-imagens (botão direito)
-  const getKeyIcon = (key: string) => {
-    if (key === "copiar") return shortcutType === "copiar-colar-imagens" ? "🖱️" : "📋";
-    if (key === "colar") return "📌";
-    if (key === "selecionar-tudo") return "✅";
-    if (key === "deletar") return "🗑️";
-    return "";
+  const getKeyIcon = (key: string): React.ReactNode => {
+    if (key === "copiar") return shortcutType === "copiar-colar-imagens" ? <MousePointer size={16} /> : <ClipboardList size={16} />;
+    if (key === "colar") return <Pin size={16} />;
+    if (key === "selecionar-tudo") return <CheckCircle size={16} />;
+    if (key === "deletar") return <Trash2 size={16} />;
+    return null;
   };
 
   const getKeyName = (key: string) => {
@@ -309,7 +328,10 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
           )}
 
           <div className="shortcutLabel">
-            {shortcutType === "copiar-colar-imagens" ? "🖱️" : "🎹"} {SHORTCUT_LABELS[shortcutType]}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {shortcutType === "copiar-colar-imagens" ? <MousePointer size={16} /> : <Keyboard size={16} />}
+              {SHORTCUT_LABELS[shortcutType]}
+            </span>
           </div>
           <p className="shortcutHint">{shortcutConfig.description}</p>
 
@@ -326,7 +348,7 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
                   {getKeyName(key)}
                 </span>
                 <span className={`keyStatus ${pressedKeys.has(key) ? "done" : "pending"}`}>
-                  {pressedKeys.has(key) ? "✓" : "○"}
+                  {pressedKeys.has(key) ? <Check size={14} /> : <Circle size={14} />}
                 </span>
               </div>
             ))}
@@ -340,7 +362,9 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
 
           {isComplete && (
             <div className="shortcutSuccess">
-              <div className="successIcon">🎉</div>
+              <div className="successIcon">
+                <Sparkles size={20} />
+              </div>
               <p>Exercício concluído com sucesso!</p>
             </div>
           )}

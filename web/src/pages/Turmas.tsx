@@ -12,6 +12,20 @@ import {
   AnimatedToggle,
 } from "../components/animate-ui";
 import {
+  RefreshCcw,
+  Loader2,
+  Save,
+  Plus,
+  X,
+  BookOpen,
+  Users,
+  User as UserIcon,
+  Pencil,
+  Trash2,
+  Calendar,
+  ArrowRight,
+} from "lucide-react";
+import {
   listarTurmas,
   criarTurma,
   atualizarTurma,
@@ -40,6 +54,12 @@ type Template = {
 export default function TurmasPage() {
   const navigate = useNavigate();
   const role = getRole();
+  const iconLabel = (icon: React.ReactNode, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
   const userId = getUserId();
   const canCreate = role === "admin";
 
@@ -413,7 +433,9 @@ export default function TurmasPage() {
               <div />
             )}
             <button className="refreshBtn" onClick={load} disabled={loading}>
-              {loading ? "⏳ Carregando..." : "🔄 Atualizar"}
+            {loading
+              ? iconLabel(<Loader2 size={16} />, "Carregando...")
+              : iconLabel(<RefreshCcw size={16} />, "Atualizar")}
             </button>
           </div>
 
@@ -610,10 +632,10 @@ export default function TurmasPage() {
                     disabled={disabled}
                   >
                     {saving
-                      ? "⏳ Salvando..."
+                      ? iconLabel(<Loader2 size={16} />, "Salvando...")
                       : editandoId
-                        ? "💾 Atualizar Turma"
-                        : "➕ Criar Turma"}
+                        ? iconLabel(<Save size={16} />, "Atualizar Turma")
+                        : iconLabel(<Plus size={16} />, "Criar Turma")}
                   </AnimatedButton>
                   {editandoId && (
                     <AnimatedButton
@@ -622,7 +644,7 @@ export default function TurmasPage() {
                       onClick={handleCancel}
                       disabled={saving}
                     >
-                      ❌ Cancelar
+                      {iconLabel(<X size={16} />, "Cancelar")}
                     </AnimatedButton>
                   )}
                 </div>
@@ -638,7 +660,9 @@ export default function TurmasPage() {
               </div>
             ) : !loading && turmas.length === 0 ? (
               <div className="emptyState">
-                <div className="emptyIcon">📚</div>
+                <div className="emptyIcon" style={{ display: "inline-flex" }}>
+                  <BookOpen size={22} />
+                </div>
                 <div className="emptyTitle">{emptyTitle}</div>
                 <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
                   {emptyDescription}
@@ -659,7 +683,9 @@ export default function TurmasPage() {
                             <div className="turmaCardInfo">
                               <h3 className="turmaCardTitle">{turma.nome}</h3>
                               <span className={`turmaBadge tipo-${turma.tipo}`}>
-                                {turma.tipo === "turma" ? "👥 Grupo" : "👤 Particular"}
+                                {turma.tipo === "turma"
+                                  ? iconLabel(<Users size={14} />, "Grupo")
+                                  : iconLabel(<UserIcon size={14} />, "Particular")}
                               </span>
                             </div>
                             {canCreate && (
@@ -669,14 +695,14 @@ export default function TurmasPage() {
                                   onClick={() => handleEdit(turma)}
                                   title="Editar turma"
                                 >
-                                  ✏️
+                                  <Pencil size={16} />
                                 </AnimatedButton>
                                 <AnimatedButton
                                   className="turmaDeleteBtn"
                                   onClick={() => abrirModalDeletar(turma.id, turma.nome)}
                                   title="Deletar turma"
                                 >
-                                  🗑️
+                                  <Trash2 size={16} />
                                 </AnimatedButton>
                               </div>
                             )}
@@ -688,11 +714,15 @@ export default function TurmasPage() {
 
                           <div className="turmaCardStats">
                             <div className="statItem">
-                              <span className="statIcon">👥</span>
+                              <span className="statIcon" style={{ display: "inline-flex" }}>
+                                <Users size={18} />
+                              </span>
                               <span className="statText">Alunos</span>
                             </div>
                             <div className="statItem">
-                              <span className="statIcon">📅</span>
+                              <span className="statIcon" style={{ display: "inline-flex" }}>
+                                <Calendar size={18} />
+                              </span>
                               <span className="statText">
                                 {new Date(turma.createdAt).toLocaleDateString("pt-BR", {
                                   day: "2-digit",
@@ -709,14 +739,14 @@ export default function TurmasPage() {
                                 className="turmaManageBtn"
                                 onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
                               >
-                                👥 Gerenciar Alunos
+                                {iconLabel(<Users size={16} />, "Gerenciar Alunos")}
                               </AnimatedButton>
                             )}
                             <AnimatedButton
                               className="turmaViewBtn"
                               onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
                             >
-                              Ver Detalhes →
+                              {iconLabel(<ArrowRight size={16} />, "Ver Detalhes")}
                             </AnimatedButton>
                           </div>
                         </div>
@@ -801,7 +831,7 @@ export default function TurmasPage() {
                     className="modalBtnConfirm"
                     disabled={adicionando || alunosSelecionados.length === 0}
                   >
-                    {adicionando ? "⏳ Adicionando..." : "Adicionar"}
+                    {adicionando ? iconLabel(<Loader2 size={16} />, "Adicionando...") : "Adicionar"}
                   </AnimatedButton>
                 </div>
               </div>

@@ -20,17 +20,17 @@ export function startPublishScheduledExercisesJob() {
 
       if (result.rowCount && result.rowCount > 0) {
         console.log(
-          `✅ ${result.rowCount} exercício(s) publicado(s) automaticamente:`,
+          ` ${result.rowCount} exercício(s) publicado(s) automaticamente:`,
           result.rows.map((r) => r.titulo)
         );
       }
     } catch (error) {
       console.error(
-        "❌ Erro ao publicar exercícios agendados:",
+        " Erro ao publicar exercícios agendados:",
         error
       );
     }
   });
 
-  console.log("📅 Job de publicação automática iniciado (a cada 5 min)");
+  console.log(" Job de publicação automática iniciado (a cada 5 min)");
 }

@@ -707,7 +707,7 @@ export function turmasRouter(jwtSecret: string) {
 
                 if (duplicateResult.rows.length > 0) {
                   finalExercicioId = duplicateResult.rows[0].id;
-                  console.log(`✅ Template "${template.titulo}" duplicado em novo exercício: ${finalExercicioId}`);
+                  console.log(` Template "${template.titulo}" duplicado em novo exercício: ${finalExercicioId}`);
                 }
               }
 
