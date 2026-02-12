@@ -237,7 +237,7 @@ const ShortcutTrainingBox = React.forwardRef<ShortcutTrainingBoxHandle, Shortcut
 
   const getKeyName = (key: string) => {
     if (key === "copiar") return shortcutType === "copiar-colar-imagens" ? "Copiar (Botão Direito → Copiar imagem)" : "Copiar (Ctrl+C)";
-    if (key === "colar") return shortcutType === "copiar-colar-imagens" ? "Colar (Botão Direito → Colar)" : "Colar (Ctrl+V)";
+    if (key === "colar") return shortcutType === "copiar-colar-imagens" ? "Colar (Ctrl + V → Colar imagem)" : "Colar (Ctrl+V)";
     if (key === "selecionar-tudo") return "Selecionar (Ctrl+A)";
     if (key === "deletar") return "Deletar";
     return key;

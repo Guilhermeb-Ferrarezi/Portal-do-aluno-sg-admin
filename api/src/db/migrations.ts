@@ -89,11 +89,90 @@ export async function initializeDatabaseTables() {
         multipla_regras TEXT,
         atalho_tipo VARCHAR(50),
         permitir_repeticao BOOLEAN DEFAULT false,
+        max_tentativas INTEGER DEFAULT NULL,
+        penalidade_por_tentativa NUMERIC(5,2) DEFAULT 0,
+        intervalo_reenvio INTEGER DEFAULT NULL,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
     console.log("✅ Tabela exercicios criada/verificada!");
+
+    // ===== Criar tabela submissoes =====
+    console.log("📝 Criando tabela submissoes se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS submissoes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        exercicio_id UUID NOT NULL REFERENCES exercicios(id) ON DELETE CASCADE,
+        aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        resposta TEXT,
+        tipo_resposta VARCHAR(20) DEFAULT 'texto',
+        linguagem VARCHAR(50),
+        nota NUMERIC(5,2),
+        corrigida BOOLEAN DEFAULT false,
+        feedback_professor TEXT,
+        is_late BOOLEAN DEFAULT false,
+        arquivo_url TEXT DEFAULT NULL,
+        arquivo_nome TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_submissoes_exercicio ON submissoes(exercicio_id);
+      CREATE INDEX IF NOT EXISTS idx_submissoes_aluno ON submissoes(aluno_id);
+    `);
+    console.log("✅ Tabela submissoes criada/verificada!");
+
+    // ===== Criar tabela aluno_turma =====
+    console.log("👥 Criando tabela aluno_turma se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS aluno_turma (
+        aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        turma_id UUID NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(aluno_id, turma_id)
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_aluno_turma_aluno_id ON aluno_turma(aluno_id);
+      CREATE INDEX IF NOT EXISTS idx_aluno_turma_turma_id ON aluno_turma(turma_id);
+    `);
+    console.log("✅ Tabela aluno_turma criada/verificada!");
+
+    // ===== Criar tabela exercicio_turma =====
+    console.log("✍️ Criando tabela exercicio_turma se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS exercicio_turma (
+        exercicio_id UUID NOT NULL REFERENCES exercicios(id) ON DELETE CASCADE,
+        turma_id UUID NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(exercicio_id, turma_id)
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_exercicio_turma_exercicio_id ON exercicio_turma(exercicio_id);
+      CREATE INDEX IF NOT EXISTS idx_exercicio_turma_turma_id ON exercicio_turma(turma_id);
+    `);
+    console.log("✅ Tabela exercicio_turma criada/verificada!");
+
+    // ===== Criar tabela cronograma_turma =====
+    console.log("📅 Criando tabela cronograma_turma se não existir...");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cronograma_turma (
+        turma_id UUID NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+        exercicio_id UUID NOT NULL REFERENCES exercicios(id) ON DELETE CASCADE,
+        semana INTEGER NOT NULL,
+        ordem INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(turma_id, exercicio_id, semana)
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_cronograma_turma_turma_id ON cronograma_turma(turma_id);
+      CREATE INDEX IF NOT EXISTS idx_cronograma_turma_exercicio_id ON cronograma_turma(exercicio_id);
+    `);
+    console.log("✅ Tabela cronograma_turma criada/verificada!");
 
     // Criar tabela videoaulas se não existir
     console.log("🎬 Criando tabela videoaulas...");
@@ -235,6 +314,42 @@ export async function initializeDatabaseTables() {
       console.log("✅ Coluna permitir_repeticao adicionada!");
     } catch (error) {
       console.warn("⚠️ Coluna permitir_repeticao já existe ou erro ao adicionar:", (error as any).message);
+    }
+
+    // Adicionar colunas de política de tentativas
+    console.log("🔁 Adicionando suporte a política de tentativas na tabela exercicios...");
+    try {
+      await pool.query(`
+        ALTER TABLE exercicios
+        ADD COLUMN IF NOT EXISTS max_tentativas INTEGER DEFAULT NULL;
+      `);
+      await pool.query(`
+        ALTER TABLE exercicios
+        ADD COLUMN IF NOT EXISTS penalidade_por_tentativa NUMERIC(5,2) DEFAULT 0;
+      `);
+      await pool.query(`
+        ALTER TABLE exercicios
+        ADD COLUMN IF NOT EXISTS intervalo_reenvio INTEGER DEFAULT NULL;
+      `);
+      console.log("✅ Colunas de política de tentativas adicionadas!");
+    } catch (error) {
+      console.warn("⚠️ Erro ao adicionar colunas de tentativas:", (error as any).message);
+    }
+
+    // Adicionar colunas de anexos em submissoes
+    console.log("📎 Adicionando suporte a anexos na tabela submissoes...");
+    try {
+      await pool.query(`
+        ALTER TABLE submissoes
+        ADD COLUMN IF NOT EXISTS arquivo_url TEXT DEFAULT NULL;
+      `);
+      await pool.query(`
+        ALTER TABLE submissoes
+        ADD COLUMN IF NOT EXISTS arquivo_nome TEXT DEFAULT NULL;
+      `);
+      console.log("✅ Colunas de anexos adicionadas!");
+    } catch (error) {
+      console.warn("⚠️ Erro ao adicionar colunas de anexos:", (error as any).message);
     }
 
     // ===== Criar tabela activity_logs =====

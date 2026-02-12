@@ -28,6 +28,9 @@ type ExercicioRow = {
   multipla_regras: string | null;
   atalho_tipo: string | null;
   permitir_repeticao: boolean;
+  max_tentativas: number | null;
+  penalidade_por_tentativa: number | null;
+  intervalo_reenvio: number | null;
   created_at: DBDate;
   updated_at: DBDate;
 };
@@ -144,6 +147,9 @@ const createSchema = z.object({
   atalho_tipo: z.enum(["copiar-colar", "copiar-colar-imagens", "selecionar-deletar"]).optional().nullable(),
   tipo_exercicio: z.string().optional().nullable(),
   permitir_repeticao: z.boolean().optional().default(false),
+  max_tentativas: z.coerce.number().int().optional().nullable(),
+  penalidade_por_tentativa: z.coerce.number().optional().nullable(),
+  intervalo_reenvio: z.coerce.number().int().optional().nullable(),
 });
 
 function parseIdArray(value: unknown): string[] {
@@ -179,11 +185,15 @@ export function exerciciosRouter(jwtSecret: string) {
     const userId = req.user?.sub;
 
     const conditions: string[] = [
-      "e.publicado = true",
-      "(e.published_at IS NULL OR e.published_at <= NOW())",
       "e.is_template = false",
     ];
     const params: any[] = [];
+
+    // Alunos só veem exercícios publicados e com published_at no passado
+    if (isAluno) {
+      conditions.push("e.publicado = true");
+      conditions.push("(e.published_at IS NULL OR e.published_at <= NOW())");
+    }
 
     if (isAluno) {
       const alunoParam = `$${params.length + 1}`;
@@ -213,7 +223,8 @@ export function exerciciosRouter(jwtSecret: string) {
       SELECT
         e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
         e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
-        e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.created_at, e.updated_at,
+        e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
+        e.intervalo_reenvio, e.created_at, e.updated_at,
         COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
         COALESCE(alunos.alunos, '[]'::jsonb) as alunos
       FROM exercicios e
@@ -243,6 +254,7 @@ export function exerciciosRouter(jwtSecret: string) {
         modulo: row.modulo,
         tema: row.tema,
         prazo: row.prazo,
+        publicado: row.publicado,
         publishedAt: row.published_at,
         tipoExercicio: row.tipo_exercicio,
         is_template: row.is_template,
@@ -251,6 +263,9 @@ export function exerciciosRouter(jwtSecret: string) {
         multipla_regras: row.multipla_regras,
         atalho_tipo: row.atalho_tipo,
         permitir_repeticao: row.permitir_repeticao ?? false,
+        maxTentativas: row.max_tentativas ?? null,
+        penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
+        intervaloReenvio: row.intervalo_reenvio ?? null,
         createdAt: row.created_at,
         turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
         alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
@@ -261,16 +276,16 @@ export function exerciciosRouter(jwtSecret: string) {
   // GET /exercicios/:id - Pegar detalhes de um exercício específico
   router.get("/exercicios/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const isAluno = req.user?.role === "aluno";
-    const filtroTemplate = isAluno ? " AND is_template = false" : "";
     const { id } = req.params;
 
     const params: any[] = [id];
     const conditions: string[] = [
       "e.id = $1",
-      "e.publicado = true",
-      "(e.published_at IS NULL OR e.published_at <= NOW())",
     ];
-    if (filtroTemplate) {
+    // Alunos só veem exercícios publicados e com published_at no passado
+    if (isAluno) {
+      conditions.push("e.publicado = true");
+      conditions.push("(e.published_at IS NULL OR e.published_at <= NOW())");
       conditions.push("e.is_template = false");
     }
     if (isAluno) {
@@ -301,7 +316,8 @@ export function exerciciosRouter(jwtSecret: string) {
       `SELECT
          e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
          e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
-         e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.created_at, e.updated_at,
+         e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
+         e.intervalo_reenvio, e.created_at, e.updated_at,
          COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
          COALESCE(alunos.alunos, '[]'::jsonb) as alunos
        FROM exercicios e
@@ -336,7 +352,7 @@ export function exerciciosRouter(jwtSecret: string) {
       publishedAt: row.published_at,
       publicado: row.publicado,
       tipoExercicio: row.tipo_exercicio,
-      gabarito: row.gabarito, // Não retornar gabarito para alunos? Considerar isso
+      gabarito: isAluno ? undefined : row.gabarito,
       linguagemEsperada: row.linguagem_esperada,
       is_template: row.is_template,
       categoria: row.categoria,
@@ -344,6 +360,9 @@ export function exerciciosRouter(jwtSecret: string) {
       multipla_regras: row.multipla_regras,
       atalho_tipo: row.atalho_tipo,
       permitir_repeticao: row.permitir_repeticao ?? false,
+      maxTentativas: row.max_tentativas ?? null,
+      penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
+      intervaloReenvio: row.intervalo_reenvio ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
@@ -365,7 +384,7 @@ export function exerciciosRouter(jwtSecret: string) {
         });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio } = parsed.data;
 
       // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
@@ -375,9 +394,9 @@ export function exerciciosRouter(jwtSecret: string) {
       const shouldPublish = published_at ? false : (publicado ?? true);
 
       const created = await pool.query<ExercicioRow>(
-        `INSERT INTO exercicios (titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, created_at, updated_at`,
+        `INSERT INTO exercicios (titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, created_at, updated_at`,
         [
           titulo,
           descricao,
@@ -396,6 +415,9 @@ export function exerciciosRouter(jwtSecret: string) {
           multipla_regras ?? null,
           (req.body as any).atalho_tipo ?? null,
           permitir_repeticao ?? false,
+          max_tentativas ?? null,
+          penalidade_por_tentativa ?? 0,
+          intervalo_reenvio ?? null,
         ]
       );
 
@@ -460,6 +482,9 @@ export function exerciciosRouter(jwtSecret: string) {
           multipla_regras: row.multipla_regras,
           atalho_tipo: row.atalho_tipo,
           permitir_repeticao: row.permitir_repeticao ?? false,
+          maxTentativas: row.max_tentativas ?? null,
+          penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
+          intervaloReenvio: row.intervalo_reenvio ?? null,
           createdAt: row.created_at,
         },
       });
@@ -492,26 +517,30 @@ export function exerciciosRouter(jwtSecret: string) {
         return res.status(404).json({ message: "Exercício não encontrado" });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, tipo_exercicio, permitir_repeticao } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, published_at } = parsed.data;
 
       // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
       const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
+      const shouldPublish = published_at ? false : (publicado ?? true);
+
       const updated = await pool.query<ExercicioRow>(
         `UPDATE exercicios
          SET titulo = $1, descricao = $2, modulo = $3, tema = $4, prazo = $5,
-             publicado = $6, tipo_exercicio = $7, gabarito = $8, linguagem_esperada = $9,
-             categoria = $10, mouse_regras = $11, multipla_regras = $12, atalho_tipo = $13, permitir_repeticao = $14, updated_at = NOW()
-         WHERE id = $15
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, created_at, updated_at`,
+             publicado = $6, published_at = $7, tipo_exercicio = $8, gabarito = $9, linguagem_esperada = $10,
+             categoria = $11, mouse_regras = $12, multipla_regras = $13, atalho_tipo = $14, permitir_repeticao = $15,
+             max_tentativas = $16, penalidade_por_tentativa = $17, intervalo_reenvio = $18, updated_at = NOW()
+         WHERE id = $19
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, created_at, updated_at`,
         [
           titulo,
           descricao,
           modulo,
           tema ?? null,
           prazo ?? null,
-          publicado ?? true,
+          shouldPublish,
+          published_at ?? null,
           tipoExercicio,
           gabarito ?? null,
           linguagem_esperada ?? null,
@@ -520,6 +549,9 @@ export function exerciciosRouter(jwtSecret: string) {
           multipla_regras ?? null,
           atalho_tipo ?? null,
           permitir_repeticao ?? false,
+          max_tentativas ?? null,
+          penalidade_por_tentativa ?? 0,
+          intervalo_reenvio ?? null,
           id,
         ]
       );
@@ -599,6 +631,9 @@ export function exerciciosRouter(jwtSecret: string) {
           multipla_regras: row.multipla_regras,
           atalho_tipo: row.atalho_tipo,
           permitir_repeticao: row.permitir_repeticao ?? false,
+          maxTentativas: row.max_tentativas ?? null,
+          penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
+          intervaloReenvio: row.intervalo_reenvio ?? null,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         },
@@ -714,9 +749,10 @@ export function exerciciosRouter(jwtSecret: string) {
         const result = await pool.query<ExercicioRow>(
           `INSERT INTO exercicios (
             id, titulo, descricao, modulo, tema, prazo, publicado, published_at,
-            created_by, gabarito, linguagem_esperada, is_template, mouse_regras, multipla_regras, categoria, tipo_exercicio, created_at, updated_at
+            created_by, gabarito, linguagem_esperada, is_template, mouse_regras, multipla_regras, categoria, tipo_exercicio,
+            max_tentativas, penalidade_por_tentativa, intervalo_reenvio, created_at, updated_at
           ) VALUES (
-            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12, $13, $14, NOW(), NOW()
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
           ) RETURNING *`,
           [
             nova_titulo || template.titulo,
@@ -733,6 +769,9 @@ export function exerciciosRouter(jwtSecret: string) {
             template.multipla_regras,
             template.categoria ?? 'programacao',
             template.tipo_exercicio ?? 'texto',
+            template.max_tentativas ?? null,
+            template.penalidade_por_tentativa ?? 0,
+            template.intervalo_reenvio ?? null,
           ]
         );
 

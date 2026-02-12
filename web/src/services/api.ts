@@ -101,7 +101,11 @@ export type Exercicio = {
   mouse_regras?: string | null;
   multipla_regras?: string | null;
   atalho_tipo?: "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar" | null;
+  publicado?: boolean;
   permitir_repeticao?: boolean;
+  maxTentativas?: number | null;
+  penalidadePorTentativa?: number | null;
+  intervaloReenvio?: number | null;
   createdAt: string;
   turmas?: Turma[];
   alunos?: UserRef[];
@@ -122,6 +126,8 @@ export type Submissao = {
   feedbackProfessor: string | null;
   isLate?: boolean;
   verificacaoDescricao?: number | null;
+  arquivoUrl?: string | null;
+  arquivoNome?: string | null;
   createdAt: string;
 };
 
@@ -155,12 +161,16 @@ export async function criarExercicio(dados: {
   tema?: string | null;
   prazo?: string | null;
   publicado?: boolean;
+  published_at?: string | null;
   gabarito?: string | null;
   linguagem_esperada?: string | null;
   is_template?: boolean;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
   multipla_regras?: string | null;
+  max_tentativas?: number | null;
+  penalidade_por_tentativa?: number | null;
+  intervalo_reenvio?: number | null;
   turma_ids?: string[];
   aluno_ids?: string[];
   tipoExercicio?: TipoExercicio;
@@ -178,12 +188,16 @@ export async function atualizarExercicio(id: string, dados: {
   tema?: string | null;
   prazo?: string | null;
   publicado?: boolean;
+  published_at?: string | null;
   gabarito?: string | null;
   linguagem_esperada?: string | null;
   is_template?: boolean;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
   multipla_regras?: string | null;
+  max_tentativas?: number | null;
+  penalidade_por_tentativa?: number | null;
+  intervalo_reenvio?: number | null;
   turma_ids?: string[];
   aluno_ids?: string[];
   tipoExercicio?: TipoExercicio;
@@ -212,6 +226,38 @@ export async function enviarSubmissao(exercicioId: string, dados: {
       body: JSON.stringify(dados),
     }
   );
+}
+
+export async function enviarSubmissaoComArquivo(exercicioId: string, dados: {
+  resposta?: string;
+  tipo_resposta: TipoExercicio;
+  linguagem?: string;
+  arquivo: File;
+}) {
+  const form = new FormData();
+  if (typeof dados.resposta === "string") {
+    form.append("resposta", dados.resposta);
+  }
+  form.append("tipo_resposta", dados.tipo_resposta);
+  if (dados.linguagem) {
+    form.append("linguagem", dados.linguagem);
+  }
+  form.append("arquivo", dados.arquivo);
+
+  const res = await fetch(`${API_BASE_URL}/exercicios/${exercicioId}/submissoes`, {
+    method: "POST",
+    headers: buildAuthHeaders(),
+    body: form,
+  });
+
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
+  return res.json() as Promise<{ message: string; submissao: Submissao }>;
 }
 
 export async function minhasSubmissoes(exercicioId: string) {

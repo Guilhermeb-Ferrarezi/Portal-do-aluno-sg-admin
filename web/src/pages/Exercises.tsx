@@ -69,6 +69,9 @@ export default function ExerciciosPage() {
   // Tipos de atalho para exercícios de atalho
   const [atalhoTipo, setAtalhoTipo] = React.useState<"copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar">("copiar-colar");
   const [permitirRepeticao, setPermitirRepeticao] = React.useState(false);
+  const [maxTentativas, setMaxTentativas] = React.useState<string>("");
+  const [penalidadeTentativa, setPenalidadeTentativa] = React.useState<string>("");
+  const [intervaloReenvio, setIntervaloReenvio] = React.useState<string>("");
   const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
   const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
@@ -85,6 +88,7 @@ export default function ExerciciosPage() {
   // Turmas
   const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
   const [turmaFiltro, setTurmaFiltro] = React.useState("todas");
+  const [statusFiltro, setStatusFiltro] = React.useState("todos");
 
   // Alunos
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
@@ -195,6 +199,10 @@ export default function ExerciciosPage() {
         else tipoSelecionado = componenteInterativo || undefined;
       }
 
+      const maxTentativasNum = maxTentativas.trim() ? Number(maxTentativas) : null;
+      const penalidadeNum = penalidadeTentativa.trim() ? Number(penalidadeTentativa) : 0;
+      const intervaloNum = intervaloReenvio.trim() ? Number(intervaloReenvio) : null;
+
       const dados: any = {
         titulo: tituloFinal,
         descricao: descricaoFinal,
@@ -221,6 +229,9 @@ export default function ExerciciosPage() {
           atalho_tipo: atalhoTipo
         } : {}),
         permitir_repeticao: permitirRepeticao,
+        max_tentativas: permitirRepeticao ? maxTentativasNum : null,
+        penalidade_por_tentativa: permitirRepeticao ? penalidadeNum : 0,
+        intervalo_reenvio: permitirRepeticao ? intervaloNum : null,
       };
 
       if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
@@ -255,6 +266,9 @@ export default function ExerciciosPage() {
       setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
       setAtalhoTipo("copiar-colar");
       setPermitirRepeticao(false);
+      setMaxTentativas("");
+      setPenalidadeTentativa("");
+      setIntervaloReenvio("");
       setTurmasSelecionadas([]);
       setAlunosSelecionados([]);
       setModoAtribuicao("turma");
@@ -296,6 +310,26 @@ export default function ExerciciosPage() {
       const hours = String(date.getHours()).padStart(2, "0");
       const minutes = String(date.getMinutes()).padStart(2, "0");
       setPrazo(`${year}-${month}-${day}T${hours}:${minutes}`);
+    }
+
+    // PublicaÃ§Ã£o imediata vs agendada vs rascunho
+    if (exercicio.publishedAt) {
+      const pubDate = new Date(exercicio.publishedAt);
+      if (pubDate > new Date()) {
+        const year = pubDate.getFullYear();
+        const month = String(pubDate.getMonth() + 1).padStart(2, "0");
+        const day = String(pubDate.getDate()).padStart(2, "0");
+        const hours = String(pubDate.getHours()).padStart(2, "0");
+        const minutes = String(pubDate.getMinutes()).padStart(2, "0");
+        setPublishNow(false);
+        setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+      } else {
+        setPublishNow(exercicio.publicado !== false);
+        setPublishedAt("");
+      }
+    } else {
+      setPublishNow(exercicio.publicado !== false);
+      setPublishedAt("");
     }
 
     // Carregar turmas do exercício se existirem
@@ -345,6 +379,27 @@ export default function ExerciciosPage() {
     }
 
     setPermitirRepeticao(exercicio.permitir_repeticao ?? false);
+    setMaxTentativas(exercicio.maxTentativas ? String(exercicio.maxTentativas) : "");
+    setPenalidadeTentativa(
+      exercicio.penalidadePorTentativa !== null && exercicio.penalidadePorTentativa !== undefined
+        ? String(exercicio.penalidadePorTentativa)
+        : ""
+    );
+    setIntervaloReenvio(exercicio.intervaloReenvio ? String(exercicio.intervaloReenvio) : "");
+
+    // Restaurar estado de publicação
+    setPublishNow(exercicio.publicado !== false);
+    if (exercicio.publishedAt) {
+      const date = new Date(exercicio.publishedAt);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+    } else {
+      setPublishedAt("");
+    }
 
     // Restaurar diaNumero do título (se aplicável)
     const diaMatch = exercicio.titulo.match(/^Dia (\d+):/);
@@ -373,12 +428,17 @@ export default function ExerciciosPage() {
     setModulo("");
     setTema("");
     setPrazo("");
+    setPublishNow(true);
+    setPublishedAt("");
     setIsTemplate(false);
     setCategoria("programacao");
     setComponenteInterativo("");
     setDiaNumero(1);
     setAtalhoTipo("copiar-colar");
     setPermitirRepeticao(false);
+    setMaxTentativas("");
+    setPenalidadeTentativa("");
+    setIntervaloReenvio("");
     setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
     setMultiplaQuestoes([{
       pergunta: "",
@@ -1222,6 +1282,45 @@ export default function ExerciciosPage() {
                   </div>
                 </div>
 
+                {permitirRepeticao && (
+                  <div className="exInputRow">
+                    <div className="exInputGroup">
+                      <label className="exLabel">Max. Tentativas</label>
+                      <input
+                        className="exInput"
+                        type="number"
+                        min="1"
+                        placeholder="Ilimitado"
+                        value={maxTentativas}
+                        onChange={(e) => setMaxTentativas(e.target.value)}
+                      />
+                    </div>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Penalidade por tentativa (%)</label>
+                      <input
+                        className="exInput"
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        value={penalidadeTentativa}
+                        onChange={(e) => setPenalidadeTentativa(e.target.value)}
+                      />
+                    </div>
+                    <div className="exInputGroup">
+                      <label className="exLabel">Intervalo entre tentativas (min)</label>
+                      <input
+                        className="exInput"
+                        type="number"
+                        min="1"
+                        placeholder="Sem intervalo"
+                        value={intervaloReenvio}
+                        onChange={(e) => setIntervaloReenvio(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="exInputRow">
                   <div className="exInputGroup">
                     <label className="exLabel">Módulo *</label>
@@ -1526,6 +1625,23 @@ export default function ExerciciosPage() {
                     </select>
                   </div>
                 )}
+
+                {/* Filtro de status (staff only) */}
+                {isStaff && (
+                  <div className="filterGroup">
+                    <select
+                      className="exSelect"
+                      value={statusFiltro}
+                      onChange={(e) => setStatusFiltro(e.target.value)}
+                      style={{ minWidth: 160 }}
+                    >
+                      <option value="todos">Todos os status</option>
+                      <option value="publicado">Publicado</option>
+                      <option value="programado">Programado</option>
+                      <option value="rascunho">Rascunho</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1576,6 +1692,15 @@ export default function ExerciciosPage() {
                           return false;
                         }
 
+                        // Filtro de status (staff only)
+                        if (isStaff && statusFiltro !== "todos") {
+                          const isPublished = ex.publicado !== false;
+                          const isScheduled = ex.publishedAt && new Date(ex.publishedAt) > new Date();
+                          if (statusFiltro === "rascunho" && (isPublished || isScheduled)) return false;
+                          if (statusFiltro === "programado" && !isScheduled) return false;
+                          if (statusFiltro === "publicado" && (!isPublished || isScheduled)) return false;
+                        }
+
                         // Filtro de turma
                         if (turmaFiltro === "todas") return true;
                         if (hasAlunoAssignment) return false;
@@ -1621,19 +1746,42 @@ export default function ExerciciosPage() {
                                     <div className="exerciseInfo">
                                       <div className="exerciseTitleContainer">
                                         <h3 className="exerciseTitle">{ex.titulo}</h3>
-                                        {ex.publishedAt && new Date(ex.publishedAt) > new Date() && (
-                                          <span
-                                            className="exerciseBadge"
-                                            style={{
-                                              background: "rgba(59, 130, 246, 0.1)",
-                                              color: "#3b82f6",
-                                              borderColor: "rgba(59, 130, 246, 0.2)"
-                                            }}
-                                            title="Exercício programado para publicação"
-                                          >
-                                            📅 Programado
-                                          </span>
-                                        )}
+                                        {isStaff && (() => {
+                                          const isPublished = ex.publicado !== false;
+                                          const isScheduled = ex.publishedAt && new Date(ex.publishedAt) > new Date();
+                                          const isDraft = !isPublished && !isScheduled;
+                                          if (isDraft) {
+                                            return (
+                                              <span
+                                                className="exerciseBadge"
+                                                style={{
+                                                  background: "rgba(156, 163, 175, 0.15)",
+                                                  color: "#6b7280",
+                                                  borderColor: "rgba(156, 163, 175, 0.3)"
+                                                }}
+                                                title="Rascunho - não visível para alunos"
+                                              >
+                                                Rascunho
+                                              </span>
+                                            );
+                                          }
+                                          if (isScheduled) {
+                                            return (
+                                              <span
+                                                className="exerciseBadge"
+                                                style={{
+                                                  background: "rgba(59, 130, 246, 0.1)",
+                                                  color: "#3b82f6",
+                                                  borderColor: "rgba(59, 130, 246, 0.2)"
+                                                }}
+                                                title="Exercício programado para publicação"
+                                              >
+                                                Programado
+                                              </span>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
                                         {(() => {
                                           if (!ex.tipoExercicio) return null;
                                           let icon = "📝";
