@@ -496,17 +496,7 @@ export default function ExerciciosPage() {
           onClose={() => setOkMsg(null)}
         />
 
-        {!canCreate && (
-          <div className="exMessage warning">
-            <span>🔒</span>
-            <div>
-              <div style={{ fontWeight: 700 }}>Você não tem permissão para criar exercícios</div>
-              <div style={{ fontSize: 13, marginTop: 2, opacity: 0.9 }}>
-                Apenas professores e administradores podem criar exercícios.
-              </div>
-            </div>
-          </div>
-        )}
+     
 
         {/* SEÇÃO DE CRIAR */}
         {canCreate && activeSection === "criar" && (

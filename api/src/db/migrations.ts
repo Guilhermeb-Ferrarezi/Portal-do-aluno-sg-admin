@@ -3,10 +3,11 @@ import bcrypt from "bcrypt";
 
 export async function initializeDatabaseTables() {
   try {
+    console.log("")
     console.log("📊 Inicializando tabelas do banco de dados...");
 
     // ===== Criar tabela users (base) =====
-    console.log("👥 Criando tabela users se não existir...");
+    console.log("👥 Criando tabela users se não existir...")
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
