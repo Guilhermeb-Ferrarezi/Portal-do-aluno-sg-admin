@@ -18,24 +18,24 @@ import {
   type Submissao,
 } from "../services/api";
 import "./ExerciseDetail.css";
-import {Keyboard} from "lucide-react";
+import { Keyboard } from "lucide-react";
 
-// Helper: Determina qual tipo de exercÃ­cio renderizar baseado nos campos
+// Helper: Determina qual tipo de exercício renderizar baseado nos campos
 function determinarTipoRenderizacao(exercicio: Exercicio | null) {
   if (!exercicio) return null;
 
-  // Se tem atalho_tipo, Ã© exercÃ­cio de atalho
+  // Se tem atalho_tipo, é exercício de atalho
   if (exercicio.atalho_tipo) return "atalho";
 
-  // Se tem multipla_regras e tipoExercicio Ã© "multipla", Ã© mÃºltipla escolha
+  // Se tem multipla_regras e tipoExercicio é "multipla", é múltipla escolha
   if (exercicio.multipla_regras && (exercicio.tipoExercicio === "multipla" ||
-      (exercicio.tipoExercicio === "nenhum" && exercicio.multipla_regras))) {
+    (exercicio.tipoExercicio === "nenhum" && exercicio.multipla_regras))) {
     return "multipla";
   }
 
   // Se tem mouse_regras e tipoExercicio Ã© "mouse", Ã© mouse interativo
   if (exercicio.mouse_regras && (exercicio.tipoExercicio === "mouse" ||
-      (exercicio.tipoExercicio === "nenhum" && exercicio.mouse_regras))) {
+    (exercicio.tipoExercicio === "nenhum" && exercicio.mouse_regras))) {
     return "mouse";
   }
 
@@ -54,7 +54,7 @@ export default function ExerciseDetail() {
   const [loadingEx, setLoadingEx] = React.useState(true);
   const [erroEx, setErroEx] = React.useState<string | null>(null);
 
-  // SubmissÃ£o
+  // Submissão
   const [resposta, setResposta] = React.useState("");
   const [linguagem, setLinguagem] = React.useState("javascript");
   const [enviando, setEnviando] = React.useState(false);
@@ -107,7 +107,7 @@ export default function ExerciseDetail() {
         const data = await obterExercicio(id);
         setExercicio(data);
       } catch (error) {
-        setErroEx(error instanceof Error ? error.message : "Erro ao carregar exercÃ­cio");
+        setErroEx(error instanceof Error ? error.message : "Erro ao carregar exercício");
       } finally {
         setLoadingEx(false);
       }
@@ -133,7 +133,7 @@ export default function ExerciseDetail() {
         setTimeout(() => setAtalhoAutoNotice(false), 4000);
       } catch (err) {
         // Se falhar, nÃ£o marcar como enviado para tentar novamente
-        console.error("Auto-submissÃ£o falhou:", err);
+        console.error("Auto-submissão falhou:", err);
       }
     })();
   }, [atalhoCompleted, atalhoAutoSubmitted, exercicio]);
@@ -147,7 +147,7 @@ export default function ExerciseDetail() {
         const data = await minhasSubmissoes(id);
         setSubmissoes(data);
       } catch (error) {
-        console.error("Erro ao carregar submissÃµes:", error);
+        console.error("Erro ao carregar submissões:", error);
       }
     })();
   }, [id, exercicio]);
@@ -306,7 +306,7 @@ export default function ExerciseDetail() {
 
   const handleTestarCodigo = () => {
     if (linguagem !== "javascript") {
-      setErroTeste("Teste disponÃ­vel apenas para JavaScript!");
+      setErroTeste("Teste disponível apenas para JavaScript!");
       return;
     }
 
@@ -337,7 +337,7 @@ export default function ExerciseDetail() {
       console.log = originalLog;
       console.error = originalError;
 
-      setOutputTeste(logs.length > 0 ? logs.join("\n") : "âœ… CÃ³digo executado sem erros!");
+      setOutputTeste(logs.length > 0 ? logs.join("\n") : "✅ Código executado sem erros!");
     } catch (error) {
       console.log = originalLog;
       console.error = originalError;
@@ -351,7 +351,7 @@ export default function ExerciseDetail() {
 
     // ExercÃ­cios tipo "nenhum" precisam de um tipo selecionado
     if (exercicio.tipoExercicio === "nenhum" && !selectedTipoNenhum) {
-      setErroSubmissao("Por favor, selecione um tipo de exercÃ­cio antes de enviar.");
+      setErroSubmissao("Por favor, selecione um tipo de exercício antes de enviar.");
       return;
     }
 
@@ -368,7 +368,7 @@ export default function ExerciseDetail() {
       const respostasCount = Object.keys(respostasMultipla).length;
 
       if (respostasCount < totalQuestoes) {
-        setErroSubmissao(`Por favor, responda todas as ${totalQuestoes} questÃµes.`);
+        setErroSubmissao(`Por favor, responda todas as ${totalQuestoes} questões.`);
         return;
       }
     } else if (resposta.trim().length === 0 && tipoRenderizacao !== "atalho" && !hasArquivo) {
@@ -396,22 +396,22 @@ export default function ExerciseDetail() {
       const respostaFinal = isMultipla
         ? JSON.stringify(respostasMultipla)
         : tipoRenderizacao === "atalho"
-        ? "VocÃª conseguiu, ParabÃ©ns!"
-        : resposta.trim();
+          ? "Você conseguiu, Parabéns!"
+          : resposta.trim();
 
       const canSendArquivo = hasArquivo && tipoResposta !== "codigo";
       const result = canSendArquivo
         ? await enviarSubmissaoComArquivo(id, {
-            resposta: respostaFinal,
-            tipo_resposta: tipoResposta,
-            linguagem: tipoResposta === "codigo" ? linguagem : undefined,
-            arquivo,
-          })
+          resposta: respostaFinal,
+          tipo_resposta: tipoResposta,
+          linguagem: tipoResposta === "codigo" ? linguagem : undefined,
+          arquivo,
+        })
         : await enviarSubmissao(id, {
-            resposta: respostaFinal,
-            tipo_resposta: tipoResposta,
-            linguagem: tipoResposta === "codigo" ? linguagem : undefined,
-          });
+          resposta: respostaFinal,
+          tipo_resposta: tipoResposta,
+          linguagem: tipoResposta === "codigo" ? linguagem : undefined,
+        });
 
       // Feedback
       const score = result.submissao?.nota;
@@ -426,7 +426,7 @@ export default function ExerciseDetail() {
         if (verScore !== null && verScore !== undefined && verScore < 50) {
           setAvisoMsg("âš ï¸ Resposta enviada, mas parece fora do jeito esperado. Revise o enunciado.");
         } else {
-          setSucessoMsg("âœ… Resposta enviada com sucesso!");
+          setSucessoMsg("✅ Resposta enviada com sucesso!");
         }
       }
 
@@ -466,10 +466,10 @@ export default function ExerciseDetail() {
       setSubmissoesRecebidas((prev) =>
         prev.map((s) => (s.id === submissaoId ? { ...s, ...result.submissao } : s))
       );
-      setGradingMsg("SubmissÃ£o corrigida com sucesso!");
+      setGradingMsg("Submissão corrigida com sucesso!");
       setGradingSubmissaoId(null);
     } catch (error) {
-      setGradingMsg(error instanceof Error ? error.message : "Erro ao corrigir submissÃ£o");
+      setGradingMsg(error instanceof Error ? error.message : "Erro ao corrigir submissão");
     } finally {
       setGradingSaving(false);
     }
@@ -480,7 +480,7 @@ export default function ExerciseDetail() {
       <DashboardLayout title="ExercÃ­cio" subtitle="Carregando...">
         <div className="exerciseDetailContainer">
           <div className="loadingState">
-            <PulseLoader size="medium" color="var(--red)" text="Carregando exercÃ­cio..." />
+            <PulseLoader size="medium" color="var(--red)" text="Carregando exercício..." />
           </div>
         </div>
       </DashboardLayout>
@@ -494,7 +494,7 @@ export default function ExerciseDetail() {
           <FadeInUp delay={0.1} duration={0.4}>
             <div className="exMessage error">
               <span>âŒ</span>
-              <span>{erroEx || "ExercÃ­cio nÃ£o encontrado"}</span>
+              <span>{erroEx || "Exercício não encontrado"}</span>
             </div>
           </FadeInUp>
           <AnimatedButton
@@ -519,9 +519,9 @@ export default function ExerciseDetail() {
   const agoraMs = Date.now();
   const cooldownAtivo = Boolean(
     permitirRepeticao &&
-      intervaloReenvio !== null &&
-      ultimaTentativa &&
-      agoraMs - ultimaTentativa.getTime() < intervaloReenvio * 60 * 1000
+    intervaloReenvio !== null &&
+    ultimaTentativa &&
+    agoraMs - ultimaTentativa.getTime() < intervaloReenvio * 60 * 1000
   );
   const minutosRestantes =
     cooldownAtivo && ultimaTentativa && intervaloReenvio
@@ -541,8 +541,8 @@ export default function ExerciseDetail() {
     atalhoTextNoticeType === "success"
       ? { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" }
       : atalhoTextNoticeType === "error"
-      ? { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }
-      : { background: "#dbeafe", color: "#1e40af", border: "1px solid #bfdbfe" };
+        ? { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }
+        : { background: "#dbeafe", color: "#1e40af", border: "1px solid #bfdbfe" };
   const respostaVazia = resposta.trim().length === 0;
   const arquivoAceito =
     tipoExercicio === "texto" ||
@@ -554,7 +554,7 @@ export default function ExerciseDetail() {
   return (
     <DashboardLayout
       title={exercicio.titulo}
-      subtitle={`${exercicio.modulo} â€¢ ${temaTema}`}
+      subtitle={`${exercicio.modulo} • ${temaTema}`}
     >
       <FadeInUp delay={0} duration={0.28}>
         <div className="exerciseDetailContainer">
@@ -566,1123 +566,1123 @@ export default function ExerciseDetail() {
             â† Voltar aos exercÃ­cios
           </AnimatedButton>
 
-        {/* GRID 2 COLUNAS */}
-        <div className="exerciseDetailGrid">
-          {/* COLUNA ESQUERDA: ENUNCIADO */}
-          <div className="exerciseDetailLeft">
-            <div className="edCard edEnunciado">
-              <h2 className="edSubtitle">DescriÃ§Ã£o</h2>
+          {/* GRID 2 COLUNAS */}
+          <div className="exerciseDetailGrid">
+            {/* COLUNA ESQUERDA: ENUNCIADO */}
+            <div className="exerciseDetailLeft">
+              <div className="edCard edEnunciado">
+                <h2 className="edSubtitle">Descrição</h2>
 
-              <div className="edMeta">
-                <div className="edMetaItem">
-                  <span className="edLabel">MÃ³dulo:</span>
-                  <strong>{exercicio.modulo}</strong>
-                </div>
-                {exercicio.tema && (
+                <div className="edMeta">
                   <div className="edMetaItem">
-                    <span className="edLabel">Tema:</span>
-                    <strong>{exercicio.tema}</strong>
+                    <span className="edLabel">Módulo:</span>
+                    <strong>{exercicio.modulo}</strong>
                   </div>
-                )}
-                <div className="edMetaItem">
-                  <span className="edLabel">Tipo:</span>
-                  <strong>
-                    {tipoExercicio === "nenhum"
-                      ? "ðŸŒ Nenhum (Consulta)"
-                      : tipoExercicio === "codigo"
-                      ? "ðŸ’» CÃ³digo"
-                      : tipoExercicio === "escrita"
-                      ? "âœï¸ Escrita"
-                      : "ðŸ“ DigitaÃ§Ã£o"
+                  {exercicio.tema && (
+                    <div className="edMetaItem">
+                      <span className="edLabel">Tema:</span>
+                      <strong>{exercicio.tema}</strong>
+                    </div>
+                  )}
+                  <div className="edMetaItem">
+                    <span className="edLabel">Tipo:</span>
+                    <strong>
+                      {tipoExercicio === "nenhum"
+                        ? "ðŸŒ Nenhum (Consulta)"
+                        : tipoExercicio === "codigo"
+                          ? "ðŸ’» CÃ³digo"
+                          : tipoExercicio === "escrita"
+                            ? "âœï¸ Escrita"
+                            : "ðŸ“ DigitaÃ§Ã£o"
                       }
-                  </strong>
-                </div>
-                {prazoData && (
-                  <div className={`edMetaItem ${prazoVencido ? "overdue" : ""}`}>
-                    <span className="edLabel">Prazo:</span>
-                    <strong>
-                      {prazoData.toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
                     </strong>
                   </div>
-                )}
-                {permitirRepeticao && (
-                  <div className="edMetaItem">
-                    <span className="edLabel">Tentativas:</span>
-                    <strong>
-                      {maxTentativas !== null ? `${submissoes.length}/${maxTentativas}` : `${submissoes.length}/âˆž`}
-                    </strong>
-                  </div>
-                )}
-                {permitirRepeticao && exercicio.penalidadePorTentativa && exercicio.penalidadePorTentativa > 0 && (
-                  <div className="edMetaItem">
-                    <span className="edLabel">Penalidade:</span>
-                    <strong>-{exercicio.penalidadePorTentativa}% / tentativa</strong>
-                  </div>
-                )}
-                {permitirRepeticao && exercicio.intervaloReenvio && (
-                  <div className="edMetaItem">
-                    <span className="edLabel">Intervalo:</span>
-                    <strong>{exercicio.intervaloReenvio} min</strong>
-                  </div>
-                )}
-              </div>
-
-              <div className="edDescricao">
-                {exercicio.descricao}
-              </div>
-            </div>
-
-            {/* TENTATIVAS ANTERIORES */}
-            <ConditionalFieldAnimation isVisible={submissoes.length > 0} duration={0.3}>
-              <div className="edCard edTentativas">
-                <h3 className="edSubtitle">ðŸ“Š Minhas Tentativas ({submissoes.length})</h3>
-
-                <div className="tentativasList">
-                  {submissoes.map((sub, idx) => (
-                    <FadeInUp key={sub.id} delay={0.05 * (idx + 1)} duration={0.3}>
-                      <div className="tentativaItem">
-                        <div className="tentativaNumber">
-                          Tentativa {submissoes.length - idx}
-                          {sub.isLate && (
-                            <span style={{
-                              marginLeft: "8px",
-                              color: "#dc3545",
-                              fontSize: "12px",
-                              fontWeight: "bold",
-                            }}>
-                              â° ATRASADA
-                            </span>
-                          )}
-                        </div>
-
-                        {sub.nota !== null && (
-                          <div className={`tentativaNota ${sub.corrigida ? "corrigida" : ""}`}>
-                            Nota: <strong>{sub.nota}/100</strong>
-                          </div>
-                        )}
-
-                        <div className="tentativaData">
-                          {new Date(sub.createdAt).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-
-                        {sub.verificacaoDescricao !== null && sub.verificacaoDescricao !== undefined && (
-                          <div className="tentativaFeedback">
-                            <strong>Aderencia ao esperado:</strong> {sub.verificacaoDescricao}%
-                          </div>
-                        )}
-
-                        {sub.feedbackProfessor && (
-                          <div className="tentativaFeedback">
-                            <strong>Feedback:</strong> {sub.feedbackProfessor}
-                          </div>
-                        )}
-                        {sub.arquivoUrl && (
-                          <div className="tentativaFeedback">
-                            <strong>Anexo:</strong>{" "}
-                            <a href={sub.arquivoUrl} target="_blank" rel="noreferrer">
-                              {sub.arquivoNome || "Baixar arquivo"}
-                            </a>
-                          </div>
-                        )}
-
-                        <details className="tentativaDetalhes">
-                          <summary>Ver resposta</summary>
-                          <div className="tentativaResposta">
-                            {sub.tipoResposta === "codigo" ? (
-                              <pre>{sub.resposta}</pre>
-                            ) : (
-                              <p>{sub.resposta}</p>
-                            )}
-                          </div>
-                        </details>
-                      </div>
-                    </FadeInUp>
-                  ))}
-                </div>
-              </div>
-            </ConditionalFieldAnimation>
-
-            {canReview && (
-              <ConditionalFieldAnimation isVisible={true} duration={0.3}>
-                <div className="edCard edTentativas">
-                  <h3 className="edSubtitle">ðŸ“ Respostas dos alunos ({submissoesRecebidas.length})</h3>
-
-                  {loadingRecebidas ? (
-                    <div style={{ padding: "20px", textAlign: "center" }}>
-                      <PulseLoader size="small" color="var(--red)" text="Carregando respostas..." />
+                  {prazoData && (
+                    <div className={`edMetaItem ${prazoVencido ? "overdue" : ""}`}>
+                      <span className="edLabel">Prazo:</span>
+                      <strong>
+                        {prazoData.toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </strong>
                     </div>
-                  ) : submissoesRecebidas.length === 0 ? (
-                    <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
-                      Nenhuma resposta enviada ainda.
+                  )}
+                  {permitirRepeticao && (
+                    <div className="edMetaItem">
+                      <span className="edLabel">Tentativas:</span>
+                      <strong>
+                        {maxTentativas !== null ? `${submissoes.length}/${maxTentativas}` : `${submissoes.length}/∞`}
+                      </strong>
                     </div>
-                  ) : (
-                    <div className="tentativasList">
-                      {submissoesRecebidas.map((sub, idx) => (
-                        <FadeInUp key={sub.id} delay={0.05 * (idx + 1)} duration={0.3}>
-                          <div className="tentativaItem">
-                            <div className="tentativaNumber">
-                              {sub.alunoNome} <span style={{ opacity: 0.7 }}>@{sub.alunoUsuario}</span>
-                            </div>
-
-                            {sub.nota !== null && (
-                              <div className={`tentativaNota ${sub.corrigida ? "corrigida" : ""}`}>
-                                Nota: <strong>{sub.nota}/100</strong>
-                              </div>
-                            )}
-
-                            <div className="tentativaData">
-                              {new Date(sub.createdAt).toLocaleDateString("pt-BR", {
-                                day: "2-digit",
-                                month: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </div>
-
-                            {sub.verificacaoDescricao !== null && sub.verificacaoDescricao !== undefined && (
-                              <div className="tentativaFeedback">
-                                <strong>Aderencia ao esperado:</strong> {sub.verificacaoDescricao}%
-                              </div>
-                            )}
-
-                            {sub.feedbackProfessor && (
-                              <div className="tentativaFeedback">
-                                <strong>Feedback:</strong> {sub.feedbackProfessor}
-                              </div>
-                            )}
-                            {sub.arquivoUrl && (
-                              <div className="tentativaFeedback">
-                                <strong>Anexo:</strong>{" "}
-                                <a href={sub.arquivoUrl} target="_blank" rel="noreferrer">
-                                  {sub.arquivoNome || "Baixar arquivo"}
-                                </a>
-                              </div>
-                            )}
-
-                            <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                              <button
-                                type="button"
-                                className="edSubmitBtn"
-                                style={{ padding: "6px 10px", fontSize: 12, width: "auto" }}
-                                onClick={() => abrirCorrecao(sub)}
-                              >
-                                {sub.corrigida ? "Re-corrigir" : "Corrigir"}
-                              </button>
-                            </div>
-
-                            {gradingSubmissaoId === sub.id && (
-                              <div style={{ marginTop: 10 }}>
-                                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                                  <input
-                                    className="edInput"
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={gradingNota}
-                                    onChange={(e) => setGradingNota(Number(e.target.value))}
-                                    style={{ width: 120 }}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="edSubmitBtn"
-                                    style={{ padding: "6px 10px", fontSize: 12, width: "auto" }}
-                                    onClick={() => salvarCorrecao(sub.id)}
-                                    disabled={gradingSaving}
-                                  >
-                                    {gradingSaving ? "Salvando..." : "Salvar"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="edSubmitBtn"
-                                    style={{ padding: "6px 10px", fontSize: 12, width: "auto", background: "var(--border)", color: "var(--text)" }}
-                                    onClick={cancelarCorrecao}
-                                    disabled={gradingSaving}
-                                  >
-                                    Cancelar
-                                  </button>
-                                </div>
-                                <textarea
-                                  className="edTextarea"
-                                  placeholder="Feedback para o aluno (opcional)"
-                                  value={gradingFeedback}
-                                  onChange={(e) => setGradingFeedback(e.target.value)}
-                                  rows={3}
-                                />
-                              </div>
-                            )}
-
-                            <details className="tentativaDetalhes">
-                              <summary>Ver resposta</summary>
-                              <div className="tentativaResposta">
-                                {sub.tipoResposta === "codigo" ? (
-                                  <pre>{sub.resposta}</pre>
-                                ) : (
-                                  <p>{sub.resposta}</p>
-                                )}
-                              </div>
-                            </details>
-
-                            {/* CorreÃ§Ã£o manual */}
-                            {gradingSubmissaoId === sub.id ? (
-                              <div style={{
-                                marginTop: "10px",
-                                padding: "12px",
-                                background: "rgba(59, 130, 246, 0.05)",
-                                border: "1px solid rgba(59, 130, 246, 0.2)",
-                                borderRadius: "8px",
-                                display: "flex",
-                                flexDirection: "column" as const,
-                                gap: "8px"
-                              }}>
-                                <label style={{ fontSize: "13px", fontWeight: 600 }}>
-                                  Nota (0-100):
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    value={gradingNota}
-                                    onChange={(e) => setGradingNota(Math.min(100, Math.max(0, Number(e.target.value))))}
-                                    style={{
-                                      width: "80px",
-                                      marginLeft: "8px",
-                                      padding: "4px 8px",
-                                      borderRadius: "6px",
-                                      border: "1px solid var(--line)",
-                                      background: "var(--background)",
-                                      color: "var(--text)",
-                                    }}
-                                  />
-                                </label>
-                                <label style={{ fontSize: "13px", fontWeight: 600 }}>
-                                  Feedback:
-                                  <textarea
-                                    value={gradingFeedback}
-                                    onChange={(e) => setGradingFeedback(e.target.value)}
-                                    rows={3}
-                                    placeholder="Feedback para o aluno (opcional)"
-                                    style={{
-                                      width: "100%",
-                                      marginTop: "4px",
-                                      padding: "8px",
-                                      borderRadius: "6px",
-                                      border: "1px solid var(--line)",
-                                      resize: "vertical" as const,
-                                      fontSize: "13px",
-                                      background: "var(--background)",
-                                      color: "var(--text)",
-                                    }}
-                                  />
-                                </label>
-                                <div style={{ display: "flex", gap: "8px" }}>
-                                  <AnimatedButton
-                                    onClick={() => handleCorrigir(sub.id)}
-                                    disabled={gradingSaving}
-                                    style={{ fontSize: "13px", padding: "6px 16px" }}
-                                  >
-                                    {gradingSaving ? "Salvando..." : "Salvar Nota"}
-                                  </AnimatedButton>
-                                  <button
-                                    onClick={() => {
-                                      setGradingSubmissaoId(null);
-                                      setGradingNota(0);
-                                      setGradingFeedback("");
-                                    }}
-                                    style={{
-                                      fontSize: "13px",
-                                      padding: "6px 16px",
-                                      background: "transparent",
-                                      border: "1px solid var(--line)",
-                                      borderRadius: "6px",
-                                      cursor: "pointer",
-                                      color: "var(--text)",
-                                    }}
-                                  >
-                                    Cancelar
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setGradingSubmissaoId(sub.id);
-                                  setGradingNota(sub.nota ?? 0);
-                                  setGradingFeedback(sub.feedbackProfessor ?? "");
-                                }}
-                                style={{
-                                  marginTop: "8px",
-                                  fontSize: "12px",
-                                  padding: "6px 12px",
-                                  background: sub.corrigida ? "rgba(34, 197, 94, 0.1)" : "rgba(59, 130, 246, 0.1)",
-                                  border: `1px solid ${sub.corrigida ? "rgba(34, 197, 94, 0.3)" : "rgba(59, 130, 246, 0.3)"}`,
-                                  borderRadius: "6px",
-                                  cursor: "pointer",
-                                  color: sub.corrigida ? "#166534" : "#1e40af",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {sub.corrigida ? "Re-corrigir" : "Corrigir"}
-                              </button>
-                            )}
-                          </div>
-                        </FadeInUp>
-                      ))}
+                  )}
+                  {permitirRepeticao && exercicio.penalidadePorTentativa && exercicio.penalidadePorTentativa > 0 && (
+                    <div className="edMetaItem">
+                      <span className="edLabel">Penalidade:</span>
+                      <strong>-{exercicio.penalidadePorTentativa}% / tentativa</strong>
+                    </div>
+                  )}
+                  {permitirRepeticao && exercicio.intervaloReenvio && (
+                    <div className="edMetaItem">
+                      <span className="edLabel">Intervalo:</span>
+                      <strong>{exercicio.intervaloReenvio} min</strong>
                     </div>
                   )}
                 </div>
-              </ConditionalFieldAnimation>
-            )}
 
-          </div>
-
-          {/* COLUNA DIREITA: RESPONDER */}
-          <div className="exerciseDetailRight">
-            <div className="edCard edResponder">
-              <h2 className="edSubtitle">ðŸ“ Envie sua resposta</h2>
-
-
-              {/* MENSAGENS */}
-              <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
-                <div className="exMessage error">
-                  <span>âŒ</span>
-                  <span>{erroSubmissao}</span>
+                <div className="edDescricao">
+                  {exercicio.descricao}
                 </div>
-              </ConditionalFieldAnimation>
+              </div>
 
-              <ConditionalFieldAnimation isVisible={!!sucessoMsg} duration={0.25}>
-                <div className="exMessage success">
-                  <span>âœ…</span>
-                  <span>{sucessoMsg}</span>
-                </div>
-              </ConditionalFieldAnimation>
+              {/* TENTATIVAS ANTERIORES */}
+              <ConditionalFieldAnimation isVisible={submissoes.length > 0} duration={0.3}>
+                <div className="edCard edTentativas">
+                  <h3 className="edSubtitle">📊 Minhas Tentativas ({submissoes.length})</h3>
 
-              <ConditionalFieldAnimation isVisible={!!avisoMsg} duration={0.25}>
-                <div className="exMessage warning">
-                  <span>âš ï¸</span>
-                  <span>{avisoMsg}</span>
-                </div>
-              </ConditionalFieldAnimation>
-
-              {/* RESPOSTA */}
-              <div className="edInputGroup">
-                {/* ExercÃ­cios com Mouse Interativo - Baseado em tipo */}
-                {exercicio && tipoRenderizacao === "mouse" && (() => {
-                  const mouseRegras = exercicio.mouse_regras
-                    ? JSON.parse(exercicio.mouse_regras)
-                    : { clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 };
-
-                  return (
-                    <div>
-                      <div style={{ marginBottom: "20px", padding: "16px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: "8px" }}>
-                        {(mouseRegras.clicksSimples || mouseRegras.duplosClicks || mouseRegras.clicksDireitos) && (
-                          <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #bfdbfe" }}>
-                            <p style={{ fontSize: 12, color: "#1e40af", margin: "0 0 6px 0", fontWeight: 600 }}>
-                              ðŸŽ¯ Regras de Sucesso:
-                            </p>
-                            <ul style={{ fontSize: 12, color: "#1e40af", margin: 0, paddingLeft: "20px" }}>
-                              {mouseRegras.clicksSimples > 0 && <li>ðŸ–±ï¸ {mouseRegras.clicksSimples} cliques esquerdos</li>}
-                              {mouseRegras.duplosClicks > 0 && <li>ðŸ–±ï¸ðŸ–±ï¸ {mouseRegras.duplosClicks} duplos cliques</li>}
-                              {mouseRegras.clicksDireitos > 0 && <li>ðŸ–±ï¸â†’ {mouseRegras.clicksDireitos} cliques direitos</li>}
-                            </ul>
+                  <div className="tentativasList">
+                    {submissoes.map((sub, idx) => (
+                      <FadeInUp key={sub.id} delay={0.05 * (idx + 1)} duration={0.3}>
+                        <div className="tentativaItem">
+                          <div className="tentativaNumber">
+                            Tentativa {submissoes.length - idx}
+                            {sub.isLate && (
+                              <span style={{
+                                marginLeft: "8px",
+                                color: "#dc3545",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                              }}>
+                                â° ATRASADA
+                              </span>
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      <MouseInteractiveBox
-                        title={exercicio.titulo}
-                        instruction="Realize os cliques conforme as regras acima. VocÃª verÃ¡ seu progresso em tempo real!"
-                        rules={mouseRegras}
-                        onComplete={() => {
-                          setMouseCompleted(true);
-                          setSucessoMsg("âœ… ParabÃ©ns! VocÃª completou o desafio do Mouse!");
-                        }}
-                      />
-
-                      <ConditionalFieldAnimation isVisible={mouseCompleted} duration={0.3}>
-                        <div style={{ marginTop: "16px", padding: "12px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: "8px" }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
-                            âœ… Desafio completado! Agora vocÃª pode enviar sua submissÃ£o.
-                          </p>
-                        </div>
-                      </ConditionalFieldAnimation>
-
-                      <textarea
-                        className="edTextarea"
-                        placeholder="Descreva sua experiÃªncia realizando este desafio de mouse..."
-                        value={resposta}
-                        onChange={(e) => setResposta(e.target.value)}
-                        rows={6}
-                        style={{ marginTop: "16px" }}
-                      />
-                    </div>
-                  );
-                })()}
-
-                {/* EXERCÃCIOS COM MÃšLTIPLA ESCOLHA */}
-                {exercicio && tipoRenderizacao === "multipla" && (() => {
-                  const multiplaRegras = exercicio.multipla_regras
-                    ? JSON.parse(exercicio.multipla_regras)
-                    : { questoes: [] };
-
-                  if (!multiplaRegras.questoes || multiplaRegras.questoes.length === 0) {
-                    return (
-                      <div style={{ padding: "16px", background: "#fee2e2", borderRadius: "8px" }}>
-                        âš ï¸ Este exercÃ­cio nÃ£o possui questÃµes configuradas.
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div>
-                      {/* InstruÃ§Ãµes */}
-                      <div style={{ padding: "16px", background: "#f0f9ff", borderRadius: "8px", marginBottom: "20px" }}>
-                        <p style={{ fontWeight: 600, color: "#1e40af" }}>ðŸ“‹ {exercicio.descricao}</p>
-                        <p style={{ fontSize: 12, color: "#1e40af" }}>
-                          â„¹ï¸ Responda todas as {multiplaRegras.questoes.length} questÃµes
-                        </p>
-                      </div>
-
-                      {/* Renderizar questÃµes */}
-                      {multiplaRegras.questoes.map((questao: any, index: number) => (
-                        <FadeInUp key={index} delay={0.05 * (index + 1)} duration={0.3}>
-                          <MultipleChoiceQuestion
-                            question={`Q${index + 1}: ${questao.pergunta}`}
-                            options={questao.opcoes}
-                            selectedAnswer={respostasMultipla[`q${index}`]}
-                            onAnswer={(answer) => {
-                              setRespostasMultipla({ ...respostasMultipla, [`q${index}`]: answer });
-                            }}
-                          />
-                        </FadeInUp>
-                      ))}
-
-                      {/* Progresso */}
-                      <FadeInUp delay={0.1} duration={0.3}>
-                        <div style={{ padding: "12px", background: "#f0fdf4", borderRadius: "8px", marginTop: "16px" }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
-                            ðŸ“Š Progresso: {Object.keys(respostasMultipla).length} / {multiplaRegras.questoes.length} respondidas
-                          </p>
-                        </div>
-                      </FadeInUp>
-
-                      {/* Campo opcional de comentÃ¡rio */}
-                      <textarea
-                        className="edTextarea"
-                        placeholder="(Opcional) Deixe um comentÃ¡rio..."
-                        value={resposta}
-                        onChange={(e) => setResposta(e.target.value)}
-                        rows={4}
-                        style={{ marginTop: "16px" }}
-                      />
-                    </div>
-                  );
-                })()}
-
-                {/* ExercÃ­cios de ATALHO */}
-                {exercicio && tipoRenderizacao === "atalho" && (() => {
-                  const atalhoTipo = currentAtalhoTipo;
-
-                  return (
-                    <div>
-                      <ShortcutTrainingBox
-                        ref={shortcutBoxRef}
-                        title="âŒ¨ï¸ Pratique o Atalho"
-                        instruction={ atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo Ã  direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteÃºdo abaixo e pressione Delete para completar" : "Clique com botÃ£o direito na imagem â†’ Copiar imagem, depois cole no campo Ã  direita" }
-                        shortcutType={atalhoTipo}
-                        sample={atalhoSample}
-                        onSampleCopy={(selectedText) => {
-                          if (atalhoTipo === "copiar-colar") {
-                            handleAtalhoTextCopy(selectedText);
-                          }
-                        }}
-                        onComplete={(events) => {
-                          console.log("Atalho completado:", events);
-                          setAtalhoCompleted(true);
-                        }}
-                      />
-
-                      <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "flex-start" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Imagem de exemplo" : "Texto de exemplo"}</label>
-
-                          {atalhoTipo === "copiar-colar-imagens" ? (
-                            <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
-                              <img
-                                src={atalhoSample}
-                                alt="Copie esta imagem"
-                                style={{ width: "100%", display: "block" }}
-                              />
+                          {sub.nota !== null && (
+                            <div className={`tentativaNota ${sub.corrigida ? "corrigida" : ""}`}>
+                              Nota: <strong>{sub.nota}/100</strong>
                             </div>
-                          ) : atalhoTipo === "copiar-colar" ? (
-                            <textarea
-                              className="edTextarea"
-                              value={atalhoSample}
-                              rows={6}
-                              style={{ resize: "none"}}
-                              onCopy={(e) => {
-                                const target = e.currentTarget;
-                                const start = target.selectionStart ?? 0;
-                                const end = target.selectionEnd ?? 0;
-                                const selectedText = target.value.substring(start, end);
-                                handleAtalhoTextCopy(selectedText);
-                              }}
-                            />
-                          ) : atalhoTipo === "selecionar-deletar" ? (
-                            <div
-                              ref={sampleRef}
-                              contentEditable
-                              suppressContentEditableWarning
-                              onInput={handleSampleInput}
-                              className="edTextarea"
-                              style={{ minHeight: 140, padding: 12, whiteSpace: "pre-wrap", outline: "none" }}
-                            >
-                              {atalhoSample}
-                            </div>
-                          ) : (
-                            <textarea
-                              className="edTextarea"
-                              value={atalhoSample}
-                              rows={6}
-                              style={{ resize: "vertical" }}
-                            />
                           )}
 
-                          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                            <button
-                              className="templateBtnView"
-                              onClick={() => {
-                                if (atalhoTipo === "copiar-colar-imagens") {
-                                  const svgImage = (color: string, text: string) =>
-                                    `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
-                                  const images = [
-                                    svgImage("#4F46E5", "Imagem Exemplo 1"),
-                                    svgImage("#059669", "Imagem Exemplo 2"),
-                                    svgImage("#DC2626", "Imagem Exemplo 3")
-                                  ];
-                                  setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
-                                } else {
-                                  const texts = [
-                                    "Copie este texto de exemplo: O rÃ¡pido castor marrom salta sobre o cÃ£o preguiÃ§oso.",
-                                    "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                                    "Exemplo: 12345 - teste rÃ¡pido de copiar e colar!",
-                                    "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
-                                    "Treino: Abacaxi, banana, uva, morango, limÃ£o."
-                                  ];
-                                  setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
-                                }
-                                setAtalhoCompleted(false);
-                                setResposta("");
-                                setAtalhoTextCopied(false);
-                                setAtalhoTextNotice(null);
-                                setAtalhoTextNoticeType("info");
-                              }}
-                            >
-                              ðŸ” Novo exemplo
-                            </button>
+                          <div className="tentativaData">
+                            {new Date(sub.createdAt).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
-                        </div>
 
-                        {/* Campo onde usuÃ¡rio cola o texto/imagem */}
-                        <div style={{ flex: 1 }}>
-                          <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl + V â†’ Colar)" : atalhoTipo === "copiar-colar" ? "Cole o texto aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a Ã¡rea esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+                          {sub.verificacaoDescricao !== null && sub.verificacaoDescricao !== undefined && (
+                            <div className="tentativaFeedback">
+                              <strong>Aderência ao esperado:</strong> {sub.verificacaoDescricao}%
+                            </div>
+                          )}
 
-                          {atalhoTipo === "copiar-colar-imagens" ? (
-                            <div
-                              tabIndex={0}
-                              onPaste={(e) => {
-                                const items = e.clipboardData?.items;
-                                if (!items) return;
-                                for (let i = 0; i < items.length; i++) {
-                                  if (items[i].type.indexOf("image") !== -1) {
-                                    const file = items[i].getAsFile();
-                                    if (file) {
-                                      const reader = new FileReader();
-                                      reader.onload = () => {
-                                        setResposta(reader.result as string);
-                                        setAtalhoCompleted(true);
-                                        shortcutBoxRef.current?.detectAction("colar");
-                                      };
-                                      reader.readAsDataURL(file);
-                                      e.preventDefault();
-                                      return;
-                                    }
-                                  }
-                                }
-                                // NÃ£o aceitar texto no modo de copiar/colar imagem
-                              }}
-                              style={{
-                                minHeight: 220,
-                                padding: 20,
-                                borderRadius: 8,
-                                border: resposta ? "2px solid rgba(34,197,94,0.5)" : "2px dashed rgba(255,255,255,0.2)",
-                                background: resposta ? "rgba(34,197,94,0.05)" : "rgba(0,0,0,0.2)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                transition: "all 0.3s ease",
-                                cursor: "text",
-                                outline: "none"
-                              }}
-                            >
-                              {resposta ? (
-                                resposta.startsWith("data:image") ? (
-                                  <img src={resposta} alt="Imagem colada" style={{ maxWidth: "100%", borderRadius: 8, display: "block" }} />
-                                ) : (
-                                  <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", color: "rgba(255,255,255,0.8)" }}>{resposta}</div>
-                                )
+                          {sub.feedbackProfessor && (
+                            <div className="tentativaFeedback">
+                              <strong>Feedback:</strong> {sub.feedbackProfessor}
+                            </div>
+                          )}
+                          {sub.arquivoUrl && (
+                            <div className="tentativaFeedback">
+                              <strong>Anexo:</strong>{" "}
+                              <a href={sub.arquivoUrl} target="_blank" rel="noreferrer">
+                                {sub.arquivoNome || "Baixar arquivo"}
+                              </a>
+                            </div>
+                          )}
+
+                          <details className="tentativaDetalhes">
+                            <summary>Ver resposta</summary>
+                            <div className="tentativaResposta">
+                              {sub.tipoResposta === "codigo" ? (
+                                <pre>{sub.resposta}</pre>
                               ) : (
-                                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
-                                  <div style={{ fontSize: 36, marginBottom: 8 }}> <Keyboard /> </div>
-                                  <div style={{ fontSize: 14, fontWeight: 600 }}>Cole aqui</div>
-                                </div>
+                                <p>{sub.resposta}</p>
                               )}
                             </div>
-                          ) : atalhoTipo === "copiar-colar" ? (
-                            <textarea
-                              className="edTextarea"
-                              placeholder="Cole o texto aqui (Ctrl+V)"
-                              value={resposta}
-                              readOnly
-                              onPaste={(e) => {
-                                const text = e.clipboardData.getData("text/plain");
-                                const expected = atalhoSample.trim();
-                                const pasted = text.trim();
-                                const copiedOk = atalhoTextCopied;
-
-                                setResposta(text);
-                                if (!copiedOk) {
-                                  setAtalhoCompleted(false);
-                                  setAtalhoTextNotice("Primeiro copie o texto de exemplo antes de colar.");
-                                  setAtalhoTextNoticeType("error");
-                                } else if (pasted !== expected) {
-                                  setAtalhoCompleted(false);
-                                  setAtalhoTextNotice("O texto colado n\u00e3o corresponde ao exemplo.");
-                                  setAtalhoTextNoticeType("error");
-                                } else {
-                                  setAtalhoCompleted(true);
-                                  setAtalhoTextNotice("Texto colado corretamente!");
-                                  setAtalhoTextNoticeType("success");
-                                  shortcutBoxRef.current?.detectAction("colar");
-                                }
-                                e.preventDefault();
-                              }}
-                              rows={6}
-                              style={{ resize: "none", border: atalhoCompleted ? "2px solid rgba(34,197,94,0.6)" : undefined }}
-                            />
-                          ) : atalhoTipo === "selecionar-deletar" ? (
-                            <div style={{ marginTop: 6, color: "#9CA3AF", fontSize: 13 }}>
-                              Selecione todo o texto Ã  esquerda e pressione Delete ou Backspace para completar o exercÃ­cio.
-                            </div>
-                          ) : (
-                            <textarea
-                              className="edTextarea"
-                              placeholder="Cole o texto aqui apÃ³s copiar o exemplo"
-                              value={resposta}
-                              onChange={(e) => setResposta(e.target.value)}
-                              rows={6}
-                              style={{ resize: "vertical" }}
-                            />
-                          )}
-
-                          {atalhoTipo === "copiar-colar" && atalhoTextNotice && (
-                            <div
-                              style={{
-                                ...atalhoTextNoticeStyle,
-                                marginTop: 8,
-                                padding: "8px 10px",
-                                borderRadius: 6,
-                                fontSize: 13,
-                                fontWeight: 600,
-                              }}
-                            >
-                              {atalhoTextNotice}
-                            </div>
-                          )}
-
-                          <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>
-                            {atalhoCompleted ? "âœ… Atalho completado" : "â³ Complete o exercÃ­cio de atalho para treinar"}
-                          </div>
-                          {atalhoAutoNotice && (
-                            <div style={{ marginTop: 8, color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
-                              âœ… Resposta enviada automaticamente
-                            </div>
-                          )}
+                          </details>
                         </div>
+                      </FadeInUp>
+                    ))}
+                  </div>
+                </div>
+              </ConditionalFieldAnimation>
+
+              {canReview && (
+                <ConditionalFieldAnimation isVisible={true} duration={0.3}>
+                  <div className="edCard edTentativas">
+                    <h3 className="edSubtitle">ðŸ“ Respostas dos alunos ({submissoesRecebidas.length})</h3>
+
+                    {loadingRecebidas ? (
+                      <div style={{ padding: "20px", textAlign: "center" }}>
+                        <PulseLoader size="small" color="var(--red)" text="Carregando respostas..." />
                       </div>
-                    </div>
-                  );
-                })()}
-
-                {/* ExercÃ­cios tipo NENHUM - Seletor de tipo */}
-                {tipoExercicio === "nenhum" && !selectedTipoNenhum && (
-                  <ConditionalFieldAnimation isVisible={true} duration={0.3}>
-                    <div style={{
-                      padding: "24px",
-                      marginBottom: "24px",
-                      backgroundColor: "rgba(59, 130, 246, 0.1)",
-                      border: "2px solid rgba(59, 130, 246, 0.3)",
-                      borderRadius: "12px",
-                    }}>
-                      <h3 style={{ marginTop: 0, marginBottom: "16px", color: "#2563eb", fontSize: "18px", fontWeight: "600" }}>
-                        ðŸ“‹ Selecione o tipo de resposta
-                      </h3>
-                      <p style={{ marginBottom: "20px", color: "var(--text)", fontSize: "14px" }}>
-                        Escolha como vocÃª gostaria de responder este exercÃ­cio:
-                      </p>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                        <button
-                          onClick={() => setSelectedTipoNenhum("codigo")}
-                          style={{
-                            padding: "16px",
-                            border: "2px solid rgba(59, 130, 246, 0.2)",
-                            borderRadius: "8px",
-                            backgroundColor: "var(--background-secondary)",
-                            color: "#2563eb",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(59, 130, 246, 0.15)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                          }}
-                        >
-                          ðŸ’» CÃ³digo
-                        </button>
-                        <button
-                          onClick={() => setSelectedTipoNenhum("escrita")}
-                          style={{
-                            padding: "16px",
-                            border: "2px solid rgba(139, 92, 246, 0.2)",
-                            borderRadius: "8px",
-                            backgroundColor: "var(--background-secondary)",
-                            color: "#a855f7",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(168, 85, 247, 0.15)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                          }}
-                        >
-                          âœï¸ Escrita
-                        </button>
-                        <button
-                          onClick={() => setSelectedTipoNenhum("texto")}
-                          style={{
-                            padding: "16px",
-                            border: "2px solid rgba(34, 197, 94, 0.2)",
-                            borderRadius: "8px",
-                            backgroundColor: "var(--background-secondary)",
-                            color: "#22c55e",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(34, 197, 94, 0.15)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                          }}
-                        >
-                          ðŸ“ DigitaÃ§Ã£o
-                        </button>
-                        <button
-                          onClick={() => setSelectedTipoNenhum("multipla")}
-                          style={{
-                            padding: "16px",
-                            border: "2px solid rgba(236, 72, 153, 0.2)",
-                            borderRadius: "8px",
-                            backgroundColor: "var(--background-secondary)",
-                            color: "#ec4899",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(236, 72, 153, 0.15)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                          }}
-                        >
-                          â“ MÃºltipla Escolha
-                        </button>
-                        <button
-                          onClick={() => setSelectedTipoNenhum("mouse")}
-                          style={{
-                            padding: "16px",
-                            border: "2px solid rgba(248, 113, 113, 0.2)",
-                            borderRadius: "8px",
-                            backgroundColor: "var(--background-secondary)",
-                            color: "#f87171",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(248, 113, 113, 0.15)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                          }}
-                        >
-                          ðŸ–±ï¸ Mouse Interativo
-                        </button>
-                        <button
-                          onClick={() => setSelectedTipoNenhum("atalho")}
-                          style={{
-                            padding: "16px",
-                            border: "2px solid rgba(251, 146, 60, 0.2)",
-                            borderRadius: "8px",
-                            backgroundColor: "var(--background-secondary)",
-                            color: "#fb923c",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(251, 146, 60, 0.15)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
-                            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                          }}
-                        >
-                          âŒ¨ï¸ Atalho
-                        </button>
+                    ) : submissoesRecebidas.length === 0 ? (
+                      <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
+                        Nenhuma resposta enviada ainda.
                       </div>
-                    </div>
-                  </ConditionalFieldAnimation>
-                )}
+                    ) : (
+                      <div className="tentativasList">
+                        {submissoesRecebidas.map((sub, idx) => (
+                          <FadeInUp key={sub.id} delay={0.05 * (idx + 1)} duration={0.3}>
+                            <div className="tentativaItem">
+                              <div className="tentativaNumber">
+                                {sub.alunoNome} <span style={{ opacity: 0.7 }}>@{sub.alunoUsuario}</span>
+                              </div>
 
-                {/* ExercÃ­cios normais de cÃ³digo */}
-                {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo")) && (
-                  <>
-                    <MonacoEditor
-                      value={resposta}
-                      onChange={(v) => setResposta(v || "")}
-                      language={linguagem}
-                      onLanguageChange={setLinguagem}
-                      height="600px"
-                      autoHeight
-                      minHeight={600}
-                      maxHeight={1200}
-                      theme="dark"
-                    />
+                              {sub.nota !== null && (
+                                <div className={`tentativaNota ${sub.corrigida ? "corrigida" : ""}`}>
+                                  Nota: <strong>{sub.nota}/100</strong>
+                                </div>
+                              )}
 
-                    {/* TESTE DE CÃ“DIGO */}
-                    <AnimatedButton
-                      className="edTestBtn"
-                      onClick={handleTestarCodigo}
-                      disabled={resposta.trim().length === 0 || linguagem !== "javascript"}
-                    >
-                      ðŸ§ª Testar CÃ³digo
-                    </AnimatedButton>
-                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
-                      Teste local disponÃ­vel apenas para JavaScript. Outras linguagens serÃ£o avaliadas pelo professor.
-                    </div>
+                              <div className="tentativaData">
+                                {new Date(sub.createdAt).toLocaleDateString("pt-BR", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
 
-                    {/* OUTPUT DO TESTE */}
-                    <ConditionalFieldAnimation isVisible={!!erroTeste} duration={0.3}>
-                      <div className="edTestOutput error">
-                        <div className="edTestLabel">âŒ Erro:</div>
-                        <pre>{erroTeste}</pre>
-                      </div>
-                    </ConditionalFieldAnimation>
+                              {sub.verificacaoDescricao !== null && sub.verificacaoDescricao !== undefined && (
+                                <div className="tentativaFeedback">
+                                  <strong>Aderencia ao esperado:</strong> {sub.verificacaoDescricao}%
+                                </div>
+                              )}
 
-                    <ConditionalFieldAnimation isVisible={!!outputTeste && !erroTeste} duration={0.3}>
-                      <div className="edTestOutput success">
-                        <div className="edTestLabel">âœ… Output:</div>
-                        <pre>{outputTeste}</pre>
-                      </div>
-                    </ConditionalFieldAnimation>
-                  </>
-                )}
+                              {sub.feedbackProfessor && (
+                                <div className="tentativaFeedback">
+                                  <strong>Feedback:</strong> {sub.feedbackProfessor}
+                                </div>
+                              )}
+                              {sub.arquivoUrl && (
+                                <div className="tentativaFeedback">
+                                  <strong>Anexo:</strong>{" "}
+                                  <a href={sub.arquivoUrl} target="_blank" rel="noreferrer">
+                                    {sub.arquivoNome || "Baixar arquivo"}
+                                  </a>
+                                </div>
+                              )}
 
-                {/* ExercÃ­cios normais de texto */}
-                {(tipoExercicio === "texto" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "texto")) && (
-                  <textarea
-                    className="edTextarea"
-                    placeholder="Digite sua resposta aqui..."
-                    value={resposta}
-                    onChange={(e) => setResposta(e.target.value)}
-                    rows={12}
-                  />
-                )}
+                              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                                <button
+                                  type="button"
+                                  className="edSubmitBtn"
+                                  style={{ padding: "6px 10px", fontSize: 12, width: "auto" }}
+                                  onClick={() => abrirCorrecao(sub)}
+                                >
+                                  {sub.corrigida ? "Re-corrigir" : "Corrigir"}
+                                </button>
+                              </div>
 
-                {/* ExercÃ­cios de ESCRITA */}
-                {(tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita")) && (
-                  <textarea
-                    className="edTextarea"
-                    placeholder="Escreva sua resposta aqui. Sua resposta serÃ¡ revisada pelo professor..."
-                    value={resposta}
-                    onChange={(e) => setResposta(e.target.value)}
-                    rows={12}
-                  />
-                )}
+                              {gradingSubmissaoId === sub.id && (
+                                <div style={{ marginTop: 10 }}>
+                                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                                    <input
+                                      className="edInput"
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={gradingNota}
+                                      onChange={(e) => setGradingNota(Number(e.target.value))}
+                                      style={{ width: 120 }}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="edSubmitBtn"
+                                      style={{ padding: "6px 10px", fontSize: 12, width: "auto" }}
+                                      onClick={() => salvarCorrecao(sub.id)}
+                                      disabled={gradingSaving}
+                                    >
+                                      {gradingSaving ? "Salvando..." : "Salvar"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="edSubmitBtn"
+                                      style={{ padding: "6px 10px", fontSize: 12, width: "auto", background: "var(--border)", color: "var(--text)" }}
+                                      onClick={cancelarCorrecao}
+                                      disabled={gradingSaving}
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                  <textarea
+                                    className="edTextarea"
+                                    placeholder="Feedback para o aluno (opcional)"
+                                    value={gradingFeedback}
+                                    onChange={(e) => setGradingFeedback(e.target.value)}
+                                    rows={3}
+                                  />
+                                </div>
+                              )}
 
-                {(tipoExercicio === "texto" ||
-                  tipoExercicio === "escrita" ||
-                  (tipoExercicio === "nenhum" && (selectedTipoNenhum === "texto" || selectedTipoNenhum === "escrita"))) && (
-                  <div style={{ marginTop: 12 }}>
-                    <label className="exLabel" style={{ display: "block", marginBottom: 8 }}>
-                      Anexo (opcional)
-                    </label>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.zip"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
-                        setArquivo(file);
-                      }}
-                    />
-                    {arquivo && (
-                      <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
-                        {arquivo.name} â€¢ {(arquivo.size / 1024).toFixed(1)} KB
-                        <button
-                          type="button"
-                          style={{ marginLeft: 8, color: "var(--red)", background: "transparent", border: "none", cursor: "pointer" }}
-                          onClick={() => setArquivo(null)}
-                        >
-                          Remover
-                        </button>
+                              <details className="tentativaDetalhes">
+                                <summary>Ver resposta</summary>
+                                <div className="tentativaResposta">
+                                  {sub.tipoResposta === "codigo" ? (
+                                    <pre>{sub.resposta}</pre>
+                                  ) : (
+                                    <p>{sub.resposta}</p>
+                                  )}
+                                </div>
+                              </details>
+
+                              {/* CorreÃ§Ã£o manual */}
+                              {gradingSubmissaoId === sub.id ? (
+                                <div style={{
+                                  marginTop: "10px",
+                                  padding: "12px",
+                                  background: "rgba(59, 130, 246, 0.05)",
+                                  border: "1px solid rgba(59, 130, 246, 0.2)",
+                                  borderRadius: "8px",
+                                  display: "flex",
+                                  flexDirection: "column" as const,
+                                  gap: "8px"
+                                }}>
+                                  <label style={{ fontSize: "13px", fontWeight: 600 }}>
+                                    Nota (0-100):
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={gradingNota}
+                                      onChange={(e) => setGradingNota(Math.min(100, Math.max(0, Number(e.target.value))))}
+                                      style={{
+                                        width: "80px",
+                                        marginLeft: "8px",
+                                        padding: "4px 8px",
+                                        borderRadius: "6px",
+                                        border: "1px solid var(--line)",
+                                        background: "var(--background)",
+                                        color: "var(--text)",
+                                      }}
+                                    />
+                                  </label>
+                                  <label style={{ fontSize: "13px", fontWeight: 600 }}>
+                                    Feedback:
+                                    <textarea
+                                      value={gradingFeedback}
+                                      onChange={(e) => setGradingFeedback(e.target.value)}
+                                      rows={3}
+                                      placeholder="Feedback para o aluno (opcional)"
+                                      style={{
+                                        width: "100%",
+                                        marginTop: "4px",
+                                        padding: "8px",
+                                        borderRadius: "6px",
+                                        border: "1px solid var(--line)",
+                                        resize: "vertical" as const,
+                                        fontSize: "13px",
+                                        background: "var(--background)",
+                                        color: "var(--text)",
+                                      }}
+                                    />
+                                  </label>
+                                  <div style={{ display: "flex", gap: "8px" }}>
+                                    <AnimatedButton
+                                      onClick={() => handleCorrigir(sub.id)}
+                                      disabled={gradingSaving}
+                                      style={{ fontSize: "13px", padding: "6px 16px" }}
+                                    >
+                                      {gradingSaving ? "Salvando..." : "Salvar Nota"}
+                                    </AnimatedButton>
+                                    <button
+                                      onClick={() => {
+                                        setGradingSubmissaoId(null);
+                                        setGradingNota(0);
+                                        setGradingFeedback("");
+                                      }}
+                                      style={{
+                                        fontSize: "13px",
+                                        padding: "6px 16px",
+                                        background: "transparent",
+                                        border: "1px solid var(--line)",
+                                        borderRadius: "6px",
+                                        cursor: "pointer",
+                                        color: "var(--text)",
+                                      }}
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setGradingSubmissaoId(sub.id);
+                                    setGradingNota(sub.nota ?? 0);
+                                    setGradingFeedback(sub.feedbackProfessor ?? "");
+                                  }}
+                                  style={{
+                                    marginTop: "8px",
+                                    fontSize: "12px",
+                                    padding: "6px 12px",
+                                    background: sub.corrigida ? "rgba(34, 197, 94, 0.1)" : "rgba(59, 130, 246, 0.1)",
+                                    border: `1px solid ${sub.corrigida ? "rgba(34, 197, 94, 0.3)" : "rgba(59, 130, 246, 0.3)"}`,
+                                    borderRadius: "6px",
+                                    cursor: "pointer",
+                                    color: sub.corrigida ? "#166534" : "#1e40af",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {sub.corrigida ? "Re-corrigir" : "Corrigir"}
+                                </button>
+                              )}
+                            </div>
+                          </FadeInUp>
+                        ))}
                       </div>
                     )}
                   </div>
+                </ConditionalFieldAnimation>
+              )}
+
+            </div>
+
+            {/* COLUNA DIREITA: RESPONDER */}
+            <div className="exerciseDetailRight">
+              <div className="edCard edResponder">
+                <h2 className="edSubtitle">ðŸ“ Envie sua resposta</h2>
+
+
+                {/* MENSAGENS */}
+                <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
+                  <div className="exMessage error">
+                    <span>âŒ</span>
+                    <span>{erroSubmissao}</span>
+                  </div>
+                </ConditionalFieldAnimation>
+
+                <ConditionalFieldAnimation isVisible={!!sucessoMsg} duration={0.25}>
+                  <div className="exMessage success">
+                    <span>âœ…</span>
+                    <span>{sucessoMsg}</span>
+                  </div>
+                </ConditionalFieldAnimation>
+
+                <ConditionalFieldAnimation isVisible={!!avisoMsg} duration={0.25}>
+                  <div className="exMessage warning">
+                    <span>âš ï¸</span>
+                    <span>{avisoMsg}</span>
+                  </div>
+                </ConditionalFieldAnimation>
+
+                {/* RESPOSTA */}
+                <div className="edInputGroup">
+                  {/* ExercÃ­cios com Mouse Interativo - Baseado em tipo */}
+                  {exercicio && tipoRenderizacao === "mouse" && (() => {
+                    const mouseRegras = exercicio.mouse_regras
+                      ? JSON.parse(exercicio.mouse_regras)
+                      : { clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 };
+
+                    return (
+                      <div>
+                        <div style={{ marginBottom: "20px", padding: "16px", background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: "8px" }}>
+                          {(mouseRegras.clicksSimples || mouseRegras.duplosClicks || mouseRegras.clicksDireitos) && (
+                            <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #bfdbfe" }}>
+                              <p style={{ fontSize: 12, color: "#1e40af", margin: "0 0 6px 0", fontWeight: 600 }}>
+                                ðŸŽ¯ Regras de Sucesso:
+                              </p>
+                              <ul style={{ fontSize: 12, color: "#1e40af", margin: 0, paddingLeft: "20px" }}>
+                                {mouseRegras.clicksSimples > 0 && <li>ðŸ–±ï¸ {mouseRegras.clicksSimples} cliques esquerdos</li>}
+                                {mouseRegras.duplosClicks > 0 && <li>ðŸ–±ï¸ðŸ–±ï¸ {mouseRegras.duplosClicks} duplos cliques</li>}
+                                {mouseRegras.clicksDireitos > 0 && <li>ðŸ–±ï¸â†’ {mouseRegras.clicksDireitos} cliques direitos</li>}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        <MouseInteractiveBox
+                          title={exercicio.titulo}
+                          instruction="Realize os cliques conforme as regras acima. VocÃª verÃ¡ seu progresso em tempo real!"
+                          rules={mouseRegras}
+                          onComplete={() => {
+                            setMouseCompleted(true);
+                            setSucessoMsg("âœ… ParabÃ©ns! VocÃª completou o desafio do Mouse!");
+                          }}
+                        />
+
+                        <ConditionalFieldAnimation isVisible={mouseCompleted} duration={0.3}>
+                          <div style={{ marginTop: "16px", padding: "12px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: "8px" }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
+                              âœ… Desafio completado! Agora vocÃª pode enviar sua submissÃ£o.
+                            </p>
+                          </div>
+                        </ConditionalFieldAnimation>
+
+                        <textarea
+                          className="edTextarea"
+                          placeholder="Descreva sua experiÃªncia realizando este desafio de mouse..."
+                          value={resposta}
+                          onChange={(e) => setResposta(e.target.value)}
+                          rows={6}
+                          style={{ marginTop: "16px" }}
+                        />
+                      </div>
+                    );
+                  })()}
+
+                  {/* EXERCÃCIOS COM MÃšLTIPLA ESCOLHA */}
+                  {exercicio && tipoRenderizacao === "multipla" && (() => {
+                    const multiplaRegras = exercicio.multipla_regras
+                      ? JSON.parse(exercicio.multipla_regras)
+                      : { questoes: [] };
+
+                    if (!multiplaRegras.questoes || multiplaRegras.questoes.length === 0) {
+                      return (
+                        <div style={{ padding: "16px", background: "#fee2e2", borderRadius: "8px" }}>
+                          âš ï¸ Este exercÃ­cio nÃ£o possui questÃµes configuradas.
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div>
+                        {/* InstruÃ§Ãµes */}
+                        <div style={{ padding: "16px", background: "#f0f9ff", borderRadius: "8px", marginBottom: "20px" }}>
+                          <p style={{ fontWeight: 600, color: "#1e40af" }}>ðŸ“‹ {exercicio.descricao}</p>
+                          <p style={{ fontSize: 12, color: "#1e40af" }}>
+                            â„¹ï¸ Responda todas as {multiplaRegras.questoes.length} questÃµes
+                          </p>
+                        </div>
+
+                        {/* Renderizar questÃµes */}
+                        {multiplaRegras.questoes.map((questao: any, index: number) => (
+                          <FadeInUp key={index} delay={0.05 * (index + 1)} duration={0.3}>
+                            <MultipleChoiceQuestion
+                              question={`Q${index + 1}: ${questao.pergunta}`}
+                              options={questao.opcoes}
+                              selectedAnswer={respostasMultipla[`q${index}`]}
+                              onAnswer={(answer) => {
+                                setRespostasMultipla({ ...respostasMultipla, [`q${index}`]: answer });
+                              }}
+                            />
+                          </FadeInUp>
+                        ))}
+
+                        {/* Progresso */}
+                        <FadeInUp delay={0.1} duration={0.3}>
+                          <div style={{ padding: "12px", background: "#f0fdf4", borderRadius: "8px", marginTop: "16px" }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
+                              ðŸ“Š Progresso: {Object.keys(respostasMultipla).length} / {multiplaRegras.questoes.length} respondidas
+                            </p>
+                          </div>
+                        </FadeInUp>
+
+                        {/* Campo opcional de comentÃ¡rio */}
+                        <textarea
+                          className="edTextarea"
+                          placeholder="(Opcional) Deixe um comentÃ¡rio..."
+                          value={resposta}
+                          onChange={(e) => setResposta(e.target.value)}
+                          rows={4}
+                          style={{ marginTop: "16px" }}
+                        />
+                      </div>
+                    );
+                  })()}
+
+                  {/* ExercÃ­cios de ATALHO */}
+                  {exercicio && tipoRenderizacao === "atalho" && (() => {
+                    const atalhoTipo = currentAtalhoTipo;
+
+                    return (
+                      <div>
+                        <ShortcutTrainingBox
+                          ref={shortcutBoxRef}
+                          title="âŒ¨ï¸ Pratique o Atalho"
+                          instruction={atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo Ã  direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteÃºdo abaixo e pressione Delete para completar" : "Clique com botÃ£o direito na imagem â†’ Copiar imagem, depois cole no campo Ã  direita"}
+                          shortcutType={atalhoTipo}
+                          sample={atalhoSample}
+                          onSampleCopy={(selectedText) => {
+                            if (atalhoTipo === "copiar-colar") {
+                              handleAtalhoTextCopy(selectedText);
+                            }
+                          }}
+                          onComplete={(events) => {
+                            console.log("Atalho completado:", events);
+                            setAtalhoCompleted(true);
+                          }}
+                        />
+
+                        <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "flex-start" }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Imagem de exemplo" : "Texto de exemplo"}</label>
+
+                            {atalhoTipo === "copiar-colar-imagens" ? (
+                              <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+                                <img
+                                  src={atalhoSample}
+                                  alt="Copie esta imagem"
+                                  style={{ width: "100%", display: "block" }}
+                                />
+                              </div>
+                            ) : atalhoTipo === "copiar-colar" ? (
+                              <textarea
+                                className="edTextarea"
+                                value={atalhoSample}
+                                rows={6}
+                                style={{ resize: "none" }}
+                                onCopy={(e) => {
+                                  const target = e.currentTarget;
+                                  const start = target.selectionStart ?? 0;
+                                  const end = target.selectionEnd ?? 0;
+                                  const selectedText = target.value.substring(start, end);
+                                  handleAtalhoTextCopy(selectedText);
+                                }}
+                              />
+                            ) : atalhoTipo === "selecionar-deletar" ? (
+                              <div
+                                ref={sampleRef}
+                                contentEditable
+                                suppressContentEditableWarning
+                                onInput={handleSampleInput}
+                                className="edTextarea"
+                                style={{ minHeight: 140, padding: 12, whiteSpace: "pre-wrap", outline: "none" }}
+                              >
+                                {atalhoSample}
+                              </div>
+                            ) : (
+                              <textarea
+                                className="edTextarea"
+                                value={atalhoSample}
+                                rows={6}
+                                style={{ resize: "vertical" }}
+                              />
+                            )}
+
+                            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                              <button
+                                className="templateBtnView"
+                                onClick={() => {
+                                  if (atalhoTipo === "copiar-colar-imagens") {
+                                    const svgImage = (color: string, text: string) =>
+                                      `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220"><rect width="420" height="220" rx="12" fill="${color}"/><text x="210" y="110" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">${text}</text></svg>`)}`;
+                                    const images = [
+                                      svgImage("#4F46E5", "Imagem Exemplo 1"),
+                                      svgImage("#059669", "Imagem Exemplo 2"),
+                                      svgImage("#DC2626", "Imagem Exemplo 3")
+                                    ];
+                                    setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
+                                  } else {
+                                    const texts = [
+                                      "Copie este texto de exemplo: O rÃ¡pido castor marrom salta sobre o cÃ£o preguiÃ§oso.",
+                                      "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                                      "Exemplo: 12345 - teste rÃ¡pido de copiar e colar!",
+                                      "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
+                                      "Treino: Abacaxi, banana, uva, morango, limÃ£o."
+                                    ];
+                                    setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
+                                  }
+                                  setAtalhoCompleted(false);
+                                  setResposta("");
+                                  setAtalhoTextCopied(false);
+                                  setAtalhoTextNotice(null);
+                                  setAtalhoTextNoticeType("info");
+                                }}
+                              >
+                                ðŸ” Novo exemplo
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Campo onde usuÃ¡rio cola o texto/imagem */}
+                          <div style={{ flex: 1 }}>
+                            <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl + V â†’ Colar)" : atalhoTipo === "copiar-colar" ? "Cole o texto aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a Ã¡rea esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+
+                            {atalhoTipo === "copiar-colar-imagens" ? (
+                              <div
+                                tabIndex={0}
+                                onPaste={(e) => {
+                                  const items = e.clipboardData?.items;
+                                  if (!items) return;
+                                  for (let i = 0; i < items.length; i++) {
+                                    if (items[i].type.indexOf("image") !== -1) {
+                                      const file = items[i].getAsFile();
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = () => {
+                                          setResposta(reader.result as string);
+                                          setAtalhoCompleted(true);
+                                          shortcutBoxRef.current?.detectAction("colar");
+                                        };
+                                        reader.readAsDataURL(file);
+                                        e.preventDefault();
+                                        return;
+                                      }
+                                    }
+                                  }
+                                  // NÃ£o aceitar texto no modo de copiar/colar imagem
+                                }}
+                                style={{
+                                  minHeight: 220,
+                                  padding: 20,
+                                  borderRadius: 8,
+                                  border: resposta ? "2px solid rgba(34,197,94,0.5)" : "2px dashed rgba(255,255,255,0.2)",
+                                  background: resposta ? "rgba(34,197,94,0.05)" : "rgba(0,0,0,0.2)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  transition: "all 0.3s ease",
+                                  cursor: "text",
+                                  outline: "none"
+                                }}
+                              >
+                                {resposta ? (
+                                  resposta.startsWith("data:image") ? (
+                                    <img src={resposta} alt="Imagem colada" style={{ maxWidth: "100%", borderRadius: 8, display: "block" }} />
+                                  ) : (
+                                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", color: "rgba(255,255,255,0.8)" }}>{resposta}</div>
+                                  )
+                                ) : (
+                                  <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
+                                    <div style={{ fontSize: 36, marginBottom: 8 }}> <Keyboard /> </div>
+                                    <div style={{ fontSize: 14, fontWeight: 600 }}>Cole aqui</div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : atalhoTipo === "copiar-colar" ? (
+                              <textarea
+                                className="edTextarea"
+                                placeholder="Cole o texto aqui (Ctrl+V)"
+                                value={resposta}
+                                readOnly
+                                onPaste={(e) => {
+                                  const text = e.clipboardData.getData("text/plain");
+                                  const expected = atalhoSample.trim();
+                                  const pasted = text.trim();
+                                  const copiedOk = atalhoTextCopied;
+
+                                  setResposta(text);
+                                  if (!copiedOk) {
+                                    setAtalhoCompleted(false);
+                                    setAtalhoTextNotice("Primeiro copie o texto de exemplo antes de colar.");
+                                    setAtalhoTextNoticeType("error");
+                                  } else if (pasted !== expected) {
+                                    setAtalhoCompleted(false);
+                                    setAtalhoTextNotice("O texto colado n\u00e3o corresponde ao exemplo.");
+                                    setAtalhoTextNoticeType("error");
+                                  } else {
+                                    setAtalhoCompleted(true);
+                                    setAtalhoTextNotice("Texto colado corretamente!");
+                                    setAtalhoTextNoticeType("success");
+                                    shortcutBoxRef.current?.detectAction("colar");
+                                  }
+                                  e.preventDefault();
+                                }}
+                                rows={6}
+                                style={{ resize: "none", border: atalhoCompleted ? "2px solid rgba(34,197,94,0.6)" : undefined }}
+                              />
+                            ) : atalhoTipo === "selecionar-deletar" ? (
+                              <div style={{ marginTop: 6, color: "#9CA3AF", fontSize: 13 }}>
+                                Selecione todo o texto Ã  esquerda e pressione Delete ou Backspace para completar o exercÃ­cio.
+                              </div>
+                            ) : (
+                              <textarea
+                                className="edTextarea"
+                                placeholder="Cole o texto aqui apÃ³s copiar o exemplo"
+                                value={resposta}
+                                onChange={(e) => setResposta(e.target.value)}
+                                rows={6}
+                                style={{ resize: "vertical" }}
+                              />
+                            )}
+
+                            {atalhoTipo === "copiar-colar" && atalhoTextNotice && (
+                              <div
+                                style={{
+                                  ...atalhoTextNoticeStyle,
+                                  marginTop: 8,
+                                  padding: "8px 10px",
+                                  borderRadius: 6,
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {atalhoTextNotice}
+                              </div>
+                            )}
+
+                            <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>
+                              {atalhoCompleted ? "âœ… Atalho completado" : "â³ Complete o exercÃ­cio de atalho para treinar"}
+                            </div>
+                            {atalhoAutoNotice && (
+                              <div style={{ marginTop: 8, color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
+                                âœ… Resposta enviada automaticamente
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* ExercÃ­cios tipo NENHUM - Seletor de tipo */}
+                  {tipoExercicio === "nenhum" && !selectedTipoNenhum && (
+                    <ConditionalFieldAnimation isVisible={true} duration={0.3}>
+                      <div style={{
+                        padding: "24px",
+                        marginBottom: "24px",
+                        backgroundColor: "rgba(59, 130, 246, 0.1)",
+                        border: "2px solid rgba(59, 130, 246, 0.3)",
+                        borderRadius: "12px",
+                      }}>
+                        <h3 style={{ marginTop: 0, marginBottom: "16px", color: "#2563eb", fontSize: "18px", fontWeight: "600" }}>
+                          ðŸ“‹ Selecione o tipo de resposta
+                        </h3>
+                        <p style={{ marginBottom: "20px", color: "var(--text)", fontSize: "14px" }}>
+                          Escolha como vocÃª gostaria de responder este exercÃ­cio:
+                        </p>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                          <button
+                            onClick={() => setSelectedTipoNenhum("codigo")}
+                            style={{
+                              padding: "16px",
+                              border: "2px solid rgba(59, 130, 246, 0.2)",
+                              borderRadius: "8px",
+                              backgroundColor: "var(--background-secondary)",
+                              color: "#2563eb",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(59, 130, 246, 0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                            }}
+                          >
+                            ðŸ’» CÃ³digo
+                          </button>
+                          <button
+                            onClick={() => setSelectedTipoNenhum("escrita")}
+                            style={{
+                              padding: "16px",
+                              border: "2px solid rgba(139, 92, 246, 0.2)",
+                              borderRadius: "8px",
+                              backgroundColor: "var(--background-secondary)",
+                              color: "#a855f7",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(168, 85, 247, 0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                            }}
+                          >
+                            âœï¸ Escrita
+                          </button>
+                          <button
+                            onClick={() => setSelectedTipoNenhum("texto")}
+                            style={{
+                              padding: "16px",
+                              border: "2px solid rgba(34, 197, 94, 0.2)",
+                              borderRadius: "8px",
+                              backgroundColor: "var(--background-secondary)",
+                              color: "#22c55e",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(34, 197, 94, 0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                            }}
+                          >
+                            ðŸ“ DigitaÃ§Ã£o
+                          </button>
+                          <button
+                            onClick={() => setSelectedTipoNenhum("multipla")}
+                            style={{
+                              padding: "16px",
+                              border: "2px solid rgba(236, 72, 153, 0.2)",
+                              borderRadius: "8px",
+                              backgroundColor: "var(--background-secondary)",
+                              color: "#ec4899",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(236, 72, 153, 0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                            }}
+                          >
+                            â“ MÃºltipla Escolha
+                          </button>
+                          <button
+                            onClick={() => setSelectedTipoNenhum("mouse")}
+                            style={{
+                              padding: "16px",
+                              border: "2px solid rgba(248, 113, 113, 0.2)",
+                              borderRadius: "8px",
+                              backgroundColor: "var(--background-secondary)",
+                              color: "#f87171",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(248, 113, 113, 0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                            }}
+                          >
+                            ðŸ–±ï¸ Mouse Interativo
+                          </button>
+                          <button
+                            onClick={() => setSelectedTipoNenhum("atalho")}
+                            style={{
+                              padding: "16px",
+                              border: "2px solid rgba(251, 146, 60, 0.2)",
+                              borderRadius: "8px",
+                              backgroundColor: "var(--background-secondary)",
+                              color: "#fb923c",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(251, 146, 60, 0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--background-secondary)";
+                              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                            }}
+                          >
+                            âŒ¨ï¸ Atalho
+                          </button>
+                        </div>
+                      </div>
+                    </ConditionalFieldAnimation>
+                  )}
+
+                  {/* ExercÃ­cios normais de cÃ³digo */}
+                  {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo")) && (
+                    <>
+                      <MonacoEditor
+                        value={resposta}
+                        onChange={(v) => setResposta(v || "")}
+                        language={linguagem}
+                        onLanguageChange={setLinguagem}
+                        height="600px"
+                        autoHeight
+                        minHeight={600}
+                        maxHeight={1200}
+                        theme="dark"
+                      />
+
+                      {/* TESTE DE CÃ“DIGO */}
+                      <AnimatedButton
+                        className="edTestBtn"
+                        onClick={handleTestarCodigo}
+                        disabled={resposta.trim().length === 0 || linguagem !== "javascript"}
+                      >
+                        ðŸ§ª Testar CÃ³digo
+                      </AnimatedButton>
+                      <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
+                        Teste local disponÃ­vel apenas para JavaScript. Outras linguagens serÃ£o avaliadas pelo professor.
+                      </div>
+
+                      {/* OUTPUT DO TESTE */}
+                      <ConditionalFieldAnimation isVisible={!!erroTeste} duration={0.3}>
+                        <div className="edTestOutput error">
+                          <div className="edTestLabel">âŒ Erro:</div>
+                          <pre>{erroTeste}</pre>
+                        </div>
+                      </ConditionalFieldAnimation>
+
+                      <ConditionalFieldAnimation isVisible={!!outputTeste && !erroTeste} duration={0.3}>
+                        <div className="edTestOutput success">
+                          <div className="edTestLabel">âœ… Output:</div>
+                          <pre>{outputTeste}</pre>
+                        </div>
+                      </ConditionalFieldAnimation>
+                    </>
+                  )}
+
+                  {/* ExercÃ­cios normais de texto */}
+                  {(tipoExercicio === "texto" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "texto")) && (
+                    <textarea
+                      className="edTextarea"
+                      placeholder="Digite sua resposta aqui..."
+                      value={resposta}
+                      onChange={(e) => setResposta(e.target.value)}
+                      rows={12}
+                    />
+                  )}
+
+                  {/* ExercÃ­cios de ESCRITA */}
+                  {(tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita")) && (
+                    <textarea
+                      className="edTextarea"
+                      placeholder="Escreva sua resposta aqui. Sua resposta serÃ¡ revisada pelo professor..."
+                      value={resposta}
+                      onChange={(e) => setResposta(e.target.value)}
+                      rows={12}
+                    />
+                  )}
+
+                  {(tipoExercicio === "texto" ||
+                    tipoExercicio === "escrita" ||
+                    (tipoExercicio === "nenhum" && (selectedTipoNenhum === "texto" || selectedTipoNenhum === "escrita"))) && (
+                      <div style={{ marginTop: 12 }}>
+                        <label className="exLabel" style={{ display: "block", marginBottom: 8 }}>
+                          Anexo (opcional)
+                        </label>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.zip"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setArquivo(file);
+                          }}
+                        />
+                        {arquivo && (
+                          <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
+                            {arquivo.name} â€¢ {(arquivo.size / 1024).toFixed(1)} KB
+                            <button
+                              type="button"
+                              style={{ marginLeft: 8, color: "var(--red)", background: "transparent", border: "none", cursor: "pointer" }}
+                              onClick={() => setArquivo(null)}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                </div>
+
+                {/* AVISO DE PRAZO VENCIDO */}
+                <ConditionalFieldAnimation isVisible={prazoVencido} duration={0.3}>
+                  <div style={{
+                    padding: "12px",
+                    marginBottom: "12px",
+                    backgroundColor: "#f8d7da",
+                    border: "1px solid #f5c6cb",
+                    borderRadius: "4px",
+                    color: "#721c24",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}>
+                    â° <strong>Prazo expirado:</strong> NÃ£o Ã© mais possÃ­vel enviar respostas para este exercÃ­cio.
+                  </div>
+                </ConditionalFieldAnimation>
+
+                {/* AVISO - JÃ¡ enviou e nÃ£o pode repetir */}
+                <ConditionalFieldAnimation isVisible={jaEnviou} duration={0.3}>
+                  <div style={{
+                    padding: "14px 18px",
+                    background: "rgba(34, 197, 94, 0.1)",
+                    border: "1px solid rgba(34, 197, 94, 0.3)",
+                    borderRadius: "10px",
+                    color: "#166534",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}>
+                    âœ… <strong>Resposta jÃ¡ enviada.</strong> VocÃª jÃ¡ completou este exercÃ­cio.
+                  </div>
+                </ConditionalFieldAnimation>
+                <ConditionalFieldAnimation isVisible={limiteTentativas} duration={0.3}>
+                  <div style={{
+                    padding: "14px 18px",
+                    background: "rgba(220, 38, 38, 0.08)",
+                    border: "1px solid rgba(220, 38, 38, 0.3)",
+                    borderRadius: "10px",
+                    color: "#b91c1c",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}>
+                    ❌ <strong>Limite de tentativas atingido.</strong>
+                  </div>
+                </ConditionalFieldAnimation>
+
+                <ConditionalFieldAnimation isVisible={cooldownAtivo} duration={0.3}>
+                  <div style={{
+                    padding: "12px 16px",
+                    background: "rgba(59, 130, 246, 0.1)",
+                    border: "1px solid rgba(59, 130, 246, 0.3)",
+                    borderRadius: "10px",
+                    color: "#1e40af",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}>
+                    ⏳ Aguarde {minutosRestantes} minuto(s) para tentar novamente.
+                  </div>
+                </ConditionalFieldAnimation>
+
+                {/* BOTÃƒO ENVIAR - Oculto para atalhos (auto-submit) e quando jÃ¡ enviou */}
+                {tipoRenderizacao !== "atalho" && !jaEnviou && (
+                  <AnimatedButton
+                    className="edSubmitBtn"
+                    onClick={handleEnviar}
+                    disabled={
+                      prazoVencido ||
+                      bloqueioSemResposta ||
+                      limiteTentativas ||
+                      cooldownAtivo ||
+                      (tipoExercicio === "nenhum" && !selectedTipoNenhum)
+                    }
+                    loading={enviando}
+                  >
+                    {prazoVencido
+                      ? "❌ Prazo Expirado"
+                      : limiteTentativas
+                        ? "❌ Limite atingido"
+                        : cooldownAtivo
+                          ? "⏳ Aguarde o intervalo"
+                          : tipoExercicio === "nenhum" && !selectedTipoNenhum
+                            ? "👇 Selecione um tipo acima"
+                            : "✨ Enviar Resposta"}
+                  </AnimatedButton>
+                )}
+                {/* DICA - Mostra apenas quando hÃ¡ um tipo selecionado */}
+                {(tipoExercicio !== "nenhum" || (tipoExercicio === "nenhum" && selectedTipoNenhum)) && (
+                  <div className="edHint">
+                    {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo"))
+                      ? "Escolha a linguagem no editor e escreva seu cÃ³digo."
+                      : (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita"))
+                        ? "Sua resposta serÃ¡ avaliada pelo professor. Escreva de forma clara e completa."
+                        : ""}
+                  </div>
                 )}
               </div>
-
-              {/* AVISO DE PRAZO VENCIDO */}
-              <ConditionalFieldAnimation isVisible={prazoVencido} duration={0.3}>
-                <div style={{
-                  padding: "12px",
-                  marginBottom: "12px",
-                  backgroundColor: "#f8d7da",
-                  border: "1px solid #f5c6cb",
-                  borderRadius: "4px",
-                  color: "#721c24",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}>
-                  â° <strong>Prazo expirado:</strong> NÃ£o Ã© mais possÃ­vel enviar respostas para este exercÃ­cio.
-                </div>
-              </ConditionalFieldAnimation>
-
-              {/* AVISO - JÃ¡ enviou e nÃ£o pode repetir */}
-              <ConditionalFieldAnimation isVisible={jaEnviou} duration={0.3}>
-                <div style={{
-                  padding: "14px 18px",
-                  background: "rgba(34, 197, 94, 0.1)",
-                  border: "1px solid rgba(34, 197, 94, 0.3)",
-                  borderRadius: "10px",
-                  color: "#166534",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}>
-                  âœ… <strong>Resposta jÃ¡ enviada.</strong> VocÃª jÃ¡ completou este exercÃ­cio.
-                </div>
-              </ConditionalFieldAnimation>
-              <ConditionalFieldAnimation isVisible={limiteTentativas} duration={0.3}>
-                <div style={{
-                  padding: "14px 18px",
-                  background: "rgba(220, 38, 38, 0.08)",
-                  border: "1px solid rgba(220, 38, 38, 0.3)",
-                  borderRadius: "10px",
-                  color: "#b91c1c",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}>
-                  ❌ <strong>Limite de tentativas atingido.</strong>
-                </div>
-              </ConditionalFieldAnimation>
-
-              <ConditionalFieldAnimation isVisible={cooldownAtivo} duration={0.3}>
-                <div style={{
-                  padding: "12px 16px",
-                  background: "rgba(59, 130, 246, 0.1)",
-                  border: "1px solid rgba(59, 130, 246, 0.3)",
-                  borderRadius: "10px",
-                  color: "#1e40af",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}>
-                  ⏳ Aguarde {minutosRestantes} minuto(s) para tentar novamente.
-                </div>
-              </ConditionalFieldAnimation>
-
-              {/* BOTÃƒO ENVIAR - Oculto para atalhos (auto-submit) e quando jÃ¡ enviou */}
-              {tipoRenderizacao !== "atalho" && !jaEnviou && (
-                <AnimatedButton
-                  className="edSubmitBtn"
-                  onClick={handleEnviar}
-                  disabled={
-                    prazoVencido ||
-                    bloqueioSemResposta ||
-                    limiteTentativas ||
-                    cooldownAtivo ||
-                    (tipoExercicio === "nenhum" && !selectedTipoNenhum)
-                  }
-                  loading={enviando}
-                >
-                  {prazoVencido
-                    ? "❌ Prazo Expirado"
-                    : limiteTentativas
-                    ? "❌ Limite atingido"
-                    : cooldownAtivo
-                    ? "⏳ Aguarde o intervalo"
-                    : tipoExercicio === "nenhum" && !selectedTipoNenhum
-                    ? "👇 Selecione um tipo acima"
-                    : "✨ Enviar Resposta"}
-                </AnimatedButton>
-              )}
-              {/* DICA - Mostra apenas quando hÃ¡ um tipo selecionado */}
-              {(tipoExercicio !== "nenhum" || (tipoExercicio === "nenhum" && selectedTipoNenhum)) && (
-                <div className="edHint">
-                  {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo"))
-                    ? "Escolha a linguagem no editor e escreva seu cÃ³digo."
-                    : (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita"))
-                    ? "Sua resposta serÃ¡ avaliada pelo professor. Escreva de forma clara e completa."
-                    : ""}
-                </div>
-              )}
             </div>
           </div>
         </div>
-      </div>
       </FadeInUp>
 
       {/* TOASTS */}

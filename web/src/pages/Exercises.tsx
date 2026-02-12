@@ -312,7 +312,7 @@ export default function ExerciciosPage() {
       setPrazo(`${year}-${month}-${day}T${hours}:${minutes}`);
     }
 
-    // PublicaÃ§Ã£o imediata vs agendada vs rascunho
+    // Publicação imediata vs agendada vs rascunho
     if (exercicio.publishedAt) {
       const pubDate = new Date(exercicio.publishedAt);
       if (pubDate > new Date()) {
@@ -556,7 +556,7 @@ export default function ExerciciosPage() {
           onClose={() => setOkMsg(null)}
         />
 
-     
+
 
         {/* SEÇÃO DE CRIAR */}
         {canCreate && activeSection === "criar" && (
@@ -707,7 +707,7 @@ export default function ExerciciosPage() {
                     {componenteInterativo === "" && (
                       <ScaleIn>
                         <div className="exInputGroup">
-                          <label className="exLabel">Gabarito / Codigo esperado</label>
+                          <label className="exLabel">Gabarito / Código esperado</label>
                           <MonacoEditor
                             value={gabarito}
                             onChange={(v) => setGabarito(v || "")}
@@ -716,7 +716,7 @@ export default function ExerciciosPage() {
                             theme="dark"
                           />
                           <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                            Esse texto sera usado para comparar se a resposta do aluno esta parecida com o esperado.
+                            Esse texto será usado para comparar se a resposta do aluno está parecida com o esperado.
                           </small>
                         </div>
                       </ScaleIn>
@@ -1564,7 +1564,7 @@ export default function ExerciciosPage() {
                   <input
                     className="exInput"
                     type="text"
-                    placeholder="🔍 Buscar por titulo..."
+                    placeholder="🔍 Buscar por título..."
                     value={buscaFiltro}
                     onChange={(e) => setBuscaFiltro(e.target.value)}
                     style={{ width: "100%" }}
