@@ -1,191 +1,755 @@
-﻿.activityLogsContainer {
-  padding: 20px;
-  background: var(--background-secondary);
-  border-radius: var(--r);
-}
+/* ========================================
+   Activity Logs - Modern Timeline UI
+   ======================================== */
 
-.logsHeader {
+.alContainer {
   display: flex;
   flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Stats Cards ── */
+.alStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  margin-bottom: 20px;
 }
 
-.logsFilters {
+.alStatCard {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.filterInput {
-  min-width: 180px;
-  flex: 1;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 14px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
   background: var(--card);
-  color: var(--text);
-  font-family: inherit;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.filterInput:focus {
+.alStatCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.alStatIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.alStatIconTotal {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.15), rgba(100, 116, 139, 0.08));
+  color: #64748b;
+}
+
+.alStatIconCreate {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08));
+  color: #16a34a;
+}
+
+.alStatIconUpdate {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08));
+  color: #2563eb;
+}
+
+.alStatIconDelete {
+  background: linear-gradient(135deg, rgba(225, 29, 46, 0.15), rgba(225, 29, 46, 0.08));
+  color: var(--red);
+}
+
+.alStatInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alStatValue {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.alStatLabel {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* ── Toolbar ── */
+.alToolbar {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.alSearchRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.alSearchWrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.alSearchIcon {
+  position: absolute;
+  left: 14px;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.alSearchInput {
+  width: 100%;
+  padding: 10px 40px 10px 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--background);
+  color: var(--text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.alSearchInput:focus {
   outline: none;
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
 }
 
-.logsActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.alSearchInput::placeholder {
+  color: var(--muted);
 }
 
-.btnPrimary {
-  background: linear-gradient(135deg, var(--red), #d41c28);
-  color: #fff;
+.alSearchClear {
+  position: absolute;
+  right: 10px;
+  width: 24px;
+  height: 24px;
   border: none;
-}
-
-.btnGhost {
-  background: var(--card);
-  border: 1px solid var(--line);
-  color: var(--text);
-}
-
-.logsTableContainer {
-  overflow-x: auto;
-  margin-bottom: 20px;
-}
-
-.logsTable {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--card);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.logsTable thead {
   background: var(--background-secondary);
-  border-bottom: 2px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  transition: all 0.15s ease;
 }
 
-.logsTable th {
-  padding: 14px 16px;
-  text-align: left;
-  font-weight: 700;
-  font-size: 12px;
+.alSearchClear:hover {
+  background: var(--line);
   color: var(--text);
+}
+
+.alBtnPrimary {
+  padding: 10px 20px !important;
+  background: linear-gradient(135deg, var(--red), #d41c28) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  white-space: nowrap;
+}
+
+.alBtnFilter {
+  padding: 10px 16px !important;
+  background: var(--background) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  position: relative;
+  white-space: nowrap;
+}
+
+.alFilterIcon {
+  font-size: 15px;
+}
+
+.alFilterDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.alBtnRefresh {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  padding: 0 !important;
+  background: var(--background) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  font-size: 18px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.alBtnGhost {
+  padding: 10px 20px !important;
+  background: var(--card) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  font-weight: 500 !important;
+}
+
+/* ── Filters Panel ── */
+.alFiltersPanel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  animation: alSlideDown 0.2s ease-out;
+}
+
+@keyframes alSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alFiltersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.alFilterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alFilterLabel {
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.logsTable td {
-  padding: 14px 16px;
-  color: var(--text);
-  font-size: 14px;
-  vertical-align: top;
-}
-
-.logsTable tbody tr {
-  border-bottom: 1px solid var(--line);
-  transition: background-color 0.2s ease;
-}
-
-.logsTable tbody tr:hover {
-  background: rgba(225, 29, 46, 0.02);
-}
-
-.logsTable tbody tr:last-child {
-  border-bottom: none;
-}
-
-.logPrimary {
-  font-weight: 600;
-}
-
-.logSecondary {
   color: var(--muted);
-  font-size: 12px;
-  margin-top: 4px;
-  word-break: break-word;
 }
 
-.logBadge {
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+.alFilterSelect,
+.alFilterInput {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--background);
+  color: var(--text);
+  transition: border-color 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.alFilterSelect:focus,
+.alFilterInput:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px rgba(225, 29, 46, 0.08);
+}
+
+.alClearFilters {
+  margin-top: 12px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--red);
+  font-size: 13px;
   font-weight: 600;
-  background: rgba(59, 130, 246, 0.12);
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.alClearFilters:hover {
+  opacity: 0.7;
+}
+
+/* ── States ── */
+.alLoadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.alSpinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--line);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: alSpin 0.7s linear infinite;
+}
+
+@keyframes alSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.alErrorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 60px 20px;
+  background: var(--card);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  border-radius: 16px;
+}
+
+.alErrorIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.alErrorText {
+  color: #dc3545;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.alEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  background: var(--card);
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+}
+
+.alEmptyIcon {
+  font-size: 40px;
+}
+
+.alEmptyTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.alEmptyText {
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+  max-width: 360px;
+}
+
+/* ── Timeline / Log Cards ── */
+.alTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alLogCard {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow);
+}
+
+.alLogCard:hover {
+  border-color: rgba(225, 29, 46, 0.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.alLogCard:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.alLogCardExpanded {
+  border-color: rgba(225, 29, 46, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.alLogMain {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* Action circle */
+.alLogAction {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.alLogActionIcon {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.alLogAction.actionCreate {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08));
+  color: #16a34a;
+}
+
+.alLogAction.actionUpdate {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08));
   color: #2563eb;
 }
 
-.logRole {
-  display: inline-flex;
+.alLogAction.actionDelete {
+  background: linear-gradient(135deg, rgba(225, 29, 46, 0.15), rgba(225, 29, 46, 0.08));
+  color: var(--red);
+}
+
+.alLogAction.actionDuplicate {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08));
+  color: #d97706;
+}
+
+.alLogAction.actionDefault {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--muted);
+}
+
+/* Content */
+.alLogContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.alLogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.alLogSummary {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin-top: 6px;
-  padding: 4px 8px;
+}
+
+.alLogActor {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.alLogRole {
+  padding: 2px 7px;
   border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
 
-.logRole.role-admin {
-  background: rgba(225, 29, 46, 0.12);
+.alLogRole.role-admin {
+  background: rgba(225, 29, 46, 0.1);
   color: var(--red);
 }
 
-.logRole.role-professor {
-  background: rgba(168, 85, 247, 0.12);
+.alLogRole.role-professor {
+  background: rgba(168, 85, 247, 0.1);
   color: #a855f7;
 }
 
-.logRole.role-aluno {
-  background: rgba(59, 130, 246, 0.12);
+.alLogRole.role-aluno {
+  background: rgba(59, 130, 246, 0.1);
   color: #2563eb;
 }
 
-.logRole.role-unknown {
-  background: rgba(148, 163, 184, 0.18);
+.alLogActionLabel {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.alLogActionLabel.actionCreate {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.alLogActionLabel.actionUpdate {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.alLogActionLabel.actionDelete {
+  background: rgba(225, 29, 46, 0.1);
+  color: var(--red);
+}
+
+.alLogActionLabel.actionDuplicate {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.alLogActionLabel.actionDefault {
+  background: rgba(148, 163, 184, 0.1);
   color: var(--muted);
 }
 
-.logsState {
-  padding: 40px 20px;
-  text-align: center;
+.alLogEntity {
+  font-size: 13px;
   color: var(--muted);
-  background: var(--card);
-  border-radius: var(--r);
-  border: 1px dashed var(--line);
+  font-weight: 500;
 }
 
-.logsError {
-  color: #dc3545;
-  border-color: rgba(220, 53, 69, 0.3);
+.alLogTime {
+  flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
-  .filterInput {
-    min-width: 140px;
+.alLogTimeAgo {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Meta row */
+.alLogMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.alLogMetaItem {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--background-secondary);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-weight: 500;
+}
+
+.alLogMetaExpand {
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--red);
+  background: rgba(225, 29, 46, 0.06);
+  font-weight: 600;
+}
+
+.alLogMetaExpand:hover {
+  background: rgba(225, 29, 46, 0.12);
+}
+
+/* Expanded Details */
+.alLogDetails {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  animation: alSlideDown 0.2s ease-out;
+}
+
+.alLogDetailsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.alLogDetailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alLogDetailFull {
+  grid-column: 1 / -1;
+}
+
+.alLogDetailLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+.alLogDetailValue {
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.alLogDetailMono {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 12px;
+  background: var(--background-secondary);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+
+.alLogDetailPre {
+  margin: 0;
+  padding: 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 12px;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .alStats {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .activityLogsContainer {
-    padding: 16px;
+  .alContainer {
+    gap: 16px;
   }
 
-  .logsActions {
-    width: 100%;
+  .alStats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
-  .logsActions button {
+  .alStatCard {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .alStatIcon {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+
+  .alStatValue {
+    font-size: 18px;
+  }
+
+  .alSearchRow {
+    flex-wrap: wrap;
+  }
+
+  .alSearchWrap {
+    flex: 1 1 100%;
+  }
+
+  .alBtnFilter {
     flex: 1;
+  }
+
+  .alBtnPrimary {
+    flex: 1;
+  }
+
+  .alFiltersGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .alLogCard {
+    padding: 12px 14px;
+  }
+
+  .alLogHeader {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .alLogSummary {
+    gap: 4px;
+  }
+
+  .alLogDetailsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .alStats {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .alStatCard {
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .alToolbar {
+    padding: 12px;
+  }
+
+  .alLogAction {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .alLogActionIcon {
+    font-size: 14px;
   }
 }

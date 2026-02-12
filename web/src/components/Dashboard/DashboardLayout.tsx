@@ -215,7 +215,7 @@ export default function DashboardLayout({
 
               <Link className={`sbItem ${isActivityLogs ? "active" : ""}`} to="/dashboard/logs">
                 <span className="sbIcon" aria-hidden="true">
-                  LOG
+                  📊
                 </span>
                 Logs de Atividade
               </Link>

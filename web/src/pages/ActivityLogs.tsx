@@ -1,8 +1,9 @@
-﻿import React from "react";
+import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
+import { ScaleIn } from "../components/animate-ui/ScaleIn";
 import { listarActivityLogs, type ActivityLog } from "../services/api";
 import "./ActivityLogs.css";
 
@@ -24,10 +25,61 @@ const defaultFilters: Filters = {
   to: "",
 };
 
+const ACTION_OPTIONS = [
+  { value: "", label: "Todas as ações" },
+  { value: "create", label: "Criação" },
+  { value: "update", label: "Atualização" },
+  { value: "delete", label: "Exclusão" },
+  { value: "duplicate", label: "Duplicação" },
+];
+
+const ENTITY_OPTIONS = [
+  { value: "", label: "Todas as entidades" },
+  { value: "user", label: "Usuário" },
+  { value: "turma", label: "Turma" },
+  { value: "exercicio", label: "Exercício" },
+  { value: "template", label: "Template" },
+  { value: "material", label: "Material" },
+  { value: "videoaula", label: "Videoaula" },
+];
+
+const ACTION_CONFIG: Record<string, { icon: string; label: string; className: string }> = {
+  create: { icon: "+", label: "Criação", className: "actionCreate" },
+  update: { icon: "✎", label: "Atualização", className: "actionUpdate" },
+  delete: { icon: "✕", label: "Exclusão", className: "actionDelete" },
+  duplicate: { icon: "⧉", label: "Duplicação", className: "actionDuplicate" },
+};
+
+const ENTITY_CONFIG: Record<string, { icon: string; label: string }> = {
+  user: { icon: "👤", label: "Usuário" },
+  turma: { icon: "🏫", label: "Turma" },
+  exercicio: { icon: "✍️", label: "Exercício" },
+  template: { icon: "📦", label: "Template" },
+  material: { icon: "📄", label: "Material" },
+  videoaula: { icon: "🎬", label: "Videoaula" },
+};
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("pt-BR");
+}
+
+function timeAgo(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const now = Date.now();
+  const diff = now - date.getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return "agora mesmo";
+  if (minutes < 60) return `${minutes}min atrás`;
+  if (hours < 24) return `${hours}h atrás`;
+  if (days < 7) return `${days}d atrás`;
+  return formatDate(value);
 }
 
 function truncate(value: string | null | undefined, max = 40) {
@@ -43,8 +95,10 @@ export default function ActivityLogsPage() {
   const [filters, setFilters] = React.useState<Filters>(defaultFilters);
   const [draft, setDraft] = React.useState<Filters>(defaultFilters);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(20);
   const [totalItems, setTotalItems] = React.useState(0);
+  const [expandedRow, setExpandedRow] = React.useState<string | null>(null);
+  const [showFilters, setShowFilters] = React.useState(false);
 
   const carregarLogs = React.useCallback(async () => {
     try {
@@ -85,143 +139,338 @@ export default function ActivityLogsPage() {
     setFilters(defaultFilters);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") aplicarFiltros();
+  };
+
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
+
+  // Stats
+  const stats = React.useMemo(() => {
+    const actions: Record<string, number> = {};
+    for (const log of logs) {
+      actions[log.action] = (actions[log.action] || 0) + 1;
+    }
+    return actions;
+  }, [logs]);
+
   return (
     <DashboardLayout
       title="Logs de Atividade"
-      subtitle="Acompanhe alteracoes feitas no sistema"
+      subtitle="Acompanhe todas as alterações feitas no sistema"
     >
       <FadeInUp duration={0.28}>
-        <div className="activityLogsContainer">
-          <div className="logsHeader">
-            <div className="logsFilters">
-              <input
-                type="text"
-                className="filterInput"
-                placeholder="Buscar por usuario, acao, entidade..."
-                value={draft.q}
-                onChange={(e) => setDraft((prev) => ({ ...prev, q: e.target.value }))}
-              />
-              <input
-                type="text"
-                className="filterInput"
-                placeholder="Acao (ex: create, update)"
-                value={draft.action}
-                onChange={(e) => setDraft((prev) => ({ ...prev, action: e.target.value }))}
-              />
-              <input
-                type="text"
-                className="filterInput"
-                placeholder="Entidade (ex: user, turma)"
-                value={draft.entityType}
-                onChange={(e) => setDraft((prev) => ({ ...prev, entityType: e.target.value }))}
-              />
-              <input
-                type="text"
-                className="filterInput"
-                placeholder="Actor ID"
-                value={draft.actorId}
-                onChange={(e) => setDraft((prev) => ({ ...prev, actorId: e.target.value }))}
-              />
-              <input
-                type="datetime-local"
-                className="filterInput"
-                value={draft.from}
-                onChange={(e) => setDraft((prev) => ({ ...prev, from: e.target.value }))}
-                title="Data inicial"
-              />
-              <input
-                type="datetime-local"
-                className="filterInput"
-                value={draft.to}
-                onChange={(e) => setDraft((prev) => ({ ...prev, to: e.target.value }))}
-                title="Data final"
-              />
-            </div>
-            <div className="logsActions">
-              <AnimatedButton className="btnPrimary" onClick={aplicarFiltros}>
-                Filtrar
-              </AnimatedButton>
-              <AnimatedButton className="btnGhost" onClick={limparFiltros}>
-                Limpar
-              </AnimatedButton>
-              <AnimatedButton className="btnGhost" onClick={carregarLogs}>
-                Atualizar
-              </AnimatedButton>
-            </div>
+        <div className="alContainer">
+          {/* Stats Cards */}
+          <div className="alStats">
+            <ScaleIn delay={0}>
+              <div className="alStatCard">
+                <div className="alStatIcon alStatIconTotal">
+                  <span>Σ</span>
+                </div>
+                <div className="alStatInfo">
+                  <span className="alStatValue">{totalItems}</span>
+                  <span className="alStatLabel">Total de Logs</span>
+                </div>
+              </div>
+            </ScaleIn>
+            <ScaleIn delay={0.05}>
+              <div className="alStatCard">
+                <div className="alStatIcon alStatIconCreate">
+                  <span>+</span>
+                </div>
+                <div className="alStatInfo">
+                  <span className="alStatValue">{stats.create || 0}</span>
+                  <span className="alStatLabel">Criações</span>
+                </div>
+              </div>
+            </ScaleIn>
+            <ScaleIn delay={0.1}>
+              <div className="alStatCard">
+                <div className="alStatIcon alStatIconUpdate">
+                  <span>✎</span>
+                </div>
+                <div className="alStatInfo">
+                  <span className="alStatValue">{stats.update || 0}</span>
+                  <span className="alStatLabel">Atualizações</span>
+                </div>
+              </div>
+            </ScaleIn>
+            <ScaleIn delay={0.15}>
+              <div className="alStatCard">
+                <div className="alStatIcon alStatIconDelete">
+                  <span>✕</span>
+                </div>
+                <div className="alStatInfo">
+                  <span className="alStatValue">{stats.delete || 0}</span>
+                  <span className="alStatLabel">Exclusões</span>
+                </div>
+              </div>
+            </ScaleIn>
           </div>
 
+          {/* Search & Filter Bar */}
+          <div className="alToolbar">
+            <div className="alSearchRow">
+              <div className="alSearchWrap">
+                <span className="alSearchIcon">🔍</span>
+                <input
+                  type="text"
+                  className="alSearchInput"
+                  placeholder="Buscar por usuário, ação, entidade..."
+                  value={draft.q}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, q: e.target.value }))}
+                  onKeyDown={handleKeyDown}
+                />
+                {draft.q && (
+                  <button
+                    className="alSearchClear"
+                    onClick={() => setDraft((prev) => ({ ...prev, q: "" }))}
+                    aria-label="Limpar busca"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <AnimatedButton className="alBtnFilter" onClick={() => setShowFilters(!showFilters)}>
+                <span className="alFilterIcon">⚙</span>
+                Filtros
+                {hasActiveFilters && <span className="alFilterDot" />}
+              </AnimatedButton>
+              <AnimatedButton className="alBtnPrimary" onClick={aplicarFiltros}>
+                Buscar
+              </AnimatedButton>
+              <AnimatedButton className="alBtnRefresh" onClick={carregarLogs} title="Atualizar">
+                ↻
+              </AnimatedButton>
+            </div>
+
+            {showFilters && (
+              <div className="alFiltersPanel">
+                <div className="alFiltersGrid">
+                  <div className="alFilterGroup">
+                    <label className="alFilterLabel">Ação</label>
+                    <select
+                      className="alFilterSelect"
+                      value={draft.action}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, action: e.target.value }))}
+                    >
+                      {ACTION_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="alFilterGroup">
+                    <label className="alFilterLabel">Entidade</label>
+                    <select
+                      className="alFilterSelect"
+                      value={draft.entityType}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, entityType: e.target.value }))}
+                    >
+                      {ENTITY_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="alFilterGroup">
+                    <label className="alFilterLabel">Actor ID</label>
+                    <input
+                      type="text"
+                      className="alFilterInput"
+                      placeholder="ID do usuário"
+                      value={draft.actorId}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, actorId: e.target.value }))}
+                      onKeyDown={handleKeyDown}
+                    />
+                  </div>
+                  <div className="alFilterGroup">
+                    <label className="alFilterLabel">De</label>
+                    <input
+                      type="datetime-local"
+                      className="alFilterInput"
+                      value={draft.from}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, from: e.target.value }))}
+                    />
+                  </div>
+                  <div className="alFilterGroup">
+                    <label className="alFilterLabel">Até</label>
+                    <input
+                      type="datetime-local"
+                      className="alFilterInput"
+                      value={draft.to}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, to: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                {hasActiveFilters && (
+                  <button className="alClearFilters" onClick={limparFiltros}>
+                    Limpar todos os filtros
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Content */}
           {loading ? (
-            <div className="logsState">Carregando logs...</div>
+            <div className="alLoadingState">
+              <div className="alSpinner" />
+              <span>Carregando logs...</span>
+            </div>
           ) : erro ? (
-            <div className="logsState logsError">Erro: {erro}</div>
+            <div className="alErrorState">
+              <span className="alErrorIcon">!</span>
+              <span className="alErrorText">Erro: {erro}</span>
+              <AnimatedButton className="alBtnPrimary" onClick={carregarLogs}>
+                Tentar novamente
+              </AnimatedButton>
+            </div>
           ) : logs.length === 0 ? (
-            <div className="logsState">Nenhum log encontrado.</div>
+            <div className="alEmptyState">
+              <span className="alEmptyIcon">📋</span>
+              <span className="alEmptyTitle">Nenhum log encontrado</span>
+              <span className="alEmptyText">
+                {hasActiveFilters
+                  ? "Tente ajustar os filtros para encontrar o que procura."
+                  : "Ainda não há registros de atividade no sistema."}
+              </span>
+              {hasActiveFilters && (
+                <AnimatedButton className="alBtnGhost" onClick={limparFiltros}>
+                  Limpar filtros
+                </AnimatedButton>
+              )}
+            </div>
           ) : (
             <>
-              <div className="logsTableContainer">
-                <table className="logsTable">
-                  <thead>
-                    <tr>
-                      <th>Quando</th>
-                      <th>Ator</th>
-                      <th>Acao</th>
-                      <th>Entidade</th>
-                      <th>Origem</th>
-                      <th>Detalhes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.map((log) => {
-                      const actorName = log.actorNome || log.actorUsuario || "Sistema";
-                      const actorRole = log.actorRole ?? "desconhecido";
-                      const actorRoleClass = log.actorRole ?? "unknown";
-                      const metadataText =
-                        typeof log.metadata === "string"
-                          ? log.metadata
-                          : log.metadata
-                          ? JSON.stringify(log.metadata)
-                          : "-";
-                      return (
-                        <tr key={log.id}>
-                          <td>
-                            <div className="logPrimary">{formatDate(log.createdAt)}</div>
-                            <div className="logSecondary">{log.id}</div>
-                          </td>
-                          <td>
-                            <div className="logPrimary">{actorName}</div>
-                            <div className="logSecondary">
-                              {log.actorUsuario ? `@${log.actorUsuario}` : log.actorId || "-"}
+              {/* Timeline List */}
+              <div className="alTimeline">
+                {logs.map((log) => {
+                  const actionCfg = ACTION_CONFIG[log.action] || {
+                    icon: "?",
+                    label: log.action,
+                    className: "actionDefault",
+                  };
+                  const entityCfg = ENTITY_CONFIG[log.entityType] || {
+                    icon: "📎",
+                    label: log.entityType,
+                  };
+                  const actorName = log.actorNome || log.actorUsuario || "Sistema";
+                  const isExpanded = expandedRow === log.id;
+                  const metadataObj = log.metadata;
+                  const hasMetadata = metadataObj && Object.keys(metadataObj).length > 0;
+
+                  return (
+                    <div
+                      key={log.id}
+                      className={`alLogCard ${isExpanded ? "alLogCardExpanded" : ""}`}
+                      onClick={() => setExpandedRow(isExpanded ? null : log.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          setExpandedRow(isExpanded ? null : log.id);
+                        }
+                      }}
+                    >
+                      <div className="alLogMain">
+                        {/* Action indicator */}
+                        <div className={`alLogAction ${actionCfg.className}`}>
+                          <span className="alLogActionIcon">{actionCfg.icon}</span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="alLogContent">
+                          <div className="alLogHeader">
+                            <div className="alLogSummary">
+                              <span className="alLogActor">{actorName}</span>
+                              {log.actorRole && (
+                                <span className={`alLogRole role-${log.actorRole}`}>
+                                  {log.actorRole}
+                                </span>
+                              )}
+                              <span className={`alLogActionLabel ${actionCfg.className}`}>
+                                {actionCfg.label}
+                              </span>
+                              <span className="alLogEntity">
+                                {entityCfg.icon} {entityCfg.label}
+                              </span>
                             </div>
-                            <span className={`logRole role-${actorRoleClass}`}>
-                              {actorRole}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="logBadge">{log.action}</span>
-                          </td>
-                          <td>
-                            <div className="logPrimary">{log.entityType}</div>
-                            <div className="logSecondary">{log.entityId || "-"}</div>
-                          </td>
-                          <td>
-                            <div className="logPrimary" title={log.ipAddress ?? ""}>
-                              {log.ipAddress || "-"}
+                            <div className="alLogTime">
+                              <span className="alLogTimeAgo">{timeAgo(log.createdAt)}</span>
                             </div>
-                            <div className="logSecondary" title={log.userAgent ?? ""}>
-                              {truncate(log.userAgent, 36)}
+                          </div>
+
+                          <div className="alLogMeta">
+                            {log.actorUsuario && (
+                              <span className="alLogMetaItem">@{log.actorUsuario}</span>
+                            )}
+                            {log.entityId && (
+                              <span className="alLogMetaItem" title={log.entityId}>
+                                ID: {truncate(log.entityId, 12)}
+                              </span>
+                            )}
+                            {log.ipAddress && (
+                              <span className="alLogMetaItem">IP: {log.ipAddress}</span>
+                            )}
+                            {hasMetadata && (
+                              <span className="alLogMetaItem alLogMetaExpand">
+                                {isExpanded ? "▾ Menos" : "▸ Detalhes"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div className="alLogDetails">
+                          <div className="alLogDetailsGrid">
+                            <div className="alLogDetailItem">
+                              <span className="alLogDetailLabel">Data/Hora</span>
+                              <span className="alLogDetailValue">{formatDate(log.createdAt)}</span>
                             </div>
-                          </td>
-                          <td>
-                            <div className="logSecondary" title={metadataText}>
-                              {truncate(metadataText, 60)}
+                            <div className="alLogDetailItem">
+                              <span className="alLogDetailLabel">ID do Log</span>
+                              <span className="alLogDetailValue alLogDetailMono">{log.id}</span>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            {log.actorId && (
+                              <div className="alLogDetailItem">
+                                <span className="alLogDetailLabel">Actor ID</span>
+                                <span className="alLogDetailValue alLogDetailMono">{log.actorId}</span>
+                              </div>
+                            )}
+                            {log.entityId && (
+                              <div className="alLogDetailItem">
+                                <span className="alLogDetailLabel">Entity ID</span>
+                                <span className="alLogDetailValue alLogDetailMono">{log.entityId}</span>
+                              </div>
+                            )}
+                            {log.userAgent && (
+                              <div className="alLogDetailItem alLogDetailFull">
+                                <span className="alLogDetailLabel">User Agent</span>
+                                <span className="alLogDetailValue alLogDetailMono">{log.userAgent}</span>
+                              </div>
+                            )}
+                            {hasMetadata && (
+                              <div className="alLogDetailItem alLogDetailFull">
+                                <span className="alLogDetailLabel">Metadata</span>
+                                <pre className="alLogDetailPre">
+                                  {JSON.stringify(metadataObj, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+
               <Pagination
                 currentPage={currentPage}
                 itemsPerPage={itemsPerPage}
