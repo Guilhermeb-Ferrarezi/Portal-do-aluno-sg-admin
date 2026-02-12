@@ -88,7 +88,7 @@ export default function TurmaDetailPage() {
         );
         setResponsaveis(responsaveisOrdenados);
       })
-      .catch((e) => console.error("Erro ao carregar responsÃ¡veis:", e));
+      .catch((e) => console.error("Erro ao carregar responsáveis:", e));
   }, [role]);
 
   React.useEffect(() => {
@@ -105,10 +105,10 @@ export default function TurmaDetailPage() {
       setErro(null);
       setOkMsg(null);
       await atualizarTurma(id, { professor_id: professorId });
-      setOkMsg("ResponsÃ¡vel atualizado com sucesso!");
+      setOkMsg("Responsável atualizado com sucesso!");
       await load();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao atualizar responsÃ¡vel");
+      setErro(e instanceof Error ? e.message : "Erro ao atualizar responsável");
     } finally {
       setSalvandoResponsavel(false);
     }
@@ -306,9 +306,9 @@ export default function TurmaDetailPage() {
   }
 
   const responsavelAtual = (() => {
-    if (!turma.professorId) return "Nenhum responsÃ¡vel definido";
+    if (!turma.professorId) return "Nenhum responsável definido";
     const found = responsaveis.find((user) => user.id === turma.professorId);
-    if (!found) return "ResponsÃ¡vel nÃ£o encontrado";
+    if (!found) return "Responsável não encontrado";
     return `${found.nome} (${found.role === "admin" ? "Admin" : "Professor"})`;
   })();
 

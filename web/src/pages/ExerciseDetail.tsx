@@ -33,13 +33,13 @@ function determinarTipoRenderizacao(exercicio: Exercicio | null) {
     return "multipla";
   }
 
-  // Se tem mouse_regras e tipoExercicio í© "mouse", í© mouse interativo
+  // Se tem mouse_regras e tipoExercicio é "mouse", é mouse interativo
   if (exercicio.mouse_regras && (exercicio.tipoExercicio === "mouse" ||
     (exercicio.tipoExercicio === "nenhum" && exercicio.mouse_regras))) {
     return "mouse";
   }
 
-  // Sení£o, usa o tipoExercicio
+  // Senão, usa o tipoExercicio
   return exercicio.tipoExercicio || "texto";
 }
 
@@ -49,7 +49,7 @@ export default function ExerciseDetail() {
   const role = getRole();
   const canReview = role === "admin" || role === "professor";
 
-  // Exercí­cio
+  // Exercício
   const [exercicio, setExercicio] = React.useState<Exercicio | null>(null);
   const [loadingEx, setLoadingEx] = React.useState(true);
   const [erroEx, setErroEx] = React.useState<string | null>(null);
@@ -63,7 +63,7 @@ export default function ExerciseDetail() {
   const [avisoMsg, setAvisoMsg] = React.useState<string | null>(null);
   const [arquivo, setArquivo] = React.useState<File | null>(null);
 
-  // Teste de cí³digo
+  // Teste de código
   const [outputTeste, setOutputTeste] = React.useState<string>("");
   const [erroTeste, setErroTeste] = React.useState<string | null>(null);
 
@@ -72,7 +72,7 @@ export default function ExerciseDetail() {
 
   const [submissoesRecebidas, setSubmissoesRecebidas] = React.useState<Array<Submissao & { alunoNome: string; alunoUsuario: string }>>([]);
 
-  // Correí§í£o manual
+  // Correção manual
   const [gradingSubmissaoId, setGradingSubmissaoId] = React.useState<string | null>(null);
   const [gradingNota, setGradingNota] = React.useState<number>(0);
   const [gradingFeedback, setGradingFeedback] = React.useState("");
@@ -80,15 +80,15 @@ export default function ExerciseDetail() {
   const [gradingMsg, setGradingMsg] = React.useState<string | null>(null);
   const [loadingRecebidas, setLoadingRecebidas] = React.useState(false);
 
-  // Para exercí­cios do Dia 1 (míºltipla escolha e interativos)
+  // Para exercícios do Dia 1 (múltipla escolha e interativos)
   const [respostasMultipla, setRespostasMultipla] = React.useState<Record<string, string>>({});
 
-  // Para exercí­cios com Mouse Interativo
+  // Para exercícios com Mouse Interativo
   const [mouseCompleted, setMouseCompleted] = React.useState(false);
 
-  // Para exercí­cios tipo "Nenhum" - seletor de tipo
+  // Para exercícios tipo "Nenhum" - seletor de tipo
   const [selectedTipoNenhum, setSelectedTipoNenhum] = React.useState<"codigo" | "texto" | "escrita" | "multipla" | "mouse" | "atalho" | null>(null);
-  // Para exercí­cios de ATALHO: texto de exemplo e estado de conclusí£o
+  // Para exercícios de ATALHO: texto de exemplo e estado de conclusão
   const [atalhoSample, setAtalhoSample] = React.useState("");
   const [atalhoCompleted, setAtalhoCompleted] = React.useState(false);
   const [atalhoTextCopied, setAtalhoTextCopied] = React.useState(false);
@@ -152,13 +152,13 @@ export default function ExerciseDetail() {
     })();
   }, [id, exercicio]);
 
-  // Refs e handlers para exercí­cios do tipo ATALHO (devem ficar no topo do componente)
+  // Refs e handlers para exercícios do tipo ATALHO (devem ficar no topo do componente)
   const sampleRef = React.useRef<HTMLDivElement | null>(null);
   const shortcutBoxRef = React.useRef<ShortcutTrainingBoxHandle>(null);
 
   const currentAtalhoTipo = exercicio ? ((exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar") ?? "copiar-colar") : "copiar-colar";
 
-  // Atualiza amostra quando exercí­cio ou tipo mudar
+  // Atualiza amostra quando exercício ou tipo mudar
   React.useEffect(() => {
     if (!exercicio) return;
     if (currentAtalhoTipo === "copiar-colar-imagens") {
@@ -172,10 +172,10 @@ export default function ExerciseDetail() {
       setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
     } else {
       const texts = [
-        "O rí¡pido castor marrom salta sobre o cí£o preguií§oso.",
+        "O rápido castor marrom salta sobre o cão preguiçoso.",
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-        "12345 - teste rí¡pido de copiar e colar!",
-        "Abacaxi, banana, uva, morango, limí£o.",
+        "12345 - teste rápido de copiar e colar!",
+        "Abacaxi, banana, uva, morango, limão.",
         "Frase exemplo para copiar e colar."
       ];
       setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
@@ -186,7 +186,7 @@ export default function ExerciseDetail() {
     setAtalhoTextNoticeType("info");
   }, [exercicio, currentAtalhoTipo]);
 
-  // Handler para colagem de imagens (quando aplicí¡vel) â€” pode ser usado em onPaste ou no listener global
+  // Handler para colagem de imagens (quando aplicável) â€” pode ser usado em onPaste ou no listener global
   const handleImagePaste = React.useCallback((e: any) => {
     const items = e.clipboardData && Array.from(e.clipboardData.items || []);
     if (!items || items.length === 0) return false;
@@ -209,7 +209,7 @@ export default function ExerciseDetail() {
     return false;
   }, []);
 
-  // Handler para cí³pia do texto de exemplo (atalho copiar-colar)
+  // Handler para cópia do texto de exemplo (atalho copiar-colar)
   const handleAtalhoTextCopy = React.useCallback((selectedText: string) => {
     const normalizedSelected = selectedText.trim();
     const normalizedExpected = atalhoSample.trim();
@@ -296,7 +296,7 @@ export default function ExerciseDetail() {
       setGradingSubmissaoId(null);
       setGradingNota(0);
       setGradingFeedback("");
-      setSucessoMsg("Submissí£o corrigida com sucesso!");
+      setSucessoMsg("Submissão corrigida com sucesso!");
     } catch (error) {
       setErroSubmissao(error instanceof Error ? error.message : "Erro ao corrigir");
     } finally {
@@ -325,11 +325,11 @@ export default function ExerciseDetail() {
       };
 
       console.error = (...args: any[]) => {
-        logs.push("âŒ " + args.map((arg) => String(arg)).join(" "));
+        logs.push("? " + args.map((arg) => String(arg)).join(" "));
         originalError(...args);
       };
 
-      // Executar cí³digo
+      // Executar código
       // eslint-disable-next-line no-eval
       eval(resposta);
 
@@ -341,7 +341,7 @@ export default function ExerciseDetail() {
     } catch (error) {
       console.log = originalLog;
       console.error = originalError;
-      setErroTeste(error instanceof Error ? error.message : "Erro ao executar cí³digo");
+      setErroTeste(error instanceof Error ? error.message : "Erro ao executar código");
       setOutputTeste("");
     }
   };
@@ -349,19 +349,19 @@ export default function ExerciseDetail() {
   const handleEnviar = async () => {
     if (!id || !exercicio) return;
 
-    // Exercí­cios tipo "nenhum" precisam de um tipo selecionado
+    // Exercícios tipo "nenhum" precisam de um tipo selecionado
     if (exercicio.tipoExercicio === "nenhum" && !selectedTipoNenhum) {
       setErroSubmissao("Por favor, selecione um tipo de exercício antes de enviar.");
       return;
     }
 
-    // Determinar tipo de renderizaí§í£o (usa tipoExercicio e campos auxiliares)
+    // Determinar tipo de renderização (usa tipoExercicio e campos auxiliares)
     const tipoRenderizacao = determinarTipoRenderizacao(exercicio);
     const isMultipla = tipoRenderizacao === "multipla";
 
     const hasArquivo = !!arquivo;
 
-    // Validaí§í£o
+    // Validação
     if (isMultipla) {
       const multiplaRegras = exercicio.multipla_regras ? JSON.parse(exercicio.multipla_regras) : { questoes: [] };
       const totalQuestoes = multiplaRegras.questoes?.length || 0;
@@ -372,7 +372,7 @@ export default function ExerciseDetail() {
         return;
       }
     } else if (resposta.trim().length === 0 && tipoRenderizacao !== "atalho" && !hasArquivo) {
-      setErroSubmissao("A resposta ní£o pode estar vazia");
+      setErroSubmissao("A resposta não pode estar vazia");
       return;
     }
 
@@ -387,7 +387,7 @@ export default function ExerciseDetail() {
       if (tipoResposta === "nenhum" && selectedTipoNenhum) {
         tipoResposta = selectedTipoNenhum;
       }
-      // API sí³ aceita "codigo" ou "texto" - mapear tipos especiais
+      // API só aceita "codigo" ou "texto" - mapear tipos especiais
       if (tipoResposta !== "codigo") {
         tipoResposta = "texto";
       }
@@ -417,14 +417,14 @@ export default function ExerciseDetail() {
       const score = result.submissao?.nota;
       if (isMultipla && score !== null && score !== undefined) {
         if (score >= 70) {
-          setSucessoMsg(`… Parabí©ns! Vocíª acertou e obteve ${score}% de aproveitamento!`);
+          setSucessoMsg(`✅ Parabéns! Você acertou e obteve ${score}% de aproveitamento!`);
         } else {
-          setAvisoMsg(`âš ï¸ Vocíª obteve ${score}% de acertos. Revise e tente novamente.`);
+          setAvisoMsg(`⚠️ Você obteve ${score}% de acertos. Revise e tente novamente.`);
         }
       } else {
         const verScore = result.submissao?.verificacaoDescricao;
         if (verScore !== null && verScore !== undefined && verScore < 50) {
-          setAvisoMsg("âš ï¸ Resposta enviada, mas parece fora do jeito esperado. Revise o enunciado.");
+          setAvisoMsg("⚠️ Resposta enviada, mas parece fora do jeito esperado. Revise o enunciado.");
         } else {
           setSucessoMsg("✅ Resposta enviada com sucesso!");
         }
@@ -493,7 +493,7 @@ export default function ExerciseDetail() {
         <div className="exerciseDetailContainer">
           <FadeInUp delay={0.1} duration={0.4}>
             <div className="exMessage error">
-              <span>âŒ</span>
+              <span>❌</span>
               <span>{erroEx || "Exercício não encontrado"}</span>
             </div>
           </FadeInUp>
@@ -501,7 +501,7 @@ export default function ExerciseDetail() {
             className="btnBack"
             onClick={() => navigate("/dashboard/exercicios")}
           >
-            â† Voltar aos exercí­cios
+            ? Voltar aos exercícios
           </AnimatedButton>
         </div>
       </DashboardLayout>
@@ -530,12 +530,12 @@ export default function ExerciseDetail() {
   const temaTema = exercicio.tema || "Sem tema";
   let tipoExercicio = exercicio.tipoExercicio || "texto";
 
-  // Se í© exercí­cio tipo "nenhum" e usuí¡rio selecionou um tipo, use o tipo selecionado
+  // Se é exercício tipo "nenhum" e usuário selecionou um tipo, use o tipo selecionado
   if (exercicio.tipoExercicio === "nenhum" && selectedTipoNenhum) {
     tipoExercicio = selectedTipoNenhum;
   }
 
-  // Usar tipoExercicio para renderizaí§í£o (jí¡ considera selectedTipoNenhum)
+  // Usar tipoExercicio para renderização (já considera selectedTipoNenhum)
   const tipoRenderizacao = tipoExercicio;
   const atalhoTextNoticeStyle =
     atalhoTextNoticeType === "success"
@@ -563,7 +563,7 @@ export default function ExerciseDetail() {
             className="btnBack"
             onClick={() => navigate("/dashboard/exercicios")}
           >
-            â† Voltar aos exercí­cios
+            ? Voltar aos exercícios
           </AnimatedButton>
 
           {/* GRID 2 COLUNAS */}
@@ -588,12 +588,12 @@ export default function ExerciseDetail() {
                     <span className="edLabel">Tipo:</span>
                     <strong>
                       {tipoExercicio === "nenhum"
-                        ? "Œ Nenhum (Consulta)"
+                        ? "🌐 Nenhum (Consulta)"
                         : tipoExercicio === "codigo"
-                          ? "’» Cí³digo"
+                          ? "💻 Código"
                           : tipoExercicio === "escrita"
-                            ? "ï¸ Escrita"
-                            : "“ Digitaí§í£o"
+                            ? "✍️ Escrita"
+                            : "📄 Digitação"
                       }
                     </strong>
                   </div>
@@ -655,7 +655,7 @@ export default function ExerciseDetail() {
                                 fontSize: "12px",
                                 fontWeight: "bold",
                               }}>
-                                â° ATRASADA
+                                ? ATRASADA
                               </span>
                             )}
                           </div>
@@ -715,7 +715,7 @@ export default function ExerciseDetail() {
               {canReview && (
                 <ConditionalFieldAnimation isVisible={true} duration={0.3}>
                   <div className="edCard edTentativas">
-                    <h3 className="edSubtitle">“ Respostas dos alunos ({submissoesRecebidas.length})</h3>
+                    <h3 className="edSubtitle">📄 Respostas dos alunos ({submissoesRecebidas.length})</h3>
 
                     {loadingRecebidas ? (
                       <div style={{ padding: "20px", textAlign: "center" }}>
@@ -832,7 +832,7 @@ export default function ExerciseDetail() {
                                 </div>
                               </details>
 
-                              {/* Correí§í£o manual */}
+                              {/* Correção manual */}
                               {gradingSubmissaoId === sub.id ? (
                                 <div style={{
                                   marginTop: "10px",
@@ -948,34 +948,34 @@ export default function ExerciseDetail() {
             {/* COLUNA DIREITA: RESPONDER */}
             <div className="exerciseDetailRight">
               <div className="edCard edResponder">
-                <h2 className="edSubtitle">“ Envie sua resposta</h2>
+                <h2 className="edSubtitle">📝 Envie sua resposta</h2>
 
 
                 {/* MENSAGENS */}
                 <ConditionalFieldAnimation isVisible={!!erroSubmissao} duration={0.25}>
                   <div className="exMessage error">
-                    <span>âŒ</span>
+                    <span>❌</span>
                     <span>{erroSubmissao}</span>
                   </div>
                 </ConditionalFieldAnimation>
 
                 <ConditionalFieldAnimation isVisible={!!sucessoMsg} duration={0.25}>
                   <div className="exMessage success">
-                    <span>…</span>
+                    <span>✅</span>
                     <span>{sucessoMsg}</span>
                   </div>
                 </ConditionalFieldAnimation>
 
                 <ConditionalFieldAnimation isVisible={!!avisoMsg} duration={0.25}>
                   <div className="exMessage warning">
-                    <span>âš ï¸</span>
+                    <span>⚠️</span>
                     <span>{avisoMsg}</span>
                   </div>
                 </ConditionalFieldAnimation>
 
                 {/* RESPOSTA */}
                 <div className="edInputGroup">
-                  {/* Exercí­cios com Mouse Interativo - Baseado em tipo */}
+                  {/* Exercícios com Mouse Interativo - Baseado em tipo */}
                   {exercicio && tipoRenderizacao === "mouse" && (() => {
                     const mouseRegras = exercicio.mouse_regras
                       ? JSON.parse(exercicio.mouse_regras)
@@ -990,9 +990,9 @@ export default function ExerciseDetail() {
                                 Ž¯ Regras de Sucesso:
                               </p>
                               <ul style={{ fontSize: 12, color: "#1e40af", margin: 0, paddingLeft: "20px" }}>
-                                {mouseRegras.clicksSimples > 0 && <li>–±ï¸ {mouseRegras.clicksSimples} cliques esquerdos</li>}
-                                {mouseRegras.duplosClicks > 0 && <li>–±ï¸–±ï¸ {mouseRegras.duplosClicks} duplos cliques</li>}
-                                {mouseRegras.clicksDireitos > 0 && <li>–±ï¸â†’ {mouseRegras.clicksDireitos} cliques direitos</li>}
+                                {mouseRegras.clicksSimples > 0 && <li>–🖱️ {mouseRegras.clicksSimples} cliques esquerdos</li>}
+                                {mouseRegras.duplosClicks > 0 && <li>–🖱️–🖱️ {mouseRegras.duplosClicks} duplos cliques</li>}
+                                {mouseRegras.clicksDireitos > 0 && <li>–🖱️→ {mouseRegras.clicksDireitos} cliques direitos</li>}
                               </ul>
                             </div>
                           )}
@@ -1000,25 +1000,25 @@ export default function ExerciseDetail() {
 
                         <MouseInteractiveBox
                           title={exercicio.titulo}
-                          instruction="Realize os cliques conforme as regras acima. Vocíª verí¡ seu progresso em tempo real!"
+                          instruction="Realize os cliques conforme as regras acima. Você verá seu progresso em tempo real!"
                           rules={mouseRegras}
                           onComplete={() => {
                             setMouseCompleted(true);
-                            setSucessoMsg("… Parabí©ns! Vocíª completou o desafio do Mouse!");
+                            setSucessoMsg("✅ Parabéns! Você completou o desafio do Mouse!");
                           }}
                         />
 
                         <ConditionalFieldAnimation isVisible={mouseCompleted} duration={0.3}>
                           <div style={{ marginTop: "16px", padding: "12px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: "8px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
-                              … Desafio completado! Agora vocíª pode enviar sua submissí£o.
+                              ✅ Desafio completado! Agora você pode enviar sua submissão.
                             </p>
                           </div>
                         </ConditionalFieldAnimation>
 
                         <textarea
                           className="edTextarea"
-                          placeholder="Descreva sua experiíªncia realizando este desafio de mouse..."
+                          placeholder="Descreva sua experiência realizando este desafio de mouse..."
                           value={resposta}
                           onChange={(e) => setResposta(e.target.value)}
                           rows={6}
@@ -1028,7 +1028,7 @@ export default function ExerciseDetail() {
                     );
                   })()}
 
-                  {/* EXERCíCIOS COM MíšLTIPLA ESCOLHA */}
+                  {/* EXERCÍCIOS COM MÚLTIPLA ESCOLHA */}
                   {exercicio && tipoRenderizacao === "multipla" && (() => {
                     const multiplaRegras = exercicio.multipla_regras
                       ? JSON.parse(exercicio.multipla_regras)
@@ -1037,22 +1037,22 @@ export default function ExerciseDetail() {
                     if (!multiplaRegras.questoes || multiplaRegras.questoes.length === 0) {
                       return (
                         <div style={{ padding: "16px", background: "#fee2e2", borderRadius: "8px" }}>
-                          âš ï¸ Este exercí­cio ní£o possui questíµes configuradas.
+                          ⚠️ Este exercício não possui questões configuradas.
                         </div>
                       );
                     }
 
                     return (
                       <div>
-                        {/* Instruí§íµes */}
+                        {/* Instruçíµes */}
                         <div style={{ padding: "16px", background: "#f0f9ff", borderRadius: "8px", marginBottom: "20px" }}>
-                          <p style={{ fontWeight: 600, color: "#1e40af" }}>“‹ {exercicio.descricao}</p>
+                          <p style={{ fontWeight: 600, color: "#1e40af" }}>📌 {exercicio.descricao}</p>
                           <p style={{ fontSize: 12, color: "#1e40af" }}>
-                            â„¹ï¸ Responda todas as {multiplaRegras.questoes.length} questíµes
+                            ℹ️ Responda todas as {multiplaRegras.questoes.length} questões
                           </p>
                         </div>
 
-                        {/* Renderizar questíµes */}
+                        {/* Renderizar questões */}
                         {multiplaRegras.questoes.map((questao: any, index: number) => (
                           <FadeInUp key={index} delay={0.05 * (index + 1)} duration={0.3}>
                             <MultipleChoiceQuestion
@@ -1070,15 +1070,15 @@ export default function ExerciseDetail() {
                         <FadeInUp delay={0.1} duration={0.3}>
                           <div style={{ padding: "12px", background: "#f0fdf4", borderRadius: "8px", marginTop: "16px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: 0 }}>
-                              “Š Progresso: {Object.keys(respostasMultipla).length} / {multiplaRegras.questoes.length} respondidas
+                              📊 Progresso: {Object.keys(respostasMultipla).length} / {multiplaRegras.questoes.length} respondidas
                             </p>
                           </div>
                         </FadeInUp>
 
-                        {/* Campo opcional de comentí¡rio */}
+                        {/* Campo opcional de comentário */}
                         <textarea
                           className="edTextarea"
-                          placeholder="(Opcional) Deixe um comentí¡rio..."
+                          placeholder="(Opcional) Deixe um comentário..."
                           value={resposta}
                           onChange={(e) => setResposta(e.target.value)}
                           rows={4}
@@ -1088,7 +1088,7 @@ export default function ExerciseDetail() {
                     );
                   })()}
 
-                  {/* Exercí­cios de ATALHO */}
+                  {/* Exercícios de ATALHO */}
                   {exercicio && tipoRenderizacao === "atalho" && (() => {
                     const atalhoTipo = currentAtalhoTipo;
 
@@ -1096,8 +1096,8 @@ export default function ExerciseDetail() {
                       <div>
                         <ShortcutTrainingBox
                           ref={shortcutBoxRef}
-                          title="âŒ¨ï¸ Pratique o Atalho"
-                          instruction={atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo í  direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteíºdo abaixo e pressione Delete para completar" : "Clique com botí£o direito na imagem â†’ Copiar imagem, depois cole no campo í  direita"}
+                          title="? Pratique o Atalho"
+                          instruction={atalhoTipo === "copiar-colar" ? "Copie o texto abaixo (Ctrl+C) e cole no campo à direita (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "Selecione todo o conteúdo abaixo e pressione Delete para completar" : "Clique com botão direito na imagem â†’ Copiar imagem, depois cole no campo à direita"}
                           shortcutType={atalhoTipo}
                           sample={atalhoSample}
                           onSampleCopy={(selectedText) => {
@@ -1172,11 +1172,11 @@ export default function ExerciseDetail() {
                                     setAtalhoSample(images[Math.floor(Math.random() * images.length)]);
                                   } else {
                                     const texts = [
-                                      "Copie este texto de exemplo: O rí¡pido castor marrom salta sobre o cí£o preguií§oso.",
+                                      "Copie este texto de exemplo: O rápido castor marrom salta sobre o cão preguiçoso.",
                                       "Selecione e cole: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                                      "Exemplo: 12345 - teste rí¡pido de copiar e colar!",
+                                      "Exemplo: 12345 - teste rápido de copiar e colar!",
                                       "Frase exemplo: Digite ou cole exatamente este texto para treinar atalhos.",
-                                      "Treino: Abacaxi, banana, uva, morango, limí£o."
+                                      "Treino: Abacaxi, banana, uva, morango, limão."
                                     ];
                                     setAtalhoSample(texts[Math.floor(Math.random() * texts.length)]);
                                   }
@@ -1187,14 +1187,14 @@ export default function ExerciseDetail() {
                                   setAtalhoTextNoticeType("info");
                                 }}
                               >
-                                ” Novo exemplo
+                                🔄 Novo exemplo
                               </button>
                             </div>
                           </div>
 
-                          {/* Campo onde usuí¡rio cola o texto/imagem */}
+                          {/* Campo onde usuário cola o texto/imagem */}
                           <div style={{ flex: 1 }}>
-                            <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl + V â†’ Colar)" : atalhoTipo === "copiar-colar" ? "Cole o texto aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a í¡rea esquerda para selecionar e apagar)" : "Cole aqui"}</label>
+                            <label style={{ display: "block", fontWeight: 700, marginBottom: 8 }}>{atalhoTipo === "copiar-colar-imagens" ? "Cole a imagem aqui (Ctrl + V → Colar)" : atalhoTipo === "copiar-colar" ? "Cole o texto aqui (Ctrl+V)" : atalhoTipo === "selecionar-deletar" ? "(Use a área da esquerda para selecionar e apagar)" : "Cole aqui"}</label>
 
                             {atalhoTipo === "copiar-colar-imagens" ? (
                               <div
@@ -1218,7 +1218,7 @@ export default function ExerciseDetail() {
                                       }
                                     }
                                   }
-                                  // Ní£o aceitar texto no modo de copiar/colar imagem
+                                  // Não aceitar texto no modo de copiar/colar imagem
                                 }}
                                 style={{
                                   minHeight: 220,
@@ -1281,12 +1281,12 @@ export default function ExerciseDetail() {
                               />
                             ) : atalhoTipo === "selecionar-deletar" ? (
                               <div style={{ marginTop: 6, color: "#9CA3AF", fontSize: 13 }}>
-                                Selecione todo o texto í  esquerda e pressione Delete ou Backspace para completar o exercí­cio.
+                                Selecione todo o texto à esquerda e pressione Delete ou Backspace para completar o exercício.
                               </div>
                             ) : (
                               <textarea
                                 className="edTextarea"
-                                placeholder="Cole o texto aqui apí³s copiar o exemplo"
+                                placeholder="Cole o texto aqui após copiar o exemplo"
                                 value={resposta}
                                 onChange={(e) => setResposta(e.target.value)}
                                 rows={6}
@@ -1310,11 +1310,11 @@ export default function ExerciseDetail() {
                             )}
 
                             <div style={{ marginTop: 8, color: atalhoCompleted ? "#166534" : "#6b7280", fontSize: 13 }}>
-                              {atalhoCompleted ? "… Atalho completado" : "â³ Complete o exercí­cio de atalho para treinar"}
+                              {atalhoCompleted ? "✅ Atalho completado" : "? Complete o exercício de atalho para treinar"}
                             </div>
                             {atalhoAutoNotice && (
                               <div style={{ marginTop: 8, color: "#16a34a", fontSize: 13, fontWeight: 600 }}>
-                                … Resposta enviada automaticamente
+                                ✅ Resposta enviada automaticamente
                               </div>
                             )}
                           </div>
@@ -1323,7 +1323,7 @@ export default function ExerciseDetail() {
                     );
                   })()}
 
-                  {/* Exercí­cios tipo NENHUM - Seletor de tipo */}
+                  {/* Exercícios tipo NENHUM - Seletor de tipo */}
                   {tipoExercicio === "nenhum" && !selectedTipoNenhum && (
                     <ConditionalFieldAnimation isVisible={true} duration={0.3}>
                       <div style={{
@@ -1334,10 +1334,10 @@ export default function ExerciseDetail() {
                         borderRadius: "12px",
                       }}>
                         <h3 style={{ marginTop: 0, marginBottom: "16px", color: "#2563eb", fontSize: "18px", fontWeight: "600" }}>
-                          “‹ Selecione o tipo de resposta
+                          👇 Selecione o tipo de resposta
                         </h3>
                         <p style={{ marginBottom: "20px", color: "var(--text)", fontSize: "14px" }}>
-                          Escolha como vocíª gostaria de responder este exercí­cio:
+                          Escolha como você gostaria de responder este exercício:
                         </p>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                           <button
@@ -1362,7 +1362,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            ’» Cí³digo
+                            💻 Código
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("escrita")}
@@ -1386,7 +1386,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            ï¸ Escrita
+                            ✍️ Escrita
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("texto")}
@@ -1410,7 +1410,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            “ Digitaí§í£o
+                            📄 Digitação
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("multipla")}
@@ -1434,7 +1434,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            â“ Míºltipla Escolha
+                            🔘 Múltipla Escolha
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("mouse")}
@@ -1458,7 +1458,7 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            –±ï¸ Mouse Interativo
+                            🖱️ Mouse Interativo
                           </button>
                           <button
                             onClick={() => setSelectedTipoNenhum("atalho")}
@@ -1482,14 +1482,14 @@ export default function ExerciseDetail() {
                               (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
                             }}
                           >
-                            âŒ¨ï¸ Atalho
+                            ⌨️ Atalho
                           </button>
                         </div>
                       </div>
                     </ConditionalFieldAnimation>
                   )}
 
-                  {/* Exercí­cios normais de cí³digo */}
+                  {/* Exercícios normais de código */}
                   {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo")) && (
                     <>
                       <MonacoEditor
@@ -1504,36 +1504,36 @@ export default function ExerciseDetail() {
                         theme="dark"
                       />
 
-                      {/* TESTE DE Cí“DIGO */}
+                      {/* TESTE DE CÓDIGO */}
                       <AnimatedButton
                         className="edTestBtn"
                         onClick={handleTestarCodigo}
                         disabled={resposta.trim().length === 0 || linguagem !== "javascript"}
                       >
-                        §ª Testar Cí³digo
+                        🚀 Testar Código
                       </AnimatedButton>
                       <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
-                        Teste local disponí­vel apenas para JavaScript. Outras linguagens serí£o avaliadas pelo professor.
+                        Teste local disponível apenas para JavaScript. Outras linguagens serão avaliadas pelo professor.
                       </div>
 
                       {/* OUTPUT DO TESTE */}
                       <ConditionalFieldAnimation isVisible={!!erroTeste} duration={0.3}>
                         <div className="edTestOutput error">
-                          <div className="edTestLabel">âŒ Erro:</div>
+                          <div className="edTestLabel">❌ Erro:</div>
                           <pre>{erroTeste}</pre>
                         </div>
                       </ConditionalFieldAnimation>
 
                       <ConditionalFieldAnimation isVisible={!!outputTeste && !erroTeste} duration={0.3}>
                         <div className="edTestOutput success">
-                          <div className="edTestLabel">… Output:</div>
+                          <div className="edTestLabel">📊 Output:</div>
                           <pre>{outputTeste}</pre>
                         </div>
                       </ConditionalFieldAnimation>
                     </>
                   )}
 
-                  {/* Exercí­cios normais de texto */}
+                  {/* Exercícios normais de texto */}
                   {(tipoExercicio === "texto" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "texto")) && (
                     <textarea
                       className="edTextarea"
@@ -1544,11 +1544,11 @@ export default function ExerciseDetail() {
                     />
                   )}
 
-                  {/* Exercí­cios de ESCRITA */}
+                  {/* Exercícios de ESCRITA */}
                   {(tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita")) && (
                     <textarea
                       className="edTextarea"
-                      placeholder="Escreva sua resposta aqui. Sua resposta serí¡ revisada pelo professor..."
+                      placeholder="Escreva sua resposta aqui. Sua resposta será revisada pelo professor..."
                       value={resposta}
                       onChange={(e) => setResposta(e.target.value)}
                       rows={12}
@@ -1572,7 +1572,7 @@ export default function ExerciseDetail() {
                         />
                         {arquivo && (
                           <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
-                            {arquivo.name} â€¢ {(arquivo.size / 1024).toFixed(1)} KB
+                            {arquivo.name} • {(arquivo.size / 1024).toFixed(1)} KB
                             <button
                               type="button"
                               style={{ marginLeft: 8, color: "var(--red)", background: "transparent", border: "none", cursor: "pointer" }}
@@ -1598,11 +1598,11 @@ export default function ExerciseDetail() {
                     fontSize: "14px",
                     fontWeight: "500",
                   }}>
-                    â° <strong>Prazo expirado:</strong> Ní£o í© mais possí­vel enviar respostas para este exercí­cio.
+                    ⏰ <strong>Prazo expirado:</strong> Não é mais possível enviar respostas para este exercício.
                   </div>
                 </ConditionalFieldAnimation>
 
-                {/* AVISO - Jí¡ enviou e ní£o pode repetir */}
+                {/* AVISO - Já enviou e não pode repetir */}
                 <ConditionalFieldAnimation isVisible={jaEnviou} duration={0.3}>
                   <div style={{
                     padding: "14px 18px",
@@ -1613,7 +1613,7 @@ export default function ExerciseDetail() {
                     fontSize: "14px",
                     fontWeight: "500",
                   }}>
-                    … <strong>Resposta jí¡ enviada.</strong> Vocíª jí¡ completou este exercí­cio.
+                    ✅ <strong>Resposta já enviada.</strong> Você já completou este exercício.
                   </div>
                 </ConditionalFieldAnimation>
                 <ConditionalFieldAnimation isVisible={limiteTentativas} duration={0.3}>
@@ -1644,7 +1644,7 @@ export default function ExerciseDetail() {
                   </div>
                 </ConditionalFieldAnimation>
 
-                {/* BOTíƒO ENVIAR - Oculto para atalhos (auto-submit) e quando jí¡ enviou */}
+                {/* BOTÃO ENVIAR - Oculto para atalhos (auto-submit) e quando já enviou */}
                 {tipoRenderizacao !== "atalho" && !jaEnviou && (
                   <AnimatedButton
                     className="edSubmitBtn"
@@ -1669,13 +1669,13 @@ export default function ExerciseDetail() {
                             : "✨ Enviar Resposta"}
                   </AnimatedButton>
                 )}
-                {/* DICA - Mostra apenas quando hí¡ um tipo selecionado */}
+                {/* DICA - Mostra apenas quando há um tipo selecionado */}
                 {(tipoExercicio !== "nenhum" || (tipoExercicio === "nenhum" && selectedTipoNenhum)) && (
                   <div className="edHint">
                     {(tipoExercicio === "codigo" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "codigo"))
-                      ? "Escolha a linguagem no editor e escreva seu cí³digo."
+                      ? "Escolha a linguagem no editor e escreva seu código."
                       : (tipoExercicio === "escrita" || (tipoExercicio === "nenhum" && selectedTipoNenhum === "escrita"))
-                        ? "Sua resposta serí¡ avaliada pelo professor. Escreva de forma clara e completa."
+                        ? "Sua resposta será avaliada pelo professor. Escreva de forma clara e completa."
                         : ""}
                   </div>
                 )}
@@ -1706,13 +1706,6 @@ export default function ExerciseDetail() {
         type="success"
         onClose={() => setGradingMsg(null)}
       />
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
-
-
-
-
-
-
-

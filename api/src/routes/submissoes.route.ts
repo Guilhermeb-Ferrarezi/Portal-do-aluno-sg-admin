@@ -26,7 +26,7 @@ const upload = multer({
       cb(null, true);
       return;
     }
-    cb(new Error("Tipo de arquivo nÃ£o permitido"));
+    cb(new Error("Tipo de arquivo não permitido"));
   },
 });
 
@@ -226,7 +226,7 @@ function validarMultiplaEscolhaCompleta(resposta: string, multipla_regras: strin
     const regrasObj = JSON.parse(multipla_regras);
 
     if (!regrasObj.questoes || !Array.isArray(regrasObj.questoes)) {
-      return { completa: false, mensagem: "Formato de regras invÃ¡lido" };
+      return { completa: false, mensagem: "Formato de regras inválido" };
     }
 
     const numQuestoes = regrasObj.questoes.length;
@@ -234,15 +234,15 @@ function validarMultiplaEscolhaCompleta(resposta: string, multipla_regras: strin
       if (!respostaObj[`q${i}`]) {
         return {
           completa: false,
-          mensagem: `Responda todas as ${numQuestoes} questÃµes antes de enviar.`
+          mensagem: `Responda todas as ${numQuestoes} questões antes de enviar.`
         };
       }
     }
 
     return { completa: true };
   } catch (error) {
-    console.error("Erro ao validar mÃºltipla escolha:", error);
-    return { completa: false, mensagem: "Formato de resposta invÃ¡lido" };
+    console.error("Erro ao validar múltipla escolha:", error);
+    return { completa: false, mensagem: "Formato de resposta inválido" };
   }
 }
 
@@ -265,7 +265,7 @@ function validarMultiplaEscolha(resposta: string, multipla_regras: string): numb
 
     return Math.round((acertos / regrasObj.questoes.length) * 100);
   } catch (error) {
-    console.error("Erro ao validar mÃºltipla escolha:", error);
+    console.error("Erro ao validar múltipla escolha:", error);
     return 0;
   }
 }
@@ -283,13 +283,13 @@ export function submissoesRouter(jwtSecret: string) {
       const alunoId = req.user?.sub;
 
       if (!alunoId) {
-        return res.status(401).json({ message: "UsuÃ¡rio nÃ£o autenticado" });
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
 
       const parsed = createSubmissaoSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados invÃ¡lidos",
+          message: "Dados inválidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
@@ -299,12 +299,12 @@ export function submissoesRouter(jwtSecret: string) {
       const hasFile = !!req.file;
       if (!hasFile && respostaTexto.length === 0) {
         return res.status(400).json({
-          message: "Resposta ou arquivo ÃƒÂ© obrigatÃƒÂ³rio",
+          message: "Resposta ou arquivo é obrigatório",
         });
       }
 
       try {
-        // Verificar se exercÃ­cio existe e buscar prazo
+        // Verificar se exercício existe e buscar prazo
         const userRole = req.user?.role;
         const params: any[] = [exercicioId];
         let query = `SELECT id, descricao, gabarito, tipo_exercicio, prazo, multipla_regras, permitir_repeticao,
@@ -339,7 +339,7 @@ export function submissoesRouter(jwtSecret: string) {
         const exercicio = await pool.query(query, params);
 
         if (exercicio.rows.length === 0) {
-          return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
+          return res.status(404).json({ message: "Exercício não encontrado" });
         }
 
         const exRow = exercicio.rows[0];
@@ -350,10 +350,10 @@ export function submissoesRouter(jwtSecret: string) {
         const agora = new Date();
         const isLate = prazo && agora > prazo;
 
-        // Bloquear submissÃ£o se o prazo expirou
+        // Bloquear submissão se o prazo expirou
         if (prazo && agora >= prazo) {
           return res.status(400).json({
-            message: "O prazo para submissÃ£o deste exercÃ­cio jÃ¡ expirou. NÃ£o Ã© mais possÃ­vel enviar respostas."
+            message: "O prazo para submissão deste exercício já expirou. Não Ã© mais possível enviar respostas."
           });
         }
 
@@ -373,13 +373,13 @@ export function submissoesRouter(jwtSecret: string) {
 
         if (!permitirRepeticao && tentativasAnteriores > 0) {
           return res.status(400).json({
-            message: "VocÃª jÃ¡ enviou uma resposta para este exercÃ­cio."
+            message: "Você já enviou uma resposta para este exercício."
           });
         }
 
         if (permitirRepeticao && maxTentativas !== null && tentativasAnteriores >= maxTentativas) {
           return res.status(400).json({
-            message: "Limite de tentativas atingido para este exercÃ­cio."
+            message: "Limite de tentativas atingido para este exercício."
           });
         }
 
@@ -396,27 +396,27 @@ export function submissoesRouter(jwtSecret: string) {
 
         const respostaStr = (resposta ?? "").toString();
 
-        // Validar mÃºltipla escolha completude
+        // Validar múltipla escolha completude
         if (multiplaRegras) {
           const validacao = validarMultiplaEscolhaCompleta(respostaStr, multiplaRegras);
           if (!validacao.completa) {
             return res.status(400).json({
-              message: validacao.mensagem || "Responda todas as questÃµes antes de enviar."
+              message: validacao.mensagem || "Responda todas as questões antes de enviar."
             });
           }
         }
 
-        // Detectar tipo de exercÃ­cio e validar
+        // Detectar tipo de exercício e validar
         const tipoExercicio = exRow.tipo_exercicio;
         let notaAuto = null;
         if (tipoExercicio === "atalho") {
           // Atalhos completados = 100% sempre
           notaAuto = 100;
         } else if (multiplaRegras) {
-          // MÃºltipla escolha - validaÃ§Ã£o automÃ¡tica
+          // Múltipla escolha - validação automática
           notaAuto = validarMultiplaEscolha(respostaStr, multiplaRegras);
         } else if (gabarito) {
-          // ValidaÃ§Ã£o normal por gabarito
+          // Validação normal por gabarito
           notaAuto = corrigirAutomaticamente(respostaStr, gabarito, tipo_resposta);
         }
         if (notaAuto !== null && penalidadeTentativa > 0 && tentativasAnteriores > 0) {
@@ -434,7 +434,7 @@ export function submissoesRouter(jwtSecret: string) {
 
         const respostaFinal = respostaStr.trim().length > 0 ? respostaStr : null;
 
-        // Inserir submissÃ£o
+        // Inserir submissão
         const result = await pool.query<SubmissaoRow>(
           `INSERT INTO submissoes (exercicio_id, aluno_id, resposta, tipo_resposta, linguagem, nota, corrigida, is_late, arquivo_url, arquivo_nome)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -445,8 +445,8 @@ export function submissoesRouter(jwtSecret: string) {
             respostaFinal,
             tipo_resposta,
             linguagem ?? null,
-            notaAuto, // nota automÃ¡tica se houver gabarito ou mÃºltipla escolha
-            gabarito || multiplaRegras ? true : false, // marcar como corrigida se hÃ¡ gabarito ou mÃºltipla escolha
+            notaAuto, // nota automática se houver gabarito ou múltipla escolha
+            gabarito || multiplaRegras ? true : false, // marcar como corrigida se há gabarito ou múltipla escolha
             isLate ?? false, // marcar como atrasada se passou do prazo
             arquivoUrl,
             arquivoNome,
@@ -456,7 +456,7 @@ export function submissoesRouter(jwtSecret: string) {
         const submissao = result.rows[0];
 
         return res.status(201).json({
-          message: isLate ? "SubmissÃ£o enviada com sucesso (atrasada)" : "SubmissÃ£o enviada com sucesso!",
+          message: isLate ? "Submissão enviada com sucesso (atrasada)" : "Submissão enviada com sucesso!",
           submissao: {
             id: submissao.id,
             exercicioId: submissao.exercicio_id,
@@ -474,8 +474,8 @@ export function submissoesRouter(jwtSecret: string) {
         },
       });
       } catch (error) {
-        console.error("Erro ao criar submissÃ£o:", error);
-        return res.status(500).json({ message: "Erro ao criar submissÃ£o" });
+        console.error("Erro ao criar submissão:", error);
+        return res.status(500).json({ message: "Erro ao criar submissão" });
       }
     }
   );
@@ -489,7 +489,7 @@ export function submissoesRouter(jwtSecret: string) {
       const alunoId = req.user?.sub;
 
       if (!alunoId) {
-        return res.status(401).json({ message: "UsuÃ¡rio nÃ£o autenticado" });
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
 
       try {
@@ -520,18 +520,18 @@ export function submissoesRouter(jwtSecret: string) {
         }))
         );
       } catch (error) {
-        console.error("Erro ao buscar submissÃµes:", error);
-        return res.status(500).json({ message: "Erro ao buscar submissÃµes" });
+        console.error("Erro ao buscar submissões:", error);
+        return res.status(500).json({ message: "Erro ao buscar submissões" });
       }
     }
   );
 
-  // GET /minhas-submissoes - Ver todas as minhas submissÃµes
+  // GET /minhas-submissoes - Ver todas as minhas submissões
   router.get("/minhas-submissoes", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const alunoId = req.user?.sub;
 
     if (!alunoId) {
-      return res.status(401).json({ message: "UsuÃ¡rio nÃ£o autenticado" });
+      return res.status(401).json({ message: "Usuário não autenticado" });
     }
 
     try {
@@ -571,12 +571,12 @@ export function submissoesRouter(jwtSecret: string) {
         }))
       );
     } catch (error) {
-      console.error("Erro ao buscar submissÃµes:", error);
-      return res.status(500).json({ message: "Erro ao buscar submissÃµes" });
+      console.error("Erro ao buscar submissões:", error);
+      return res.status(500).json({ message: "Erro ao buscar submissões" });
     }
   });
 
-  // GET /exercicios/:exercicioId/submissoes - Listar submissÃµes (admin/professor)
+  // GET /exercicios/:exercicioId/submissoes - Listar submissões (admin/professor)
   router.get(
     "/exercicios/:exercicioId/submissoes",
     authGuard(jwtSecret),
@@ -622,13 +622,13 @@ export function submissoesRouter(jwtSecret: string) {
           }))
         );
       } catch (error) {
-        console.error("Erro ao buscar submissÃµes:", error);
-        return res.status(500).json({ message: "Erro ao buscar submissÃµes" });
+        console.error("Erro ao buscar submissões:", error);
+        return res.status(500).json({ message: "Erro ao buscar submissões" });
       }
     }
   );
 
-  // PUT /submissoes/:submissaoId/corrigir - Corrigir submissÃ£o (admin/professor)
+  // PUT /submissoes/:submissaoId/corrigir - Corrigir submissão (admin/professor)
   router.put(
     "/submissoes/:submissaoId/corrigir",
     authGuard(jwtSecret),
@@ -639,7 +639,7 @@ export function submissoesRouter(jwtSecret: string) {
       const parsed = corrigirSubmissaoSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados invÃ¡lidos",
+          message: "Dados inválidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
@@ -656,13 +656,13 @@ export function submissoesRouter(jwtSecret: string) {
         );
 
         if (result.rows.length === 0) {
-          return res.status(404).json({ message: "SubmissÃ£o nÃ£o encontrada" });
+          return res.status(404).json({ message: "Submissão não encontrada" });
         }
 
         const submissao = result.rows[0];
 
         return res.json({
-          message: "SubmissÃ£o corrigida com sucesso!",
+          message: "Submissão corrigida com sucesso!",
           submissao: {
             id: submissao.id,
             exercicioId: submissao.exercicio_id,
@@ -679,8 +679,8 @@ export function submissoesRouter(jwtSecret: string) {
         },
       });
       } catch (error) {
-        console.error("Erro ao corrigir submissÃ£o:", error);
-        return res.status(500).json({ message: "Erro ao corrigir submissÃ£o" });
+        console.error("Erro ao corrigir submissão:", error);
+        return res.status(500).json({ message: "Erro ao corrigir submissão" });
       }
     }
   );
