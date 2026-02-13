@@ -17,6 +17,7 @@ import {
   AnimatedSelect,
   AnimatedToggle,
 } from "./animate-ui";
+import ConfirmModal from "./ConfirmModal";
 import {
   Users,
   Flame,
@@ -177,11 +178,13 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   });
   const [statsLoading, setStatsLoading] = React.useState(false);
   const [statsError, setStatsError] = React.useState<string | null>(null);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = React.useState(false);
 
   const role = userInfo?.role ?? roleLocal;
   const mobileTitle = mobileSection
     ? NAV_ITEMS.find((item) => item.key === mobileSection)?.label || "Configurações"
     : "Configurações";
+  const logoutAction = () => setLogoutConfirmOpen(true);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -254,11 +257,11 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   React.useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !modalSenha) onClose();
+      if (e.key === "Escape" && !modalSenha && !logoutConfirmOpen) onClose();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, modalSenha, onClose]);
+  }, [isOpen, modalSenha, logoutConfirmOpen, onClose]);
 
   // Lock body scroll
   React.useEffect(() => {
@@ -420,7 +423,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                     <button
                       className="settingsNavItem settingsNavLogout"
                       type="button"
-                      onClick={onLogout}
+                      onClick={logoutAction}
                     >
                       <LogOut size={16} />
                       <span>Sair</span>
@@ -462,8 +465,8 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   <div className="settingsMobileGroup">
                     <div className="settingsMobileGroupTitle">CONTA</div>
                     <div className="settingsMobileCard">
-                      <button className="settingsMobileItem settingsMobileLogout" onClick={onLogout}>
-                        <span className="settingsMobileItemIcon"><X size={16} /></span>
+                      <button className="settingsMobileItem settingsMobileLogout" onClick={logoutAction}>
+                        <span className="settingsMobileItemIcon"><LogOut size={16} /></span>
                         <span className="settingsMobileItemLabel">Sair</span>
                         <span className="settingsMobileItemChevron">
                           <ChevronRight size={18} />
@@ -762,6 +765,20 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
               </div>
             </div>
           )}
+          <ConfirmModal
+            isOpen={logoutConfirmOpen}
+            title="Sair da conta"
+            message="Tem certeza que deseja sair?"
+            confirmText="Sair"
+            cancelText="Cancelar"
+            danger
+            overlayZIndex={10003}
+            onCancel={() => setLogoutConfirmOpen(false)}
+            onConfirm={() => {
+              setLogoutConfirmOpen(false);
+              onLogout();
+            }}
+          />
         </motion.div>
       )}
     </AnimatePresence>,

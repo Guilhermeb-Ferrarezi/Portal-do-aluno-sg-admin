@@ -12,6 +12,7 @@ type ConfirmModalProps = {
   onCancel: () => void;
   danger?: boolean;
   isLoading?: boolean;
+  overlayZIndex?: number;
 };
 
 export default function ConfirmModal({
@@ -24,11 +25,12 @@ export default function ConfirmModal({
   onCancel,
   danger = false,
   isLoading = false,
+  overlayZIndex,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="modalOverlay" onClick={onCancel}>
+    <div className="modalOverlay" onClick={onCancel} style={overlayZIndex ? { zIndex: overlayZIndex } : undefined}>
       <div className="modalContent" onClick={(e) => e.stopPropagation()}>
         <h3 className="modalTitle">{title}</h3>
         <p className="modalMessage">{message}</p>
