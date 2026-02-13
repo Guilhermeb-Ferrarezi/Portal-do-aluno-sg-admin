@@ -113,6 +113,7 @@ export default function ExerciciosPage() {
   const [anexosAtivo, setAnexosAtivo] = React.useState(false);
   const [anexoArquivo, setAnexoArquivo] = React.useState<File | null>(null);
   const [anexoAtual, setAnexoAtual] = React.useState<{ url: string; nome: string } | null>(null);
+  const [anexoPreviewUrl, setAnexoPreviewUrl] = React.useState<string | null>(null);
   const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
   const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
@@ -216,6 +217,18 @@ export default function ExerciciosPage() {
         .catch((e) => console.error("Erro ao carregar alunos:", e));
     }
   }, []);
+
+  React.useEffect(() => {
+    if (!anexoArquivo) {
+      setAnexoPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(anexoArquivo);
+    setAnexoPreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [anexoArquivo]);
 
   async function handleSubmit() {
     try {
@@ -681,6 +694,22 @@ export default function ExerciciosPage() {
                           {anexoArquivo?.name || "Selecionar arquivo"}
                         </span>
                       </label>
+                      {anexoPreviewUrl && anexoArquivo && (
+                        <div className="filePreview">
+                          {anexoArquivo.type.startsWith("image/") ? (
+                            <img src={anexoPreviewUrl} alt={anexoArquivo.name} />
+                          ) : anexoArquivo.type === "application/pdf" ? (
+                            <embed src={anexoPreviewUrl} type="application/pdf" />
+                          ) : (
+                            <div className="filePreviewMeta">
+                              <div className="filePreviewName">{anexoArquivo.name}</div>
+                              <div className="filePreviewInfo">
+                                {(anexoArquivo.size / 1024).toFixed(1)} KB
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {anexoAtual?.url && !anexoArquivo && (
                         <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
                           <a href={anexoAtual.url} target="_blank" rel="noreferrer">
