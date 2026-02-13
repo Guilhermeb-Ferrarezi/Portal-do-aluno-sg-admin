@@ -253,6 +253,12 @@ export default function ExerciciosPage() {
         else tipoSelecionado = componenteInterativo || undefined;
       }
 
+      if (tipoSelecionado === "nenhum") {
+        setErro("Selecione um tipo de exercício válido (não é permitido 'Nenhum').");
+        setSaving(false);
+        return;
+      }
+
       const maxTentativasNum = maxTentativas.trim() ? Number(maxTentativas) : null;
       const penalidadeNum = penalidadeTentativa.trim() ? Number(penalidadeTentativa) : 0;
       const intervaloNum = intervaloReenvio.trim() ? Number(intervaloReenvio) : null;
