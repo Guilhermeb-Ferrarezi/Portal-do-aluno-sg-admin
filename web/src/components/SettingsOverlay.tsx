@@ -32,11 +32,14 @@ import {
   Settings,
   BarChart3,
   Palette,
+  ChevronLeft,
+  ChevronRight,
+  Search,
   X,
 } from "lucide-react";
 import "../pages/Perfil.css";
 
-type SettingsSection = "conta" | "seguranca" | "configuracoes" | "aparencia" | "desempenho" | "turmas";
+type SettingsSection = "conta" | "seguranca" | "configuracoes" | "aparencia" | "desempenho" | "turmas" | "profile" | "notifications" |  "preferencias";
 
 type UserStats = {
   exerciciosFeitos: number;
@@ -130,8 +133,8 @@ function calcularStats(submissoes: Submissao[], turmasInscritas: number): UserSt
 const NAV_ITEMS: { key: SettingsSection; label: string; icon: React.ReactNode; group: string }[] = [
   { key: "conta", label: "Minha Conta", icon: <UserIcon size={16} />, group: "CONTA" },
   { key: "seguranca", label: "Segurança", icon: <Shield size={16} />, group: "CONTA" },
-  { key: "configuracoes", label: "Configurações", icon: <Settings size={16} />, group: "PREFERÊNCIAS" },
-  { key: "aparencia", label: "Aparência", icon: <Palette size={16} />, group: "PREFERÊNCIAS" },
+  { key: "preferencias", label: "Preferências", icon: <Settings size={16} />, group: "CONFIG. DO APLICATIVO" },
+  { key: "aparencia", label: "Aparência", icon: <Palette size={16} />, group: "CONFIG. DO APLICATIVO" },
   { key: "desempenho", label: "Desempenho", icon: <BarChart3 size={16} />, group: "ATIVIDADE" },
   { key: "turmas", label: "Turmas", icon: <Users size={16} />, group: "ATIVIDADE" },
 ];
@@ -145,6 +148,9 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
   const roleLocal = getRole();
 
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("conta");
+  const [mobileSection, setMobileSection] = React.useState<SettingsSection | null>(null);
+  const [mobileQuery, setMobileQuery] = React.useState("");
+  const [isMobile, setIsMobile] = React.useState(false);
   const [modalSenha, setModalSenha] = React.useState(false);
   const [userInfo, setUserInfo] = React.useState<UserMe | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -171,6 +177,9 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
   const [statsError, setStatsError] = React.useState<string | null>(null);
 
   const role = userInfo?.role ?? roleLocal;
+  const mobileTitle = mobileSection
+    ? NAV_ITEMS.find((item) => item.key === mobileSection)?.label || "Configurações"
+    : "Configurações";
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -210,6 +219,34 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
       }
     })();
   }, [isOpen]);
+
+  React.useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const handleChange = () => setIsMobile(media.matches);
+    handleChange();
+    if (media.addEventListener) {
+      media.addEventListener("change", handleChange);
+    } else {
+      media.addListener(handleChange);
+    }
+    return () => {
+      if (media.removeEventListener) {
+        media.removeEventListener("change", handleChange);
+      } else {
+        media.removeListener(handleChange);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (isMobile) {
+      setMobileSection(null);
+      setMobileQuery("");
+    } else {
+      setMobileSection(null);
+    }
+  }, [isOpen, isMobile]);
 
   // Close on Escape
   React.useEffect(() => {
@@ -284,6 +321,20 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
     return acc;
   }, {});
 
+  const handleSectionChange = (section: SettingsSection) => {
+    setActiveSection(section);
+    if (isMobile) setMobileSection(section);
+  };
+
+  const filteredGroups = Object.entries(groups)
+    .map(([group, items]) => {
+      const filtered = items.filter((item) =>
+        item.label.toLowerCase().includes(mobileQuery.trim().toLowerCase())
+      );
+      return [group, filtered] as const;
+    })
+    .filter(([, items]) => items.length > 0);
+
   return createPortal(
     <AnimatePresence>
       {isOpen && (
@@ -309,6 +360,22 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
               <span className="settingsCloseHint">ESC</span>
             </button>
 
+            <div className="settingsMobileHeader">
+              {mobileSection ? (
+                <button
+                  className="settingsBackBtn"
+                  onClick={() => setMobileSection(null)}
+                  aria-label="Voltar"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              ) : (
+                <span className="settingsBackSpacer" />
+              )}
+              <h2 className="settingsMobileTitle">{mobileTitle}</h2>
+              <span className="settingsBackSpacer" />
+            </div>
+
             <AnimatedToast
               message={toastMsg?.msg || null}
               type={toastMsg?.type || 'success'}
@@ -325,7 +392,10 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                 Erro ao carregar: {erro}
               </div>
             ) : (
-              <div className="settingsLayout">
+              <div
+                className="settingsLayout"
+                data-mobile-view={isMobile && !mobileSection ? "list" : "section"}
+              >
                 {/* LEFT NAV */}
                 <nav className="settingsNav">
                   {Object.entries(groups).map(([group, items]) => (
@@ -335,7 +405,7 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                         <button
                           key={item.key}
                           className={`settingsNavItem ${activeSection === item.key ? "active" : ""}`}
-                          onClick={() => setActiveSection(item.key)}
+                          onClick={() => handleSectionChange(item.key)}
                         >
                           {item.icon}
                           <span>{item.label}</span>
@@ -344,6 +414,39 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                     </div>
                   ))}
                 </nav>
+
+                <div className="settingsMobileList">
+                  <div className="settingsMobileSearch">
+                    <Search size={16} />
+                    <input
+                      type="text"
+                      placeholder="Buscar"
+                      value={mobileQuery}
+                      onChange={(e) => setMobileQuery(e.target.value)}
+                      aria-label="Buscar configurações"
+                    />
+                  </div>
+                  {filteredGroups.map(([group, items]) => (
+                    <div key={group} className="settingsMobileGroup">
+                      <div className="settingsMobileGroupTitle">{group}</div>
+                      <div className="settingsMobileCard">
+                        {items.map((item) => (
+                          <button
+                            key={item.key}
+                            className="settingsMobileItem"
+                            onClick={() => handleSectionChange(item.key)}
+                          >
+                            <span className="settingsMobileItemIcon">{item.icon}</span>
+                            <span className="settingsMobileItemLabel">{item.label}</span>
+                            <span className="settingsMobileItemChevron">
+                              <ChevronRight size={18} />
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 {/* RIGHT CONTENT */}
                 <div className="settingsContent">

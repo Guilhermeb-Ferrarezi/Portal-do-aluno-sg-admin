@@ -345,14 +345,7 @@ export default function DashboardLayout({
             <button className="iconBtn" aria-label="Notificações" type="button">
               <Bell size={18} /> <span className="dot" />
             </button>
-            <button
-              className="iconBtn"
-              aria-label="Configurações"
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <Settings size={18} />
-            </button>
+
           </div>
         </header>
 
