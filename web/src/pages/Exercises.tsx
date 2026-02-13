@@ -40,7 +40,7 @@ import {
   Pencil,
   Calendar,
 } from "lucide-react";
-import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, getRole, type Exercicio, type Turma, type User } from "../services/api";
+import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, anexarExercicioArquivo, removerExercicioArquivo, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
 
@@ -110,6 +110,9 @@ export default function ExerciciosPage() {
   const [maxTentativas, setMaxTentativas] = React.useState<string>("");
   const [penalidadeTentativa, setPenalidadeTentativa] = React.useState<string>("");
   const [intervaloReenvio, setIntervaloReenvio] = React.useState<string>("");
+  const [anexosAtivo, setAnexosAtivo] = React.useState(false);
+  const [anexoArquivo, setAnexoArquivo] = React.useState<File | null>(null);
+  const [anexoAtual, setAnexoAtual] = React.useState<{ url: string; nome: string } | null>(null);
   const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
   const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
@@ -278,6 +281,7 @@ export default function ExerciciosPage() {
         dados.aluno_ids = alunosSelecionados;
       }
 
+      let exercicioId = editandoId;
       if (editandoId) {
         // Atualizar exercício existente
         await atualizarExercicio(editandoId, dados);
@@ -285,8 +289,21 @@ export default function ExerciciosPage() {
         setEditandoId(null);
       } else {
         // Criar novo exercício
-        await criarExercicio(dados);
+        const created = await criarExercicio(dados);
+        exercicioId = (created as any)?.exercicio?.id ?? null;
         setOkMsg("Exercício criado!");
+      }
+
+      if (exercicioId) {
+        if (anexosAtivo && anexoArquivo) {
+          const result = await anexarExercicioArquivo(exercicioId, anexoArquivo);
+          if (result.anexoUrl) {
+            setAnexoAtual({ url: result.anexoUrl, nome: result.anexoNome || "Anexo" });
+          }
+        } else if (!anexosAtivo && anexoAtual?.url) {
+          await removerExercicioArquivo(exercicioId);
+          setAnexoAtual(null);
+        }
       }
 
       setTitulo("");
@@ -307,6 +324,9 @@ export default function ExerciciosPage() {
       setMaxTentativas("");
       setPenalidadeTentativa("");
       setIntervaloReenvio("");
+      setAnexosAtivo(false);
+      setAnexoArquivo(null);
+      setAnexoAtual(null);
       setTurmasSelecionadas([]);
       setAlunosSelecionados([]);
       setModoAtribuicao("turma");
@@ -335,6 +355,11 @@ export default function ExerciciosPage() {
     setTitulo(exercicio.titulo);
     setDescricao(exercicio.descricao);
     setGabarito("");
+    setAnexosAtivo(!!exercicio.anexoUrl);
+    setAnexoArquivo(null);
+    setAnexoAtual(
+      exercicio.anexoUrl ? { url: exercicio.anexoUrl, nome: exercicio.anexoNome || "Anexo" } : null
+    );
     setModulo(exercicio.modulo);
     setTema(exercicio.tema || "");
     setIsTemplate(exercicio.is_template || false);
@@ -625,6 +650,62 @@ export default function ExerciciosPage() {
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
                   />
+                </div>
+
+                <div className="exInputGroup">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <label className="exLabel" style={{ marginBottom: 0 }}>Anexos * </label>
+                    <AnimatedToggle
+                      checked={anexosAtivo}
+                      onChange={(checked) => {
+                        setAnexosAtivo(checked);
+                        if (!checked) setAnexoArquivo(null);
+                      }}
+                    />
+                  </div>
+                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 6, display: "block" }}>
+                    Se ativado, você pode anexar um arquivo ao exercício.
+                  </small>
+
+                  {anexosAtivo && (
+                    <div style={{ marginTop: 12 }}>
+                      <label className="exLabel">Arquivo do exercício</label>
+                      <label className="filePicker">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.zip"
+                          onChange={(e) => setAnexoArquivo(e.target.files?.[0] ?? null)}
+                        />
+                        <span className="filePickerIcon">📎</span>
+                        <span className="filePickerText">
+                          {anexoArquivo?.name || "Selecionar arquivo"}
+                        </span>
+                      </label>
+                      {anexoAtual?.url && !anexoArquivo && (
+                        <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
+                          <a href={anexoAtual.url} target="_blank" rel="noreferrer">
+                            {anexoAtual.nome || "Baixar anexo atual"}
+                          </a>
+                          <button
+                            type="button"
+                            style={{ marginLeft: 10, color: "var(--red)", background: "transparent", border: "none", cursor: "pointer" }}
+                            onClick={async () => {
+                              if (!editandoId) return;
+                              await removerExercicioArquivo(editandoId);
+                              setAnexoAtual(null);
+                            }}
+                          >
+                            Remover anexo
+                          </button>
+                        </div>
+                      )}
+                      {anexoArquivo && (
+                        <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
+                          {anexoArquivo.name} • {(anexoArquivo.size / 1024).toFixed(1)} KB
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* CATEGORIA - PROGRAMACAO vs INFORMATICA */}

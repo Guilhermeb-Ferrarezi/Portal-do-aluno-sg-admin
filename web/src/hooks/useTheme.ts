@@ -9,11 +9,13 @@ export function useTheme() {
     // Load theme preference from settings
     const savedSettings = localStorage.getItem(SETTINGS_KEY);
     let theme: Theme = 'sistema';
+    let compact = false;
 
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
         theme = settings.temaPreferido || 'sistema';
+        compact = !!settings.modoCompacto;
       } catch (e) {
         console.error('Erro ao carregar tema:', e);
       }
@@ -21,6 +23,7 @@ export function useTheme() {
 
     // Apply theme
     applyTheme(theme);
+    applyCompact(compact);
 
     // Listen for storage changes
     const handleStorageChange = (e: StorageEvent) => {
@@ -28,6 +31,7 @@ export function useTheme() {
         try {
           const settings = JSON.parse(e.newValue);
           applyTheme(settings.temaPreferido || 'sistema');
+          applyCompact(!!settings.modoCompacto);
         } catch (err) {
           console.error('Erro ao aplicar tema:', err);
         }
@@ -40,6 +44,7 @@ export function useTheme() {
     const handleSettingsChange = (e: any) => {
       const theme = e.detail?.temaPreferido || 'sistema';
       applyTheme(theme);
+      applyCompact(!!e.detail?.modoCompacto);
     };
 
     window.addEventListener('perfil-settings-changed', handleSettingsChange);
@@ -69,5 +74,14 @@ function applyTheme(theme: Theme) {
       html.removeAttribute('data-theme');
       html.style.colorScheme = 'light';
     }
+  }
+}
+
+function applyCompact(compact: boolean) {
+  const html = document.documentElement;
+  if (compact) {
+    html.setAttribute('data-compact', 'true');
+  } else {
+    html.removeAttribute('data-compact');
   }
 }

@@ -334,25 +334,41 @@ export async function initializeDatabaseTables() {
       console.warn("⚠️ Coluna permitir_repeticao ja existe ou erro ao adicionar:", (error as any).message);
     }
 
-    // Adicionar colunas de política de tentativas
-    console.log("➕ Adicionando suporte a politica de tentativas na tabela exercicios...");
-    try {
-      await pool.query(`
-        ALTER TABLE exercicios
+      // Adicionar colunas de política de tentativas
+      console.log("➕ Adicionando suporte a politica de tentativas na tabela exercicios...");
+      try {
+        await pool.query(`
+          ALTER TABLE exercicios
         ADD COLUMN IF NOT EXISTS max_tentativas INTEGER DEFAULT NULL;
       `);
       await pool.query(`
         ALTER TABLE exercicios
         ADD COLUMN IF NOT EXISTS penalidade_por_tentativa NUMERIC(5,2) DEFAULT 0;
       `);
-      await pool.query(`
-        ALTER TABLE exercicios
-        ADD COLUMN IF NOT EXISTS intervalo_reenvio INTEGER DEFAULT NULL;
-      `);
-      console.log("✅ Colunas de politica de tentativas adicionadas!");
-    } catch (error) {
-      console.warn("⚠️ Erro ao adicionar colunas de tentativas:", (error as any).message);
-    }
+        await pool.query(`
+          ALTER TABLE exercicios
+          ADD COLUMN IF NOT EXISTS intervalo_reenvio INTEGER DEFAULT NULL;
+        `);
+        console.log("✅ Colunas de politica de tentativas adicionadas!");
+      } catch (error) {
+        console.warn("⚠️ Erro ao adicionar colunas de tentativas:", (error as any).message);
+      }
+
+      // Adicionar colunas de anexos na tabela exercicios
+      console.log("➕ Adicionando suporte a anexos na tabela exercicios...");
+      try {
+        await pool.query(`
+          ALTER TABLE exercicios
+          ADD COLUMN IF NOT EXISTS anexo_url TEXT DEFAULT NULL;
+        `);
+        await pool.query(`
+          ALTER TABLE exercicios
+          ADD COLUMN IF NOT EXISTS anexo_nome TEXT DEFAULT NULL;
+        `);
+        console.log("✅ Colunas de anexos adicionadas em exercicios!");
+      } catch (error) {
+        console.warn("⚠️ Erro ao adicionar colunas de anexos em exercicios:", (error as any).message);
+      }
 
     // Adicionar colunas de anexos em submissoes
     console.log("➕ Adicionando suporte a anexos na tabela submissoes...");

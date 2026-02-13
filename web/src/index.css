@@ -77,6 +77,103 @@
   --ring: #334155;
 }
 
+/* MODO COMPACTO */
+:root[data-compact="true"] {
+  --r: 10px;
+  --r-lg: 14px;
+}
+
+:root[data-compact="true"] body {
+  line-height: 1.35;
+}
+
+:root[data-compact="true"] .sbItem {
+  padding: 8px 12px;
+}
+
+:root[data-compact="true"] .sbUserBtn {
+  padding: 8px 10px;
+}
+
+:root[data-compact="true"] .sbBrand {
+  padding: 10px 12px;
+}
+
+:root[data-compact="true"] .sbSectionHeader,
+:root[data-compact="true"] .sideSectionHeader {
+  padding: 8px 12px;
+}
+
+:root[data-compact="true"] .sbSection,
+:root[data-compact="true"] .sideSectionContent {
+  gap: 6px;
+}
+
+:root[data-compact="true"] .sideTurmaItem {
+  padding: 6px 10px;
+}
+
+:root[data-compact="true"] .topbar {
+  padding: 10px 16px;
+}
+
+:root[data-compact="true"] .videoaulaCard,
+:root[data-compact="true"] .exerciseCard,
+:root[data-compact="true"] .materialCard {
+  padding: 12px;
+}
+
+:root[data-compact="true"] .cardHeader,
+:root[data-compact="true"] .settingsGrid,
+:root[data-compact="true"] .statsGrid,
+:root[data-compact="true"] .turmasList,
+:root[data-compact="true"] .videoaulasGrid,
+:root[data-compact="true"] .exercisesGrid,
+:root[data-compact="true"] .materiaisGrid {
+  gap: 10px;
+}
+
+:root[data-compact="true"] .table th,
+:root[data-compact="true"] .table td {
+  padding: 8px 10px;
+}
+
+:root[data-compact="true"] .alStatCard,
+:root[data-compact="true"] .statCard,
+:root[data-compact="true"] .turmaItem,
+:root[data-compact="true"] .videoaulaCard,
+:root[data-compact="true"] .alLogCard {
+  padding: 10px;
+}
+
+:root[data-compact="true"] .settingsItem,
+:root[data-compact="true"] .settingsActions,
+:root[data-compact="true"] .cardHeader {
+  gap: 10px;
+}
+
+:root[data-compact="true"] .searchInput,
+:root[data-compact="true"] .filterSelect,
+:root[data-compact="true"] .uploadBtn,
+:root[data-compact="true"] .btnSalvar,
+:root[data-compact="true"] .btnCancel,
+:root[data-compact="true"] .btnConfirm,
+:root[data-compact="true"] .modalBtn,
+:root[data-compact="true"] .alSearchInput,
+:root[data-compact="true"] .alFilterSelect,
+:root[data-compact="true"] .alFilterInput {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+:root[data-compact="true"] .settingsContent {
+  padding: 12px 20px 20px 20px;
+}
+
+:root[data-compact="true"] .modalContent {
+  padding: 16px;
+}
+
 /* Global Reset & Base */
 *, *::before, *::after {
   box-sizing: border-box;

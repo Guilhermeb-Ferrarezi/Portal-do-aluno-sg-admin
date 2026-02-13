@@ -10,7 +10,6 @@ import { FadeInUp, AnimatedButton, PulseLoader, ConditionalFieldAnimation, Anima
 import {
   obterExercicio,
   enviarSubmissao,
-  enviarSubmissaoComArquivo,
   minhasSubmissoes,
   listarSubmissoesExercicio,
   corrigirSubmissao,
@@ -89,7 +88,6 @@ export default function ExerciseDetail() {
   const [erroSubmissao, setErroSubmissao] = React.useState<string | null>(null);
   const [sucessoMsg, setSucessoMsg] = React.useState<string | null>(null);
   const [avisoMsg, setAvisoMsg] = React.useState<string | null>(null);
-  const [arquivo, setArquivo] = React.useState<File | null>(null);
 
   // Teste de código
   const [outputTeste, setOutputTeste] = React.useState<string>("");
@@ -387,8 +385,6 @@ export default function ExerciseDetail() {
     const tipoRenderizacao = determinarTipoRenderizacao(exercicio);
     const isMultipla = tipoRenderizacao === "multipla";
 
-    const hasArquivo = !!arquivo;
-
     // Validação
     if (isMultipla) {
       const multiplaRegras = exercicio.multipla_regras ? JSON.parse(exercicio.multipla_regras) : { questoes: [] };
@@ -399,7 +395,7 @@ export default function ExerciseDetail() {
         setErroSubmissao(`Por favor, responda todas as ${totalQuestoes} questões.`);
         return;
       }
-    } else if (resposta.trim().length === 0 && tipoRenderizacao !== "atalho" && !hasArquivo) {
+    } else if (resposta.trim().length === 0 && tipoRenderizacao !== "atalho") {
       setErroSubmissao("A resposta não pode estar vazia");
       return;
     }
@@ -427,19 +423,11 @@ export default function ExerciseDetail() {
           ? "Você conseguiu, Parabéns!"
           : resposta.trim();
 
-      const canSendArquivo = hasArquivo && tipoResposta !== "codigo";
-      const result = canSendArquivo
-        ? await enviarSubmissaoComArquivo(id, {
-          resposta: respostaFinal,
-          tipo_resposta: tipoResposta,
-          linguagem: tipoResposta === "codigo" ? linguagem : undefined,
-          arquivo,
-        })
-        : await enviarSubmissao(id, {
-          resposta: respostaFinal,
-          tipo_resposta: tipoResposta,
-          linguagem: tipoResposta === "codigo" ? linguagem : undefined,
-        });
+      const result = await enviarSubmissao(id, {
+        resposta: respostaFinal,
+        tipo_resposta: tipoResposta,
+        linguagem: tipoResposta === "codigo" ? linguagem : undefined,
+      });
 
       // Feedback
       const score = result.submissao?.nota;
@@ -460,7 +448,6 @@ export default function ExerciseDetail() {
 
       setResposta("");
       setRespostasMultipla({});
-      setArquivo(null);
 
       // Recarregar submissíµes
       const data = await minhasSubmissoes(id);
@@ -572,12 +559,8 @@ export default function ExerciseDetail() {
         ? { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }
         : { background: "#dbeafe", color: "#1e40af", border: "1px solid #bfdbfe" };
   const respostaVazia = resposta.trim().length === 0;
-  const arquivoAceito =
-    tipoExercicio === "texto" ||
-    tipoExercicio === "escrita" ||
-    (tipoExercicio === "nenhum" && (selectedTipoNenhum === "texto" || selectedTipoNenhum === "escrita"));
   const bloqueioSemResposta =
-    respostaVazia && !(arquivoAceito && arquivo) && tipoRenderizacao !== "atalho" && tipoRenderizacao !== "multipla";
+    respostaVazia && tipoRenderizacao !== "atalho" && tipoRenderizacao !== "multipla";
 
   return (
     <DashboardLayout
@@ -663,6 +646,15 @@ export default function ExerciseDetail() {
                 <div className="edDescricao">
                   {exercicio.descricao}
                 </div>
+
+                {exercicio.anexoUrl && (
+                  <div style={{ marginTop: 12 }}>
+                    <span className="edLabel">Anexo:</span>{" "}
+                    <a href={exercicio.anexoUrl} target="_blank" rel="noreferrer">
+                      {exercicio.anexoNome || "Baixar anexo"}
+                    </a>
+                  </div>
+                )}
               </div>
 
               {/* TENTATIVAS ANTERIORES */}
@@ -1583,35 +1575,6 @@ export default function ExerciseDetail() {
                     />
                   )}
 
-                  {(tipoExercicio === "texto" ||
-                    tipoExercicio === "escrita" ||
-                    (tipoExercicio === "nenhum" && (selectedTipoNenhum === "texto" || selectedTipoNenhum === "escrita"))) && (
-                      <div style={{ marginTop: 12 }}>
-                        <label className="exLabel" style={{ display: "block", marginBottom: 8 }}>
-                          Anexo (opcional)
-                        </label>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.zip"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] ?? null;
-                            setArquivo(file);
-                          }}
-                        />
-                        {arquivo && (
-                          <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
-                            {arquivo.name} • {(arquivo.size / 1024).toFixed(1)} KB
-                            <button
-                              type="button"
-                              style={{ marginLeft: 8, color: "var(--red)", background: "transparent", border: "none", cursor: "pointer" }}
-                              onClick={() => setArquivo(null)}
-                            >
-                              Remover
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
                 </div>
 
                 {/* AVISO DE PRAZO VENCIDO */}

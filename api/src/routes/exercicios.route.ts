@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
+import multer from "multer";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
+import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 
 type DBDate = string | Date;
 type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho";
@@ -31,6 +33,8 @@ type ExercicioRow = {
   max_tentativas: number | null;
   penalidade_por_tentativa: number | null;
   intervalo_reenvio: number | null;
+  anexo_url: string | null;
+  anexo_nome: string | null;
   created_at: DBDate;
   updated_at: DBDate;
 };
@@ -39,6 +43,29 @@ type ExercicioAccessRow = ExercicioRow & {
   turmas?: Array<{ id: string; nome: string; tipo: string }>;
   alunos?: Array<{ id: string; nome: string; usuario: string }>;
 };
+
+const allowedMimeTypes = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "application/zip",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (allowedMimeTypes.has(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Tipo de arquivo não permitido"));
+  },
+});
 
 function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio {
   const texto = `${titulo} ${descricao}`.toLowerCase();
@@ -224,7 +251,7 @@ export function exerciciosRouter(jwtSecret: string) {
         e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
         e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
         e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
-        e.intervalo_reenvio, e.created_at, e.updated_at,
+        e.intervalo_reenvio, e.anexo_url, e.anexo_nome, e.created_at, e.updated_at,
         COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
         COALESCE(alunos.alunos, '[]'::jsonb) as alunos
       FROM exercicios e
@@ -317,7 +344,7 @@ export function exerciciosRouter(jwtSecret: string) {
          e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
          e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
          e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
-         e.intervalo_reenvio, e.created_at, e.updated_at,
+         e.intervalo_reenvio, e.anexo_url, e.anexo_nome, e.created_at, e.updated_at,
          COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
          COALESCE(alunos.alunos, '[]'::jsonb) as alunos
        FROM exercicios e
@@ -363,6 +390,8 @@ export function exerciciosRouter(jwtSecret: string) {
       maxTentativas: row.max_tentativas ?? null,
       penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
       intervaloReenvio: row.intervalo_reenvio ?? null,
+      anexoUrl: row.anexo_url,
+      anexoNome: row.anexo_nome,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
@@ -396,7 +425,7 @@ export function exerciciosRouter(jwtSecret: string) {
       const created = await pool.query<ExercicioRow>(
         `INSERT INTO exercicios (titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, created_at, updated_at`,
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, anexo_url, anexo_nome, created_at, updated_at`,
         [
           titulo,
           descricao,
@@ -485,6 +514,8 @@ export function exerciciosRouter(jwtSecret: string) {
           maxTentativas: row.max_tentativas ?? null,
           penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
           intervaloReenvio: row.intervalo_reenvio ?? null,
+          anexoUrl: row.anexo_url,
+          anexoNome: row.anexo_nome,
           createdAt: row.created_at,
         },
       });
@@ -532,7 +563,7 @@ export function exerciciosRouter(jwtSecret: string) {
              categoria = $11, mouse_regras = $12, multipla_regras = $13, atalho_tipo = $14, permitir_repeticao = $15,
              max_tentativas = $16, penalidade_por_tentativa = $17, intervalo_reenvio = $18, updated_at = NOW()
          WHERE id = $19
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, created_at, updated_at`,
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, anexo_url, anexo_nome, created_at, updated_at`,
         [
           titulo,
           descricao,
@@ -634,10 +665,94 @@ export function exerciciosRouter(jwtSecret: string) {
           maxTentativas: row.max_tentativas ?? null,
           penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
           intervaloReenvio: row.intervalo_reenvio ?? null,
+          anexoUrl: row.anexo_url,
+          anexoNome: row.anexo_nome,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         },
       });
+    }
+  );
+
+  // Protegido: anexar arquivo ao exercício
+  router.post(
+    "/exercicios/:id/anexo",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    upload.single("anexo"),
+    async (req: AuthRequest, res) => {
+      const { id } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: "Arquivo é obrigatório" });
+      }
+
+      const check = await pool.query<ExercicioRow>(
+        `SELECT id, anexo_url, anexo_nome FROM exercicios WHERE id = $1`,
+        [id]
+      );
+
+      if (check.rows.length === 0) {
+        return res.status(404).json({ message: "Exercício não encontrado" });
+      }
+
+      const existing = check.rows[0];
+      if (existing.anexo_url) {
+        await deleteFromR2(existing.anexo_url).catch((err) =>
+          console.error("Erro ao deletar anexo anterior:", err)
+        );
+      }
+
+      const url = await uploadToR2(file, "exercicios");
+      const nome = file.originalname;
+
+      const updated = await pool.query<ExercicioRow>(
+        `UPDATE exercicios
+         SET anexo_url = $1, anexo_nome = $2, updated_at = NOW()
+         WHERE id = $3
+         RETURNING id, anexo_url, anexo_nome`,
+        [url, nome, id]
+      );
+
+      return res.json({
+        message: "Anexo atualizado!",
+        anexoUrl: updated.rows[0].anexo_url,
+        anexoNome: updated.rows[0].anexo_nome,
+      });
+    }
+  );
+
+  // Protegido: remover anexo do exercício
+  router.delete(
+    "/exercicios/:id/anexo",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const { id } = req.params;
+
+      const check = await pool.query<ExercicioRow>(
+        `SELECT id, anexo_url FROM exercicios WHERE id = $1`,
+        [id]
+      );
+
+      if (check.rows.length === 0) {
+        return res.status(404).json({ message: "Exercício não encontrado" });
+      }
+
+      const existing = check.rows[0];
+      if (existing.anexo_url) {
+        await deleteFromR2(existing.anexo_url).catch((err) =>
+          console.error("Erro ao deletar anexo:", err)
+        );
+      }
+
+      await pool.query(
+        `UPDATE exercicios SET anexo_url = NULL, anexo_nome = NULL, updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
+
+      return res.json({ message: "Anexo removido" });
     }
   );
 

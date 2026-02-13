@@ -164,11 +164,13 @@ export type Exercicio = {
   multipla_regras?: string | null;
   atalho_tipo?: "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar" | null;
   publicado?: boolean;
-  permitir_repeticao?: boolean;
-  maxTentativas?: number | null;
-  penalidadePorTentativa?: number | null;
-  intervaloReenvio?: number | null;
-  createdAt: string;
+    permitir_repeticao?: boolean;
+    maxTentativas?: number | null;
+    penalidadePorTentativa?: number | null;
+    intervaloReenvio?: number | null;
+    anexoUrl?: string | null;
+    anexoNome?: string | null;
+    createdAt: string;
   turmas?: Turma[];
   alunos?: UserRef[];
   aluno_ids?: string[];
@@ -268,6 +270,30 @@ export async function atualizarExercicio(id: string, dados: {
     method: "PUT",
     body: JSON.stringify(dados),
   });
+}
+
+export async function anexarExercicioArquivo(exercicioId: string, arquivo: File) {
+  const form = new FormData();
+  form.append("anexo", arquivo);
+
+  const res = await fetch(`${API_BASE_URL}/exercicios/${exercicioId}/anexo`, {
+    method: "POST",
+    headers: await buildAuthHeaders(),
+    body: form,
+  });
+
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<{ message: string; anexoUrl: string | null; anexoNome: string | null }>;
+}
+
+export async function removerExercicioArquivo(exercicioId: string) {
+  const res = await fetch(`${API_BASE_URL}/exercicios/${exercicioId}/anexo`, {
+    method: "DELETE",
+    headers: await buildAuthHeaders(),
+  });
+
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<{ message: string }>;
 }
 
 export async function deletarExercicio(id: string) {
