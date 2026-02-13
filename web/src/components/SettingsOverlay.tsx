@@ -6,6 +6,8 @@ import {
   alterarMinhaSenha,
   obterUsuarioAtual,
   listarTurmas,
+  todasMinhasSubmissoes,
+  type Submissao,
   type UserMe,
   type Turma,
 } from "../services/api";
@@ -38,7 +40,7 @@ type SettingsSection = "conta" | "seguranca" | "configuracoes" | "aparencia" | "
 
 type UserStats = {
   exerciciosFeitos: number;
-  notaMedia: number;
+  notaMedia: number | null;
   turmasInscritas: number;
   diasSequencia: number;
 };
@@ -85,6 +87,46 @@ function roleLabelText(role: string | null | undefined) {
   return "Aluno";
 }
 
+function toDayStamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function calcularSequencia(submissoes: Submissao[]) {
+  const daySet = new Set<number>();
+  for (const s of submissoes) {
+    const stamp = toDayStamp(s.createdAt);
+    if (stamp !== null) daySet.add(stamp);
+  }
+  if (daySet.size === 0) return 0;
+  const diasOrdenados = Array.from(daySet).sort((a, b) => a - b);
+  let streak = 1;
+  let cursor = diasOrdenados[diasOrdenados.length - 1];
+  const oneDay = 24 * 60 * 60 * 1000;
+  while (daySet.has(cursor - oneDay)) {
+    cursor -= oneDay;
+    streak += 1;
+  }
+  return streak;
+}
+
+function calcularStats(submissoes: Submissao[], turmasInscritas: number): UserStats {
+  const exercicios = new Set(submissoes.map((s) => s.exercicioId));
+  const notas = submissoes
+    .map((s) => s.nota)
+    .filter((n): n is number => typeof n === "number" && !Number.isNaN(n));
+  const notaMedia = notas.length ? notas.reduce((acc, n) => acc + n, 0) / notas.length : null;
+  const diasSequencia = calcularSequencia(submissoes);
+  return {
+    exerciciosFeitos: exercicios.size,
+    notaMedia,
+    turmasInscritas,
+    diasSequencia,
+  };
+}
+
 const NAV_ITEMS: { key: SettingsSection; label: string; icon: React.ReactNode; group: string }[] = [
   { key: "conta", label: "Minha Conta", icon: <UserIcon size={16} />, group: "CONTA" },
   { key: "seguranca", label: "Segurança", icon: <Shield size={16} />, group: "CONTA" },
@@ -119,6 +161,14 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
   const [confirmarSenha, setConfirmarSenha] = React.useState("");
   const [settings, setSettings] = React.useState<ProfileSettings>(() => loadSettings());
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
+  const [stats, setStats] = React.useState<UserStats>({
+    exerciciosFeitos: 0,
+    notaMedia: null,
+    turmasInscritas: 0,
+    diasSequencia: 0,
+  });
+  const [statsLoading, setStatsLoading] = React.useState(false);
+  const [statsError, setStatsError] = React.useState<string | null>(null);
 
   const role = userInfo?.role ?? roleLocal;
 
@@ -128,6 +178,8 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
       try {
         setLoading(true);
         setErro(null);
+        setStatsLoading(true);
+        setStatsError(null);
         const data = await obterUsuarioAtual();
         setUserInfo(data);
         setFormData({ nome: data.nome, usuario: data.usuario });
@@ -135,20 +187,26 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
 
         try {
           const todasTurmas = await listarTurmas();
+          let turmasUsuario = todasTurmas;
           if (data.role === "aluno") {
-            setTurmas(todasTurmas);
+            turmasUsuario = todasTurmas;
           } else if (data.role === "professor") {
-            setTurmas(todasTurmas.filter((t) => t.professorId === data.id));
+            turmasUsuario = todasTurmas.filter((t) => t.professorId === data.id);
           } else {
-            setTurmas(todasTurmas);
+            turmasUsuario = todasTurmas;
           }
+          setTurmas(turmasUsuario);
+          const submissoes = await todasMinhasSubmissoes();
+          setStats(calcularStats(submissoes, turmasUsuario.length));
         } catch (e) {
           console.error("Erro ao carregar turmas:", e);
+          setStatsError("Erro ao carregar estatísticas.");
         }
       } catch (error) {
         setErro(error instanceof Error ? error.message : "Erro ao carregar usuário");
       } finally {
         setLoading(false);
+        setStatsLoading(false);
       }
     })();
   }, [isOpen]);
@@ -172,13 +230,6 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
     }
     return () => { document.body.style.overflow = "unset"; };
   }, [isOpen]);
-
-  const stats: UserStats = {
-    exerciciosFeitos: 41,
-    notaMedia: 8.5,
-    turmasInscritas: 2,
-    diasSequencia: 12,
-  };
 
   const handleChangeSenha = async () => {
     if (!senhaAtual?.trim()) { setFeedback({ type: "error", message: "Preencha a senha atual." }); return; }
@@ -238,6 +289,7 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
       {isOpen && (
         <motion.div
           className="settingsOverlay"
+          onClick={onClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -245,6 +297,7 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
         >
           <motion.div
             className="settingsPanel"
+            onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.97, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 10 }}
@@ -331,7 +384,7 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                           </div>
                           <div className="profileFieldDivider" />
                           <div className="profileField">
-                            <div className="profileFieldLabel">Função</div>
+                            <div className="profileFieldLabel">Cargo</div>
                             <div className="profileFieldValue">{roleLabelText(role)}</div>
                           </div>
                         </div>
@@ -461,36 +514,48 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                   {activeSection === "desempenho" && (
                     <>
                       <h2 className="settingsSectionTitle">Seu Desempenho</h2>
-                      <div className="statsGrid">
-                        <div className="statCard">
-                          <div className="statIcon"><CheckCircle size={18} /></div>
-                          <div className="statInfo">
-                            <div className="statValue">{stats.exerciciosFeitos}</div>
-                            <div className="statLabel">Exercícios Feitos</div>
+                      {statsLoading ? (
+                        <div style={{ display: "grid", placeItems: "center", padding: 32, color: "var(--muted)" }}>
+                          Carregando estat??sticas...
+                        </div>
+                      ) : statsError ? (
+                        <div style={{ display: "grid", placeItems: "center", padding: 32, color: "var(--red)" }}>
+                          {statsError}
+                        </div>
+                      ) : (
+                        <div className="statsGrid">
+                          <div className="statCard">
+                            <div className="statIcon"><CheckCircle size={18} /></div>
+                            <div className="statInfo">
+                              <div className="statValue">{stats.exerciciosFeitos}</div>
+                              <div className="statLabel">Exercícios Feitos</div>
+                            </div>
+                          </div>
+                          <div className="statCard">
+                            <div className="statIcon">★</div>
+                            <div className="statInfo">
+                              <div className="statValue">
+                                {stats.notaMedia === null ? "-" : `${stats.notaMedia.toFixed(1)}/10`}
+                              </div>
+                              <div className="statLabel">Nota Média</div>
+                            </div>
+                          </div>
+                          <div className="statCard">
+                            <div className="statIcon"><Users size={18} /></div>
+                            <div className="statInfo">
+                              <div className="statValue">{stats.turmasInscritas}</div>
+                              <div className="statLabel">Turmas Inscritas</div>
+                            </div>
+                          </div>
+                          <div className="statCard">
+                            <div className="statIcon"><Flame size={18} /></div>
+                            <div className="statInfo">
+                              <div className="statValue">{stats.diasSequencia}</div>
+                              <div className="statLabel">Dias de Sequência</div>
+                            </div>
                           </div>
                         </div>
-                        <div className="statCard">
-                          <div className="statIcon">⭐</div>
-                          <div className="statInfo">
-                            <div className="statValue">{stats.notaMedia.toFixed(1)}/10</div>
-                            <div className="statLabel">Nota Média</div>
-                          </div>
-                        </div>
-                        <div className="statCard">
-                          <div className="statIcon"><Users size={18} /></div>
-                          <div className="statInfo">
-                            <div className="statValue">{stats.turmasInscritas}</div>
-                            <div className="statLabel">Turmas Inscritas</div>
-                          </div>
-                        </div>
-                        <div className="statCard">
-                          <div className="statIcon"><Flame size={18} /></div>
-                          <div className="statInfo">
-                            <div className="statValue">{stats.diasSequencia}</div>
-                            <div className="statLabel">Dias de Sequência</div>
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </>
                   )}
 
