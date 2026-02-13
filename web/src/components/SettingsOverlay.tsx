@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import "../pages/Perfil.css";
 
-type SettingsSection = "conta" | "seguranca" | "configuracoes" | "aparencia" | "desempenho" | "turmas" | "profile" | "notifications" |  "preferencias";
+type SettingsSection = "conta" | "seguranca" | "configuracoes" | "aparencia" | "desempenho" | "turmas";
 
 type UserStats = {
   exerciciosFeitos: number;
@@ -133,7 +133,7 @@ function calcularStats(submissoes: Submissao[], turmasInscritas: number): UserSt
 const NAV_ITEMS: { key: SettingsSection; label: string; icon: React.ReactNode; group: string }[] = [
   { key: "conta", label: "Minha Conta", icon: <UserIcon size={16} />, group: "CONTA" },
   { key: "seguranca", label: "Segurança", icon: <Shield size={16} />, group: "CONTA" },
-  { key: "preferencias", label: "Preferências", icon: <Settings size={16} />, group: " " },
+  { key: "configuracoes", label: "Preferências", icon: <Settings size={16} />, group: "CONFIG. DO APLICATIVO" },
   { key: "aparencia", label: "Aparência", icon: <Palette size={16} />, group: "CONFIG. DO APLICATIVO" },
   { key: "desempenho", label: "Desempenho", icon: <BarChart3 size={16} />, group: "ATIVIDADE" },
   { key: "turmas", label: "Turmas", icon: <Users size={16} />, group: "ATIVIDADE" },
