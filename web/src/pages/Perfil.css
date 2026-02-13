@@ -736,6 +736,10 @@
   color: var(--text-tertiary);
 }
 
+.settingsMobileLogout {
+  color: var(--red);
+}
+
 /* ===== SETTINGS LAYOUT (inside panel) ===== */
 .settingsLayout {
   display: grid;
@@ -796,6 +800,11 @@
   background: var(--background-hover);
   color: var(--text);
   font-weight: 700;
+}
+
+.settingsNavLogout {
+  margin-top: 6px;
+  color: var(--red);
 }
 
 /* RIGHT CONTENT */

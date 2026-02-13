@@ -23,15 +23,14 @@ import {
   KeyRound,
   BarChart3,
   Bell,
-  Settings,
-  Menu,
-  LogOut,
+    Settings,
+    Menu,
   Laptop,
   Monitor,
   ChevronDown,
   ChevronRight,
   ArrowRight,
-} from "lucide-react";
+  } from "lucide-react";
 import "./Dashboard.css";
 
 type DashboardLayoutProps = {
@@ -289,15 +288,6 @@ export default function DashboardLayout({
               <Settings size={16} />
             </button>
 
-            <button
-              className="sbDots"
-              type="button"
-              onClick={handleLogout}
-              title="Sair"
-              aria-label="Sair"
-            >
-              <LogOut size={16} />
-            </button>
           </div>
 
           {profilePopupOpen && (
@@ -353,7 +343,11 @@ export default function DashboardLayout({
       </div>
 
       {/* SETTINGS OVERLAY */}
-      <SettingsOverlay isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsOverlay
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onLogout={handleLogout}
+      />
 
       {/* MODAL SELEÇÃO DE TURMA */}
       {modalSelecionarTurmaAberto && createPortal(

@@ -35,6 +35,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  LogOut,
   X,
 } from "lucide-react";
 import "../pages/Perfil.css";
@@ -142,9 +143,10 @@ const NAV_ITEMS: { key: SettingsSection; label: string; icon: React.ReactNode; g
 type SettingsOverlayProps = {
   isOpen: boolean;
   onClose: () => void;
+  onLogout: () => void;
 };
 
-export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProps) {
+export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsOverlayProps) {
   const roleLocal = getRole();
 
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("conta");
@@ -413,6 +415,17 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                       ))}
                     </div>
                   ))}
+                  <div className="settingsNavGroup">
+                    <div className="settingsNavLabel">CONTA</div>
+                    <button
+                      className="settingsNavItem settingsNavLogout"
+                      type="button"
+                      onClick={onLogout}
+                    >
+                      <LogOut size={16} />
+                      <span>Sair</span>
+                    </button>
+                  </div>
                 </nav>
 
                 <div className="settingsMobileList">
@@ -446,6 +459,18 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                       </div>
                     </div>
                   ))}
+                  <div className="settingsMobileGroup">
+                    <div className="settingsMobileGroupTitle">CONTA</div>
+                    <div className="settingsMobileCard">
+                      <button className="settingsMobileItem settingsMobileLogout" onClick={onLogout}>
+                        <span className="settingsMobileItemIcon"><X size={16} /></span>
+                        <span className="settingsMobileItemLabel">Sair</span>
+                        <span className="settingsMobileItemChevron">
+                          <ChevronRight size={18} />
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* RIGHT CONTENT */}
@@ -693,6 +718,7 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
                       )}
                     </>
                   )}
+
                 </div>
               </div>
             )}
