@@ -133,7 +133,7 @@ function calcularStats(submissoes: Submissao[], turmasInscritas: number): UserSt
 const NAV_ITEMS: { key: SettingsSection; label: string; icon: React.ReactNode; group: string }[] = [
   { key: "conta", label: "Minha Conta", icon: <UserIcon size={16} />, group: "CONTA" },
   { key: "seguranca", label: "Segurança", icon: <Shield size={16} />, group: "CONTA" },
-  { key: "preferencias", label: "Preferências", icon: <Settings size={16} />, group: "CONFIG. DO APLICATIVO" },
+  { key: "preferencias", label: "Preferências", icon: <Settings size={16} />, group: " " },
   { key: "aparencia", label: "Aparência", icon: <Palette size={16} />, group: "CONFIG. DO APLICATIVO" },
   { key: "desempenho", label: "Desempenho", icon: <BarChart3 size={16} />, group: "ATIVIDADE" },
   { key: "turmas", label: "Turmas", icon: <Users size={16} />, group: "ATIVIDADE" },
@@ -323,7 +323,7 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
 
   const handleSectionChange = (section: SettingsSection) => {
     setActiveSection(section);
-    if (isMobile) setMobileSection(section);
+    setMobileSection(section);
   };
 
   const filteredGroups = Object.entries(groups)
@@ -394,7 +394,7 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
             ) : (
               <div
                 className="settingsLayout"
-                data-mobile-view={isMobile && !mobileSection ? "list" : "section"}
+                data-mobile-view={mobileSection ? "section" : "list"}
               >
                 {/* LEFT NAV */}
                 <nav className="settingsNav">
