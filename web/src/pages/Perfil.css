@@ -559,8 +559,313 @@
   }
 }
 
+/* ===== SETTINGS OVERLAY (Discord-style fullscreen) ===== */
+.settingsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  padding: 40px;
+}
+
+.settingsPanel {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  max-height: calc(100vh - 80px);
+  background: var(--background);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.settingsCloseBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.settingsCloseBtn:hover {
+  background: var(--background-hover);
+  color: var(--text);
+}
+
+.settingsCloseHint {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--background-secondary);
+}
+
+/* ===== SETTINGS LAYOUT (inside panel) ===== */
+.settingsLayout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* LEFT NAV */
+.settingsNav {
+  padding: 20px 16px 20px 20px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.settingsNavGroup {
+  margin-bottom: 8px;
+}
+
+.settingsNavLabel {
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-tertiary);
+}
+
+.settingsNavItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.settingsNavItem:hover {
+  background: var(--background-secondary);
+  color: var(--text);
+}
+
+.settingsNavItem.active {
+  background: var(--background-hover);
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* RIGHT CONTENT */
+.settingsContent {
+  padding: 20px 48px 32px 32px;
+  overflow-y: auto;
+}
+
+.settingsSectionTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 24px 0;
+}
+
+/* PROFILE PREVIEW CARD (Discord-style, inside "Minha Conta") */
+.profilePreviewCard {
+  background: var(--card, var(--background));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.profilePreviewBanner {
+  height: 100px;
+  background: linear-gradient(135deg, #e11d2e, #b91c1c);
+}
+
+.profilePreviewBody {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 0 24px;
+  margin-top: -40px;
+}
+
+.profilePreviewAvatarWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profilePreviewAvatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e11d2e, #b91c1c);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 32px;
+  border: 6px solid var(--card, var(--background));
+}
+
+.profilePreviewStatus {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 4px solid var(--card, var(--background));
+}
+
+.profilePreviewInfo {
+  padding-bottom: 12px;
+}
+
+.profilePreviewName {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.profilePreviewUser {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.profilePreviewFields {
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--background-secondary);
+  margin: 16px;
+  border-radius: 10px;
+}
+
+.profileField {
+  padding: 12px 0;
+}
+
+.profileField:first-child {
+  padding-top: 4px;
+}
+
+.profileField:last-child {
+  padding-bottom: 4px;
+}
+
+.profileFieldDivider {
+  height: 1px;
+  background: var(--line);
+}
+
+.profileFieldLabel {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.profileFieldValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* RESPONSIVO */
 @media (max-width: 900px) {
+  .settingsOverlay {
+    padding: 0;
+  }
+
+  .settingsPanel {
+    max-width: 100%;
+    max-height: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+  }
+
+  .settingsLayout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .settingsNav {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 16px 16px 12px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 4px;
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settingsNavGroup {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0;
+  }
+
+  .settingsNavLabel {
+    display: none;
+  }
+
+  .settingsNavItem {
+    white-space: nowrap;
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 20px;
+  }
+
+  .settingsNavItem.active {
+    background: rgba(225, 29, 46, 0.1);
+    color: var(--red);
+  }
+
+  .settingsContent {
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .settingsCloseBtn {
+    top: 12px;
+    right: 12px;
+  }
+
   .perfilContainer {
     gap: 18px;
   }
@@ -642,5 +947,30 @@
   .btnSalvar,
   .btnConfirm {
     width: 100%;
+  }
+
+  .profilePreviewBanner {
+    height: 60px;
+  }
+
+  .profilePreviewAvatar {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+    border-width: 4px;
+  }
+
+  .profilePreviewBody {
+    margin-top: -32px;
+    padding: 0 16px;
+  }
+
+  .profilePreviewFields {
+    margin: 12px;
+    padding: 12px 16px 16px;
+  }
+
+  .settingsSectionTitle {
+    font-size: 18px;
   }
 }

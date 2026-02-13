@@ -4,6 +4,8 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, getUserId, hasRole } from "../../auth/auth";
 import { listarTurmas, logoutWithServer, type Turma } from "../../services/api";
+import ProfilePopup from "../ProfilePopup";
+import SettingsOverlay from "../SettingsOverlay";
 import {
   GraduationCap,
   X,
@@ -59,6 +61,8 @@ export default function DashboardLayout({
   const [expandirTurmas, setExpandirTurmas] = React.useState(false);
   const [modalSelecionarTurmaAberto, setModalSelecionarTurmaAberto] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
+  const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     // Load turmas for admin/professor to manage, and for alunos to view their own
@@ -73,7 +77,7 @@ export default function DashboardLayout({
   const isTrilha = location.pathname === "/dashboard/trilha";
   const isMateriais = location.pathname === "/dashboard/materiais";
   const isVideoaulas = location.pathname === "/dashboard/videoaulas";
-  const isPerfil = location.pathname === "/dashboard/perfil";
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   const isCreateUser = location.pathname === "/dashboard/criar-usuario";
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
   const isActivityLogs = location.pathname === "/dashboard/logs";
@@ -224,13 +228,6 @@ export default function DashboardLayout({
             </div>
           )}
 
-          <Link className={`sbItem ${isPerfil ? "active" : ""}`} to="/dashboard/perfil">
-            <span className="sbIcon" aria-hidden="true">
-              <User size={18} />
-            </span>
-            Perfil
-          </Link>
-
           {canCreateUser && (
             <>
               <Link className={`sbItem ${isTemplates ? "active" : ""}`} to="/dashboard/templates">
@@ -267,13 +264,30 @@ export default function DashboardLayout({
           )}
         </nav>
 
-        <div className="sbBottom">
+        <div className="sbBottom" ref={sbBottomRef}>
           <div className="sbUser">
-            <div className="sbAvatar">{name.slice(0, 1).toUpperCase()}</div>
-            <div className="sbUserText">
-              <div className="sbUserName">{name}</div>
-              <div className="sbUserSub">{roleLabel(role)}</div>
-            </div>
+            <button
+              className="sbUserBtn"
+              type="button"
+              onClick={() => setProfilePopupOpen((v) => !v)}
+              aria-label="Ver perfil"
+            >
+              <div className="sbAvatar">{name.slice(0, 1).toUpperCase()}</div>
+              <div className="sbUserText">
+                <div className="sbUserName">{name}</div>
+                <div className="sbUserSub">{roleLabel(role)}</div>
+              </div>
+            </button>
+
+            <button
+              className="sbDots"
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              title="Configurações"
+              aria-label="Configurações"
+            >
+              <Settings size={16} />
+            </button>
 
             <button
               className="sbDots"
@@ -285,6 +299,19 @@ export default function DashboardLayout({
               <LogOut size={16} />
             </button>
           </div>
+
+          {profilePopupOpen && (
+            <ProfilePopup
+              name={name}
+              role={role}
+              anchorRef={sbBottomRef}
+              onClose={() => setProfilePopupOpen(false)}
+              onOpenSettings={() => {
+                setProfilePopupOpen(false);
+                setSettingsOpen(true);
+              }}
+            />
+          )}
         </div>
       </aside>
 
@@ -322,7 +349,7 @@ export default function DashboardLayout({
               className="iconBtn"
               aria-label="Configurações"
               type="button"
-              onClick={() => navigate("/dashboard/perfil")}
+              onClick={() => setSettingsOpen(true)}
             >
               <Settings size={18} />
             </button>
@@ -331,6 +358,9 @@ export default function DashboardLayout({
 
         <main className="content">{children}</main>
       </div>
+
+      {/* SETTINGS OVERLAY */}
+      <SettingsOverlay isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* MODAL SELEÇÃO DE TURMA */}
       {modalSelecionarTurmaAberto && createPortal(

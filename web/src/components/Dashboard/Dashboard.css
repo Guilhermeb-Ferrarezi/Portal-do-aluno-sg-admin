@@ -330,6 +330,27 @@
   margin-top: 2px;
 }
 
+.sbUserBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 6px;
+  margin: -6px;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.sbUserBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .sbDots {
   width: 32px;
   height: 32px;
@@ -341,6 +362,7 @@
   display: grid;
   place-items: center;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .sbDots:hover {
@@ -656,8 +678,10 @@
     width: calc(100% - var(--sidebar-width-collapsed));
   }
   
-  .sbBrandName, .sbBrandSub, .sbUserName, .sbUserSub, .sbItem span:not(.sbIcon), 
+  .sbBrandName, .sbBrandSub, .sbUserName, .sbUserSub, .sbItem span:not(.sbIcon),
   .sideSection, .sbDots { display: none; }
+  .sbUserBtn .sbUserText { display: none; }
+  .sbUserBtn { pointer-events: none; }
   
   .sbTop { padding: 20px; justify-content: center; }
   .sbBrand { justify-content: center; }

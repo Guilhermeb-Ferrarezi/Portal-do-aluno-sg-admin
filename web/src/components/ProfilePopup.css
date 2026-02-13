@@ -1,0 +1,142 @@
+/* ===== PROFILE POPUP (Discord-style) ===== */
+.profilePopup {
+  position: fixed;
+  z-index: 10000;
+  width: 300px;
+  background: #1e293b;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  color: white;
+}
+
+.ppBanner {
+  height: 60px;
+  background: linear-gradient(135deg, #e11d2e, #b91c1c);
+}
+
+.ppAvatarWrap {
+  position: relative;
+  margin-top: -30px;
+  padding-left: 16px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.ppAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e11d2e, #b91c1c);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 24px;
+  border: 4px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.ppStatusDot {
+  position: absolute;
+  bottom: 2px;
+  left: 68px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 3px solid #1e293b;
+}
+
+.ppBody {
+  padding: 12px 16px 16px;
+}
+
+.ppDisplayName {
+  font-size: 18px;
+  font-weight: 800;
+  color: white;
+}
+
+.ppUsername {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+}
+
+.ppRoleBadge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+
+.ppDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 12px 0;
+}
+
+.ppInfoSection {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 4px;
+}
+
+.ppInfoLabel {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 4px;
+}
+
+.ppInfoValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ppActionBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ppActionBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.ppActions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .profilePopup {
+    width: 280px;
+    left: 16px !important;
+    bottom: 90px !important;
+  }
+}
