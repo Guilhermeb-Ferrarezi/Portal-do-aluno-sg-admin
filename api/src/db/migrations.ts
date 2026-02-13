@@ -354,6 +354,23 @@ export async function initializeDatabaseTables() {
         console.warn("⚠️ Erro ao adicionar colunas de tentativas:", (error as any).message);
       }
 
+      // Ajustar constraint de tipo_exercicio para incluir "escrita"
+      console.log("➕ Ajustando constraint de tipo_exercicio...");
+      try {
+        await pool.query(`
+          ALTER TABLE exercicios
+          DROP CONSTRAINT IF EXISTS exercicios_tipo_exercicio_check;
+        `);
+        await pool.query(`
+          ALTER TABLE exercicios
+          ADD CONSTRAINT exercicios_tipo_exercicio_check
+          CHECK (tipo_exercicio IS NULL OR tipo_exercicio IN ('nenhum','codigo','texto','escrita','mouse','multipla','atalho'));
+        `);
+        console.log("✅ Constraint de tipo_exercicio ajustada!");
+      } catch (error) {
+        console.warn("⚠️ Erro ao ajustar constraint de tipo_exercicio:", (error as any).message);
+      }
+
       // Adicionar colunas de anexos na tabela exercicios
       console.log("➕ Adicionando suporte a anexos na tabela exercicios...");
       try {
