@@ -6,6 +6,7 @@ import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { uploadToR2 } from "../utils/uploadR2";
+import { logActivity } from "../utils/activityLog";
 
 const allowedMimeTypes = new Set([
   "application/pdf",
@@ -65,6 +66,28 @@ const corrigirSubmissaoSchema = z.object({
   nota: z.number().min(0).max(100),
   feedback: z.string().optional(),
 });
+
+const updateAnswerSchema = z.object({
+  answer_text: z.string().optional().nullable(),
+  selected_option: z.coerce.number().int().optional().nullable(),
+  is_correct: z.boolean().optional().nullable(),
+});
+
+const batchUpdateAnswersSchema = z.object({
+  answer_ids: z.array(z.coerce.number().int().positive()).min(1).max(500),
+  patch: updateAnswerSchema,
+});
+
+let hasAlunoTurmaTableCache: boolean | null = null;
+
+async function hasAlunoTurmaTable(): Promise<boolean> {
+  if (hasAlunoTurmaTableCache !== null) return hasAlunoTurmaTableCache;
+  const r = await pool.query<{ has_aluno_turma: boolean }>(
+    `SELECT to_regclass('public.aluno_turma') IS NOT NULL AS has_aluno_turma`
+  );
+  hasAlunoTurmaTableCache = !!r.rows[0]?.has_aluno_turma;
+  return hasAlunoTurmaTableCache;
+}
 
 function normalizarCodigo(codigo: string): string {
   return codigo
@@ -304,6 +327,7 @@ export function submissoesRouter(jwtSecret: string) {
       }
 
       try {
+        const oldAlunoTurma = await hasAlunoTurmaTable();
         // Verificar se exercício existe e buscar prazo
         const userRole = req.user?.role;
         const params: any[] = [exercicioId];
@@ -327,7 +351,9 @@ export function submissoesRouter(jwtSecret: string) {
                   SELECT 1 FROM exercicio_turma et
                   WHERE et.exercicio_id = e.id
                     AND et.turma_id IN (
-                      SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                      SELECT ${oldAlunoTurma ? "turma_id" : "class_id"}
+                      FROM ${oldAlunoTurma ? "aluno_turma" : "enrollment"}
+                      WHERE ${oldAlunoTurma ? "aluno_id" : "user_id"} = ${alunoParam}
                     )
                 )
                 OR NOT EXISTS (SELECT 1 FROM exercicio_turma et2 WHERE et2.exercicio_id = e.id)
@@ -353,7 +379,7 @@ export function submissoesRouter(jwtSecret: string) {
         // Bloquear submissão se o prazo expirou
         if (prazo && agora >= prazo) {
           return res.status(400).json({
-            message: "O prazo para submissão deste exercício já expirou. Não Ã© mais possível enviar respostas."
+            message: "O prazo para submissão deste exercício já expirou. Não é mais possível enviar respostas."
           });
         }
 
@@ -681,6 +707,395 @@ export function submissoesRouter(jwtSecret: string) {
       } catch (error) {
         console.error("Erro ao corrigir submissão:", error);
         return res.status(500).json({ message: "Erro ao corrigir submissão" });
+      }
+    }
+  );
+
+  // GET /exercicios/:exercicioId/answers - Lista respostas agrupadas por aluno (schema novo)
+  router.get(
+    "/exercicios/:exercicioId/answers",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const exercicioId = Number(req.params.exercicioId);
+      if (!Number.isFinite(exercicioId)) {
+        return res.status(400).json({ message: "ID de exercício inválido" });
+      }
+
+      try {
+        const page = Math.max(1, Number(req.query.page ?? 1) || 1);
+        const limitRaw = Math.max(1, Number(req.query.limit ?? 20) || 20);
+        const limit = Math.min(200, limitRaw);
+        const offset = (page - 1) * limit;
+        const q = String(req.query.q ?? "").trim();
+        const alunoId = Number(req.query.alunoId ?? 0) || null;
+        const status = String(req.query.status ?? "todos") as "todos" | "corrigida" | "pendente";
+        const dateFromRaw = String(req.query.dateFrom ?? "").trim();
+        const dateToRaw = String(req.query.dateTo ?? "").trim();
+        const sort = String(req.query.sort ?? "recent") as "recent" | "oldest" | "student";
+
+        const params: any[] = [exercicioId];
+        const where: string[] = ["a.exercise_id = $1"];
+
+        if (alunoId) {
+          params.push(alunoId);
+          where.push(`u.id = $${params.length}`);
+        }
+        if (status === "corrigida") where.push("a.is_correct IS NOT NULL");
+        if (status === "pendente") where.push("a.is_correct IS NULL");
+        if (q) {
+          params.push(`%${q}%`);
+          const p = `$${params.length}`;
+          where.push(`(
+            u.name ILIKE ${p}
+            OR u.email ILIKE ${p}
+            OR q.statement ILIKE ${p}
+            OR COALESCE(a.answer_text,'') ILIKE ${p}
+            OR CAST(a.id AS TEXT) ILIKE ${p}
+          )`);
+        }
+        if (dateFromRaw) {
+          params.push(dateFromRaw);
+          where.push(`a.answered_at >= $${params.length}::timestamptz`);
+        }
+        if (dateToRaw) {
+          params.push(dateToRaw);
+          where.push(`a.answered_at <= $${params.length}::timestamptz`);
+        }
+
+        const orderBy =
+          sort === "oldest"
+            ? "a.answered_at ASC NULLS LAST, a.id ASC"
+            : sort === "student"
+              ? "u.name ASC, q.id ASC"
+              : "a.answered_at DESC NULLS LAST, a.id DESC";
+
+        const countResult = await pool.query<{ total: number }>(
+          `SELECT COUNT(*)::int AS total
+           FROM answer a
+           JOIN "user" u ON u.id = a.user_id
+           JOIN question q ON q.id = a.question_id
+           WHERE ${where.join(" AND ")}`,
+          params
+        );
+
+        const rows = await pool.query<{
+          answer_id: number;
+          aluno_id: number;
+          aluno_nome: string;
+          aluno_email: string;
+          question_id: number;
+          question_statement: string;
+          options: Array<{ id: number; text: string; isCorrect: boolean; position: number }> | null;
+          answer_text: string | null;
+          selected_option: number | null;
+          is_correct: boolean | null;
+          answered_at: string | null;
+        }>(
+          `SELECT
+             a.id AS answer_id,
+             u.id AS aluno_id,
+             u.name AS aluno_nome,
+             u.email AS aluno_email,
+             q.id AS question_id,
+             q.statement AS question_statement,
+             COALESCE((
+               SELECT jsonb_agg(
+                 jsonb_build_object(
+                   'id', qq.id,
+                   'text', qq.option_text,
+                   'isCorrect', qq.is_correct,
+                   'position', qq.position
+                 )
+                 ORDER BY qq.position ASC
+               )
+               FROM (
+                 SELECT
+                   qo.id,
+                   qo.option_text,
+                   qo.is_correct,
+                   ROW_NUMBER() OVER (ORDER BY qo.id ASC) AS position
+                 FROM question_option qo
+                 WHERE qo.question_id = q.id
+               ) qq
+             ), '[]'::jsonb) AS options,
+             a.answer_text,
+             a.selected_option,
+             a.is_correct,
+             a.answered_at
+           FROM answer a
+           JOIN "user" u ON u.id = a.user_id
+           JOIN question q ON q.id = a.question_id
+           WHERE ${where.join(" AND ")}
+           ORDER BY ${orderBy}
+           LIMIT ${limit}
+           OFFSET ${offset}`,
+          params
+        );
+
+        const stats = await pool.query<{
+          total_answers: number;
+          total_alunos: number;
+          corrigidas: number;
+          pendentes: number;
+          corretas: number;
+          incorretas: number;
+        }>(
+          `SELECT
+             COUNT(*)::int AS total_answers,
+             COUNT(DISTINCT u.id)::int AS total_alunos,
+             COUNT(*) FILTER (WHERE a.is_correct IS NOT NULL)::int AS corrigidas,
+             COUNT(*) FILTER (WHERE a.is_correct IS NULL)::int AS pendentes,
+             COUNT(*) FILTER (WHERE a.is_correct = true)::int AS corretas,
+             COUNT(*) FILTER (WHERE a.is_correct = false)::int AS incorretas
+           FROM answer a
+           JOIN "user" u ON u.id = a.user_id
+           JOIN question q ON q.id = a.question_id
+           WHERE ${where.join(" AND ")}`,
+          params
+        );
+
+        const byAluno = new Map<number, {
+          alunoId: number;
+          alunoNome: string;
+          alunoEmail: string;
+          answers: Array<{
+            id: number;
+            questionId: number;
+            question: string;
+            options: Array<{ id: number; text: string; isCorrect: boolean; position: number }>;
+            answerText: string | null;
+            selectedOption: number | null;
+            isCorrect: boolean | null;
+            answeredAt: string | null;
+          }>;
+        }>();
+
+        for (const r of rows.rows) {
+          if (!byAluno.has(r.aluno_id)) {
+            byAluno.set(r.aluno_id, {
+              alunoId: r.aluno_id,
+              alunoNome: r.aluno_nome,
+              alunoEmail: r.aluno_email,
+              answers: [],
+            });
+          }
+          byAluno.get(r.aluno_id)!.answers.push({
+            id: r.answer_id,
+            questionId: r.question_id,
+            question: r.question_statement,
+            options: r.options ?? [],
+            answerText: r.answer_text,
+            selectedOption: r.selected_option,
+            isCorrect: r.is_correct,
+            answeredAt: r.answered_at,
+          });
+        }
+
+        const totals = stats.rows[0] ?? {
+          total_answers: 0,
+          total_alunos: 0,
+          corrigidas: 0,
+          pendentes: 0,
+          corretas: 0,
+          incorretas: 0,
+        };
+
+        return res.json({
+          exercicioId,
+          pagination: {
+            page,
+            limit,
+            total: countResult.rows[0]?.total ?? 0,
+            totalPages: Math.max(1, Math.ceil((countResult.rows[0]?.total ?? 0) / limit)),
+          },
+          stats: {
+            totalAlunos: totals.total_alunos,
+            totalAnswers: totals.total_answers,
+            corrigidas: totals.corrigidas,
+            pendentes: totals.pendentes,
+            corretas: totals.corretas,
+            incorretas: totals.incorretas,
+          },
+          totalAlunos: totals.total_alunos,
+          totalAnswers: totals.total_answers,
+          alunos: Array.from(byAluno.values()),
+        });
+      } catch (error) {
+        console.error("Erro ao buscar answers:", error);
+        return res.status(500).json({ message: "Erro ao buscar answers" });
+      }
+    }
+  );
+
+  async function updateOneAnswer(answerId: number, data: z.infer<typeof updateAnswerSchema>, req: AuthRequest) {
+    const sets: string[] = [];
+    const params: any[] = [];
+
+    if (Object.prototype.hasOwnProperty.call(data, "answer_text")) {
+      params.push(data.answer_text ?? null);
+      sets.push(`answer_text = $${params.length}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(data, "selected_option")) {
+      params.push(data.selected_option ?? null);
+      sets.push(`selected_option = $${params.length}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(data, "is_correct")) {
+      params.push(data.is_correct ?? null);
+      sets.push(`is_correct = $${params.length}`);
+    }
+    if (sets.length === 0) return null;
+
+    const oldRow = await pool.query<{
+      id: number;
+      user_id: number;
+      question_id: number;
+      exercise_id: number;
+      answer_text: string | null;
+      selected_option: number | null;
+      is_correct: boolean | null;
+      answered_at: string | null;
+    }>(
+      `SELECT id, user_id, question_id, exercise_id, answer_text, selected_option, is_correct, answered_at
+       FROM answer WHERE id = $1`,
+      [answerId]
+    );
+    if (!oldRow.rows[0]) return { notFound: true as const };
+
+    params.push(answerId);
+    const updated = await pool.query<{
+      id: number;
+      user_id: number;
+      question_id: number;
+      exercise_id: number;
+      answer_text: string | null;
+      selected_option: number | null;
+      is_correct: boolean | null;
+      answered_at: string | null;
+    }>(
+      `UPDATE answer
+       SET ${sets.join(", ")}
+       WHERE id = $${params.length}
+       RETURNING id, user_id, question_id, exercise_id, answer_text, selected_option, is_correct, answered_at`,
+      params
+    );
+
+    const row = updated.rows[0];
+    await logActivity({
+      actorId: req.user?.sub ?? null,
+      actorRole: req.user?.role ?? null,
+      action: "update_answer",
+      entityType: "answer",
+      entityId: String(row.id),
+      metadata: {
+        before: oldRow.rows[0],
+        after: row,
+      },
+      req,
+    });
+    return { row };
+  }
+
+  // PUT /answers/batch - Atualiza várias respostas de uma vez
+  router.put(
+    "/answers/batch",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const parsed = batchUpdateAnswersSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const { answer_ids, patch } = parsed.data;
+      if (
+        !Object.prototype.hasOwnProperty.call(patch, "answer_text") &&
+        !Object.prototype.hasOwnProperty.call(patch, "selected_option") &&
+        !Object.prototype.hasOwnProperty.call(patch, "is_correct")
+      ) {
+        return res.status(400).json({ message: "Nada para atualizar no patch" });
+      }
+
+      try {
+        const updatedIds: number[] = [];
+        const notFoundIds: number[] = [];
+        for (const answerId of Array.from(new Set(answer_ids))) {
+          const updated = await updateOneAnswer(answerId, patch, req);
+          if (!updated || "notFound" in updated) {
+            notFoundIds.push(answerId);
+            continue;
+          }
+          updatedIds.push(updated.row.id);
+        }
+
+        return res.json({
+          message: "Atualização em lote concluída",
+          updatedCount: updatedIds.length,
+          updatedIds,
+          notFoundCount: notFoundIds.length,
+          notFoundIds,
+        });
+      } catch (error) {
+        console.error("Erro ao atualizar answers em lote:", error);
+        return res.status(500).json({ message: "Erro ao atualizar answers em lote" });
+      }
+    }
+  );
+
+  // PUT /answers/:answerId - Atualiza resposta específica por ID (schema novo)
+  router.put(
+    "/answers/:answerId",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const answerId = Number(req.params.answerId);
+      if (!Number.isFinite(answerId)) {
+        return res.status(400).json({ message: "ID de answer inválido" });
+      }
+
+      const parsed = updateAnswerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const data = parsed.data;
+      if (
+        !Object.prototype.hasOwnProperty.call(data, "answer_text") &&
+        !Object.prototype.hasOwnProperty.call(data, "selected_option") &&
+        !Object.prototype.hasOwnProperty.call(data, "is_correct")
+      ) {
+        return res.status(400).json({ message: "Nada para atualizar" });
+      }
+
+      try {
+        const updated = await updateOneAnswer(answerId, data, req);
+        if (!updated || "notFound" in updated) {
+          return res.status(404).json({ message: "Answer não encontrado" });
+        }
+
+        const row = updated.row;
+        return res.json({
+          message: "Answer atualizado com sucesso",
+          answer: {
+            id: row.id,
+            userId: row.user_id,
+            questionId: row.question_id,
+            exerciseId: row.exercise_id,
+            answerText: row.answer_text,
+            selectedOption: row.selected_option,
+            isCorrect: row.is_correct,
+            answeredAt: row.answered_at,
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao atualizar answer:", error);
+        return res.status(500).json({ message: "Erro ao atualizar answer" });
       }
     }
   );

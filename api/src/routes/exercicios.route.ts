@@ -44,6 +44,158 @@ type ExercicioAccessRow = ExercicioRow & {
   alunos?: Array<{ id: string; nome: string; usuario: string }>;
 };
 
+type ExerciseSchemaInfo = {
+  hasExercicios: boolean;
+  hasTurmas: boolean;
+  hasAlunoTurma: boolean;
+};
+
+let exerciseSchemaInfoCache: ExerciseSchemaInfo | null = null;
+
+async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
+  if (exerciseSchemaInfoCache) return exerciseSchemaInfoCache;
+  const r = await pool.query<{
+    has_exercicios: boolean;
+    has_turmas: boolean;
+    has_aluno_turma: boolean;
+  }>(
+    `SELECT
+       to_regclass('public.exercicios') IS NOT NULL AS has_exercicios,
+       to_regclass('public.turmas') IS NOT NULL AS has_turmas,
+       to_regclass('public.aluno_turma') IS NOT NULL AS has_aluno_turma`
+  );
+  exerciseSchemaInfoCache = {
+    hasExercicios: !!r.rows[0]?.has_exercicios,
+    hasTurmas: !!r.rows[0]?.has_turmas,
+    hasAlunoTurma: !!r.rows[0]?.has_aluno_turma,
+  };
+  return exerciseSchemaInfoCache;
+}
+
+async function listFromNewExerciseSchema(userId: string | undefined, isAluno: boolean) {
+  const params: any[] = [];
+  const where: string[] = [];
+  if (isAluno) {
+    params.push(userId);
+    where.push(`EXISTS (
+      SELECT 1
+      FROM enrollment en
+      JOIN class c ON c.id = en.class_id
+      JOIN module m2 ON m2.course_id = c.course_id
+      JOIN phase p2 ON p2.module_id = m2.id
+      WHERE en.user_id = $1
+        AND p2.id = e.phase_id
+    )`);
+  }
+
+  const q = `
+    SELECT
+      e.id,
+      e.title,
+      e.description,
+      m.name AS modulo,
+      p.name AS tema,
+      e.term_at AS prazo,
+      e.created_at,
+      e.updated_at,
+      e.type_exercise
+    FROM exercise e
+    JOIN phase p ON p.id = e.phase_id
+    JOIN module m ON m.id = p.module_id
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    ORDER BY e.created_at DESC
+  `;
+
+  const r = await pool.query(q, params);
+  return r.rows.map((row: any) => ({
+    id: String(row.id),
+    titulo: row.title,
+    descricao: row.description ?? "",
+    modulo: row.modulo ?? "Sem módulo",
+    tema: row.tema ?? null,
+    prazo: row.prazo ?? null,
+    publicado: true,
+    publishedAt: null,
+    tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
+    is_template: false,
+    categoria: "programacao",
+    mouse_regras: null,
+    multipla_regras: null,
+    atalho_tipo: null,
+    permitir_repeticao: false,
+    maxTentativas: null,
+    penalidadePorTentativa: null,
+    intervaloReenvio: null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+async function getFromNewExerciseSchema(id: string, userId: string | undefined, isAluno: boolean) {
+  const params: any[] = [id];
+  const where: string[] = ["e.id = $1"];
+  if (isAluno) {
+    params.push(userId);
+    where.push(`EXISTS (
+      SELECT 1
+      FROM enrollment en
+      JOIN class c ON c.id = en.class_id
+      JOIN module m2 ON m2.course_id = c.course_id
+      JOIN phase p2 ON p2.module_id = m2.id
+      WHERE en.user_id = $2
+        AND p2.id = e.phase_id
+    )`);
+  }
+
+  const q = `
+    SELECT
+      e.id,
+      e.title,
+      e.description,
+      m.name AS modulo,
+      p.name AS tema,
+      e.term_at AS prazo,
+      e.created_at,
+      e.updated_at,
+      e.type_exercise
+    FROM exercise e
+    JOIN phase p ON p.id = e.phase_id
+    JOIN module m ON m.id = p.module_id
+    WHERE ${where.join(" AND ")}
+    LIMIT 1
+  `;
+
+  const r = await pool.query(q, params);
+  if (!r.rows[0]) return null;
+  const row: any = r.rows[0];
+  return {
+    id: String(row.id),
+    titulo: row.title,
+    descricao: row.description ?? "",
+    modulo: row.modulo ?? "Sem módulo",
+    tema: row.tema ?? null,
+    prazo: row.prazo ?? null,
+    publishedAt: null,
+    publicado: true,
+    tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
+    gabarito: null,
+    linguagemEsperada: null,
+    is_template: false,
+    categoria: "programacao",
+    mouse_regras: null,
+    multipla_regras: null,
+    atalho_tipo: null,
+    permitir_repeticao: false,
+    maxTentativas: null,
+    penalidadePorTentativa: null,
+    intervaloReenvio: null,
+    anexoUrl: null,
+    anexoNome: null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 const allowedMimeTypes = new Set([
   "application/pdf",
   "application/msword",
@@ -208,8 +360,14 @@ export function exerciciosRouter(jwtSecret: string) {
 
   // GET /exercicios - Listar todos os exercícios públicos
   router.get("/exercicios", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+    const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
     const userId = req.user?.sub;
+
+    if (!schema.hasExercicios) {
+      const mapped = await listFromNewExerciseSchema(userId, isAluno);
+      return res.json(mapped);
+    }
 
     const conditions: string[] = [
       "e.is_template = false",
@@ -237,7 +395,10 @@ export function exerciciosRouter(jwtSecret: string) {
               SELECT 1 FROM exercicio_turma et
               WHERE et.exercicio_id = e.id
                 AND et.turma_id IN (
-                  SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                  SELECT ${
+                    schema.hasAlunoTurma ? "turma_id" : "class_id"
+                  } FROM ${schema.hasAlunoTurma ? "aluno_turma" : "enrollment"}
+                  WHERE ${schema.hasAlunoTurma ? "aluno_id" : "user_id"} = ${alunoParam}
                 )
             )
             OR NOT EXISTS (SELECT 1 FROM exercicio_turma et2 WHERE et2.exercicio_id = e.id)
@@ -256,9 +417,11 @@ export function exerciciosRouter(jwtSecret: string) {
         COALESCE(alunos.alunos, '[]'::jsonb) as alunos
       FROM exercicios e
       LEFT JOIN LATERAL (
-        SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+        SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.${
+          schema.hasTurmas ? "nome" : "name"
+        }, 'tipo', ${schema.hasTurmas ? "t.tipo" : "'turma'"})) as turmas
         FROM exercicio_turma et
-        JOIN turmas t ON et.turma_id = t.id
+        JOIN ${schema.hasTurmas ? "turmas" : "class"} t ON et.turma_id = t.id
         WHERE et.exercicio_id = e.id
       ) turmas ON true
       LEFT JOIN LATERAL (
@@ -302,8 +465,15 @@ export function exerciciosRouter(jwtSecret: string) {
 
   // GET /exercicios/:id - Pegar detalhes de um exercício específico
   router.get("/exercicios/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+    const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
     const { id } = req.params;
+
+    if (!schema.hasExercicios) {
+      const mapped = await getFromNewExerciseSchema(String(id), req.user?.sub, isAluno);
+      if (!mapped) return res.status(404).json({ message: "Exercício não encontrado" });
+      return res.json(mapped);
+    }
 
     const params: any[] = [id];
     const conditions: string[] = [
@@ -330,7 +500,10 @@ export function exerciciosRouter(jwtSecret: string) {
               SELECT 1 FROM exercicio_turma et
               WHERE et.exercicio_id = e.id
                 AND et.turma_id IN (
-                  SELECT turma_id FROM aluno_turma WHERE aluno_id = ${alunoParam}
+                  SELECT ${
+                    schema.hasAlunoTurma ? "turma_id" : "class_id"
+                  } FROM ${schema.hasAlunoTurma ? "aluno_turma" : "enrollment"}
+                  WHERE ${schema.hasAlunoTurma ? "aluno_id" : "user_id"} = ${alunoParam}
                 )
             )
             OR NOT EXISTS (SELECT 1 FROM exercicio_turma et2 WHERE et2.exercicio_id = e.id)
@@ -349,9 +522,11 @@ export function exerciciosRouter(jwtSecret: string) {
          COALESCE(alunos.alunos, '[]'::jsonb) as alunos
        FROM exercicios e
        LEFT JOIN LATERAL (
-         SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome, 'tipo', t.tipo)) as turmas
+         SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.${
+           schema.hasTurmas ? "nome" : "name"
+         }, 'tipo', ${schema.hasTurmas ? "t.tipo" : "'turma'"})) as turmas
          FROM exercicio_turma et
-         JOIN turmas t ON et.turma_id = t.id
+         JOIN ${schema.hasTurmas ? "turmas" : "class"} t ON et.turma_id = t.id
          WHERE et.exercicio_id = e.id
        ) turmas ON true
        LEFT JOIN LATERAL (

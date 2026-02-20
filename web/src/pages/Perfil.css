@@ -61,7 +61,7 @@
   border-color: rgba(225, 29, 46, 0.35);
 }
 
-/* BOTÕES */
+/* BOT�ES */
 .editBtn,
 .altBtn {
   padding: 10px 18px;
@@ -84,7 +84,7 @@
   box-shadow: 0 4px 12px rgba(225, 29, 46, 0.25);
 }
 
-/* FORMULÁRIO DE EDIÇÃO */
+/* FORMUL�RIO DE EDI��O */
 .editForm {
   display: flex;
   flex-direction: column;

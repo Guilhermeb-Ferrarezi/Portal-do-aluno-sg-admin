@@ -197,6 +197,45 @@ export type Submissao = {
   createdAt: string;
 };
 
+export type ExerciseAnswerItem = {
+  id: number;
+  questionId: number;
+  question: string;
+  options?: Array<{ id: number; text: string; isCorrect: boolean; position: number }>;
+  answerText: string | null;
+  selectedOption: number | null;
+  isCorrect: boolean | null;
+  answeredAt: string | null;
+};
+
+export type ExerciseAnswersByStudent = {
+  alunoId: number;
+  alunoNome: string;
+  alunoEmail: string;
+  answers: ExerciseAnswerItem[];
+};
+
+export type ExerciseAnswersResponse = {
+  exercicioId: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  stats?: {
+    totalAlunos: number;
+    totalAnswers: number;
+    corrigidas: number;
+    pendentes: number;
+    corretas: number;
+    incorretas: number;
+  };
+  totalAlunos: number;
+  totalAnswers: number;
+  alunos: ExerciseAnswersByStudent[];
+};
+
 export type ActivityLog = {
   id: string;
   actorId: string | null;
@@ -362,6 +401,70 @@ export async function listarSubmissoesExercicio(exercicioId: string) {
   return apiFetch<Array<Submissao & { alunoNome: string; alunoUsuario: string }>>(
     `/exercicios/${exercicioId}/submissoes`
   );
+}
+
+export async function listarAnswersExercicio(
+  exercicioId: string,
+  params?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    alunoId?: number | "todos";
+    status?: "todos" | "corrigida" | "pendente";
+    dateFrom?: string;
+    dateTo?: string;
+    sort?: "recent" | "oldest" | "student";
+  }
+) {
+  const search = new URLSearchParams();
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.q) search.set("q", params.q);
+  if (params?.alunoId && params.alunoId !== "todos") search.set("alunoId", String(params.alunoId));
+  if (params?.status && params.status !== "todos") search.set("status", params.status);
+  if (params?.dateFrom) search.set("dateFrom", params.dateFrom);
+  if (params?.dateTo) search.set("dateTo", params.dateTo);
+  if (params?.sort) search.set("sort", params.sort);
+  const query = search.toString();
+  return apiFetch<ExerciseAnswersResponse>(`/exercicios/${exercicioId}/answers${query ? `?${query}` : ""}`);
+}
+
+export async function atualizarAnswer(
+  answerId: string | number,
+  dados: { answer_text?: string | null; selected_option?: number | null; is_correct?: boolean | null }
+) {
+  return apiFetch<{
+    message: string;
+    answer: {
+      id: number;
+      userId: number;
+      questionId: number;
+      exerciseId: number;
+      answerText: string | null;
+      selectedOption: number | null;
+      isCorrect: boolean | null;
+      answeredAt: string | null;
+    };
+  }>(`/answers/${answerId}`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function atualizarAnswersEmLote(dados: {
+  answer_ids: number[];
+  patch: { answer_text?: string | null; selected_option?: number | null; is_correct?: boolean | null };
+}) {
+  return apiFetch<{
+    message: string;
+    updatedCount: number;
+    updatedIds: number[];
+    notFoundCount: number;
+    notFoundIds: number[];
+  }>("/answers/batch", {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
 }
 
 export async function corrigirSubmissao(submissaoId: string, dados: {
@@ -773,6 +876,23 @@ export async function listarCursos() {
   return apiFetch<Curso[]>("/courses");
 }
 
+export async function criarCurso(dados: {
+  nome: string;
+  descricao?: string | null;
+  is_paid?: boolean;
+}) {
+  return apiFetch<{ message: string; curso: Curso }>("/courses", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function deletarCurso(id: string) {
+  return apiFetch<{ message: string }>(`/courses/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function listarModulosPorCurso(courseId: string) {
   return apiFetch<Modulo[]>(`/courses/${courseId}/modules`);
 }
@@ -789,6 +909,12 @@ export async function criarModulo(dados: {
   });
 }
 
+export async function deletarModulo(id: string) {
+  return apiFetch<{ message: string }>(`/modules/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function listarFasesDoModulo(moduleId: string) {
   return apiFetch<Fase[]>(`/modules/${moduleId}/phases`);
 }
@@ -802,6 +928,12 @@ export async function criarFase(moduleId: string, dados: {
   return apiFetch<{ message: string; fase: Fase }>(`/modules/${moduleId}/phases`, {
     method: "POST",
     body: JSON.stringify(dados),
+  });
+}
+
+export async function deletarFase(id: string) {
+  return apiFetch<{ message: string }>(`/phases/${id}`, {
+    method: "DELETE",
   });
 }
 

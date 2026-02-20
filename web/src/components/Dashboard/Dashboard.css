@@ -48,7 +48,7 @@
   height: var(--topbar-height);
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Permitir botão fechar */
+  justify-content: space-between; /* Permitir bot�o fechar */
   flex-shrink: 0;
 }
 
@@ -560,7 +560,7 @@
   letter-spacing: -0.01em;
 }
 
-/* Widgets Específicos */
+/* Widgets Espec�ficos */
 .streakBadge {
   width: 56px;
   height: 56px;
@@ -717,11 +717,11 @@
     gap: 12px;
   }
   
-  /* Ajuste do container de texto do título */
+  /* Ajuste do container de texto do t�tulo */
   .topbar > div:nth-child(2) {
-    flex: 1; /* Ocupa o espaço disponível */
+    flex: 1; /* Ocupa o espa�o dispon�vel */
     min-width: 0; /* Permite truncar o texto */
-    margin-right: 8px; /* Espaço para os botões */
+    margin-right: 8px; /* Espa�o para os bot�es */
   }
 
   .pageTitle {
@@ -739,7 +739,7 @@
   }
 
   .pageSub {
-    display: none; /* Esconder subtítulo no mobile para dar espaço ao título de 2 linhas */
+    display: none; /* Esconder subt�tulo no mobile para dar espa�o ao t�tulo de 2 linhas */
   }
   
   .content { padding: 16px; gap: 16px; }
@@ -782,9 +782,9 @@
     backdrop-filter: blur(4px);
   }
 
-  /* Botão fechar (X) na sidebar mobile */
+  /* Bot�o fechar (X) na sidebar mobile */
   .sbCloseBtn {
-    display: flex !important; /* Forçar display no mobile */
+    display: flex !important; /* For�ar display no mobile */
     align-items: center;
     justify-content: center;
     width: 36px;
@@ -832,7 +832,7 @@
 .barFill { background: var(--primary); height: 100%; border-radius: 999px; }
 .barFillGreen { background: var(--green); height: 100%; border-radius: 999px; }
 
-/* MODAL SELEÇÃO DE TURMA */
+/* MODAL SELE��O DE TURMA */
 .modalOverlay {
   position: fixed;
   inset: 0;

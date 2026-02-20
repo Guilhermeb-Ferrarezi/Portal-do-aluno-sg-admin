@@ -245,8 +245,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
           let turmasUsuario = todasTurmas;
           if (data.role === "aluno") {
             turmasUsuario = todasTurmas;
-          } else if (data.role === "professor") {
-            turmasUsuario = todasTurmas.filter((t) => t.professorId === data.id);
           } else {
             turmasUsuario = todasTurmas;
           }

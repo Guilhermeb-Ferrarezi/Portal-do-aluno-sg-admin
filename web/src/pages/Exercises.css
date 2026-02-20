@@ -1,4 +1,4 @@
-/* ===== EXERCÍCIOS PAGE ===== */
+﻿/* ===== EXERCï¿½CIOS PAGE ===== */
 
 .exercisesContainer {
   display: flex;
@@ -6,7 +6,7 @@
   gap: 24px;
 }
 
-/* CABEÇALHO COM BOTÃO */
+/* CABEï¿½ALHO COM BOTï¿½O */
 .exercisesHeader {
   display: flex;
   justify-content: space-between;
@@ -158,7 +158,7 @@
   border-color: rgba(34, 197, 94, 0.2);
 }
 
-/* File picker (exercícios) */
+/* File picker (exercï¿½cios) */
 .filePicker {
   display: inline-flex;
   align-items: center;
@@ -241,7 +241,7 @@
   }
 }
 
-/* SEÇÃO DE CRIAR EXERCÍCIO */
+/* SEï¿½ï¿½O DE CRIAR EXERCï¿½CIO */
 .createExerciseCard {
   border: 1.5px solid rgba(225, 29, 46, 0.14);
   border-radius: 20px;
@@ -495,7 +495,7 @@
   padding: 10px 8px;
 }
 
-/* Aumentar área clicável do botão de calendário no input de data */
+/* Aumentar ï¿½rea clicï¿½vel do botï¿½o de calendï¿½rio no input de data */
 input[type="datetime-local"].exInput {
   padding-right: 50px;
 }
@@ -626,7 +626,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   transform: translateY(-1px);
 }
 
-/* LISTA DE EXERCÍCIOS */
+/* LISTA DE EXERCï¿½CIOS */
 .exercisesList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -645,18 +645,18 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseCard {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: var(--shadow);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.86), rgba(23, 32, 49, 0.92));
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.4);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 220px;
+  min-height: 240px;
   scroll-snap-align: start;
   animation: fadeInCard 0.5s ease-out;
 }
@@ -685,10 +685,9 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseCard:hover {
-  border-color: rgba(225, 29, 46, 0.3);
-  box-shadow: 0 8px 24px rgba(225, 29, 46, 0.12), 
-              0 0 0 1px rgba(225, 29, 46, 0.1);
-  transform: translateY(-3px);
+  border-color: rgba(239, 68, 68, 0.48);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.52), 0 0 0 1px rgba(239, 68, 68, 0.2);
+  transform: translateY(-4px);
 }
 
 .exerciseCard:hover::before {
@@ -762,7 +761,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
   text-align: right;
 }
@@ -788,7 +787,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 .exerciseTitle {
   font-size: 20px;
   font-weight: 800;
-  color: var(--text);
+  color: #f8fafc;
   margin: 0;
   line-height: 1.3;
   letter-spacing: -0.5px;
@@ -796,9 +795,8 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   word-break: break-word;
 }
 
-.exerciseModule {
+.exerciseMetaLine {
   font-size: 13px;
-  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -824,9 +822,58 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   }
 }
 
-.exerciseModule::before {
-  content: '';
-  font-size: 14px;
+.exerciseTypePill,
+.exerciseModulePill,
+.exercisePhasePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.exerciseTypePill.isCodigo {
+  background: rgba(59, 130, 246, 0.14);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.exerciseTypePill.isEscrita {
+  background: rgba(236, 72, 153, 0.14);
+  color: #f9a8d4;
+  border-color: rgba(236, 72, 153, 0.35);
+}
+
+.exerciseTypePill.isMouse {
+  background: rgba(139, 92, 246, 0.14);
+  color: #c4b5fd;
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.exerciseTypePill.isMultipla {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.exerciseTypePill.isAtalho {
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.exerciseTypePill.isDefault {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.exerciseModulePill {
+  background: rgba(15, 23, 42, 0.55);
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 .exerciseMeta {
@@ -840,19 +887,22 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 
 .exerciseDeadline {
   font-size: 13px;
-  color: var(--muted);
+  color: #cbd5e1;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 600;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  white-space: nowrap;
 }
 
 .exerciseDeadline.overdue {
-  color: var(--red);
-  background: rgba(225, 29, 46, 0.08);
-  padding: 4px 10px;
-  border-radius: 6px;
-  white-space: nowrap;
+  color: #fecaca;
+  background: rgba(225, 29, 46, 0.2);
+  border-color: rgba(248, 113, 113, 0.4);
 }
 
 .exerciseDeadline::before {
@@ -873,6 +923,97 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   margin-top: 12px;
   position: relative;
   z-index: 1;
+}
+
+.exercisePhasePill {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+}
+
+.exerciseQuestionBox {
+  margin-top: 14px;
+  padding: 18px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.42);
+  border-left: 4px solid #f43f5e;
+  background: rgba(15, 23, 42, 0.78);
+  color: #f8fafc;
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.08);
+}
+
+.exerciseQuestionLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #fca5a5;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.exerciseQuestionText {
+  margin: 0;
+  color: #f8fafc;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.exerciseAccessRow {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exerciseAccessBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.exerciseAccessBadge.isAluno,
+.exerciseAccessBadge.isAll {
+  background: rgba(34, 197, 94, 0.16);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.36);
+}
+
+.exerciseAccessBadge.isTurmas {
+  background: rgba(59, 130, 246, 0.16);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.36);
+}
+
+.exerciseTurmaBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.exerciseTurmaBadge.isTurma {
+  background: rgba(59, 130, 246, 0.1);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.exerciseTurmaBadge.isParticular {
+  background: rgba(168, 85, 247, 0.12);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.3);
 }
 
 .exerciseTopic {
@@ -1199,7 +1340,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
     width: 100%;
   }
   
-  /* Opcional: Se tiver número ímpar de selects, o último ocupa tudo */
+  /* Opcional: Se tiver nï¿½mero ï¿½mpar de selects, o ï¿½ltimo ocupa tudo */
   .filterRow:last-child .filterGroup:last-child:nth-child(odd) {
     grid-column: span 2;
   }
@@ -1260,3 +1401,4 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   letter-spacing: 0.5px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+

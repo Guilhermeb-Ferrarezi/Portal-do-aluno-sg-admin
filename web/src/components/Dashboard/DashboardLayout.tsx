@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import React from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getName, getRole, getUserId, hasRole } from "../../auth/auth";
+import { getName, getRole, hasRole } from "../../auth/auth";
 import { listarTurmas, logoutWithServer, obterUsuarioAtual, type Turma } from "../../services/api";
 import ProfilePopup from "../ProfilePopup";
 import SettingsOverlay from "../SettingsOverlay";
@@ -10,12 +10,10 @@ import {
   GraduationCap,
   X,
   Home,
-  Compass,
   PenLine,
   FileText,
   Play,
   School,
-  ClipboardList,
   Users,
   User,
   Plus,
@@ -28,8 +26,6 @@ import {
     Menu,
   Laptop,
   Monitor,
-  ChevronDown,
-  ChevronRight,
   ArrowRight,
   Medal,
   } from "lucide-react";
@@ -57,9 +53,7 @@ export default function DashboardLayout({
   const canCreateUser = hasRole(["admin"]);
   const name = getName() ?? "Aluno";
   const role = getRole();
-  const userId = getUserId();
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
-  const [expandirTurmas, setExpandirTurmas] = React.useState(false);
   const [modalSelecionarTurmaAberto, setModalSelecionarTurmaAberto] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
@@ -83,13 +77,13 @@ export default function DashboardLayout({
   const isDashboard = location.pathname === "/dashboard";
   const isExercicios = location.pathname === "/dashboard/exercicios";
   const isTemplates = location.pathname === "/dashboard/templates";
-  const isTrilha = location.pathname === "/dashboard/trilha";
+
   const isMateriais = location.pathname === "/dashboard/materiais";
   const isVideoaulas = location.pathname === "/dashboard/videoaulas";
   const isMedalhas = location.pathname === "/dashboard/medalhas";
   const isCreateUser = location.pathname === "/dashboard/criar-usuario";
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
-  const isEstruturaCurso = location.pathname === "/dashboard/estrutura-curso";
+  const isEstruturaCurso = location.pathname.startsWith("/dashboard/estrutura-curso");
   const isActivityLogs = location.pathname === "/dashboard/logs";
 
   function handleLogout() {
@@ -97,13 +91,6 @@ export default function DashboardLayout({
       navigate("/login", { replace: true });
     });
   }
-
-  const turmasVinculadas =
-    role === "admin" || role === "professor"
-      ? userId
-        ? turmas.filter((turma) => turma.professorId === userId)
-        : []
-      : turmas;
 
   function handleMinhasTurmas() {
     if (role === "aluno") {
@@ -150,12 +137,6 @@ export default function DashboardLayout({
             </span>
             Dashboard
           </Link>
-          <Link className={`sbItem ${isTrilha ? "active" : ""}`} to="/dashboard/trilha">
-            <span className="sbIcon" aria-hidden="true">
-              <Compass size={18} />
-            </span>
-            Trilha do Curso
-          </Link>
           <Link className={`sbItem ${isExercicios ? "active" : ""}`} to="/dashboard/exercicios">
             <span className="sbIcon" aria-hidden="true">
               <PenLine size={18} />
@@ -180,7 +161,7 @@ export default function DashboardLayout({
             </span>
             Medalhas
           </Link>
-          {/* Turmas e Minhas Turmas */}
+          {/* Turmas */}
           {(role === "admin" || role === "professor" || turmas.length > 0) ? (
             <button
               className="sbItem"
@@ -193,56 +174,6 @@ export default function DashboardLayout({
               <span>Turmas</span>
             </button>
           ) : null}
-
-          {canCreateUser && (
-            <div className="sideSection">
-              <button
-                className="sideSectionHeader"
-                onClick={() => setExpandirTurmas(!expandirTurmas)}
-              >
-                <span className="sbIcon" aria-hidden="true">
-                  <ClipboardList size={18} />
-                </span>
-                <span>Minhas Turmas</span>
-                <span className="sideExpand" aria-hidden="true">
-                  {expandirTurmas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </span>
-              </button>
-
-              {expandirTurmas && (
-                <div className="sideSectionContent">
-                  {turmasVinculadas.length > 0 ? (
-                    <div className="turmasListSide">
-                      {turmasVinculadas.map((turma) => (
-                        <button
-                          key={turma.id}
-                          className="sideTurmaItem"
-                          onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
-                        >
-                          <span className="sideTurmaName">{turma.nome}</span>
-                          <span className="sideTurmaBadge">
-                            {turma.tipo === "turma" ? <Users size={14} /> : <User size={14} />}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="sideSectionEmpty">Nenhuma turma vinculada a você</div>
-                  )}
-
-                  <button
-                    className="sideCreateTurmaBtn"
-                    onClick={() => navigate("/dashboard/turmas")}
-                  >
-                    <span aria-hidden="true" style={{ display: "inline-flex" }}>
-                      <Plus size={14} />
-                    </span>{" "}
-                    Criar turma
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
           {canCreateUser && (
             <>
@@ -260,7 +191,7 @@ export default function DashboardLayout({
                 Gerenciar Usuários
               </Link>
 
-              <Link className={`sbItem ${isEstruturaCurso ? "active" : ""}`} to="/dashboard/estrutura-curso">
+              <Link className={`sbItem ${isEstruturaCurso ? "active" : ""}`} to="/dashboard/estrutura-curso/cursos">
                 <span className="sbIcon" aria-hidden="true">
                   <Blocks size={18} />
                 </span>

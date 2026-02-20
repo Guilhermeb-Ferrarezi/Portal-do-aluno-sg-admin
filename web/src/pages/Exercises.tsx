@@ -58,6 +58,23 @@ export default function ExerciciosPage() {
     </span>
   );
 
+  function getTipoInfo(ex: Exercicio): { label: string; className: string } {
+    switch (ex.tipoExercicio) {
+      case "codigo":
+        return { label: "Codigo", className: "isCodigo" };
+      case "escrita":
+        return { label: "Escrita", className: "isEscrita" };
+      case "mouse":
+        return { label: "Mouse", className: "isMouse" };
+      case "multipla":
+        return { label: "Multipla", className: "isMultipla" };
+      case "atalho":
+        return { label: "Atalho", className: "isAtalho" };
+      default:
+        return { label: "Exercicio", className: "isDefault" };
+    }
+  }
+
   const [items, setItems] = React.useState<Exercicio[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
@@ -1848,7 +1865,11 @@ export default function ExerciciosPage() {
                         // Filtro de busca por titulo
                         if (
                           buscaFiltro &&
-                          !ex.titulo.toLowerCase().includes(buscaFiltro.toLowerCase())
+                          !(
+                            ex.titulo.toLowerCase().includes(buscaFiltro.toLowerCase()) ||
+                            (ex.descricao || "").toLowerCase().includes(buscaFiltro.toLowerCase()) ||
+                            (ex.tema || "").toLowerCase().includes(buscaFiltro.toLowerCase())
+                          )
                         ) {
                           return false;
                         }
@@ -1899,6 +1920,7 @@ export default function ExerciciosPage() {
                                 : alunoNames.length > 0
                                   ? `Disponível apenas para: ${alunoNames.join(", ")}`
                                   : "Disponível para aluno(s) específico(s)";
+                              const tipoInfo = getTipoInfo(ex);
 
                               return (
                                 <div
@@ -1953,61 +1975,11 @@ export default function ExerciciosPage() {
                                           }
                                           return null;
                                         })()}
-                                        {(() => {
-                                          if (!ex.tipoExercicio) return null;
-                                          let iconEl: React.ReactNode = <ClipboardList size={14} />;
-                                          let text = "Exercício";
-                                          let color = "var(--text)";
-                                          let bg = "var(--background-secondary)";
-
-                                          switch (ex.tipoExercicio) {
-                                            case "codigo":
-                                              iconEl = <Code size={14} />; text = "Código";
-                                              color = "#3b82f6"; bg = "rgba(59, 130, 246, 0.1)";
-                                              break;
-                                            case "escrita":
-                                              iconEl = <PenLine size={14} />; text = "Escrita";
-                                              color = "#f43f5e"; bg = "rgba(244, 63, 94, 0.1)";
-                                              break;
-                                            case "mouse":
-                                              iconEl = <MousePointer size={14} />; text = "Mouse";
-                                              color = "#8b5cf6"; bg = "rgba(139, 92, 246, 0.1)";
-                                              break;
-                                            case "multipla":
-                                              iconEl = <ListChecks size={14} />; text = "Quiz";
-                                              color = "#f59e0b"; bg = "rgba(245, 158, 11, 0.1)";
-                                              break;
-                                            case "atalho":
-                                              iconEl = <Keyboard size={14} />;
-                                              if (ex.atalho_tipo === "copiar-colar") text = "Atalho: Copiar/Colar";
-                                              else if (ex.atalho_tipo === "copiar-colar-imagens") text = "Atalho: Imagens";
-                                              else if (ex.atalho_tipo === "selecionar-deletar") text = "Atalho: Deletar";
-                                              else text = "Atalho";
-                                              color = "#10b981"; bg = "rgba(16, 185, 129, 0.1)";
-                                              break;
-                                          }
-
-                                          return (
-                                            <span
-                                              className="exerciseBadge"
-                                              style={{
-                                                color,
-                                                background: bg,
-                                                borderColor: color + '30',
-                                                boxShadow: `0 2px 10px ${color}15`
-                                              }}
-                                              title={`Tipo: ${text}`}
-                                            >
-                                              {iconLabel(iconEl, text)}
-                                            </span>
-                                          );
-                                        })()}
                                       </div>
-                                      <div className="exerciseModule">
-                                        {ex.modulo}
-                                        {ex.tema && (
-                                          <span className="exerciseTopic">{ex.tema}</span>
-                                        )}
+                                      <div className="exerciseMetaLine">
+                                        <span className={`exerciseTypePill ${tipoInfo.className}`}>{tipoInfo.label}</span>
+                                        <span className="exerciseModulePill">{ex.modulo}</span>
+                                        <span className="exercisePhasePill">{ex.tema?.trim() ? ex.tema : "Sem fase"}</span>
                                       </div>
                                     </div>
                                     <div className="exerciseMetaAndActions">
@@ -2052,68 +2024,26 @@ export default function ExerciciosPage() {
                                     </div>
                                   </div>
 
-                                  <div className="exerciseDescription">{ex.descricao}</div>
+                                  <div className="exerciseQuestionBox">
+                                    <div className="exerciseQuestionLabel">Pergunta</div>
+                                    <p className="exerciseQuestionText">{ex.descricao?.trim() || "Sem enunciado cadastrado."}</p>
+                                  </div>
 
                                   {/* Badges de acesso/turmas */}
-                                  <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                  <div className="exerciseAccessRow">
                                     {hasAlunoAssignment ? (
-                                      <span
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: "4px",
-                                          padding: "4px 10px",
-                                          fontSize: "11px",
-                                          fontWeight: 700,
-                                          borderRadius: "12px",
-                                          background: "rgba(34, 197, 94, 0.15)",
-                                          color: "#15803d",
-                                          border: "1px solid rgba(34, 197, 94, 0.3)",
-                                        }}
-                                        title={alunoTitle}
-                                      >
+                                      <span className="exerciseAccessBadge isAluno" title={alunoTitle}>
                                         {iconLabel(<UserIcon size={12} />, alunoLabel)}
                                       </span>
                                     ) : ex.turmas && ex.turmas.length > 0 ? (
                                       <>
-                                        <span
-                                          style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: "4px",
-                                            padding: "4px 10px",
-                                            fontSize: "11px",
-                                            fontWeight: 700,
-                                            borderRadius: "12px",
-                                            background: "rgba(59, 130, 246, 0.15)",
-                                            color: "#1e40af",
-                                            border: "1px solid rgba(59, 130, 246, 0.3)",
-                                          }}
-                                        >
+                                        <span className="exerciseAccessBadge isTurmas">
                                           {iconLabel(<Landmark size={12} />, `${ex.turmas.length} turma${ex.turmas.length > 1 ? "s" : ""}`)}
                                         </span>
                                         {ex.turmas.map((turma) => (
                                           <span
                                             key={turma.id}
-                                            style={{
-                                              display: "inline-flex",
-                                              alignItems: "center",
-                                              gap: "4px",
-                                              padding: "4px 10px",
-                                              fontSize: "10px",
-                                              fontWeight: 600,
-                                              borderRadius: "12px",
-                                              background:
-                                                turma.tipo === "turma"
-                                                  ? "rgba(59, 130, 246, 0.1)"
-                                                  : "rgba(168, 85, 247, 0.1)",
-                                              color:
-                                                turma.tipo === "turma" ? "#2563eb" : "#a855f7",
-                                              border:
-                                                turma.tipo === "turma"
-                                                  ? "1px solid rgba(59, 130, 246, 0.2)"
-                                                  : "1px solid rgba(168, 85, 247, 0.2)",
-                                            }}
+                                            className={`exerciseTurmaBadge ${turma.tipo === "turma" ? "isTurma" : "isParticular"}`}
                                             title={`${turma.tipo}: ${turma.nome}`}
                                           >
                                             {turma.nome}
@@ -2121,21 +2051,7 @@ export default function ExerciciosPage() {
                                         ))}
                                       </>
                                     ) : (
-                                      <span
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: "4px",
-                                          padding: "4px 10px",
-                                          fontSize: "11px",
-                                          fontWeight: 700,
-                                          borderRadius: "12px",
-                                          background: "rgba(34, 197, 94, 0.15)",
-                                          color: "#15803d",
-                                          border: "1px solid rgba(34, 197, 94, 0.3)",
-                                        }}
-                                        title="Disponível para todos os alunos"
-                                      >
+                                      <span className="exerciseAccessBadge isAll" title="Disponível para todos os alunos">
                                         {iconLabel(<Globe size={12} />, "Para Todos")}
                                       </span>
                                     )}
@@ -2179,3 +2095,5 @@ export default function ExerciciosPage() {
     </DashboardLayout >
   );
 }
+
+

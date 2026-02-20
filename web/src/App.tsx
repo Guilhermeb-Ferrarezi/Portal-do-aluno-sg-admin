@@ -17,7 +17,6 @@ import AdminUsersPage from "./pages/AdminUsers";
 import ActivityLogsPage from "./pages/ActivityLogs";
 import Turmas from "./pages/Turmas";
 import TurmaDetail from "./pages/TurmaDetail";
-import TrilhaCursoPage from "./pages/TrilhaCurso";
 import EstruturaCursoPage from "./pages/EstruturaCurso";
 import MateriaisPage from "./pages/Materiais";
 import VideoaulaBonusPage from "./pages/VideoaulaBonus";
@@ -119,9 +118,6 @@ function AppContent() {
             element={<Navigate to="/dashboard/exercicios" replace />}
           />
 
-          {/* trilha do curso: qualquer logado */}
-          <Route path="/dashboard/trilha" element={<TrilhaCursoPage />} />
-
           {/* materiais: qualquer logado */}
           <Route path="/dashboard/materiais" element={<MateriaisPage />} />
 
@@ -151,7 +147,13 @@ function AppContent() {
               element={<Navigate to="/dashboard/templates" replace />}
             />
             <Route path="/dashboard/usuarios" element={<AdminUsersPage />} />
-            <Route path="/dashboard/estrutura-curso" element={<EstruturaCursoPage />} />
+            <Route path="/dashboard/estrutura-curso/cursos" element={<EstruturaCursoPage />} />
+            <Route path="/dashboard/estrutura-curso/modulos" element={<EstruturaCursoPage />} />
+            <Route path="/dashboard/estrutura-curso/fases" element={<EstruturaCursoPage />} />
+            <Route
+              path="/dashboard/estrutura-curso"
+              element={<Navigate to="/dashboard/estrutura-curso/cursos" replace />}
+            />
             <Route
               path="/usuarios"
               element={<Navigate to="/dashboard/usuarios" replace />}

@@ -47,7 +47,6 @@ import {
   type Modulo,
   type Fase,
 } from "../services/api";
-import { getUserId } from "../auth/auth";
 import ConfirmModal from "../components/ConfirmModal";
 import "./Turmas.css";
 
@@ -68,16 +67,13 @@ export default function TurmasPage() {
       <span>{label}</span>
     </span>
   );
-  const userId = getUserId();
   const canCreate = role === "admin";
 
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
-  const [turmasAll, setTurmasAll] = React.useState<Turma[]>([]);
-  const [filtroTurmas, setFiltroTurmas] = React.useState<"minhas" | "todas">("minhas");
   const [loading, setLoading] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
-  // Paginação
+  // Pagina��o
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
@@ -86,8 +82,6 @@ export default function TurmasPage() {
   const [tipo, setTipo] = React.useState<"turma" | "particular">("turma");
   const [categoria, setCategoria] = React.useState<"programacao" | "informatica">("programacao");
   const [descricao, setDescricao] = React.useState("");
-  const [professorId, setProfessorId] = React.useState("");
-  const [professores, setProfessores] = React.useState<User[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [editandoId, setEditandoId] = React.useState<string | null>(null);
   const [cursos, setCursos] = React.useState<Curso[]>([]);
@@ -95,7 +89,7 @@ export default function TurmasPage() {
   const [courseIdSelecionado, setCourseIdSelecionado] = React.useState("");
   const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
 
-  // Form criação de módulo/fase
+  // Form cria��o de m�dulo/fase
   const [novoModuloNome, setNovoModuloNome] = React.useState("");
   const [novoModuloDescricao, setNovoModuloDescricao] = React.useState("");
   const [novoModuloCourseId, setNovoModuloCourseId] = React.useState("");
@@ -135,18 +129,7 @@ export default function TurmasPage() {
     try {
       setLoading(true);
       const data = await listarTurmas();
-      if (role === "admin") {
-        setTurmasAll(data);
-        if (filtroTurmas === "todas") {
-          setTurmas(data);
-        } else if (userId) {
-          setTurmas(data.filter((turma) => turma.professorId === userId));
-        } else {
-          setTurmas([]);
-        }
-      } else {
-        setTurmas(data);
-      }
+      setTurmas(data);
     } catch (e) {
       setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao carregar turmas" });
     } finally {
@@ -172,19 +155,7 @@ export default function TurmasPage() {
   React.useEffect(() => {
     load();
 
-    // Se for admin, carregar lista de responsáveis (admins + professores)
     if (role === "admin") {
-      Promise.all([
-        apiFetch<User[]>("/users?role=professor"),
-        apiFetch<User[]>("/users?role=admin")
-      ])
-        .then(([profs, admins]) => {
-          const responsaveis = [...admins, ...profs]
-            .sort((a, b) => a.nome.localeCompare(b.nome));
-          setProfessores(responsaveis);
-        })
-        .catch((e) => console.error("Erro ao carregar responsáveis:", e));
-
       listarCursos()
         .then(async (data) => {
           setCursos(data);
@@ -210,26 +181,13 @@ export default function TurmasPage() {
 
   React.useEffect(() => {
     if (role !== "admin") return;
-    if (filtroTurmas === "todas") {
-      setTurmas(turmasAll);
-      return;
-    }
-    if (!userId) {
-      setTurmas([]);
-      return;
-    }
-    setTurmas(turmasAll.filter((turma) => turma.professorId === userId));
-  }, [filtroTurmas, role, turmasAll, userId]);
-
-  React.useEffect(() => {
-    if (role !== "admin") return;
     if (!courseIdSelecionado) {
       setModulosCurso([]);
       setModuloIdSelecionado("");
       return;
     }
     carregarModulosDoCurso(courseIdSelecionado).catch((e) => {
-      console.error("Erro ao carregar módulos do curso:", e);
+      console.error("Erro ao carregar m�dulos do curso:", e);
       setModulosCurso([]);
       setModuloIdSelecionado("");
     });
@@ -284,7 +242,7 @@ export default function TurmasPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nome.trim()) {
-      setToastMsg({ type: 'error', msg: "Nome da turma é obrigatório" });
+      setToastMsg({ type: 'error', msg: "Nome da turma � obrigat�rio" });
       return;
     }
 
@@ -294,11 +252,6 @@ export default function TurmasPage() {
 
       if (editandoId) {
         const atualizarDados: any = { nome, tipo, categoria, descricao: descricao || null };
-
-        // Admin pode definir professor ao editar
-        if (role === "admin") {
-          atualizarDados.professor_id = professorId || null;
-        }
 
         // Adicionar campos de cronograma
         atualizarDados.data_inicio = dataInicio || null;
@@ -325,11 +278,6 @@ export default function TurmasPage() {
         setEditandoId(null);
       } else {
         const criarDados: any = { nome, tipo, categoria, descricao: descricao || null };
-
-        // Se for admin e selecionou um professor, adicionar ao dados
-        if (role === "admin" && professorId) {
-          criarDados.professor_id = professorId;
-        }
 
         // Adicionar campos de cronograma
         criarDados.data_inicio = dataInicio || null;
@@ -366,7 +314,6 @@ export default function TurmasPage() {
       setTipo("turma");
       setCategoria("programacao");
       setDescricao("");
-      setProfessorId("");
       setDataInicio("");
       setDuracaoSemanas(12);
       setCronogramaAtivo(false);
@@ -388,14 +335,13 @@ export default function TurmasPage() {
     setTipo(turma.tipo);
     setCategoria(turma.categoria);
     setDescricao(turma.descricao || "");
-    setProfessorId(turma.professorId || "");
     setDataInicio(turma.dataInicio ? turma.dataInicio.split('T')[0] : "");
     setDuracaoSemanas(turma.duracaoSemanas || 12);
     setCronogramaAtivo(turma.cronogramaAtivo || false);
     setCourseIdSelecionado(turma.courseId || "");
     if (turma.courseId) {
       carregarModulosDoCurso(turma.courseId, turma.currentModuleId || "").catch((e) =>
-        console.error("Erro ao carregar módulos da turma:", e)
+        console.error("Erro ao carregar m�dulos da turma:", e)
       );
     } else {
       setModuloIdSelecionado("");
@@ -413,7 +359,6 @@ export default function TurmasPage() {
     setTipo("turma");
     setCategoria("programacao");
     setDescricao("");
-    setProfessorId("");
     setDataInicio("");
     setDuracaoSemanas(12);
     setCronogramaAtivo(false);
@@ -477,7 +422,7 @@ export default function TurmasPage() {
   async function handleCriarModulo(e: React.FormEvent) {
     e.preventDefault();
     if (!novoModuloNome.trim() || !novoModuloCourseId) {
-      setToastMsg({ type: "error", msg: "Informe curso e nome do módulo" });
+      setToastMsg({ type: "error", msg: "Informe curso e nome do m�dulo" });
       return;
     }
 
@@ -488,14 +433,14 @@ export default function TurmasPage() {
         descricao: novoModuloDescricao.trim() || null,
         course_id: Number(novoModuloCourseId),
       });
-      setToastMsg({ type: "success", msg: "Módulo criado com sucesso!" });
+      setToastMsg({ type: "success", msg: "M�dulo criado com sucesso!" });
       setNovoModuloNome("");
       setNovoModuloDescricao("");
       setCourseIdSelecionado(novoModuloCourseId);
       await carregarModulosDoCurso(novoModuloCourseId, created.modulo.id);
       setNovaFaseModuloId(created.modulo.id);
     } catch (e) {
-      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar módulo" });
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar m�dulo" });
     } finally {
       setCriandoModulo(false);
     }
@@ -504,7 +449,7 @@ export default function TurmasPage() {
   async function handleCriarFase(e: React.FormEvent) {
     e.preventDefault();
     if (!novaFaseModuloId || !novaFaseNome.trim()) {
-      setToastMsg({ type: "error", msg: "Informe módulo e nome da fase" });
+      setToastMsg({ type: "error", msg: "Informe m�dulo e nome da fase" });
       return;
     }
 
@@ -530,20 +475,16 @@ export default function TurmasPage() {
     saving || !nome.trim() || !courseIdSelecionado || !moduloIdSelecionado;
 
   const emptyTitle =
-    role === "admin" && filtroTurmas === "minhas"
-      ? "Nenhuma turma vinculada a você"
-      : role === "aluno"
-        ? "Não registrado em nenhuma turma"
-        : "Nenhuma turma registrada";
+    role === "aluno"
+      ? "N�o registrado em nenhuma turma"
+      : "Nenhuma turma registrada";
   const emptyDescription = !canCreate
-    ? "Você ainda não está registrado em nenhuma turma. Aguarde administrador adicioná-lo a uma turma."
-    : role === "admin" && filtroTurmas === "minhas"
-      ? "Crie uma turma ou altere para \"Todas\" para ver todas as turmas."
-      : "Crie sua primeira turma preenchendo o formulario acima.";
+    ? "Voc� ainda n�o est� registrado em nenhuma turma. Aguarde administrador adicion�-lo a uma turma."
+    : "Crie sua primeira turma preenchendo o formulario acima.";
 
   return (
     <DashboardLayout
-      title="Minhas Turmas"
+      title="Turmas"
       subtitle="Gerencie suas turmas e alunos"
     >
       <FadeInUp duration={0.28}>
@@ -556,29 +497,7 @@ export default function TurmasPage() {
           />
           {/* HEADER */}
           <div className="turmasHeader">
-            {role === "admin" ? (
-              <div className="turmasHeaderLeft">
-                <span className="turmasFilterLabel">Exibir:</span>
-                <div className="turmasFilter">
-                  <button
-                    type="button"
-                    className={`turmasFilterBtn ${filtroTurmas === "minhas" ? "active" : ""}`}
-                    onClick={() => setFiltroTurmas("minhas")}
-                  >
-                    Minhas
-                  </button>
-                  <button
-                    type="button"
-                    className={`turmasFilterBtn ${filtroTurmas === "todas" ? "active" : ""}`}
-                    onClick={() => setFiltroTurmas("todas")}
-                  >
-                    Todas
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div />
-            )}
+            <div />
             <button className="refreshBtn" onClick={load} disabled={loading}>
             {loading
               ? iconLabel(<Loader2 size={16} />, "Carregando...")
@@ -586,7 +505,7 @@ export default function TurmasPage() {
             </button>
           </div>
 
-          {/* FORMULÁRIO */}
+          {/* FORMUL�RIO */}
           {canCreate && (
             <div className="turmaFormCard">
               <h2 className="turmaFormTitle">
@@ -624,8 +543,8 @@ export default function TurmasPage() {
                     value={categoria}
                     onChange={(e) => setCategoria(e.target.value as "programacao" | "informatica")}
                   >
-                    <option value="programacao">Programação</option>
-                    <option value="informatica">Informática</option>
+                    <option value="programacao">Programa��o</option>
+                    <option value="informatica">Inform�tica</option>
                   </AnimatedSelect>
                 </div>
 
@@ -646,14 +565,14 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Módulo Inicial *</label>
+                  <label className="turmaLabel">M�dulo Inicial *</label>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={moduloIdSelecionado}
                     onChange={(e) => setModuloIdSelecionado(e.target.value)}
                     disabled={!courseIdSelecionado || modulosCurso.length === 0}
                   >
-                    <option value="">Selecione um módulo</option>
+                    <option value="">Selecione um m�dulo</option>
                     {modulosCurso.map((mod) => (
                       <option key={mod.id} value={mod.id}>
                         {mod.indexOrder}. {mod.nome}
@@ -662,32 +581,11 @@ export default function TurmasPage() {
                   </AnimatedSelect>
                 </div>
 
-                {role === "admin" && (
-                  <div className="turmaInputGroup">
-                    <label className="turmaLabel">Responsável pela Turma</label>
-                    <AnimatedSelect
-                      className="turmaSelect"
-                      value={professorId}
-                      onChange={(e) => setProfessorId(e.target.value)}
-                    >
-                      <option value="">Nenhum responsável</option>
-                      {professores.map((prof) => (
-                        <option key={prof.id} value={prof.id}>
-                          {prof.nome} ({prof.role === "admin" ? "Admin" : "Professor"})
-                        </option>
-                      ))}
-                    </AnimatedSelect>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      Deixe em branco para nenhum responsável, ou selecione um admin/professor
-                    </small>
-                  </div>
-                )}
-
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Descrição</label>
+                  <label className="turmaLabel">Descri��o</label>
                   <textarea
                     className="turmaTextarea"
-                    placeholder="Descrição opcional da turma..."
+                    placeholder="Descri��o opcional da turma..."
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
                   />
@@ -696,11 +594,11 @@ export default function TurmasPage() {
                 {/* CRONOGRAMA */}
                 <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
                   <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
-                    Configuração de Cronograma (Opcional)
+                    Configura��o de Cronograma (Opcional)
                   </h3>
 
                   <div className="turmaInputGroup">
-                    <label className="turmaLabel">Data de Início da Turma</label>
+                    <label className="turmaLabel">Data de In�cio da Turma</label>
                     <input
                       type="date"
                       className="turmaInput"
@@ -708,12 +606,12 @@ export default function TurmasPage() {
                       onChange={(e) => setDataInicio(e.target.value)}
                     />
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Data em que a turma começa (para liberação semanal de exercícios)
+                      Data em que a turma come�a (para libera��o semanal de exerc�cios)
                     </small>
                   </div>
 
                   <div className="turmaInputGroup">
-                    <label className="turmaLabel">Duração do Cronograma (semanas)</label>
+                    <label className="turmaLabel">Dura��o do Cronograma (semanas)</label>
                     <input
                       type="number"
                       min="1"
@@ -723,7 +621,7 @@ export default function TurmasPage() {
                       onChange={(e) => setDuracaoSemanas(parseInt(e.target.value) || 12)}
                     />
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Quantas semanas terá o cronograma (padrão: 12 semanas)
+                      Quantas semanas ter� o cronograma (padr�o: 12 semanas)
                     </small>
                   </div>
 
@@ -733,10 +631,10 @@ export default function TurmasPage() {
                         checked={cronogramaAtivo}
                         onChange={setCronogramaAtivo}
                       />
-                      <span className="turmaLabel" style={{ margin: 0 }}>Ativar Cronograma Automático</span>
+                      <span className="turmaLabel" style={{ margin: 0 }}>Ativar Cronograma Autom�tico</span>
                     </label>
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Se ativado, os exercícios serão liberados automaticamente conforme o cronograma
+                      Se ativado, os exerc�cios ser�o liberados automaticamente conforme o cronograma
                     </small>
                   </div>
                 </div>
@@ -769,7 +667,7 @@ export default function TurmasPage() {
                       <div style={{ color: "var(--muted)", fontSize: 13 }}>
                         {templatesDisponiveis.length === 0
                           ? "Nenhum template cadastrado."
-                          : `Nenhum template de ${categoria === "informatica" ? "Informática" : "Programação"} encontrado.`}
+                          : `Nenhum template de ${categoria === "informatica" ? "Inform�tica" : "Programa��o"} encontrado.`}
                       </div>
                     ) : (
                       <div className="templatesSelectorList">
@@ -800,7 +698,7 @@ export default function TurmasPage() {
 
                   {!cronogramaAtivo && (
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, display: "block" }}>
-                      O cronograma está desativado. Os templates serão salvos, mas não serão liberados automaticamente.
+                      O cronograma est� desativado. Os templates ser�o salvos, mas n�o ser�o liberados automaticamente.
                     </small>
                   )}
                 </div>
@@ -834,11 +732,11 @@ export default function TurmasPage() {
 
           {canCreate && (
             <div className="turmaFormCard" style={{ marginTop: 16 }}>
-              <h2 className="turmaFormTitle">Criar Módulo e Fase</h2>
+              <h2 className="turmaFormTitle">Criar M�dulo e Fase</h2>
 
               <form onSubmit={handleCriarModulo} className="turmaForm" style={{ marginBottom: 18 }}>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Curso do Módulo *</label>
+                  <label className="turmaLabel">Curso do M�dulo *</label>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={novoModuloCourseId}
@@ -853,7 +751,7 @@ export default function TurmasPage() {
                   </AnimatedSelect>
                 </div>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Nome do Módulo *</label>
+                  <label className="turmaLabel">Nome do M�dulo *</label>
                   <input
                     className="turmaInput"
                     value={novoModuloNome}
@@ -862,7 +760,7 @@ export default function TurmasPage() {
                   />
                 </div>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Descrição do Módulo</label>
+                  <label className="turmaLabel">Descri��o do M�dulo</label>
                   <textarea
                     className="turmaTextarea"
                     value={novoModuloDescricao}
@@ -872,20 +770,20 @@ export default function TurmasPage() {
                 </div>
                 <div className="turmaActions">
                   <AnimatedButton className="turmaSubmitBtn" type="submit" disabled={criandoModulo}>
-                    {criandoModulo ? iconLabel(<Loader2 size={16} />, "Criando módulo...") : iconLabel(<Plus size={16} />, "Criar Módulo")}
+                    {criandoModulo ? iconLabel(<Loader2 size={16} />, "Criando m�dulo...") : iconLabel(<Plus size={16} />, "Criar M�dulo")}
                   </AnimatedButton>
                 </div>
               </form>
 
               <form onSubmit={handleCriarFase} className="turmaForm">
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Módulo da Fase *</label>
+                  <label className="turmaLabel">M�dulo da Fase *</label>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={novaFaseModuloId}
                     onChange={(e) => setNovaFaseModuloId(e.target.value)}
                   >
-                    <option value="">Selecione um módulo</option>
+                    <option value="">Selecione um m�dulo</option>
                     {modulosCurso.map((mod) => (
                       <option key={mod.id} value={mod.id}>
                         {mod.indexOrder}. {mod.nome}
@@ -899,7 +797,7 @@ export default function TurmasPage() {
                     className="turmaInput"
                     value={novaFaseNome}
                     onChange={(e) => setNovaFaseNome(e.target.value)}
-                    placeholder="Ex: Semana 1 - Introdução"
+                    placeholder="Ex: Semana 1 - Introdu��o"
                   />
                 </div>
                 <div className="turmaInputGroup">
@@ -914,7 +812,7 @@ export default function TurmasPage() {
                 </div>
                 {novaFaseModuloId && (
                   <small style={{ fontSize: 12, color: "var(--muted)" }}>
-                    {fasesModuloAtual.length} fase(s) cadastrada(s) neste módulo.
+                    {fasesModuloAtual.length} fase(s) cadastrada(s) neste m�dulo.
                   </small>
                 )}
                 <div className="turmaActions">
@@ -1040,11 +938,11 @@ export default function TurmasPage() {
             )}
           </div>
 
-          {/* MODAL DE CONFIRMAÇÃO */}
+          {/* MODAL DE CONFIRMA��O */}
           <ConfirmModal
             isOpen={modalDeletar.isOpen}
             title="Deletar Turma"
-            message={`Tem certeza que deseja deletar "${modalDeletar.turmaNome}"? Todos os alunos serão removidos desta turma.`}
+            message={`Tem certeza que deseja deletar "${modalDeletar.turmaNome}"? Todos os alunos ser�o removidos desta turma.`}
             confirmText="Deletar"
             cancelText="Cancelar"
             onConfirm={confirmarDeletar}
@@ -1057,11 +955,11 @@ export default function TurmasPage() {
           {modalAdicionarAberto && createPortal(
             <div className="modalOverlay" onClick={fecharModalAdicionar}>
               <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-                <h3>Adicionar alunos à turma: {turmaAcabadaCriar?.nome}</h3>
+                <h3>Adicionar alunos � turma: {turmaAcabadaCriar?.nome}</h3>
 
                 {alunosDisponiveis.length === 0 ? (
                   <p style={{ color: "var(--muted)", textAlign: "center" }}>
-                    Nenhum aluno disponível para adicionar.
+                    Nenhum aluno dispon�vel para adicionar.
                   </p>
                 ) : (
                   <div className="alunosSelectorList">

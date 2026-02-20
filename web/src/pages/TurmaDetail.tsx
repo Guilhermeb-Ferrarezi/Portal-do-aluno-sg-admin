@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -22,10 +22,9 @@ import {
   Loader2,
 } from "lucide-react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
-import { FlipButton, FadeInUp, AnimatedButton, AnimatedToast, ConditionalFieldAnimation } from "../components/animate-ui";
+import { FlipButton, FadeInUp, AnimatedButton, AnimatedToast } from "../components/animate-ui";
 import {
   obterTurma,
-  atualizarTurma,
   removerAlunoDaTurma,
   adicionarAlunosNaTurma,
   listarAlunos,
@@ -55,10 +54,6 @@ export default function TurmaDetailPage() {
   const [loading, setLoading] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
-
-  const [responsaveis, setResponsaveis] = React.useState<User[]>([]);
-  const [professorSelecionado, setProfessorSelecionado] = React.useState("");
-  const [salvandoResponsavel, setSalvandoResponsavel] = React.useState(false);
 
   const [modalAdicionarAberto, setModalAdicionarAberto] = React.useState(false);
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
@@ -102,43 +97,6 @@ export default function TurmaDetailPage() {
     load();
   }, [backPath, id, navigate]);
 
-  React.useEffect(() => {
-    if (role !== "admin") return;
-    Promise.all([
-      apiFetch<User[]>("/users?role=professor"),
-      apiFetch<User[]>("/users?role=admin"),
-    ])
-      .then(([profs, admins]) => {
-        const responsaveisOrdenados = [...admins, ...profs].sort((a, b) =>
-          a.nome.localeCompare(b.nome)
-        );
-        setResponsaveis(responsaveisOrdenados);
-      })
-      .catch((e) => console.error("Erro ao carregar responsáveis:", e));
-  }, [role]);
-
-  React.useEffect(() => {
-    if (role !== "admin") return;
-    setProfessorSelecionado(turma?.professorId ?? "");
-  }, [role, turma?.professorId]);
-
-  async function handleAtualizarResponsavel() {
-    if (!id || role !== "admin") return;
-    const professorId = professorSelecionado || null;
-
-    try {
-      setSalvandoResponsavel(true);
-      setErro(null);
-      setOkMsg(null);
-      await atualizarTurma(id, { professor_id: professorId });
-      setOkMsg("Responsável atualizado com sucesso!");
-      await load();
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao atualizar responsável");
-    } finally {
-      setSalvandoResponsavel(false);
-    }
-  }
 
   async function handleRemoverAluno(alunoId: string) {
     if (!id || !turma) return;
@@ -161,7 +119,7 @@ export default function TurmaDetailPage() {
   async function abrirModalAdicionar() {
     try {
       const alunos = await listarAlunos();
-      // Filtrar apenas alunos que não estão na turma
+      // Filtrar apenas alunos que n�o est�o na turma
       const alunosNaTurma = turma?.alunos.map((a) => a.id) || [];
       const alunosDisponiveis = alunos.filter(
         (aluno) => !alunosNaTurma.includes(aluno.id)
@@ -197,14 +155,14 @@ export default function TurmaDetailPage() {
       setCarregandoCronograma(true);
       setErro(null);
       const data = await obterCronograma(id);
-      // Converter número de string para number
+      // Converter n�mero de string para number
       const cronogramaFormatado = Object.fromEntries(
         Object.entries(data.cronograma).map(([key, value]) => [Number(key), value])
       );
       setCronograma(cronogramaFormatado);
     } catch (e) {
       console.error("Erro ao carregar cronograma:", e);
-      // Não mostrar erro se o cronograma está vazio
+      // N�o mostrar erro se o cronograma est� vazio
     } finally {
       setCarregandoCronograma(false);
     }
@@ -240,7 +198,7 @@ export default function TurmaDetailPage() {
       setErro(null);
       setOkMsg(null);
 
-      // Criar array de semanas com os exercícios
+      // Criar array de semanas com os exerc�cios
       const cronogramaAtualizado: Record<number, Array<{ id: string; titulo: string; modulo: string }>> = { ...cronograma };
 
       if (!cronogramaAtualizado[semana]) {
@@ -268,9 +226,9 @@ export default function TurmaDetailPage() {
       await configurarCronograma(id, semanas);
       setCronograma(cronogramaAtualizado);
       setTemplateSelecionado("");
-      setOkMsg("Exercício adicionado à semana!");
+      setOkMsg("Exerc�cio adicionado � semana!");
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao adicionar exercício");
+      setErro(e instanceof Error ? e.message : "Erro ao adicionar exerc�cio");
     } finally {
       setSalvandoCronograma(false);
     }
@@ -302,9 +260,9 @@ export default function TurmaDetailPage() {
 
       await configurarCronograma(id, semanas);
       setCronograma(cronogramaAtualizado);
-      setOkMsg("Exercício removido da semana!");
+      setOkMsg("Exerc�cio removido da semana!");
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao remover exercício");
+      setErro(e instanceof Error ? e.message : "Erro ao remover exerc�cio");
     } finally {
       setSalvandoCronograma(false);
     }
@@ -323,25 +281,18 @@ export default function TurmaDetailPage() {
 
   if (!turma) {
     return (
-      <DashboardLayout title="Turma não encontrada" subtitle="">
+      <DashboardLayout title="Turma n�o encontrada" subtitle="">
         <div style={{ padding: "24px", textAlign: "center", color: "var(--muted)" }}>
-          A turma solicitada não foi encontrada.
+          A turma solicitada n�o foi encontrada.
         </div>
       </DashboardLayout>
     );
   }
 
-  const responsavelAtual = (() => {
-    if (!turma.professorId) return "Nenhum responsável definido";
-    const found = responsaveis.find((user) => user.id === turma.professorId);
-    if (!found) return "Responsável não encontrado";
-    return `${found.nome} (${found.role === "admin" ? "Admin" : "Professor"})`;
-  })();
-
   return (
     <DashboardLayout
       title={turma.nome}
-      subtitle={`${turma.tipo === "turma" ? "Turma" : "Turma Particular"} • ${turma.alunos.length} ${turma.alunos.length === 1 ? "aluno" : "alunos"}`}
+      subtitle={`${turma.tipo === "turma" ? "Turma" : "Turma Particular"} � ${turma.alunos.length} ${turma.alunos.length === 1 ? "aluno" : "alunos"}`}
     >
       <FadeInUp duration={0.28}>
         <div className="turmaDetailContainer">
@@ -373,7 +324,7 @@ export default function TurmaDetailPage() {
                 borderBottom: abaSelecionada === "info" ? "2px solid var(--primary)" : "none",
               }}
             >
-              {iconLabel(<Info size={16} />, "Informações")}
+              {iconLabel(<Info size={16} />, "Informa��es")}
             </AnimatedButton>
             <AnimatedButton
               onClick={() => setAbaSelecionada("alunos")}
@@ -405,7 +356,7 @@ export default function TurmaDetailPage() {
                 borderBottom: abaSelecionada === "exercicios" ? "2px solid var(--primary)" : "none",
               }}
             >
-              {iconLabel(<BookOpen size={16} />, "Exercícios")}
+              {iconLabel(<BookOpen size={16} />, "Exerc�cios")}
             </AnimatedButton>
             {canManageTurmas && turma.dataInicio && (
               <AnimatedButton
@@ -428,7 +379,7 @@ export default function TurmaDetailPage() {
           </div>
         )}
 
-        {/* INFORMAÇÕES DA TURMA */}
+        {/* INFORMA��ES DA TURMA */}
         {abaSelecionada === "info" && (
           <div className="turmaInfoCard">
           <div className="turmaInfoHeader">
@@ -439,11 +390,11 @@ export default function TurmaDetailPage() {
                   ? iconLabel(<Users size={14} />, "Turma (Grupo)")
                   : iconLabel(<Lock size={14} />, "Turma Particular")}
                 {turma.categoria && (
-                  <> • {turma.categoria === "programacao"
-                    ? iconLabel(<Laptop size={14} />, "Programação")
-                    : iconLabel(<Monitor size={14} />, "Informática")}</>
+                  <> � {turma.categoria === "programacao"
+                    ? iconLabel(<Laptop size={14} />, "Programa��o")
+                    : iconLabel(<Monitor size={14} />, "Inform�tica")}</>
                 )}
-                {turma.descricao && <> • {turma.descricao}</>}
+                {turma.descricao && <> � {turma.descricao}</>}
               </p>
             </div>
 
@@ -455,48 +406,10 @@ export default function TurmaDetailPage() {
             </AnimatedButton>
           </div>
 
-          <ConditionalFieldAnimation isVisible={role === "admin"}>
-            <div className="responsavelSection">
-              <div className="responsavelHeader">
-                <div>
-                  <div className="responsavelLabel">Responsável pela turma</div>
-                  <div className="responsavelValue">{responsavelAtual}</div>
-                </div>
-                <div className="responsavelControls">
-                  <select
-                    className="responsavelSelect"
-                    value={professorSelecionado}
-                    onChange={(e) => setProfessorSelecionado(e.target.value)}
-                  >
-                    <option value="">Sem responsável</option>
-                    {responsaveis.map((responsavel) => (
-                      <option key={responsavel.id} value={responsavel.id}>
-                        {responsavel.nome} ({responsavel.role === "admin" ? "Admin" : "Professor"})
-                      </option>
-                    ))}
-                  </select>
-                  <AnimatedButton
-                    type="button"
-                    className="responsavelBtn"
-                    onClick={handleAtualizarResponsavel}
-                    disabled={
-                      salvandoResponsavel ||
-                      (professorSelecionado || null) === turma.professorId
-                    }
-                  >
-                    {salvandoResponsavel ? "Salvando..." : "Atualizar"}
-                  </AnimatedButton>
-                </div>
-              </div>
-              <span className="responsavelHint">
-                Você pode selecionar um admin/professor ou deixar sem responsável.
-              </span>
-            </div>
-          </ConditionalFieldAnimation>
           </div>
         )}
 
-        {/* SEÇÃO DE ALUNOS */}
+        {/* SE��O DE ALUNOS */}
         {abaSelecionada === "alunos" && (
         <div className="turmaSection">
           <div className="turmaSectionHeader">
@@ -544,11 +457,11 @@ export default function TurmaDetailPage() {
         </div>
         )}
 
-        {/* SEÇÃO DE EXERCÍCIOS */}
+        {/* SE��O DE EXERC�CIOS */}
         {abaSelecionada === "exercicios" && turma.exercicios.length > 0 && (
           <div className="turmaSection">
             <h2 className="turmaSectionTitle">
-              {iconLabel(<BookOpen size={18} />, `Exercícios Atribuídos (${turma.exercicios.length})`)}
+              {iconLabel(<BookOpen size={18} />, `Exerc�cios Atribu�dos (${turma.exercicios.length})`)}
             </h2>
 
             <div className="exerciciosList">
@@ -572,7 +485,7 @@ export default function TurmaDetailPage() {
           </div>
         )}
 
-        {/* SEÇÃO DE CRONOGRAMA */}
+        {/* SE��O DE CRONOGRAMA */}
         {abaSelecionada === "cronograma" && (
           <div className="turmaSection">
             <h2 className="turmaSectionTitle">
@@ -581,16 +494,16 @@ export default function TurmaDetailPage() {
 
             {!turma.dataInicio ? (
               <div className="cronogramaWarning">
-                {iconLabel(<AlertTriangle size={16} />, "Configure a data de início da turma para usar o cronograma")}
+                {iconLabel(<AlertTriangle size={16} />, "Configure a data de in�cio da turma para usar o cronograma")}
               </div>
             ) : (
               <>
                 <div className="cronogramaInfoBox">
                   <p className="cronogramaInfoLine">
-                    <strong><Pin size={14} /> Início:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
+                    <strong><Pin size={14} /> In�cio:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
                   </p>
                   <p className="cronogramaInfoLine">
-                    <strong><Clock size={14} /> Duração:</strong> {turma.duracaoSemanas} semanas
+                    <strong><Clock size={14} /> Dura��o:</strong> {turma.duracaoSemanas} semanas
                   </p>
                   <p className="cronogramaInfoLine">
                     <strong><RefreshCcw size={14} /> Status:</strong>{" "}
@@ -649,7 +562,7 @@ export default function TurmaDetailPage() {
                             <option value="">Selecione um template...</option>
                             {templates.map((template) => (
                               <option key={template.id} value={template.id}>
-                                {template.titulo} ({template.modulo || "Sem módulo"})
+                                {template.titulo} ({template.modulo || "Sem m�dulo"})
                               </option>
                             ))}
                           </select>
@@ -672,7 +585,7 @@ export default function TurmaDetailPage() {
                     </div>
                     )}
 
-                    {/* Visualização do cronograma */}
+                    {/* Visualiza��o do cronograma */}
                     <div className="cronogramaVisualization">
                       <h3 className="cronogramaVizTitle">Cronograma por Semana</h3>
 
@@ -688,7 +601,7 @@ export default function TurmaDetailPage() {
                               Semana {semana}
                               {exerciciosDaSemana.length > 0 && (
                                 <span className="cronogramaSemanaCount">
-                                  ({exerciciosDaSemana.length} exercício{exerciciosDaSemana.length > 1 ? "s" : ""})
+                                  ({exerciciosDaSemana.length} exerc�cio{exerciciosDaSemana.length > 1 ? "s" : ""})
                                 </span>
                               )}
                             </h4>
@@ -704,7 +617,7 @@ export default function TurmaDetailPage() {
                                   <div className="cronogramaExercicioInfo">
                                     <div className="cronogramaExercicioTitulo">{exercicio.titulo}</div>
                                     <div className="cronogramaExercicioModulo">
-                                      {exercicio.modulo || "Sem módulo"}
+                                      {exercicio.modulo || "Sem m�dulo"}
                                     </div>
                                   </div>
                                   <AnimatedButton
@@ -719,7 +632,7 @@ export default function TurmaDetailPage() {
                             </div>
                           ) : (
                             <div style={{ padding: "12px", color: "var(--muted)", fontSize: "14px", textAlign: "center" }}>
-                              Nenhum exercício atribuído
+                              Nenhum exerc�cio atribu�do
                             </div>
                           )}
                         </div>
@@ -737,11 +650,11 @@ export default function TurmaDetailPage() {
         {modalAdicionarAberto && createPortal(
           <div className="modalOverlay" onClick={() => setModalAdicionarAberto(false)}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-              <h3>Adicionar alunos à turma</h3>
+              <h3>Adicionar alunos � turma</h3>
 
               {alunosDisponiveis.length === 0 ? (
                 <p style={{ color: "var(--muted)", textAlign: "center" }}>
-                  Nenhum aluno disponível para adicionar.
+                  Nenhum aluno dispon�vel para adicionar.
                 </p>
               ) : (
                 <div className="alunosSelectorList">
