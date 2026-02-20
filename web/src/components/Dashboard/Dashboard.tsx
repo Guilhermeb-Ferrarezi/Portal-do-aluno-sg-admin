@@ -57,10 +57,10 @@ function calcularMediaNota(submissoes: Submissao[]) {
   const notasPorExercicio = new Map<string, { nota: number; createdAt: string }>();
 
   for (const submissao of submissoes) {
-    // Converter nota para n�mero se necess�rio (defesa adicional)
+    // Converter nota para número se necessário (defesa adicional)
     const notaNum = typeof submissao.nota === 'string' ? parseFloat(submissao.nota) : submissao.nota;
 
-    // Ignorar notas inv�lidas
+    // Ignorar notas inválidas
     if (notaNum === null || notaNum === undefined || isNaN(notaNum)) continue;
 
     const atual = notasPorExercicio.get(submissao.exercicioId);
@@ -80,7 +80,7 @@ function calcularMediaNota(submissoes: Submissao[]) {
   );
   const mediaBruta = soma / notasPorExercicio.size;
 
-  // Valida��o adicional de NaN
+  // Validação adicional de NaN
   if (isNaN(mediaBruta)) return null;
 
   return mediaBruta > 10 ? mediaBruta / 10 : mediaBruta;
@@ -145,7 +145,7 @@ export default function Dashboard() {
         let totalAlunosSistema = 0;
 
         if (isAdmin) {
-          // Contar alunos nas turmas que o admin � respons�vel
+          // Contar alunos nas turmas que o admin é responsável
           const detalhes = await Promise.all(
             turmasData.map((turma) => obterTurma(turma.id).catch(() => null))
           );
@@ -221,7 +221,7 @@ export default function Dashboard() {
     );
   }
 
-  // Calcular estat�sticas
+  // Calcular estatísticas
   const totalExercicios = exercicios.length;
   const exerciciosPendentes = exercicios.filter(
     (e) => e.prazo && new Date(e.prazo) > new Date()
@@ -230,7 +230,7 @@ export default function Dashboard() {
   // Exercícios recentes (últimos 5)
   const exerciciosRecentes = exercicios.slice(0, 5);
 
-  // Simular estat�sticas (em produ��o, viriam da API)
+  // Simular estatísticas (em produção, viriam da API)
   const progresso = {
     overall: 65,
     modulos: "3/6",
@@ -245,7 +245,7 @@ export default function Dashboard() {
     <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
       <FadeInUp>
         <div className="dashboardSections">
-          {/* SE��O 1: ESTAT�STICAS */}
+          {/* SEÇÃO 1: ESTATÍSTICAS */}
           <section className="grid3">
             {(role !== "aluno" || turmas.length > 0) && (
               <motion.div
@@ -274,8 +274,8 @@ export default function Dashboard() {
                   {role === "professor" && (
                     <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "8px", lineHeight: "1.5" }}>
                       {turmasResponsavel > 0
-                        ? `Voc� est� respons�vel por ${turmasResponsavel} turma${turmasResponsavel !== 1 ? "s" : ""}.`
-                        : "Voc� n�o est� respons�vel por nenhuma turma ainda."}
+                        ? `Você está responsável por ${turmasResponsavel} turma${turmasResponsavel !== 1 ? "s" : ""}.`
+                        : "Você não está responsável por nenhuma turma ainda."}
                     </div>
                   )}
                 </div>
@@ -318,7 +318,7 @@ export default function Dashboard() {
             >
               <div className="cardHead">
                 <div>
-                  <div className="kicker">EXERC�CIOS</div>
+                  <div className="kicker">EXERCÍCIOS</div>
                   <div className="big">{totalExercicios}</div>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export default function Dashboard() {
             </motion.div>
           </section>
 
-          {/* SE��O 2: PROGRESSO E ATIVIDADES */}
+          {/* SEÇÃO 2: PROGRESSO E ATIVIDADES */}
           <section className="grid2">
             <motion.div
               className="card"
@@ -343,7 +343,7 @@ export default function Dashboard() {
               <div className="taskList">
                 {exerciciosRecentes.length === 0 ? (
                   <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
-                    Nenhum exerc�cio dispon�vel
+                    Nenhum exercício disponível
                   </div>
                 ) : (
                   exerciciosRecentes.map((ex) => {
@@ -389,7 +389,7 @@ export default function Dashboard() {
                           </div>
                           <div className="mutedSmall">
                             {isProgrammed && ex.publishedAt
-                              ? `Publica��o: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
+                              ? `Publicação: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
                               : ex.prazo
                                 ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
                                 : "Sem prazo"}
@@ -417,7 +417,7 @@ export default function Dashboard() {
               </div>
               <div className="kv" style={{ marginTop: "12px" }}>
                 <div className="kvRow">
-                  <span>M�dulos</span>
+                  <span>Módulos</span>
                   <strong>{progresso.modulos}</strong>
                 </div>
                 <div className="kvRow">
@@ -428,7 +428,7 @@ export default function Dashboard() {
             </motion.div>
           </section>
 
-          {/* SE��O 3: INFORMA��ES ADICIONAIS */}
+          {/* SEÇÃO 3: INFORMAÇÕES ADICIONAIS */}
           <section className="grid2">
             <motion.div
               className="card"
@@ -438,7 +438,7 @@ export default function Dashboard() {
             >
               <div className="cardHead">
                 <div>
-                  <div className="kicker">SEQU�NCIA</div>
+                  <div className="kicker">SEQUÊNCIA</div>
                   <div className="big">
                     {streak} <span className="bigSub">dias</span>
                   </div>
@@ -449,8 +449,8 @@ export default function Dashboard() {
               </div>
               <p className="muted">
                 {streak > 0
-                  ? "Continue assim! Voc� est� em uma �tima sequ�ncia de estudos."
-                  : "Envie uma atividade hoje para iniciar sua sequ�ncia."}
+                  ? "Continue assim! Você está em uma ótima sequência de estudos."
+                  : "Envie uma atividade hoje para iniciar sua sequência."}
               </p>
             </motion.div>
 
@@ -463,11 +463,11 @@ export default function Dashboard() {
               <div className="cardTitle">Seu Desempenho</div>
               <div className="perf">
                 <div className="perfRow">
-                  <span className="muted">M�dia de notas</span>
+                  <span className="muted">Média de notas</span>
                   <strong>
                     {mediaNota !== null && !isNaN(mediaNota)
                       ? `${mediaNota.toFixed(1)}/10`
-                      : "Nenhum exerc�cio corrigido"}
+                      : "Nenhum exercício corrigido"}
                   </strong>
                 </div>
                 {mediaNota !== null && !isNaN(mediaNota) ? (
@@ -485,14 +485,14 @@ export default function Dashboard() {
                   </>
                 ) : (
                   <div className="mutedSmall" style={{ marginTop: 10 }}>
-                    Envie um exerc�cio e aguarde a corre��o para ver sua m�dia.
+                    Envie um exercício e aguarde a correção para ver sua média.
                   </div>
                 )}
               </div>
             </motion.div>
           </section>
 
-          {/* SE��O 4: A��ES R�PIDAS */}
+          {/* SEÇÃO 4: AÇÕES RÁPIDAS */}
           <section>
             <motion.div
               initial={false}

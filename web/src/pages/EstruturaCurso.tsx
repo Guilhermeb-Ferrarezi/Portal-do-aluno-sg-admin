@@ -106,7 +106,7 @@ export default function EstruturaCursoPage() {
         setModulosCurso(mods);
         setModuloIdSelecionado((prev) => (mods.some((m) => m.id === prev) ? prev : mods[0]?.id || ""));
       })
-      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar modulos" }));
+      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar módulos" }));
   }, [courseIdSelecionado]);
 
   React.useEffect(() => {
@@ -159,7 +159,7 @@ export default function EstruturaCursoPage() {
   async function handleCriarModulo(e: React.FormEvent) {
     e.preventDefault();
     if (!courseIdSelecionado || !novoModuloNome.trim()) {
-      setToastMsg({ type: "error", msg: "Selecione o curso e informe o nome do modulo" });
+      setToastMsg({ type: "error", msg: "Selecione o curso e informe o nome do módulo" });
       return;
     }
 
@@ -173,7 +173,7 @@ export default function EstruturaCursoPage() {
 
       setNovoModuloNome("");
       setNovoModuloDescricao("");
-      setToastMsg({ type: "success", msg: "Modulo criado com sucesso" });
+      setToastMsg({ type: "success", msg: "Módulo criado com sucesso" });
 
       const mods = await listarModulosPorCurso(courseIdSelecionado);
       setModulosCurso(mods);
@@ -181,7 +181,7 @@ export default function EstruturaCursoPage() {
       setModuloIdSelecionado(nextId);
       navigate(rotaAba("fase"));
     } catch (e) {
-      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar modulo" });
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar módulo" });
     } finally {
       setCriandoModulo(false);
     }
@@ -190,7 +190,7 @@ export default function EstruturaCursoPage() {
   async function handleCriarFase(e: React.FormEvent) {
     e.preventDefault();
     if (!moduloIdSelecionado || !novaFaseNome.trim()) {
-      setToastMsg({ type: "error", msg: "Selecione o modulo e informe o nome da fase" });
+      setToastMsg({ type: "error", msg: "Selecione o módulo e informe o nome da fase" });
       return;
     }
 
@@ -301,7 +301,7 @@ export default function EstruturaCursoPage() {
   }
 
   return (
-    <DashboardLayout title="Estrutura do Curso" subtitle="Criacao e listagem separadas por pagina">
+    <DashboardLayout title="Estrutura do Curso" subtitle="Criação e listagem separadas por página">
       <div className="estruturaContainerSingle">
         <AnimatedToast
           message={toastMsg?.msg || null}
@@ -315,7 +315,7 @@ export default function EstruturaCursoPage() {
             <Plus size={16} /> Criar curso
           </button>
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "modulo" ? "active" : ""}`} onClick={() => navigate(rotaAba("modulo"))}>
-            <Layers size={16} /> Criar modulo
+            <Layers size={16} /> Criar módulo
           </button>
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "fase" ? "active" : ""}`} onClick={() => navigate(rotaAba("fase"))}>
             <GitBranch size={16} /> Criar fase
@@ -327,13 +327,13 @@ export default function EstruturaCursoPage() {
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Criar Curso</h2>
-                <p>Formulario de criacao de curso.</p>
+                <p>Formulário de criação de curso.</p>
               </div>
               <form onSubmit={handleCriarCurso} className="estruturaForm">
                 <label>Nome do curso *</label>
-                <input value={novoCursoNome} onChange={(e) => setNovoCursoNome(e.target.value)} placeholder="Ex: Programacao Full Stack" />
+                <input value={novoCursoNome} onChange={(e) => setNovoCursoNome(e.target.value)} placeholder="Ex: Programação Full Stack" />
 
-                <label>Descricao</label>
+                <label>Descrição</label>
                 <textarea value={novoCursoDescricao} onChange={(e) => setNovoCursoDescricao(e.target.value)} placeholder="Opcional" />
 
                 <label className="estruturaSwitchRow">
@@ -352,7 +352,7 @@ export default function EstruturaCursoPage() {
 
             <div className="estruturaCard">
               <div className="estruturaCardHead">
-                <h2>Cursos Disponiveis</h2>
+                <h2>Cursos Disponíveis</h2>
                 <p>Filtre e navegue pelos cursos cadastrados.</p>
               </div>
               <div className="estruturaForm">
@@ -408,8 +408,8 @@ export default function EstruturaCursoPage() {
           <>
             <div className="estruturaCard">
               <div className="estruturaCardHead">
-                <h2>Criar Modulo</h2>
-                <p>Formulario de criacao de modulo.</p>
+                <h2>Criar Módulo</h2>
+                <p>Formulário de criação de módulo.</p>
               </div>
               <form onSubmit={handleCriarModulo} className="estruturaForm">
                 <label>Curso *</label>
@@ -425,22 +425,22 @@ export default function EstruturaCursoPage() {
                   emptyText="Nenhum curso cadastrado"
                 />
 
-                <label>Nome do modulo *</label>
+                <label>Nome do módulo *</label>
                 <input value={novoModuloNome} onChange={(e) => setNovoModuloNome(e.target.value)} placeholder="Ex: JavaScript + DOM" />
 
-                <label>Descricao</label>
+                <label>Descrição</label>
                 <textarea value={novoModuloDescricao} onChange={(e) => setNovoModuloDescricao(e.target.value)} placeholder="Opcional" />
 
                 <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoModulo}>
-                  {criandoModulo ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar modulo</>}
+                  {criandoModulo ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar módulo</>}
                 </AnimatedButton>
               </form>
             </div>
 
             <div className="estruturaCard">
               <div className="estruturaCardHead">
-                <h2>Modulos Disponiveis</h2>
-                <p>Filtre e visualize os modulos do curso selecionado.</p>
+                <h2>Módulos Disponíveis</h2>
+                <p>Filtre e visualize os módulos do curso selecionado.</p>
               </div>
               <div className="estruturaForm">
                 <PaginatedSelect
@@ -451,9 +451,9 @@ export default function EstruturaCursoPage() {
                     label: m.nome,
                     meta: `Ordem #${m.indexOrder}`,
                   }))}
-                  placeholder="Filtrar por modulo (lista paginada)"
+                  placeholder="Filtrar por módulo (lista paginada)"
                   disabled={!courseIdSelecionado}
-                  emptyText="Nenhum modulo para selecionar"
+                  emptyText="Nenhum módulo para selecionar"
                 />
                 {filtroModuloId && (
                   <button type="button" className="filtroLimparBtn" onClick={() => setFiltroModuloId("")}>
@@ -463,9 +463,9 @@ export default function EstruturaCursoPage() {
               </div>
               <div className="viewerList" style={{ marginTop: 10 }}>
                 {!courseIdSelecionado ? (
-                  <div className="viewerEmpty">Selecione um curso para listar modulos.</div>
+                  <div className="viewerEmpty">Selecione um curso para listar módulos.</div>
                 ) : paginaModulosItens.length === 0 ? (
-                  <div className="viewerEmpty">Nenhum modulo encontrado.</div>
+                  <div className="viewerEmpty">Nenhum módulo encontrado.</div>
                 ) : (
                   paginaModulosItens.map((mod) => (
                     <button
@@ -499,10 +499,10 @@ export default function EstruturaCursoPage() {
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Criar Fase</h2>
-                <p>Formulario de criacao de fase.</p>
+                <p>Formulário de criação de fase.</p>
               </div>
               <form onSubmit={handleCriarFase} className="estruturaForm">
-                <label>Modulo *</label>
+                <label>Módulo *</label>
                 <PaginatedSelect
                   value={moduloIdSelecionado}
                   onChange={setModuloIdSelecionado}
@@ -511,13 +511,13 @@ export default function EstruturaCursoPage() {
                     label: mod.nome,
                     meta: `Ordem #${mod.indexOrder}`,
                   }))}
-                  placeholder={courseIdSelecionado ? "Selecione um modulo" : "Selecione um curso primeiro"}
+                  placeholder={courseIdSelecionado ? "Selecione um módulo" : "Selecione um curso primeiro"}
                   disabled={!courseIdSelecionado}
-                  emptyText="Nenhum modulo cadastrado para este curso"
+                  emptyText="Nenhum módulo cadastrado para este curso"
                 />
 
                 <label>Nome da fase *</label>
-                <input value={novaFaseNome} onChange={(e) => setNovaFaseNome(e.target.value)} placeholder="Ex: Semana 1 - Introducao" />
+                <input value={novaFaseNome} onChange={(e) => setNovaFaseNome(e.target.value)} placeholder="Ex: Semana 1 - Introdução" />
 
                 <label>Semana</label>
                 <input type="number" min={1} value={novaFaseWeek} onChange={(e) => setNovaFaseWeek(Math.max(1, Number(e.target.value) || 1))} />
@@ -530,8 +530,8 @@ export default function EstruturaCursoPage() {
 
             <div className="estruturaCard">
               <div className="estruturaCardHead">
-                <h2>Fases Disponiveis</h2>
-                <p>Filtre e visualize as fases do modulo selecionado.</p>
+                <h2>Fases Disponíveis</h2>
+                <p>Filtre e visualize as fases do módulo selecionado.</p>
               </div>
               <div className="estruturaForm">
                 <PaginatedSelect
@@ -554,7 +554,7 @@ export default function EstruturaCursoPage() {
               </div>
               <div className="viewerList" style={{ marginTop: 10 }}>
                 {!moduloIdSelecionado ? (
-                  <div className="viewerEmpty">Selecione um modulo para listar fases.</div>
+                  <div className="viewerEmpty">Selecione um módulo para listar fases.</div>
                 ) : paginaFasesItens.length === 0 ? (
                   <div className="viewerEmpty">Nenhuma fase encontrada.</div>
                 ) : (

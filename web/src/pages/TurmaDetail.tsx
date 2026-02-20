@@ -119,7 +119,7 @@ export default function TurmaDetailPage() {
   async function abrirModalAdicionar() {
     try {
       const alunos = await listarAlunos();
-      // Filtrar apenas alunos que n�o est�o na turma
+      // Filtrar apenas alunos que não estão na turma
       const alunosNaTurma = turma?.alunos.map((a) => a.id) || [];
       const alunosDisponiveis = alunos.filter(
         (aluno) => !alunosNaTurma.includes(aluno.id)
@@ -155,14 +155,14 @@ export default function TurmaDetailPage() {
       setCarregandoCronograma(true);
       setErro(null);
       const data = await obterCronograma(id);
-      // Converter n�mero de string para number
+      // Converter número de string para number
       const cronogramaFormatado = Object.fromEntries(
         Object.entries(data.cronograma).map(([key, value]) => [Number(key), value])
       );
       setCronograma(cronogramaFormatado);
     } catch (e) {
       console.error("Erro ao carregar cronograma:", e);
-      // N�o mostrar erro se o cronograma est� vazio
+      // Não mostrar erro se o cronograma está vazio
     } finally {
       setCarregandoCronograma(false);
     }
@@ -198,7 +198,7 @@ export default function TurmaDetailPage() {
       setErro(null);
       setOkMsg(null);
 
-      // Criar array de semanas com os exerc�cios
+      // Criar array de semanas com os exercícios
       const cronogramaAtualizado: Record<number, Array<{ id: string; titulo: string; modulo: string }>> = { ...cronograma };
 
       if (!cronogramaAtualizado[semana]) {
@@ -226,9 +226,9 @@ export default function TurmaDetailPage() {
       await configurarCronograma(id, semanas);
       setCronograma(cronogramaAtualizado);
       setTemplateSelecionado("");
-      setOkMsg("Exerc�cio adicionado � semana!");
+      setOkMsg("Exercício adicionado à semana!");
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao adicionar exerc�cio");
+      setErro(e instanceof Error ? e.message : "Erro ao adicionar exercício");
     } finally {
       setSalvandoCronograma(false);
     }
@@ -260,9 +260,9 @@ export default function TurmaDetailPage() {
 
       await configurarCronograma(id, semanas);
       setCronograma(cronogramaAtualizado);
-      setOkMsg("Exerc�cio removido da semana!");
+      setOkMsg("Exercício removido da semana!");
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao remover exerc�cio");
+      setErro(e instanceof Error ? e.message : "Erro ao remover exercício");
     } finally {
       setSalvandoCronograma(false);
     }
@@ -281,9 +281,9 @@ export default function TurmaDetailPage() {
 
   if (!turma) {
     return (
-      <DashboardLayout title="Turma n�o encontrada" subtitle="">
+      <DashboardLayout title="Turma não encontrada" subtitle="">
         <div style={{ padding: "24px", textAlign: "center", color: "var(--muted)" }}>
-          A turma solicitada n�o foi encontrada.
+          A turma solicitada não foi encontrada.
         </div>
       </DashboardLayout>
     );
@@ -292,7 +292,7 @@ export default function TurmaDetailPage() {
   return (
     <DashboardLayout
       title={turma.nome}
-      subtitle={`${turma.tipo === "turma" ? "Turma" : "Turma Particular"} � ${turma.alunos.length} ${turma.alunos.length === 1 ? "aluno" : "alunos"}`}
+      subtitle={`${turma.tipo === "turma" ? "Turma" : "Turma Particular"} • ${turma.alunos.length} ${turma.alunos.length === 1 ? "aluno" : "alunos"}`}
     >
       <FadeInUp duration={0.28}>
         <div className="turmaDetailContainer">
@@ -324,7 +324,7 @@ export default function TurmaDetailPage() {
                 borderBottom: abaSelecionada === "info" ? "2px solid var(--primary)" : "none",
               }}
             >
-              {iconLabel(<Info size={16} />, "Informa��es")}
+              {iconLabel(<Info size={16} />, "Informações")}
             </AnimatedButton>
             <AnimatedButton
               onClick={() => setAbaSelecionada("alunos")}
@@ -356,7 +356,7 @@ export default function TurmaDetailPage() {
                 borderBottom: abaSelecionada === "exercicios" ? "2px solid var(--primary)" : "none",
               }}
             >
-              {iconLabel(<BookOpen size={16} />, "Exerc�cios")}
+              {iconLabel(<BookOpen size={16} />, "Exercícios")}
             </AnimatedButton>
             {canManageTurmas && turma.dataInicio && (
               <AnimatedButton
@@ -379,7 +379,7 @@ export default function TurmaDetailPage() {
           </div>
         )}
 
-        {/* INFORMA��ES DA TURMA */}
+        {/* INFORMAÇÕES DA TURMA */}
         {abaSelecionada === "info" && (
           <div className="turmaInfoCard">
           <div className="turmaInfoHeader">
@@ -390,11 +390,11 @@ export default function TurmaDetailPage() {
                   ? iconLabel(<Users size={14} />, "Turma (Grupo)")
                   : iconLabel(<Lock size={14} />, "Turma Particular")}
                 {turma.categoria && (
-                  <> � {turma.categoria === "programacao"
-                    ? iconLabel(<Laptop size={14} />, "Programa��o")
-                    : iconLabel(<Monitor size={14} />, "Inform�tica")}</>
+                  <> • {turma.categoria === "programacao"
+                    ? iconLabel(<Laptop size={14} />, "Programação")
+                    : iconLabel(<Monitor size={14} />, "Informática")}</>
                 )}
-                {turma.descricao && <> � {turma.descricao}</>}
+                {turma.descricao && <> • {turma.descricao}</>}
               </p>
             </div>
 
@@ -409,7 +409,7 @@ export default function TurmaDetailPage() {
           </div>
         )}
 
-        {/* SE��O DE ALUNOS */}
+        {/* SEÇÃO DE ALUNOS */}
         {abaSelecionada === "alunos" && (
         <div className="turmaSection">
           <div className="turmaSectionHeader">
@@ -457,11 +457,11 @@ export default function TurmaDetailPage() {
         </div>
         )}
 
-        {/* SE��O DE EXERC�CIOS */}
+        {/* SEÇÃO DE EXERCÍCIOS */}
         {abaSelecionada === "exercicios" && turma.exercicios.length > 0 && (
           <div className="turmaSection">
             <h2 className="turmaSectionTitle">
-              {iconLabel(<BookOpen size={18} />, `Exerc�cios Atribu�dos (${turma.exercicios.length})`)}
+              {iconLabel(<BookOpen size={18} />, `Exercícios Atribuídos (${turma.exercicios.length})`)}
             </h2>
 
             <div className="exerciciosList">
@@ -485,7 +485,7 @@ export default function TurmaDetailPage() {
           </div>
         )}
 
-        {/* SE��O DE CRONOGRAMA */}
+        {/* SEÇÃO DE CRONOGRAMA */}
         {abaSelecionada === "cronograma" && (
           <div className="turmaSection">
             <h2 className="turmaSectionTitle">
@@ -494,16 +494,16 @@ export default function TurmaDetailPage() {
 
             {!turma.dataInicio ? (
               <div className="cronogramaWarning">
-                {iconLabel(<AlertTriangle size={16} />, "Configure a data de in�cio da turma para usar o cronograma")}
+                {iconLabel(<AlertTriangle size={16} />, "Configure a data de início da turma para usar o cronograma")}
               </div>
             ) : (
               <>
                 <div className="cronogramaInfoBox">
                   <p className="cronogramaInfoLine">
-                    <strong><Pin size={14} /> In�cio:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
+                    <strong><Pin size={14} /> Início:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
                   </p>
                   <p className="cronogramaInfoLine">
-                    <strong><Clock size={14} /> Dura��o:</strong> {turma.duracaoSemanas} semanas
+                    <strong><Clock size={14} /> Duração:</strong> {turma.duracaoSemanas} semanas
                   </p>
                   <p className="cronogramaInfoLine">
                     <strong><RefreshCcw size={14} /> Status:</strong>{" "}
@@ -562,7 +562,7 @@ export default function TurmaDetailPage() {
                             <option value="">Selecione um template...</option>
                             {templates.map((template) => (
                               <option key={template.id} value={template.id}>
-                                {template.titulo} ({template.modulo || "Sem m�dulo"})
+                                {template.titulo} ({template.modulo || "Sem módulo"})
                               </option>
                             ))}
                           </select>
@@ -585,7 +585,7 @@ export default function TurmaDetailPage() {
                     </div>
                     )}
 
-                    {/* Visualiza��o do cronograma */}
+                    {/* Visualização do cronograma */}
                     <div className="cronogramaVisualization">
                       <h3 className="cronogramaVizTitle">Cronograma por Semana</h3>
 
@@ -601,7 +601,7 @@ export default function TurmaDetailPage() {
                               Semana {semana}
                               {exerciciosDaSemana.length > 0 && (
                                 <span className="cronogramaSemanaCount">
-                                  ({exerciciosDaSemana.length} exerc�cio{exerciciosDaSemana.length > 1 ? "s" : ""})
+                                  ({exerciciosDaSemana.length} exercício{exerciciosDaSemana.length > 1 ? "s" : ""})
                                 </span>
                               )}
                             </h4>
@@ -617,7 +617,7 @@ export default function TurmaDetailPage() {
                                   <div className="cronogramaExercicioInfo">
                                     <div className="cronogramaExercicioTitulo">{exercicio.titulo}</div>
                                     <div className="cronogramaExercicioModulo">
-                                      {exercicio.modulo || "Sem m�dulo"}
+                                      {exercicio.modulo || "Sem módulo"}
                                     </div>
                                   </div>
                                   <AnimatedButton
@@ -632,7 +632,7 @@ export default function TurmaDetailPage() {
                             </div>
                           ) : (
                             <div style={{ padding: "12px", color: "var(--muted)", fontSize: "14px", textAlign: "center" }}>
-                              Nenhum exerc�cio atribu�do
+                              Nenhum exercício atribuído
                             </div>
                           )}
                         </div>
@@ -650,11 +650,11 @@ export default function TurmaDetailPage() {
         {modalAdicionarAberto && createPortal(
           <div className="modalOverlay" onClick={() => setModalAdicionarAberto(false)}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-              <h3>Adicionar alunos � turma</h3>
+              <h3>Adicionar alunos à turma</h3>
 
               {alunosDisponiveis.length === 0 ? (
                 <p style={{ color: "var(--muted)", textAlign: "center" }}>
-                  Nenhum aluno dispon�vel para adicionar.
+                  Nenhum aluno disponível para adicionar.
                 </p>
               ) : (
                 <div className="alunosSelectorList">

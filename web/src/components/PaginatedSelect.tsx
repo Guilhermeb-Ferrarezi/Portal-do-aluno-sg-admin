@@ -66,7 +66,7 @@ export default function PaginatedSelect({
   }, [query, options.length, pageSize]);
 
   return (
-    <div className={`paginatedSelect ${disabled ? "isDisabled" : ""}`} ref={rootRef}>
+    <div className={`paginatedSelect ${disabled ? "isDisabled" : ""} ${!selected ? "isPlaceholder" : ""}`} ref={rootRef}>
       <button
         type="button"
         className="paginatedSelectTrigger"
@@ -140,4 +140,3 @@ export default function PaginatedSelect({
     </div>
   );
 }
-
