@@ -20,6 +20,7 @@ import {
   User,
   Plus,
   Package,
+  Blocks,
   KeyRound,
   BarChart3,
   Bell,
@@ -88,6 +89,7 @@ export default function DashboardLayout({
   const isMedalhas = location.pathname === "/dashboard/medalhas";
   const isCreateUser = location.pathname === "/dashboard/criar-usuario";
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
+  const isEstruturaCurso = location.pathname === "/dashboard/estrutura-curso";
   const isActivityLogs = location.pathname === "/dashboard/logs";
 
   function handleLogout() {
@@ -256,6 +258,13 @@ export default function DashboardLayout({
                   <KeyRound size={18} />
                 </span>
                 Gerenciar Usuários
+              </Link>
+
+              <Link className={`sbItem ${isEstruturaCurso ? "active" : ""}`} to="/dashboard/estrutura-curso">
+                <span className="sbIcon" aria-hidden="true">
+                  <Blocks size={18} />
+                </span>
+                Estrutura do Curso
               </Link>
 
               <Link className={`sbItem ${isActivityLogs ? "active" : ""}`} to="/dashboard/logs">

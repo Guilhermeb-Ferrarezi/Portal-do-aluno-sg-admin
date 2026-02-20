@@ -18,6 +18,7 @@ import ActivityLogsPage from "./pages/ActivityLogs";
 import Turmas from "./pages/Turmas";
 import TurmaDetail from "./pages/TurmaDetail";
 import TrilhaCursoPage from "./pages/TrilhaCurso";
+import EstruturaCursoPage from "./pages/EstruturaCurso";
 import MateriaisPage from "./pages/Materiais";
 import VideoaulaBonusPage from "./pages/VideoaulaBonus";
 import PerfilPage from "./pages/Perfil";
@@ -150,6 +151,7 @@ function AppContent() {
               element={<Navigate to="/dashboard/templates" replace />}
             />
             <Route path="/dashboard/usuarios" element={<AdminUsersPage />} />
+            <Route path="/dashboard/estrutura-curso" element={<EstruturaCursoPage />} />
             <Route
               path="/usuarios"
               element={<Navigate to="/dashboard/usuarios" replace />}

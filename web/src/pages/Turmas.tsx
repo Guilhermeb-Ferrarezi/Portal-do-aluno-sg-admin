@@ -35,9 +35,17 @@ import {
   adicionarAlunosNaTurma,
   configurarCronograma,
   obterCronograma,
+  listarCursos,
+  listarModulosPorCurso,
+  criarModulo,
+  criarFase,
+  listarFasesDoModulo,
   apiFetch,
   type Turma,
   type User,
+  type Curso,
+  type Modulo,
+  type Fase,
 } from "../services/api";
 import { getUserId } from "../auth/auth";
 import ConfirmModal from "../components/ConfirmModal";
@@ -82,6 +90,22 @@ export default function TurmasPage() {
   const [professores, setProfessores] = React.useState<User[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [editandoId, setEditandoId] = React.useState<string | null>(null);
+  const [cursos, setCursos] = React.useState<Curso[]>([]);
+  const [modulosCurso, setModulosCurso] = React.useState<Modulo[]>([]);
+  const [courseIdSelecionado, setCourseIdSelecionado] = React.useState("");
+  const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
+
+  // Form criação de módulo/fase
+  const [novoModuloNome, setNovoModuloNome] = React.useState("");
+  const [novoModuloDescricao, setNovoModuloDescricao] = React.useState("");
+  const [novoModuloCourseId, setNovoModuloCourseId] = React.useState("");
+  const [criandoModulo, setCriandoModulo] = React.useState(false);
+
+  const [novaFaseNome, setNovaFaseNome] = React.useState("");
+  const [novaFaseWeek, setNovaFaseWeek] = React.useState(1);
+  const [novaFaseModuloId, setNovaFaseModuloId] = React.useState("");
+  const [fasesModuloAtual, setFasesModuloAtual] = React.useState<Fase[]>([]);
+  const [criandoFase, setCriandoFase] = React.useState(false);
 
   // Cronograma
   const [templatesDisponiveis, setTemplatesDisponiveis] = React.useState<Template[]>([]);
@@ -130,6 +154,21 @@ export default function TurmasPage() {
     }
   }
 
+  async function carregarModulosDoCurso(courseId: string, moduloAtual?: string) {
+    if (!courseId) {
+      setModulosCurso([]);
+      setModuloIdSelecionado("");
+      return;
+    }
+    const mods = await listarModulosPorCurso(courseId);
+    setModulosCurso(mods);
+    if (moduloAtual && mods.some((m) => m.id === moduloAtual)) {
+      setModuloIdSelecionado(moduloAtual);
+      return;
+    }
+    setModuloIdSelecionado(mods[0]?.id ?? "");
+  }
+
   React.useEffect(() => {
     load();
 
@@ -145,6 +184,18 @@ export default function TurmasPage() {
           setProfessores(responsaveis);
         })
         .catch((e) => console.error("Erro ao carregar responsáveis:", e));
+
+      listarCursos()
+        .then(async (data) => {
+          setCursos(data);
+          const firstCourseId = data[0]?.id ?? "";
+          setCourseIdSelecionado(firstCourseId);
+          setNovoModuloCourseId(firstCourseId);
+          if (firstCourseId) {
+            await carregarModulosDoCurso(firstCourseId);
+          }
+        })
+        .catch((e) => console.error("Erro ao carregar cursos:", e));
     }
   }, [role]);
 
@@ -169,6 +220,31 @@ export default function TurmasPage() {
     }
     setTurmas(turmasAll.filter((turma) => turma.professorId === userId));
   }, [filtroTurmas, role, turmasAll, userId]);
+
+  React.useEffect(() => {
+    if (role !== "admin") return;
+    if (!courseIdSelecionado) {
+      setModulosCurso([]);
+      setModuloIdSelecionado("");
+      return;
+    }
+    carregarModulosDoCurso(courseIdSelecionado).catch((e) => {
+      console.error("Erro ao carregar módulos do curso:", e);
+      setModulosCurso([]);
+      setModuloIdSelecionado("");
+    });
+  }, [courseIdSelecionado, role]);
+
+  React.useEffect(() => {
+    if (role !== "admin") return;
+    if (!novaFaseModuloId) {
+      setFasesModuloAtual([]);
+      return;
+    }
+    listarFasesDoModulo(novaFaseModuloId)
+      .then(setFasesModuloAtual)
+      .catch(() => setFasesModuloAtual([]));
+  }, [novaFaseModuloId, role]);
 
   async function adicionarTemplatesNoCronograma(turmaId: string) {
     if (templatesSelecionados.length === 0) return;
@@ -228,6 +304,8 @@ export default function TurmasPage() {
         atualizarDados.data_inicio = dataInicio || null;
         atualizarDados.duracao_semanas = duracaoSemanas;
         atualizarDados.cronograma_ativo = cronogramaAtivo;
+        if (courseIdSelecionado) atualizarDados.course_id = Number(courseIdSelecionado);
+        if (moduloIdSelecionado) atualizarDados.current_module_id = Number(moduloIdSelecionado);
 
         await atualizarTurma(editandoId, atualizarDados);
 
@@ -257,6 +335,8 @@ export default function TurmasPage() {
         criarDados.data_inicio = dataInicio || null;
         criarDados.duracao_semanas = duracaoSemanas;
         criarDados.cronograma_ativo = cronogramaAtivo;
+        if (courseIdSelecionado) criarDados.course_id = Number(courseIdSelecionado);
+        if (moduloIdSelecionado) criarDados.current_module_id = Number(moduloIdSelecionado);
 
         const created = await criarTurma(criarDados);
         const turmaCriada = created.turma;
@@ -312,6 +392,14 @@ export default function TurmasPage() {
     setDataInicio(turma.dataInicio ? turma.dataInicio.split('T')[0] : "");
     setDuracaoSemanas(turma.duracaoSemanas || 12);
     setCronogramaAtivo(turma.cronogramaAtivo || false);
+    setCourseIdSelecionado(turma.courseId || "");
+    if (turma.courseId) {
+      carregarModulosDoCurso(turma.courseId, turma.currentModuleId || "").catch((e) =>
+        console.error("Erro ao carregar módulos da turma:", e)
+      );
+    } else {
+      setModuloIdSelecionado("");
+    }
     setEditandoId(turma.id);
 
     setTimeout(() => {
@@ -329,6 +417,13 @@ export default function TurmasPage() {
     setDataInicio("");
     setDuracaoSemanas(12);
     setCronogramaAtivo(false);
+    if (cursos[0]?.id) {
+      setCourseIdSelecionado(cursos[0].id);
+      setNovoModuloCourseId(cursos[0].id);
+    } else {
+      setCourseIdSelecionado("");
+    }
+    setModuloIdSelecionado("");
     setEditandoId(null);
   }
 
@@ -379,8 +474,60 @@ export default function TurmasPage() {
     }
   }
 
+  async function handleCriarModulo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!novoModuloNome.trim() || !novoModuloCourseId) {
+      setToastMsg({ type: "error", msg: "Informe curso e nome do módulo" });
+      return;
+    }
+
+    try {
+      setCriandoModulo(true);
+      const created = await criarModulo({
+        nome: novoModuloNome.trim(),
+        descricao: novoModuloDescricao.trim() || null,
+        course_id: Number(novoModuloCourseId),
+      });
+      setToastMsg({ type: "success", msg: "Módulo criado com sucesso!" });
+      setNovoModuloNome("");
+      setNovoModuloDescricao("");
+      setCourseIdSelecionado(novoModuloCourseId);
+      await carregarModulosDoCurso(novoModuloCourseId, created.modulo.id);
+      setNovaFaseModuloId(created.modulo.id);
+    } catch (e) {
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar módulo" });
+    } finally {
+      setCriandoModulo(false);
+    }
+  }
+
+  async function handleCriarFase(e: React.FormEvent) {
+    e.preventDefault();
+    if (!novaFaseModuloId || !novaFaseNome.trim()) {
+      setToastMsg({ type: "error", msg: "Informe módulo e nome da fase" });
+      return;
+    }
+
+    try {
+      setCriandoFase(true);
+      await criarFase(novaFaseModuloId, {
+        nome: novaFaseNome.trim(),
+        week_number: novaFaseWeek,
+      });
+      setToastMsg({ type: "success", msg: "Fase criada com sucesso!" });
+      setNovaFaseNome("");
+      const fases = await listarFasesDoModulo(novaFaseModuloId);
+      setFasesModuloAtual(fases);
+      setNovaFaseWeek((prev) => prev + 1);
+    } catch (e) {
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar fase" });
+    } finally {
+      setCriandoFase(false);
+    }
+  }
+
   const disabled =
-    saving || !nome.trim();
+    saving || !nome.trim() || !courseIdSelecionado || !moduloIdSelecionado;
 
   const emptyTitle =
     role === "admin" && filtroTurmas === "minhas"
@@ -479,6 +626,39 @@ export default function TurmasPage() {
                   >
                     <option value="programacao">Programação</option>
                     <option value="informatica">Informática</option>
+                  </AnimatedSelect>
+                </div>
+
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Curso *</label>
+                  <AnimatedSelect
+                    className="turmaSelect"
+                    value={courseIdSelecionado}
+                    onChange={(e) => setCourseIdSelecionado(e.target.value)}
+                  >
+                    <option value="">Selecione um curso</option>
+                    {cursos.map((curso) => (
+                      <option key={curso.id} value={curso.id}>
+                        {curso.nome}
+                      </option>
+                    ))}
+                  </AnimatedSelect>
+                </div>
+
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Módulo Inicial *</label>
+                  <AnimatedSelect
+                    className="turmaSelect"
+                    value={moduloIdSelecionado}
+                    onChange={(e) => setModuloIdSelecionado(e.target.value)}
+                    disabled={!courseIdSelecionado || modulosCurso.length === 0}
+                  >
+                    <option value="">Selecione um módulo</option>
+                    {modulosCurso.map((mod) => (
+                      <option key={mod.id} value={mod.id}>
+                        {mod.indexOrder}. {mod.nome}
+                      </option>
+                    ))}
                   </AnimatedSelect>
                 </div>
 
@@ -647,6 +827,100 @@ export default function TurmasPage() {
                       {iconLabel(<X size={16} />, "Cancelar")}
                     </AnimatedButton>
                   )}
+                </div>
+              </form>
+            </div>
+          )}
+
+          {canCreate && (
+            <div className="turmaFormCard" style={{ marginTop: 16 }}>
+              <h2 className="turmaFormTitle">Criar Módulo e Fase</h2>
+
+              <form onSubmit={handleCriarModulo} className="turmaForm" style={{ marginBottom: 18 }}>
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Curso do Módulo *</label>
+                  <AnimatedSelect
+                    className="turmaSelect"
+                    value={novoModuloCourseId}
+                    onChange={(e) => setNovoModuloCourseId(e.target.value)}
+                  >
+                    <option value="">Selecione um curso</option>
+                    {cursos.map((curso) => (
+                      <option key={curso.id} value={curso.id}>
+                        {curso.nome}
+                      </option>
+                    ))}
+                  </AnimatedSelect>
+                </div>
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Nome do Módulo *</label>
+                  <input
+                    className="turmaInput"
+                    value={novoModuloNome}
+                    onChange={(e) => setNovoModuloNome(e.target.value)}
+                    placeholder="Ex: JavaScript + DOM"
+                  />
+                </div>
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Descrição do Módulo</label>
+                  <textarea
+                    className="turmaTextarea"
+                    value={novoModuloDescricao}
+                    onChange={(e) => setNovoModuloDescricao(e.target.value)}
+                    placeholder="Opcional"
+                  />
+                </div>
+                <div className="turmaActions">
+                  <AnimatedButton className="turmaSubmitBtn" type="submit" disabled={criandoModulo}>
+                    {criandoModulo ? iconLabel(<Loader2 size={16} />, "Criando módulo...") : iconLabel(<Plus size={16} />, "Criar Módulo")}
+                  </AnimatedButton>
+                </div>
+              </form>
+
+              <form onSubmit={handleCriarFase} className="turmaForm">
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Módulo da Fase *</label>
+                  <AnimatedSelect
+                    className="turmaSelect"
+                    value={novaFaseModuloId}
+                    onChange={(e) => setNovaFaseModuloId(e.target.value)}
+                  >
+                    <option value="">Selecione um módulo</option>
+                    {modulosCurso.map((mod) => (
+                      <option key={mod.id} value={mod.id}>
+                        {mod.indexOrder}. {mod.nome}
+                      </option>
+                    ))}
+                  </AnimatedSelect>
+                </div>
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Nome da Fase *</label>
+                  <input
+                    className="turmaInput"
+                    value={novaFaseNome}
+                    onChange={(e) => setNovaFaseNome(e.target.value)}
+                    placeholder="Ex: Semana 1 - Introdução"
+                  />
+                </div>
+                <div className="turmaInputGroup">
+                  <label className="turmaLabel">Semana</label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="turmaInput"
+                    value={novaFaseWeek}
+                    onChange={(e) => setNovaFaseWeek(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </div>
+                {novaFaseModuloId && (
+                  <small style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {fasesModuloAtual.length} fase(s) cadastrada(s) neste módulo.
+                  </small>
+                )}
+                <div className="turmaActions">
+                  <AnimatedButton className="turmaSubmitBtn" type="submit" disabled={criandoFase}>
+                    {criandoFase ? iconLabel(<Loader2 size={16} />, "Criando fase...") : iconLabel(<Plus size={16} />, "Criar Fase")}
+                  </AnimatedButton>
                 </div>
               </form>
             </div>

@@ -1,0 +1,227 @@
+.estruturaContainer {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 18px;
+  padding: 4px;
+}
+
+.estruturaCard {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    var(--card);
+  border: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.estruturaCard::before {
+  content: "";
+  position: absolute;
+  inset: -120px auto auto -80px;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(var(--primary-rgb), 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+.estruturaCard h2 {
+  margin: 0;
+  font-size: 42px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.estruturaCardHead {
+  margin-bottom: 14px;
+}
+
+.estruturaCardHead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.estruturaForm {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.estruturaForm label {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.estruturaForm input,
+.estruturaForm textarea,
+.estruturaForm select {
+  border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background-secondary) 66%, var(--card) 34%);
+  color: var(--text);
+  padding: 12px 13px;
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+.estruturaForm input:focus,
+.estruturaForm textarea:focus,
+.estruturaForm select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--line));
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
+  background: color-mix(in srgb, var(--background-secondary) 52%, var(--card) 48%);
+}
+
+.estruturaBuscaWrap {
+  position: relative;
+}
+
+.estruturaSugestoes {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: color-mix(in srgb, var(--card) 88%, #000 12%);
+  border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.estruturaSugestaoItem {
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--background-secondary) 60%, transparent);
+  color: var(--text);
+  border-radius: 10px;
+  text-align: left;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.estruturaSugestaoItem .ordem {
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.estruturaSugestaoItem:hover,
+.estruturaSugestaoItem.active {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+  background: color-mix(in srgb, var(--primary) 10%, var(--background-secondary));
+}
+
+.estruturaForm textarea {
+  min-height: 98px;
+  resize: vertical;
+}
+
+.estruturaSubmitBtn {
+  margin-top: 6px;
+  width: 100%;
+  justify-content: center;
+  border-radius: 12px;
+  font-weight: 700;
+  min-height: 52px;
+  font-size: 20px;
+  letter-spacing: 0.01em;
+  border: 1px solid color-mix(in srgb, var(--primary) 50%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 26%, transparent), color-mix(in srgb, var(--primary) 10%, transparent));
+  color: color-mix(in srgb, var(--text) 90%, #fff 10%);
+}
+
+.estruturaSubmitBtn:hover {
+  border-color: color-mix(in srgb, var(--primary) 75%, var(--line));
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.14);
+}
+
+.fasesResumo {
+  margin-top: 0;
+  font-size: 12px;
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+.fasesPanel {
+  margin-top: 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 56%, transparent);
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background-secondary) 58%, transparent),
+    color-mix(in srgb, var(--background-secondary) 28%, transparent)
+  );
+  padding: 12px;
+}
+
+.fasesBuscaInput {
+  margin-top: 8px;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background-secondary) 66%, var(--card) 34%);
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+.fasesBuscaInput:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--line));
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
+}
+
+.fasesChips {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fasesVazio {
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed color-mix(in srgb, var(--line) 56%, transparent);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.faseChip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 56%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 68%, var(--card) 32%);
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+  .estruturaContainer {
+    grid-template-columns: 1fr;
+  }
+
+  .estruturaCard h2 {
+    font-size: 32px;
+  }
+}

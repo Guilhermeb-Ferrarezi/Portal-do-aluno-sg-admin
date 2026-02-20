@@ -6,63 +6,495 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
 
-type DbTurmaRow = {
-  id: string;
-  nome: string;
-  tipo: "turma" | "particular";
-  categoria: string;
-  professor_id: string | null;
-  descricao: string | null;
-  ativo: boolean;
-  data_inicio: string | null;
-  duracao_semanas: number;
-  cronograma_ativo: boolean;
+type Categoria = "programacao" | "informatica";
+
+type DbClassRow = {
+  id: number;
+  current_module_id: number;
+  course_id: number;
+  name: string | null;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type DbCourseRow = {
+  id: number;
+  name: string | null;
+  description: string | null;
+  is_paid: boolean;
+};
+
+type DbModuleRow = {
+  id: number;
+  course_id: number;
+  name: string | null;
+  description: string | null;
+  index_order: number;
+};
+
+type DbPhaseRow = {
+  id: number;
+  module_id: number;
+  name: string | null;
+  week_number: number;
+  index_order: number;
+  admin_authorize: boolean;
   created_at: string;
   updated_at: string;
 };
 
 const createTurmaSchema = z.object({
   nome: z.string().min(2, "Nome obrigatório"),
-  tipo: z.enum(["turma", "particular"]),
+  tipo: z.enum(["turma", "particular"]).default("turma"),
   categoria: z.enum(["programacao", "informatica"]).default("programacao"),
-  professor_id: z.string().uuid("Professor ID inválido").optional().nullable(),
   descricao: z.string().optional().nullable(),
   data_inicio: z.string().optional().nullable(),
-  duracao_semanas: z.number().int().min(1).max(52).default(12),
-  cronograma_ativo: z.boolean().default(false),
+  duracao_semanas: z.number().int().min(1).max(104).default(12),
+  course_id: z.coerce.number().int().positive().optional(),
+  current_module_id: z.coerce.number().int().positive().optional(),
 });
 
 const updateTurmaSchema = createTurmaSchema.partial();
 
+const createModuleSchema = z.object({
+  nome: z.string().min(2, "Nome obrigatório"),
+  descricao: z.string().optional().nullable(),
+  course_id: z.coerce.number().int().positive().optional(),
+  courseId: z.coerce.number().int().positive().optional(),
+  index_order: z.coerce.number().int().positive().optional(),
+});
+
+const createPhaseSchema = z.object({
+  nome: z.string().min(2, "Nome obrigatório"),
+  week_number: z.coerce.number().int().positive().optional(),
+  index_order: z.coerce.number().int().positive().optional(),
+  admin_authorize: z.boolean().optional().default(true),
+});
+
+function inferCategoria(courseName: string | null): Categoria {
+  const normalized = (courseName ?? "").toLowerCase();
+  if (normalized.includes("inform") || normalized.includes("excel") || normalized.includes("office")) {
+    return "informatica";
+  }
+  return "programacao";
+}
+
+function toDurationWeeks(startDate: string, endDate: string): number {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffMs = Math.max(0, end.getTime() - start.getTime());
+  const weeks = Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000));
+  return Math.max(1, weeks || 1);
+}
+
+function buildEndDate(startDateIso: string, durationWeeks: number): string {
+  const d = new Date(startDateIso);
+  d.setUTCDate(d.getUTCDate() + durationWeeks * 7);
+  return d.toISOString();
+}
+
+async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
+  const result = await pool.query<DbCourseRow>(
+    `SELECT id, name, description, is_paid
+     FROM course
+     WHERE id = $1
+     LIMIT 1`,
+    [courseId]
+  );
+  return result.rows[0] ?? null;
+}
+
+async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | null> {
+  if (categoria === "informatica") {
+    const inf = await pool.query<DbCourseRow>(
+      `SELECT id, name, description, is_paid
+       FROM course
+       WHERE COALESCE(name, '') ILIKE '%informat%'
+       ORDER BY id ASC
+       LIMIT 1`
+    );
+    if (inf.rows[0]) return inf.rows[0];
+  }
+
+  const any = await pool.query<DbCourseRow>(
+    `SELECT id, name, description, is_paid
+     FROM course
+     ORDER BY id ASC
+     LIMIT 1`
+  );
+  return any.rows[0] ?? null;
+}
+
+async function getModuleById(moduleId: number): Promise<DbModuleRow | null> {
+  const result = await pool.query<DbModuleRow>(
+    `SELECT id, course_id, name, description, index_order
+     FROM module
+     WHERE id = $1
+     LIMIT 1`,
+    [moduleId]
+  );
+  return result.rows[0] ?? null;
+}
+
+async function getFirstModuleFromCourse(courseId: number): Promise<DbModuleRow | null> {
+  const result = await pool.query<DbModuleRow>(
+    `SELECT id, course_id, name, description, index_order
+     FROM module
+     WHERE course_id = $1
+     ORDER BY index_order ASC, id ASC
+     LIMIT 1`,
+    [courseId]
+  );
+  return result.rows[0] ?? null;
+}
+
+async function resolveCourseAndModule(params: {
+  courseId?: number;
+  currentModuleId?: number;
+  categoria: Categoria;
+}) {
+  const course = params.courseId
+    ? await getCourseById(params.courseId)
+    : await findPreferredCourse(params.categoria);
+
+  if (!course) {
+    return { error: "Nenhum curso encontrado para criar a turma" as const };
+  }
+
+  let moduleRow: DbModuleRow | null = null;
+
+  if (params.currentModuleId) {
+    const byId = await getModuleById(params.currentModuleId);
+    if (!byId) {
+      return { error: "Módulo selecionado não existe" as const };
+    }
+    if (byId.course_id !== course.id) {
+      return { error: "O módulo informado não pertence ao curso selecionado" as const };
+    }
+    moduleRow = byId;
+  } else {
+    moduleRow = await getFirstModuleFromCourse(course.id);
+  }
+
+  if (!moduleRow) {
+    return { error: "Curso sem módulos. Crie um módulo antes de criar a turma" as const };
+  }
+
+  return { course, moduleRow };
+}
+
+function mapClassToTurma(row: DbClassRow, course: DbCourseRow | null) {
+  return {
+    id: String(row.id),
+    nome: row.name ?? `Turma ${row.id}`,
+    tipo: "turma" as const,
+    categoria: inferCategoria(course?.name ?? null),
+    professorId: null,
+    descricao: course?.description ?? null,
+    ativo: true,
+    dataInicio: row.start_date,
+    duracaoSemanas: toDurationWeeks(row.start_date, row.end_date),
+    cronogramaAtivo: false,
+    courseId: String(row.course_id),
+    currentModuleId: String(row.current_module_id),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function getTurmaByIdOrNull(id: number) {
+  const found = await pool.query<DbClassRow>(
+    `SELECT id, current_module_id, course_id, name, start_date, end_date, created_at, updated_at
+     FROM class
+     WHERE id = $1
+     LIMIT 1`,
+    [id]
+  );
+
+  if (!found.rows[0]) return null;
+
+  const row = found.rows[0];
+  const course = await getCourseById(row.course_id);
+  return { row, course };
+}
+
 export function turmasRouter(jwtSecret: string) {
   const router = Router();
 
-  // GET /turmas - Listar turmas (baseado no role do usuário)
+  const createModuleHandler = async (req: AuthRequest, res: any) => {
+    const parsed = createModuleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Dados inválidos",
+        issues: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    try {
+      const body = parsed.data;
+      const courseId = body.course_id ?? body.courseId;
+      if (!courseId) {
+        return res.status(400).json({ message: "course_id é obrigatório" });
+      }
+
+      const course = await getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Curso não encontrado" });
+      }
+
+      let indexOrder = body.index_order;
+      if (!indexOrder) {
+        const next = await pool.query<{ next: number }>(
+          `SELECT COALESCE(MAX(index_order), 0) + 1 AS next
+           FROM module
+           WHERE course_id = $1`,
+          [courseId]
+        );
+        indexOrder = Number(next.rows[0]?.next ?? 1);
+      }
+
+      const created = await pool.query<DbModuleRow>(
+        `INSERT INTO module (course_id, name, description, index_order, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NOW(), NOW())
+         RETURNING id, course_id, name, description, index_order`,
+        [courseId, body.nome.trim(), body.descricao ?? null, indexOrder]
+      );
+
+      const row = created.rows[0];
+
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "create",
+        entityType: "module",
+        entityId: String(row.id),
+        metadata: { courseId: row.course_id, indexOrder: row.index_order },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+      return res.status(201).json({
+        message: "Módulo criado com sucesso!",
+        modulo: {
+          id: String(row.id),
+          courseId: String(row.course_id),
+          nome: row.name ?? `Módulo ${row.id}`,
+          descricao: row.description,
+          indexOrder: row.index_order,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao criar módulo:", error);
+      return res.status(500).json({ message: "Erro ao criar módulo" });
+    }
+  };
+
+  const listPhasesHandler = async (req: AuthRequest, res: any) => {
+    try {
+      const moduleId = Number(req.params.moduleId);
+      if (!Number.isFinite(moduleId)) {
+        return res.status(400).json({ message: "Module ID inválido" });
+      }
+
+      const result = await pool.query<DbPhaseRow>(
+        `SELECT id, module_id, name, week_number, index_order, admin_authorize, created_at, updated_at
+         FROM phase
+         WHERE module_id = $1
+         ORDER BY index_order ASC, id ASC`,
+        [moduleId]
+      );
+
+      return res.json(
+        result.rows.map((row) => ({
+          id: String(row.id),
+          moduleId: String(row.module_id),
+          nome: row.name ?? `Fase ${row.id}`,
+          weekNumber: row.week_number,
+          indexOrder: row.index_order,
+          adminAuthorize: row.admin_authorize,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        }))
+      );
+    } catch (error) {
+      console.error("Erro ao listar fases:", error);
+      return res.status(500).json({ message: "Erro ao listar fases" });
+    }
+  };
+
+  const createPhaseHandler = async (req: AuthRequest, res: any) => {
+    const parsed = createPhaseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Dados inválidos",
+        issues: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    try {
+      const moduleId = Number(req.params.moduleId);
+      if (!Number.isFinite(moduleId)) {
+        return res.status(400).json({ message: "Module ID inválido" });
+      }
+
+      const moduleRow = await getModuleById(moduleId);
+      if (!moduleRow) {
+        return res.status(404).json({ message: "Módulo não encontrado" });
+      }
+
+      let indexOrder = parsed.data.index_order;
+      if (!indexOrder) {
+        const next = await pool.query<{ next: number }>(
+          `SELECT COALESCE(MAX(index_order), 0) + 1 AS next
+           FROM phase
+           WHERE module_id = $1`,
+          [moduleId]
+        );
+        indexOrder = Number(next.rows[0]?.next ?? 1);
+      }
+
+      const weekNumber = parsed.data.week_number ?? indexOrder;
+
+      const created = await pool.query<DbPhaseRow>(
+        `INSERT INTO phase (module_id, name, week_number, index_order, admin_authorize, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING id, module_id, name, week_number, index_order, admin_authorize, created_at, updated_at`,
+        [moduleId, parsed.data.nome.trim(), weekNumber, indexOrder, parsed.data.admin_authorize ?? true]
+      );
+
+      const row = created.rows[0];
+
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "create",
+        entityType: "phase",
+        entityId: String(row.id),
+        metadata: { moduleId: row.module_id, weekNumber: row.week_number },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+      return res.status(201).json({
+        message: "Fase criada com sucesso!",
+        fase: {
+          id: String(row.id),
+          moduleId: String(row.module_id),
+          nome: row.name ?? `Fase ${row.id}`,
+          weekNumber: row.week_number,
+          indexOrder: row.index_order,
+          adminAuthorize: row.admin_authorize,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao criar fase:", error);
+      return res.status(500).json({ message: "Erro ao criar fase" });
+    }
+  };
+
+  // GET /courses
+  router.get("/courses", authGuard(jwtSecret), async (_req: AuthRequest, res) => {
+    try {
+      const result = await pool.query<DbCourseRow>(
+        `SELECT id, name, description, is_paid
+         FROM course
+         ORDER BY id ASC`
+      );
+
+      return res.json(
+        result.rows.map((row) => ({
+          id: String(row.id),
+          nome: row.name ?? `Curso ${row.id}`,
+          descricao: row.description,
+          isPaid: row.is_paid,
+        }))
+      );
+    } catch (error) {
+      console.error("Erro ao listar cursos:", error);
+      return res.status(500).json({ message: "Erro ao listar cursos" });
+    }
+  });
+
+  // GET /courses/:courseId/modules
+  router.get("/courses/:courseId/modules", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+    try {
+      const courseId = Number(req.params.courseId);
+      if (!Number.isFinite(courseId)) {
+        return res.status(400).json({ message: "Course ID inválido" });
+      }
+
+      const result = await pool.query<DbModuleRow>(
+        `SELECT id, course_id, name, description, index_order
+         FROM module
+         WHERE course_id = $1
+         ORDER BY index_order ASC, id ASC`,
+        [courseId]
+      );
+
+      return res.json(
+        result.rows.map((row) => ({
+          id: String(row.id),
+          courseId: String(row.course_id),
+          nome: row.name ?? `Módulo ${row.id}`,
+          descricao: row.description,
+          indexOrder: row.index_order,
+        }))
+      );
+    } catch (error) {
+      console.error("Erro ao listar módulos do curso:", error);
+      return res.status(500).json({ message: "Erro ao listar módulos do curso" });
+    }
+  });
+
+  // POST /modules (criação de módulo)
+  router.post(
+    "/modules",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    createModuleHandler
+  );
+
+  // Alias PT-BR para criar módulo
+  router.post("/modulos", authGuard(jwtSecret), requireRole(["admin"]), createModuleHandler);
+
+  // GET /modules/:moduleId/phases
+  router.get("/modules/:moduleId/phases", authGuard(jwtSecret), listPhasesHandler);
+
+  // POST /modules/:moduleId/phases (criação de fase)
+  router.post(
+    "/modules/:moduleId/phases",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    createPhaseHandler
+  );
+
+  // Aliases PT-BR para fases
+  router.get("/modulos/:moduleId/fases", authGuard(jwtSecret), listPhasesHandler);
+
+  router.post(
+    "/modulos/:moduleId/fases",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    createPhaseHandler
+  );
+
+  // GET /turmas - Lista turmas (class)
   router.get("/turmas", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const userId = req.user!.sub;
+    const userId = Number(req.user!.sub);
     const userRole = req.user!.role;
 
     let query = `
-      SELECT id, nome, tipo, categoria, professor_id, descricao, ativo, data_inicio, duracao_semanas, cronograma_ativo, created_at, updated_at
-      FROM turmas
-      WHERE ativo = true
+      SELECT id, current_module_id, course_id, name, start_date, end_date, created_at, updated_at
+      FROM class
     `;
-    const params: any[] = [];
+    const params: number[] = [];
 
-    // Admin vê todas as turmas
-    if (userRole === "admin") {
-      // Sem filtros adicionais
-    }
-    // Professor vê apenas suas turmas
-    else if (userRole === "professor") {
-      query += ` AND professor_id = $1`;
-      params.push(userId);
-    }
-    // Aluno vê turmas que pertence
-    else {
+    if (userRole === "aluno") {
       query += `
-        AND id IN (
-          SELECT turma_id FROM aluno_turma WHERE aluno_id = $1
+        WHERE id IN (
+          SELECT class_id FROM enrollment WHERE user_id = $1
         )
       `;
       params.push(userId);
@@ -70,139 +502,126 @@ export function turmasRouter(jwtSecret: string) {
 
     query += " ORDER BY created_at DESC";
 
-    const r = await pool.query<DbTurmaRow>(query, params);
+    const classes = await pool.query<DbClassRow>(query, params);
 
-    return res.json(
-      r.rows.map((row) => ({
-        id: row.id,
-        nome: row.nome,
-        tipo: row.tipo,
-        categoria: row.categoria || "programacao",
-        professorId: row.professor_id,
-        descricao: row.descricao,
-        ativo: row.ativo,
-        dataInicio: row.data_inicio,
-        duracaoSemanas: row.duracao_semanas,
-        cronogramaAtivo: row.cronograma_ativo,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }))
-    );
+    const courseIds = Array.from(new Set(classes.rows.map((c) => c.course_id)));
+    const coursesMap = new Map<number, DbCourseRow>();
+
+    if (courseIds.length > 0) {
+      const r = await pool.query<DbCourseRow>(
+        `SELECT id, name, description, is_paid
+         FROM course
+         WHERE id = ANY($1::int[])`,
+        [courseIds]
+      );
+      for (const c of r.rows) coursesMap.set(c.id, c);
+    }
+
+    return res.json(classes.rows.map((row) => mapClassToTurma(row, coursesMap.get(row.course_id) ?? null)));
   });
 
-  // GET /turmas/meus-responsaveis - Retorna turmas que o usuário é responsável (professor_id)
+  // GET /turmas/meus-responsaveis/count
   router.get("/turmas/meus-responsaveis/count", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     try {
-      const userId = req.user!.sub;
-      const result = await pool.query<{ count: string }>(
-        `SELECT COUNT(*) as count FROM turmas WHERE ativo = true AND professor_id = $1`,
-        [userId]
-      );
-      const total = parseInt(result.rows[0]?.count ?? "0", 10);
-      return res.json({ total });
+      const userRole = req.user!.role;
+      const userId = Number(req.user!.sub);
+
+      if (userRole === "aluno") {
+        const mine = await pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM enrollment WHERE user_id = $1`,
+          [userId]
+        );
+        return res.json({ total: Number(mine.rows[0]?.count ?? "0") });
+      }
+
+      const all = await pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM class`);
+      return res.json({ total: Number(all.rows[0]?.count ?? "0") });
     } catch (error) {
       console.error("Erro ao contar turmas responsáveis:", error);
       return res.status(500).json({ message: "Erro ao contar turmas responsáveis" });
     }
   });
 
-  // GET /turmas/total - Retorna o total de turmas do sistema
+  // GET /turmas/total
   router.get("/turmas/total", authGuard(jwtSecret), async (_req: AuthRequest, res) => {
     try {
-      const result = await pool.query<{ count: string }>(
-        `SELECT COUNT(*) as count FROM turmas WHERE ativo = true`
-      );
-      const total = parseInt(result.rows[0]?.count ?? "0", 10);
-      return res.json({ total });
+      const result = await pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM class`);
+      return res.json({ total: Number(result.rows[0]?.count ?? "0") });
     } catch (error) {
       console.error("Erro ao contar turmas:", error);
       return res.status(500).json({ message: "Erro ao contar turmas" });
     }
   });
 
-  // GET /turmas/:id - Detalhes de uma turma com alunos e exercícios
+  // GET /turmas/:id
   router.get("/turmas/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const { id } = req.params;
-    const userId = req.user!.sub;
+    const id = Number(req.params.id);
+    const userId = Number(req.user!.sub);
     const userRole = req.user!.role;
 
-    // Verificar se existe
-    const checkTurma = await pool.query<DbTurmaRow>(
-      `SELECT * FROM turmas WHERE id = $1`,
-      [id]
-    );
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: "ID de turma inválido" });
+    }
 
-    if (checkTurma.rows.length === 0) {
+    const turmaData = await getTurmaByIdOrNull(id);
+    if (!turmaData) {
       return res.status(404).json({ message: "Turma não encontrada" });
     }
 
-    const turma = checkTurma.rows[0];
-
-    // Verificar permissão: professor só vê suas turmas, aluno vê turmas que pertence
-    if (userRole === "professor" && turma.professor_id !== userId) {
-      return res.status(403).json({ message: "Sem permissão" });
-    } else if (userRole === "aluno") {
+    if (userRole === "aluno") {
       const hasAccess = await pool.query(
-        `SELECT 1 FROM aluno_turma WHERE aluno_id = $1 AND turma_id = $2`,
+        `SELECT 1 FROM enrollment WHERE user_id = $1 AND class_id = $2 LIMIT 1`,
         [userId, id]
       );
-      if (hasAccess.rows.length === 0) {
+      if (!hasAccess.rows.length) {
         return res.status(403).json({ message: "Sem permissão" });
       }
     }
 
-    // Buscar alunos da turma
-    const alunosR = await pool.query(
-      `
-      SELECT u.id, u.usuario, u.nome, u.role
-      FROM users u
-      JOIN aluno_turma at ON u.id = at.aluno_id
-      WHERE at.turma_id = $1
-      ORDER BY u.nome
-      `,
+    const alunosR = await pool.query<{
+      id: number;
+      usuario: string | null;
+      nome: string | null;
+      role: number;
+    }>(
+      `SELECT u.id, u.email AS usuario, u.name AS nome, u.role
+       FROM "user" u
+       JOIN enrollment e ON u.id = e.user_id
+       WHERE e.class_id = $1
+       ORDER BY u.name NULLS LAST`,
       [id]
     );
 
-    // Buscar exercícios atribuídos
-    const exerciciosR = await pool.query(
-      `
-      SELECT e.id, e.titulo, e.modulo
-      FROM exercicios e
-      JOIN exercicio_turma et ON e.id = et.exercicio_id
-      WHERE et.turma_id = $1
-      ORDER BY e.created_at DESC
-      `,
-      [id]
+    const phasesR = await pool.query<{
+      id: number;
+      titulo: string | null;
+      modulo: string | null;
+    }>(
+      `SELECT p.id, p.name AS titulo, m.name AS modulo
+       FROM phase p
+       JOIN module m ON m.id = p.module_id
+       WHERE p.module_id = $1
+       ORDER BY p.index_order ASC, p.id ASC`,
+      [turmaData.row.current_module_id]
     );
 
     return res.json({
-      id: turma.id,
-      nome: turma.nome,
-      tipo: turma.tipo,
-      categoria: turma.categoria || "programacao",
-      professorId: turma.professor_id,
-      descricao: turma.descricao,
-      ativo: turma.ativo,
-      dataInicio: turma.data_inicio,
-      duracaoSemanas: turma.duracao_semanas,
-      cronogramaAtivo: turma.cronograma_ativo,
-      createdAt: turma.created_at,
-      updatedAt: turma.updated_at,
+      ...mapClassToTurma(turmaData.row, turmaData.course),
       alunos: alunosR.rows.map((row) => ({
-        id: row.id,
-        usuario: row.usuario,
-        nome: row.nome,
-        role: row.role,
+        id: String(row.id),
+        usuario: row.usuario ?? undefined,
+        nome: row.nome ?? `Usuário ${row.id}`,
+        role: row.role === 1 ? "aluno" : row.role === 2 ? "professor" : "admin",
       })),
-      exercicios: exerciciosR.rows.map((row) => ({
-        id: row.id,
-        titulo: row.titulo,
-        modulo: row.modulo,
+      exercicios: phasesR.rows.map((row) => ({
+        id: String(row.id),
+        titulo: row.titulo ?? `Fase ${row.id}`,
+        modulo: row.modulo ?? "",
       })),
     });
   });
 
-  // POST /turmas - Criar turma (apenas admin)
+  // POST /turmas
   router.post(
     "/turmas",
     authGuard(jwtSecret),
@@ -216,66 +635,61 @@ export function turmasRouter(jwtSecret: string) {
         });
       }
 
-      const { nome, tipo, categoria, professor_id, descricao, data_inicio, duracao_semanas, cronograma_ativo } = parsed.data;
-      const userId = req.user!.sub;
+      const { nome, categoria, data_inicio, duracao_semanas, course_id, current_module_id } = parsed.data;
 
-      // Admin pode se auto-atribuir ou atribuir a outro professor
-      const finalProfessorId = professor_id ?? userId;
+      const resolved = await resolveCourseAndModule({
+        courseId: course_id,
+        currentModuleId: current_module_id,
+        categoria,
+      });
 
-      const created = await pool.query<DbTurmaRow>(
-        `INSERT INTO turmas (nome, tipo, categoria, professor_id, descricao, data_inicio, duracao_semanas, cronograma_ativo)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING *`,
-        [nome, tipo, categoria ?? "programacao", finalProfessorId, descricao ?? null, data_inicio ?? null, duracao_semanas ?? 12, cronograma_ativo ?? false]
+      if ("error" in resolved) {
+        return res.status(400).json({ message: resolved.error });
+      }
+
+      const startDate = data_inicio ? new Date(data_inicio).toISOString() : new Date().toISOString();
+      const endDate = buildEndDate(startDate, duracao_semanas ?? 12);
+
+      const created = await pool.query<DbClassRow>(
+        `INSERT INTO class (current_module_id, course_id, name, start_date, end_date, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING id, current_module_id, course_id, name, start_date, end_date, created_at, updated_at`,
+        [resolved.moduleRow.id, resolved.course.id, nome.trim(), startDate, endDate]
       );
 
       const row = created.rows[0];
-      
+
       logActivity({
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
         action: "create",
-        entityType: "turma",
-        entityId: created.rows[0]?.id ?? null,
+        entityType: "class",
+        entityId: String(row.id),
         metadata: {
-          nome,
-          tipo,
-          categoria,
-          professor_id,
-          ativo: true,
+          nome: row.name,
+          courseId: row.course_id,
+          currentModuleId: row.current_module_id,
         },
         req,
       }).catch((err) => console.error("activity log error:", err));
 
       return res.status(201).json({
         message: "Turma criada com sucesso!",
-        turma: {
-          id: row.id,
-          nome: row.nome,
-          tipo: row.tipo,
-          categoria: row.categoria || "programacao",
-          professorId: row.professor_id,
-          descricao: row.descricao,
-          ativo: row.ativo,
-          dataInicio: row.data_inicio,
-          duracaoSemanas: row.duracao_semanas,
-          cronogramaAtivo: row.cronograma_ativo,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        },
+        turma: mapClassToTurma(row, resolved.course),
       });
     }
   );
 
-  // PUT /turmas/:id - Atualizar turma
+  // PUT /turmas/:id
   router.put(
     "/turmas/:id",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) {
+        return res.status(400).json({ message: "ID de turma inválido" });
+      }
 
       const parsed = updateTurmaSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -285,150 +699,95 @@ export function turmasRouter(jwtSecret: string) {
         });
       }
 
-      // Verificar se existe
-      const checkTurma = await pool.query<DbTurmaRow>(
-        `SELECT * FROM turmas WHERE id = $1`,
-        [id]
-      );
-
-      if (checkTurma.rows.length === 0) {
+      const current = await getTurmaByIdOrNull(id);
+      if (!current) {
         return res.status(404).json({ message: "Turma não encontrada" });
       }
 
-      const turma = checkTurma.rows[0];
+      const data = parsed.data;
 
-      // Professor só pode editar suas turmas
-      if (userRole === "professor" && turma.professor_id !== userId) {
-        return res.status(403).json({ message: "Sem permissão" });
+      const nextCourseId = data.course_id ?? current.row.course_id;
+      const nextModuleId = data.current_module_id ?? current.row.current_module_id;
+
+      const resolved = await resolveCourseAndModule({
+        courseId: nextCourseId,
+        currentModuleId: nextModuleId,
+        categoria: data.categoria ?? inferCategoria(current.course?.name ?? null),
+      });
+
+      if ("error" in resolved) {
+        return res.status(400).json({ message: resolved.error });
       }
 
-      const { nome, tipo, categoria, professor_id, descricao, data_inicio, duracao_semanas, cronograma_ativo } = parsed.data;
+      const nextStartDate = data.data_inicio
+        ? new Date(data.data_inicio).toISOString()
+        : current.row.start_date;
 
-      const campos: string[] = [];
-      const valores: any[] = [];
-      let idx = 1;
+      const durationWeeks = data.duracao_semanas ?? toDurationWeeks(current.row.start_date, current.row.end_date);
+      const nextEndDate = buildEndDate(nextStartDate, durationWeeks);
 
-      if (nome !== undefined) {
-        campos.push(`nome = $${idx++}`);
-        valores.push(nome);
-      }
+      const nextName = data.nome?.trim() ?? current.row.name ?? `Turma ${current.row.id}`;
 
-      if (tipo !== undefined) {
-        campos.push(`tipo = $${idx++}`);
-        valores.push(tipo);
-      }
-
-      if (categoria !== undefined) {
-        campos.push(`categoria = $${idx++}`);
-        valores.push(categoria);
-      }
-
-      if (descricao !== undefined) {
-        campos.push(`descricao = $${idx++}`);
-        valores.push(descricao);
-      }
-
-      if (data_inicio !== undefined) {
-        campos.push(`data_inicio = $${idx++}`);
-        valores.push(data_inicio ?? null);
-      }
-
-      if (duracao_semanas !== undefined) {
-        campos.push(`duracao_semanas = $${idx++}`);
-        valores.push(duracao_semanas);
-      }
-
-      if (cronograma_ativo !== undefined) {
-        campos.push(`cronograma_ativo = $${idx++}`);
-        valores.push(cronograma_ativo);
-      }
-
-      const temProfessorId = Object.prototype.hasOwnProperty.call(parsed.data, "professor_id");
-      if (userRole === "admin" && temProfessorId) {
-        campos.push(`professor_id = $${idx++}`);
-        valores.push(professor_id);
-      }
-
-      campos.push("updated_at = NOW()");
-
-      const updated = await pool.query<DbTurmaRow>(
-        `UPDATE turmas
-         SET ${campos.join(", ")}
-         WHERE id = $${idx}
-         RETURNING *`,
-        [...valores, id]
+      const updated = await pool.query<DbClassRow>(
+        `UPDATE class
+         SET name = $1,
+             course_id = $2,
+             current_module_id = $3,
+             start_date = $4,
+             end_date = $5,
+             updated_at = NOW()
+         WHERE id = $6
+         RETURNING id, current_module_id, course_id, name, start_date, end_date, created_at, updated_at`,
+        [nextName, resolved.course.id, resolved.moduleRow.id, nextStartDate, nextEndDate, id]
       );
+
       const row = updated.rows[0];
-      
+
       logActivity({
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
         action: "update",
-        entityType: "turma",
-        entityId: id,
+        entityType: "class",
+        entityId: String(id),
         metadata: {
-          updatedFields: Object.keys(parsed.data),
+          updatedFields: Object.keys(data),
+          courseId: row.course_id,
+          currentModuleId: row.current_module_id,
         },
         req,
       }).catch((err) => console.error("activity log error:", err));
 
       return res.json({
         message: "Turma atualizada!",
-        turma: {
-          id: row.id,
-          nome: row.nome,
-          tipo: row.tipo,
-          categoria: row.categoria || "programacao",
-          professorId: row.professor_id,
-          descricao: row.descricao,
-          ativo: row.ativo,
-          dataInicio: row.data_inicio,
-          duracaoSemanas: row.duracao_semanas,
-          cronogramaAtivo: row.cronograma_ativo,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        },
+        turma: mapClassToTurma(row, resolved.course),
       });
     }
   );
 
-  // DELETE /turmas/:id - Deletar turma
+  // DELETE /turmas/:id
   router.delete(
     "/turmas/:id",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) {
+        return res.status(400).json({ message: "ID de turma inválido" });
+      }
 
-      // Verificar se existe
-      const checkTurma = await pool.query<DbTurmaRow>(
-        `SELECT * FROM turmas WHERE id = $1`,
-        [id]
-      );
-
-      if (checkTurma.rows.length === 0) {
+      const check = await getTurmaByIdOrNull(id);
+      if (!check) {
         return res.status(404).json({ message: "Turma não encontrada" });
       }
 
-      const turma = checkTurma.rows[0];
+      await pool.query(`DELETE FROM class WHERE id = $1`, [id]);
 
-      // Professor só pode deletar suas turmas
-      if (userRole === "professor" && turma.professor_id !== userId) {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
-
-      // Deletar relações (cascata automática no banco)
-      await pool.query(`DELETE FROM turmas WHERE id = $1`, [id]);
-
-      
       logActivity({
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
         action: "delete",
-        entityType: "turma",
-        entityId: id,
+        entityType: "class",
+        entityId: String(id),
         metadata: { id },
         req,
       }).catch((err) => console.error("activity log error:", err));
@@ -437,365 +796,163 @@ export function turmasRouter(jwtSecret: string) {
     }
   );
 
-  // POST /turmas/:id/alunos - Adicionar alunos à turma
+  // POST /turmas/:id/alunos
   router.post(
     "/turmas/:id/alunos",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const { aluno_ids } = req.body;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
+      const classId = Number(req.params.id);
+      const { aluno_ids } = req.body as { aluno_ids?: Array<string | number> };
+
+      if (!Number.isFinite(classId)) {
+        return res.status(400).json({ message: "ID de turma inválido" });
+      }
 
       if (!Array.isArray(aluno_ids) || aluno_ids.length === 0) {
         return res.status(400).json({ message: "aluno_ids deve ser um array não vazio" });
       }
 
-      // Verificar se turma existe
-      const checkTurma = await pool.query<DbTurmaRow>(
-        `SELECT * FROM turmas WHERE id = $1`,
-        [id]
-      );
-
-      if (checkTurma.rows.length === 0) {
+      const turma = await getTurmaByIdOrNull(classId);
+      if (!turma) {
         return res.status(404).json({ message: "Turma não encontrada" });
       }
 
-      const turma = checkTurma.rows[0];
+      for (const rawAlunoId of aluno_ids) {
+        const alunoId = Number(rawAlunoId);
+        if (!Number.isFinite(alunoId)) continue;
 
-      // Professor só pode adicionar alunos em suas turmas
-      if (userRole === "professor" && turma.professor_id !== userId) {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
-
-      // Adicionar alunos
-      for (const alunoId of aluno_ids) {
-        try {
-          await pool.query(
-            `INSERT INTO aluno_turma (aluno_id, turma_id)
-             VALUES ($1, $2)
-             ON CONFLICT (aluno_id, turma_id) DO NOTHING`,
-            [alunoId, id]
-          );
-        } catch (e) {
-          // Ignorar erros de constraint (aluno já está na turma)
-        }
+        await pool.query(
+          `INSERT INTO enrollment (user_id, class_id, created_at)
+           SELECT $1, $2, NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM enrollment WHERE user_id = $1 AND class_id = $2
+           )`,
+          [alunoId, classId]
+        );
       }
 
       return res.json({ message: "Alunos adicionados com sucesso" });
     }
   );
 
-  // DELETE /turmas/:id/alunos/:alunoId - Remover aluno da turma
+  // DELETE /turmas/:id/alunos/:alunoId
   router.delete(
     "/turmas/:id/alunos/:alunoId",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
-      const { id, alunoId } = req.params;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
+      const classId = Number(req.params.id);
+      const alunoId = Number(req.params.alunoId);
 
-      // Verificar se turma existe
-      const checkTurma = await pool.query<DbTurmaRow>(
-        `SELECT * FROM turmas WHERE id = $1`,
-        [id]
-      );
+      if (!Number.isFinite(classId) || !Number.isFinite(alunoId)) {
+        return res.status(400).json({ message: "Parâmetros inválidos" });
+      }
 
-      if (checkTurma.rows.length === 0) {
+      const turma = await getTurmaByIdOrNull(classId);
+      if (!turma) {
         return res.status(404).json({ message: "Turma não encontrada" });
       }
 
-      const turma = checkTurma.rows[0];
-
-      // Professor só pode remover alunos de suas turmas
-      if (userRole === "professor" && turma.professor_id !== userId) {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
-
-      // Remover aluno
-      await pool.query(
-        `DELETE FROM aluno_turma WHERE aluno_id = $1 AND turma_id = $2`,
-        [alunoId, id]
-      );
+      await pool.query(`DELETE FROM enrollment WHERE user_id = $1 AND class_id = $2`, [alunoId, classId]);
 
       return res.json({ message: "Aluno removido da turma" });
     }
   );
 
-  // POST /turmas/:id/exercicios - Atribuir exercícios à turma
+  // Endpoints legados sem suporte no novo schema
   router.post(
     "/turmas/:id/exercicios",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
-    async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const { exercicio_ids } = req.body;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
-
-      if (!Array.isArray(exercicio_ids) || exercicio_ids.length === 0) {
-        return res.status(400).json({ message: "exercicio_ids deve ser um array não vazio" });
-      }
-
-      // Verificar se turma existe
-      const checkTurma = await pool.query<DbTurmaRow>(
-        `SELECT * FROM turmas WHERE id = $1`,
-        [id]
-      );
-
-      if (checkTurma.rows.length === 0) {
-        return res.status(404).json({ message: "Turma não encontrada" });
-      }
-
-      const turma = checkTurma.rows[0];
-
-      // Professor só pode atribuir exercícios em suas turmas
-      if (userRole === "professor" && turma.professor_id !== userId) {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
-
-      // Atribuir exercícios
-      for (const exercicioId of exercicio_ids) {
-        try {
-          await pool.query(
-            `INSERT INTO exercicio_turma (exercicio_id, turma_id)
-             VALUES ($1, $2)
-             ON CONFLICT (exercicio_id, turma_id) DO NOTHING`,
-            [exercicioId, id]
-          );
-        } catch (e) {
-          // Ignorar erros de constraint
-        }
-      }
-
-      return res.json({ message: "Exercícios atribuídos com sucesso" });
+    async (_req: AuthRequest, res) => {
+      return res.status(501).json({ message: "Atribuição de exercícios por turma indisponível no schema atual" });
     }
   );
 
-  // DELETE /turmas/:id/exercicios/:exercicioId - Remover exercício da turma
   router.delete(
     "/turmas/:id/exercicios/:exercicioId",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
-    async (req: AuthRequest, res) => {
-      const { id, exercicioId } = req.params;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
-
-      // Verificar se turma existe
-      const checkTurma = await pool.query<DbTurmaRow>(
-        `SELECT * FROM turmas WHERE id = $1`,
-        [id]
-      );
-
-      if (checkTurma.rows.length === 0) {
-        return res.status(404).json({ message: "Turma não encontrada" });
-      }
-
-      const turma = checkTurma.rows[0];
-
-      // Professor só pode remover exercícios de suas turmas
-      if (userRole === "professor" && turma.professor_id !== userId) {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
-
-      // Remover exercício
-      await pool.query(
-        `DELETE FROM exercicio_turma WHERE exercicio_id = $1 AND turma_id = $2`,
-        [exercicioId, id]
-      );
-
-      return res.json({ message: "Exercício removido da turma" });
+    async (_req: AuthRequest, res) => {
+      return res.status(501).json({ message: "Remoção de exercícios por turma indisponível no schema atual" });
     }
   );
 
-  // POST /turmas/:id/cronograma - Criar/atualizar cronograma completo
   router.post(
     "/turmas/:id/cronograma",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
-    async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const { semanas } = req.body;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
-
-      try {
-        // Verificar se turma existe
-        const turmaCheck = await pool.query<DbTurmaRow>(
-          `SELECT * FROM turmas WHERE id = $1`,
-          [id]
-        );
-
-        if (turmaCheck.rows.length === 0) {
-          return res.status(404).json({ message: "Turma não encontrada" });
-        }
-
-        const turma = turmaCheck.rows[0];
-
-        // Verificar permissão
-        if (userRole === "professor" && turma.professor_id !== userId) {
-          return res.status(403).json({ message: "Sem permissão" });
-        }
-
-        // Limpar cronograma existente
-        await pool.query(`DELETE FROM cronograma_turma WHERE turma_id = $1`, [id]);
-
-        // Inserir novo cronograma
-        if (semanas && Array.isArray(semanas)) {
-          for (const s of semanas) {
-            if (!s.exercicios || !Array.isArray(s.exercicios)) continue;
-
-            for (let i = 0; i < s.exercicios.length; i++) {
-              const exercicioId = s.exercicios[i];
-
-              // Verificar se é um template
-              const checkTemplate = await pool.query<{
-                is_template: boolean;
-                titulo: string;
-                descricao: string;
-                modulo: string;
-                tema: string | null;
-                prazo: string | null;
-                gabarito: string | null;
-                linguagem_esperada: string | null;
-                mouse_regras: string | null;
-                multipla_regras: string | null;
-                tipo_exercicio: string | null;
-                categoria: string;
-              }>(
-                `SELECT is_template, titulo, descricao, modulo, tema, prazo, gabarito, linguagem_esperada, mouse_regras, multipla_regras, tipo_exercicio, categoria FROM exercicios WHERE id = $1`,
-                [exercicioId]
-              );
-
-              let finalExercicioId = exercicioId;
-
-              // Se for um template, duplicar em um novo exercício
-              if (checkTemplate.rows.length > 0 && checkTemplate.rows[0].is_template) {
-                const template = checkTemplate.rows[0];
-
-                // Duplicar o template com um novo ID
-                const duplicateResult = await pool.query<{ id: string }>(
-                  `INSERT INTO exercicios (
-                    id, titulo, descricao, modulo, tema, prazo, publicado, published_at,
-                    created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template,
-                    mouse_regras, multipla_regras, categoria, created_at, updated_at
-                  )
-                  VALUES (
-                    gen_random_uuid(), $1, $2, $3, $4, $5, true, null,
-                    $6, $7, $8, $9, false,
-                    $10, $11, $12, NOW(), NOW()
-                  )
-                  RETURNING id`,
-                  [
-                    template.titulo,
-                    template.descricao,
-                    template.modulo,
-                    template.tema,
-                    template.prazo,
-                    userId,
-                    template.tipo_exercicio,
-                    template.gabarito,
-                    template.linguagem_esperada,
-                    template.mouse_regras,
-                    template.multipla_regras,
-                    template.categoria ?? 'programacao',
-                  ]
-                );
-
-                if (duplicateResult.rows.length > 0) {
-                  finalExercicioId = duplicateResult.rows[0].id;
-                  console.log(` Template "${template.titulo}" duplicado em novo exercício: ${finalExercicioId}`);
-                }
-              }
-
-              // Adicionar ao cronograma com o exercício final (seja original ou duplicado)
-              await pool.query(
-                `INSERT INTO cronograma_turma (turma_id, exercicio_id, semana, ordem)
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (turma_id, exercicio_id, semana) DO NOTHING`,
-                [id, finalExercicioId, s.semana, i]
-              );
-            }
-          }
-        }
-
-        return res.json({ message: "Cronograma configurado com sucesso!" });
-      } catch (error) {
-        console.error("Erro ao configurar cronograma:", error);
-        return res.status(500).json({ message: "Erro ao configurar cronograma" });
-      }
+    async (_req: AuthRequest, res) => {
+      return res.status(501).json({ message: "Cronograma legado indisponível no schema atual" });
     }
   );
 
-  // GET /turmas/:id/cronograma - Buscar cronograma
-  router.get(
-    "/turmas/:id/cronograma",
-    authGuard(jwtSecret),
-    async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const userId = req.user!.sub;
-      const userRole = req.user!.role;
+  // GET /turmas/:id/cronograma - fallback com fases do módulo atual
+  router.get("/turmas/:id/cronograma", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+    const classId = Number(req.params.id);
+    const userId = Number(req.user!.sub);
+    const userRole = req.user!.role;
 
-      try {
-        // Verificar se turma existe e se usuário tem acesso
-        const turmaCheck = await pool.query<DbTurmaRow>(
-          `SELECT * FROM turmas WHERE id = $1`,
-          [id]
+    if (!Number.isFinite(classId)) {
+      return res.status(400).json({ message: "ID de turma inválido" });
+    }
+
+    try {
+      const turma = await getTurmaByIdOrNull(classId);
+      if (!turma) {
+        return res.status(404).json({ message: "Turma não encontrada" });
+      }
+
+      if (userRole === "aluno") {
+        const hasAccess = await pool.query(
+          `SELECT 1 FROM enrollment WHERE user_id = $1 AND class_id = $2 LIMIT 1`,
+          [userId, classId]
         );
-
-        if (turmaCheck.rows.length === 0) {
-          return res.status(404).json({ message: "Turma não encontrada" });
-        }
-
-        const turma = turmaCheck.rows[0];
-
-        // Verificar permissão
-        if (userRole === "professor" && turma.professor_id !== userId) {
+        if (!hasAccess.rows.length) {
           return res.status(403).json({ message: "Sem permissão" });
-        } else if (userRole === "aluno") {
-          const hasAccess = await pool.query(
-            `SELECT 1 FROM aluno_turma WHERE aluno_id = $1 AND turma_id = $2`,
-            [userId, id]
-          );
-          if (hasAccess.rows.length === 0) {
-            return res.status(403).json({ message: "Sem permissão" });
-          }
         }
+      }
 
-        const result = await pool.query(`
-          SELECT c.semana, c.ordem, e.id, e.titulo, e.modulo
-          FROM cronograma_turma c
-          JOIN exercicios e ON c.exercicio_id = e.id
-          WHERE c.turma_id = $1
-          ORDER BY c.semana, c.ordem
-        `, [id]);
+      const phases = await pool.query<{
+        id: number;
+        titulo: string | null;
+        modulo: string | null;
+        semana: number;
+      }>(
+        `SELECT p.id, p.name AS titulo, m.name AS modulo, p.week_number AS semana
+         FROM phase p
+         JOIN module m ON m.id = p.module_id
+         WHERE p.module_id = $1
+         ORDER BY p.week_number ASC, p.index_order ASC, p.id ASC`,
+        [turma.row.current_module_id]
+      );
 
-        // Agrupar por semana
-        const cronograma = result.rows.reduce((acc: any, row: any) => {
-          if (!acc[row.semana]) acc[row.semana] = [];
-          acc[row.semana].push({ id: row.id, titulo: row.titulo, modulo: row.modulo });
-          return acc;
-        }, {});
-
-        return res.json({
-          cronograma,
-          turma: {
-            id: turma.id,
-            nome: turma.nome,
-            dataInicio: turma.data_inicio,
-            duracaoSemanas: turma.duracao_semanas,
-            cronogramaAtivo: turma.cronograma_ativo,
-          }
+      const cronograma = phases.rows.reduce((acc: Record<number, Array<{ id: string; titulo: string; modulo: string }>>, row) => {
+        if (!acc[row.semana]) acc[row.semana] = [];
+        acc[row.semana].push({
+          id: String(row.id),
+          titulo: row.titulo ?? `Fase ${row.id}`,
+          modulo: row.modulo ?? "",
         });
-      } catch (error) {
-        console.error("Erro ao buscar cronograma:", error);
-        return res.status(500).json({ message: "Erro ao buscar cronograma" });
-      }
+        return acc;
+      }, {});
+
+      return res.json({
+        cronograma,
+        turma: {
+          id: String(turma.row.id),
+          nome: turma.row.name ?? `Turma ${turma.row.id}`,
+          dataInicio: turma.row.start_date,
+          duracaoSemanas: toDurationWeeks(turma.row.start_date, turma.row.end_date),
+          cronogramaAtivo: false,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao buscar cronograma:", error);
+      return res.status(500).json({ message: "Erro ao buscar cronograma" });
     }
-  );
+  });
 
   return router;
 }

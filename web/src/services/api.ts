@@ -388,6 +388,8 @@ export type Turma = {
   dataInicio?: string | null;
   duracaoSemanas?: number;
   cronogramaAtivo?: boolean;
+  courseId?: string;
+  currentModuleId?: string;
   createdAt: string;
   updatedAt?: string;
 };
@@ -430,6 +432,8 @@ export async function criarTurma(dados: {
   data_inicio?: string | null;
   duracao_semanas?: number;
   cronograma_ativo?: boolean;
+  course_id?: number;
+  current_module_id?: number;
 }) {
   return apiFetch<{ message: string; turma: Turma }>("/turmas", {
     method: "POST",
@@ -446,6 +450,8 @@ export async function atualizarTurma(id: string, dados: {
   data_inicio?: string | null;
   duracao_semanas?: number;
   cronograma_ativo?: boolean;
+  course_id?: number;
+  current_module_id?: number;
 }) {
   return apiFetch<{ message: string; turma: Turma }>(`/turmas/${id}`, {
     method: "PUT",
@@ -649,6 +655,25 @@ export type Modulo = {
   nome: string;
   courseId: string;
   indexOrder: number;
+  descricao?: string | null;
+};
+
+export type Curso = {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  isPaid?: boolean;
+};
+
+export type Fase = {
+  id: string;
+  moduleId: string;
+  nome: string;
+  weekNumber: number;
+  indexOrder: number;
+  adminAuthorize: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Badge = {
@@ -742,6 +767,42 @@ export async function listarVideoaulas(modulo?: string) {
 
 export async function listarModulos() {
   return apiFetch<Modulo[]>("/modules");
+}
+
+export async function listarCursos() {
+  return apiFetch<Curso[]>("/courses");
+}
+
+export async function listarModulosPorCurso(courseId: string) {
+  return apiFetch<Modulo[]>(`/courses/${courseId}/modules`);
+}
+
+export async function criarModulo(dados: {
+  nome: string;
+  descricao?: string | null;
+  course_id: number;
+  index_order?: number;
+}) {
+  return apiFetch<{ message: string; modulo: Modulo }>("/modules", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function listarFasesDoModulo(moduleId: string) {
+  return apiFetch<Fase[]>(`/modules/${moduleId}/phases`);
+}
+
+export async function criarFase(moduleId: string, dados: {
+  nome: string;
+  week_number?: number;
+  index_order?: number;
+  admin_authorize?: boolean;
+}) {
+  return apiFetch<{ message: string; fase: Fase }>(`/modules/${moduleId}/phases`, {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
 }
 
 export async function obterVideoaula(id: string) {
