@@ -8,10 +8,12 @@ import {
   setRefreshToken,
 } from "../auth/auth";
 type Role = "admin" | "professor" | "aluno";
+type ApiRole = Role | 1 | 2 | 3;
 
 export type UserRef = {
   id: string;
   usuario?: string;
+  email?: string;
   nome?: string;
 };
 
@@ -101,7 +103,7 @@ export async function login(dados: { usuario: string; senha: string }) {
     message: string;
     token: string;
     refreshToken: string;
-    user: { id: string; usuario: string; nome: string; role: Role };
+    user: { id: string; usuario?: string; email?: string; nome: string; role: ApiRole };
   }>;
 }
 
@@ -414,7 +416,7 @@ export async function obterTotalTurmas() {
 
 export async function obterTurma(id: string) {
   return apiFetch<Turma & {
-    alunos: Array<{ id: string; usuario: string; nome: string; role: Role }>;
+    alunos: Array<{ id: string; usuario?: string; email?: string; nome: string; role: Role }>;
     exercicios: Array<{ id: string; titulo: string; modulo: string }>;
   }>(`/turmas/${id}`);
 }
@@ -508,8 +510,11 @@ export async function obterCronograma(turmaId: string) {
 
 export type User = {
   id: string;
-  usuario: string;
+  email?: string;
+  usuario?: string;
   nome: string;
+  bio?: string | null;
+  profilePictureUrl?: string | null;
   role: Role;
 };
 
@@ -522,11 +527,40 @@ export async function obterUsuarioAtual() {
   return apiFetch<UserMe>("/users/me");
 }
 
-export async function atualizarMeuPerfil(dados: { nome: string }) {
+export async function atualizarMeuPerfil(dados: {
+  nome?: string;
+  bio?: string;
+  profilePictureUrl?: string;
+}) {
   return apiFetch<{ message: string; user: UserMe }>("/users/me", {
     method: "PUT",
     body: JSON.stringify(dados),
   });
+}
+
+export async function uploadMinhaFotoPerfil(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/users/me/profile-picture`, {
+    method: "POST",
+    headers: await buildAuthHeaders(),
+    body: form,
+  });
+
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{
+    message: string;
+    profilePictureUrl: string;
+    user: UserMe;
+  }>;
 }
 
 export async function alterarMinhaSenha(dados: { senhaAtual: string; novaSenha: string }) {
@@ -550,11 +584,15 @@ export async function listarAdmins() {
 
 export async function atualizarUsuario(
   id: string,
-  dados: { nome?: string; usuario?: string; role?: Role; ativo?: boolean }
+  dados: { nome?: string; email?: string; usuario?: string; role?: Role; ativo?: boolean }
 ) {
+  const payload = {
+    ...dados,
+    usuario: dados.email ?? dados.usuario,
+  };
   return apiFetch<{ message: string; user: UserMe }>(`/users/${id}`, {
     method: "PUT",
-    body: JSON.stringify(dados),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -566,6 +604,9 @@ export async function deletarUsuario(id: string) {
 
 export function getRole(): Role | null {
   const r = localStorage.getItem("role");
+  if (r === "3") return "admin";
+  if (r === "2") return "professor";
+  if (r === "1") return "aluno";
   return r === "admin" || r === "professor" || r === "aluno" ? r : null;
 }
 
@@ -589,6 +630,7 @@ export type Videoaula = {
   titulo: string;
   descricao: string | null;
   modulo: string;
+  moduloId?: string;
   duracao: string | null;
   tipo: "youtube" | "vimeo" | "arquivo";
   url: string;
@@ -600,6 +642,34 @@ export type Videoaula = {
   turmas?: Turma[];
   alunos?: UserRef[];
   aluno_ids?: string[];
+};
+
+export type Modulo = {
+  id: string;
+  nome: string;
+  courseId: string;
+  indexOrder: number;
+};
+
+export type Badge = {
+  id: string;
+  name: string;
+  description: string;
+  iconUrl: string;
+  createdAt: string;
+  holdersCount?: number;
+};
+
+export type BadgeHolder = {
+  holderId: string;
+  badgeId: string;
+  badgeName: string;
+  user: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+  awardedAt: string;
 };
 
 export async function listarMateriais(modulo?: string) {
@@ -670,6 +740,10 @@ export async function listarVideoaulas(modulo?: string) {
   return apiFetch<Videoaula[]>(`/videoaulas${query}`);
 }
 
+export async function listarModulos() {
+  return apiFetch<Modulo[]>("/modules");
+}
+
 export async function obterVideoaula(id: string) {
   return apiFetch<Videoaula>(`/videoaulas/${id}`);
 }
@@ -723,6 +797,85 @@ export async function atribuirVideoaulaTurmas(videoaulaId: string, turmaIds: str
 
 export async function removerVideoaulaDaTurma(videoaulaId: string, turmaId: string) {
   return apiFetch<{ message: string }>(`/videoaulas/${videoaulaId}/turmas/${turmaId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function listarBadges(params?: {
+  q?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.q) search.set("q", params.q);
+  if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+  if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+  const query = search.toString();
+  return apiFetch<{ items: Badge[]; total: number }>(`/badges${query ? `?${query}` : ""}`);
+}
+
+export async function criarBadge(dados: {
+  name: string;
+  description: string;
+  iconUrl: string;
+}) {
+  return apiFetch<{ message: string; badge: Badge }>("/badges", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function atualizarBadge(
+  id: string,
+  dados: {
+    name?: string;
+    description?: string;
+    iconUrl?: string;
+  }
+) {
+  return apiFetch<{ message: string; badge: Badge }>(`/badges/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function deletarBadge(id: string) {
+  return apiFetch<{ message: string }>(`/badges/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function listarBadgeHolders(params?: {
+  badgeId?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.badgeId) search.set("badgeId", params.badgeId);
+  if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+  if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+  const query = search.toString();
+  return apiFetch<{ items: BadgeHolder[]; total: number }>(
+    `/badges/holders${query ? `?${query}` : ""}`
+  );
+}
+
+export async function atualizarBadgeDoUsuario(holderId: string, badgeId: string) {
+  return apiFetch<{ message: string; holder: BadgeHolder }>(`/badges/holders/${holderId}`, {
+    method: "PUT",
+    body: JSON.stringify({ badgeId }),
+  });
+}
+
+export async function atribuirBadgeAoUsuario(userId: string, badgeId: string) {
+  return apiFetch<{ message: string; holder: BadgeHolder }>("/badges/holders", {
+    method: "POST",
+    body: JSON.stringify({ userId, badgeId }),
+  });
+}
+
+export async function removerBadgeDoUsuario(holderId: string) {
+  return apiFetch<{ message: string }>(`/badges/holders/${holderId}`, {
     method: "DELETE",
   });
 }

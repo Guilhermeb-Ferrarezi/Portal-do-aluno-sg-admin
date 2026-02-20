@@ -3,7 +3,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, getUserId, hasRole } from "../../auth/auth";
-import { listarTurmas, logoutWithServer, type Turma } from "../../services/api";
+import { listarTurmas, logoutWithServer, obterUsuarioAtual, type Turma } from "../../services/api";
 import ProfilePopup from "../ProfilePopup";
 import SettingsOverlay from "../SettingsOverlay";
 import {
@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
+  Medal,
   } from "lucide-react";
 import "./Dashboard.css";
 
@@ -61,6 +62,8 @@ export default function DashboardLayout({
   const [modalSelecionarTurmaAberto, setModalSelecionarTurmaAberto] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -70,13 +73,19 @@ export default function DashboardLayout({
       .catch((e) => console.error("Erro ao carregar turmas:", e));
   }, []);
 
+  React.useEffect(() => {
+    obterUsuarioAtual()
+      .then((user) => setProfilePictureUrl(user.profilePictureUrl ?? ""))
+      .catch((e) => console.error("Erro ao carregar perfil atual:", e));
+  }, [settingsOpen]);
+
   const isDashboard = location.pathname === "/dashboard";
   const isExercicios = location.pathname === "/dashboard/exercicios";
   const isTemplates = location.pathname === "/dashboard/templates";
   const isTrilha = location.pathname === "/dashboard/trilha";
   const isMateriais = location.pathname === "/dashboard/materiais";
   const isVideoaulas = location.pathname === "/dashboard/videoaulas";
-  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const isMedalhas = location.pathname === "/dashboard/medalhas";
   const isCreateUser = location.pathname === "/dashboard/criar-usuario";
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
   const isActivityLogs = location.pathname === "/dashboard/logs";
@@ -162,6 +171,12 @@ export default function DashboardLayout({
               <Play size={18} />
             </span>
             Videoaulas Bônus
+          </Link>
+          <Link className={`sbItem ${isMedalhas ? "active" : ""}`} to="/dashboard/medalhas">
+            <span className="sbIcon" aria-hidden="true">
+              <Medal size={18} />
+            </span>
+            Medalhas
           </Link>
           {/* Turmas e Minhas Turmas */}
           {(role === "admin" || role === "professor" || turmas.length > 0) ? (
@@ -271,7 +286,13 @@ export default function DashboardLayout({
               onClick={() => setProfilePopupOpen((v) => !v)}
               aria-label="Ver perfil"
             >
-              <div className="sbAvatar">{name.slice(0, 1).toUpperCase()}</div>
+              <div className="sbAvatar">
+                {profilePictureUrl ? (
+                  <img src={profilePictureUrl} alt={name} className="sbAvatarImg" />
+                ) : (
+                  name.slice(0, 1).toUpperCase()
+                )}
+              </div>
               <div className="sbUserText">
                 <div className="sbUserName">{name}</div>
                 <div className="sbUserSub">{roleLabel(role)}</div>
@@ -294,6 +315,7 @@ export default function DashboardLayout({
             <ProfilePopup
               name={name}
               role={role}
+              profilePictureUrl={profilePictureUrl}
               anchorRef={sbBottomRef}
               onClose={() => setProfilePopupOpen(false)}
               onOpenSettings={() => {

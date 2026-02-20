@@ -1,9 +1,10 @@
 export type Role = "admin" | "professor" | "aluno";
+type NumericRole = 1 | 2 | 3;
 
 type TokenPayload = {
   sub?: string;
   usuario?: string;
-  role?: Role;
+  role?: Role | NumericRole | string | number;
   iat?: number;
   exp?: number;
 };
@@ -40,6 +41,13 @@ function parseTokenPayload(token: string): TokenPayload | null {
   } catch {
     return null;
   }
+}
+
+export function normalizeRole(input: unknown): Role | null {
+  if (input === "admin" || input === 3 || input === "3") return "admin";
+  if (input === "professor" || input === 2 || input === "2") return "professor";
+  if (input === "aluno" || input === 1 || input === "1") return "aluno";
+  return null;
 }
 
 export function getTokenExpiryMs(token: string | null = getToken()): number | null {
@@ -82,9 +90,14 @@ export function getUserId(): string | null {
 }
 
 export function getRole(): Role | null {
-  const r = localStorage.getItem("role");
-  if (r === "admin" || r === "professor" || r === "aluno") return r;
-  return null;
+  const stored = normalizeRole(localStorage.getItem("role"));
+  if (stored) return stored;
+
+  const token = getToken();
+  if (!token) return null;
+
+  const decoded = parseTokenPayload(token);
+  return normalizeRole(decoded?.role);
 }
 
 export function getName(): string | null {

@@ -34,7 +34,7 @@ export default function AdminUsersPage() {
   // Estados do modal de edição
   const [editandoUsuario, setEditandoUsuario] = React.useState<User | null>(null);
   const [editNome, setEditNome] = React.useState("");
-  const [editUsuario, setEditUsuario] = React.useState("");
+  const [editEmail, setEditEmail] = React.useState("");
   const [editarAberto, setEditarAberto] = React.useState(false);
 
   // Estados para deletar
@@ -100,9 +100,9 @@ export default function AdminUsersPage() {
       ]);
 
       // Adicionar role aos usuarios
-      const alunosComRole: User[] = alunos.map(a => ({ ...a, role: "aluno" }));
-      const professoresComRole: User[] = professores.map(p => ({ ...p, role: "professor" }));
-      const adminsComRole: User[] = admins.map(ad => ({ ...ad, role: "admin" }));
+      const alunosComRole: User[] = alunos.map(a => ({ ...a, email: a.email ?? a.usuario ?? "", role: "aluno" }));
+      const professoresComRole: User[] = professores.map(p => ({ ...p, email: p.email ?? p.usuario ?? "", role: "professor" }));
+      const adminsComRole: User[] = admins.map(ad => ({ ...ad, email: ad.email ?? ad.usuario ?? "", role: "admin" }));
 
       setUsuarios([...adminsComRole, ...professoresComRole, ...alunosComRole]);
     } catch (err) {
@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
     const matchBusca =
       busca === "" ||
       u.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      u.usuario.toLowerCase().includes(busca.toLowerCase());
+      (u.email ?? u.usuario ?? "").toLowerCase().includes(busca.toLowerCase());
 
     return matchTipo && matchBusca;
   });
@@ -135,7 +135,7 @@ export default function AdminUsersPage() {
   const abrirEditar = (usuario: User) => {
     setEditandoUsuario(usuario);
     setEditNome(usuario.nome);
-    setEditUsuario(usuario.usuario);
+    setEditEmail(usuario.email ?? usuario.usuario ?? "");
     setEditarAberto(true);
   };
 
@@ -143,13 +143,13 @@ export default function AdminUsersPage() {
     setEditarAberto(false);
     setEditandoUsuario(null);
     setEditNome("");
-    setEditUsuario("");
+    setEditEmail("");
   };
 
   const salvarEdicao = async () => {
     if (!editandoUsuario) return;
 
-    if (!editNome.trim() || !editUsuario.trim()) {
+    if (!editNome.trim() || !editEmail.trim()) {
       setFeedback({
         tipo: "erro",
         mensagem: "Nome e usuário são obrigatórios",
@@ -161,14 +161,14 @@ export default function AdminUsersPage() {
       // Chamar API para atualizar usuário
       await atualizarUsuario(editandoUsuario.id, {
         nome: editNome.trim(),
-        usuario: editUsuario.trim(),
+        email: editEmail.trim(),
       });
 
       // Atualizar na lista local
       setUsuarios(
         usuarios.map((u) =>
           u.id === editandoUsuario.id
-            ? { ...u, nome: editNome, usuario: editUsuario }
+            ? { ...u, nome: editNome, email: editEmail }
             : u
         )
       );
@@ -263,7 +263,7 @@ export default function AdminUsersPage() {
                 <div className="searchBox">
                   <input
                     type="text"
-                    placeholder="Buscar por nome ou usuário..."
+                    placeholder="Buscar por nome ou e-mail..."
                     value={busca}
                     onChange={(e) => {
                       setBusca(e.target.value);
@@ -316,7 +316,7 @@ export default function AdminUsersPage() {
                         <FadeInUp key={usuario.id} duration={0.28} delay={0.16 + idx * 0.04}>
                           <tr>
                             <td>{usuario.nome}</td>
-                            <td className="usuarioCell">{usuario.usuario}</td>
+                            <td className="usuarioCell">{usuario.email ?? usuario.usuario}</td>
                             <td>
                               <span className={`roleTag role-${usuario.role}`}>
                                 {roleLabel(usuario.role)}
@@ -387,13 +387,13 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="formGroup">
-              <label className="formLabel">Usuário</label>
+              <label className="formLabel">E-mail</label>
               <input
-                type="text"
+                type="email"
                 className="formInput"
-                value={editUsuario}
-                onChange={(e) => setEditUsuario(e.target.value)}
-                placeholder="Digite o usuário"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="Digite o e-mail"
               />
             </div>
 

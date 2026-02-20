@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getRole } from "../auth/auth";
 import {
   alterarMinhaSenha,
+  atualizarMeuPerfil,
   obterUsuarioAtual,
   listarTurmas,
   todasMinhasSubmissoes,
+  uploadMinhaFotoPerfil,
   type Submissao,
   type UserMe,
   type Turma,
@@ -37,6 +39,10 @@ import {
   ChevronRight,
   Search,
   LogOut,
+  Eye,
+  Camera,
+  FolderOpen,
+  Trash2,
   X,
 } from "lucide-react";
 import "../pages/Perfil.css";
@@ -56,6 +62,7 @@ type ProfileSettings = {
   perfilPublico: boolean;
   modoCompacto: boolean;
   temaPreferido: "sistema" | "claro" | "escuro";
+  corPreferida: string;
 };
 
 const SETTINGS_KEY = "perfil_settings";
@@ -73,14 +80,25 @@ const defaultSettings: ProfileSettings = {
   perfilPublico: false,
   modoCompacto: false,
   temaPreferido: "sistema",
+  corPreferida: "#e11d2e",
 };
+
+function normalizeHexColor(value: string | null | undefined): string {
+  const raw = (value ?? "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toLowerCase();
+  return "#e11d2e";
+}
 
 function loadSettings(): ProfileSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaultSettings;
     const parsed = JSON.parse(raw) as Partial<ProfileSettings>;
-    return { ...defaultSettings, ...parsed };
+    return {
+      ...defaultSettings,
+      ...parsed,
+      corPreferida: normalizeHexColor(parsed.corPreferida),
+    };
   } catch {
     return defaultSettings;
   }
@@ -164,7 +182,22 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     { type: "success" | "error"; message: string } | null
   >(null);
   const [toastMsg, setToastMsg] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  const [formData, setFormData] = React.useState({ nome: "", usuario: "" });
+  const [pictureLoadError, setPictureLoadError] = React.useState(false);
+  const profilePictureFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const profileCameraVideoRef = React.useRef<HTMLVideoElement | null>(null);
+  const profileCameraCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const [pictureMenuOpen, setPictureMenuOpen] = React.useState(false);
+  const [pictureViewerOpen, setPictureViewerOpen] = React.useState(false);
+  const [pictureActionLoading, setPictureActionLoading] = React.useState(false);
+  const [cameraModalOpen, setCameraModalOpen] = React.useState(false);
+  const [cameraLoading, setCameraLoading] = React.useState(false);
+  const [cameraStream, setCameraStream] = React.useState<MediaStream | null>(null);
+  const [formData, setFormData] = React.useState({
+    nome: "",
+    usuario: "",
+    bio: "",
+    profilePictureUrl: "",
+  });
   const [senhaAtual, setSenhaAtual] = React.useState("");
   const [novaSenha, setNovaSenha] = React.useState("");
   const [confirmarSenha, setConfirmarSenha] = React.useState("");
@@ -196,7 +229,15 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
         setStatsError(null);
         const data = await obterUsuarioAtual();
         setUserInfo(data);
-        setFormData({ nome: data.nome, usuario: data.usuario });
+        setFormData({
+          nome: data.nome ?? "",
+          usuario: data.usuario ?? data.email ?? "",
+          bio: data.bio ?? "",
+          profilePictureUrl: data.profilePictureUrl ?? "",
+        });
+        setPictureLoadError(false);
+        setPictureMenuOpen(false);
+        setPictureViewerOpen(false);
         localStorage.setItem("nome", data.nome ?? "");
 
         try {
@@ -224,6 +265,31 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
       }
     })();
   }, [isOpen]);
+
+  React.useEffect(() => {
+    if (profileCameraVideoRef.current && cameraStream) {
+      profileCameraVideoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream, cameraModalOpen]);
+
+  React.useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  React.useEffect(() => {
+    if (isOpen) return;
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setCameraModalOpen(false);
+    setPictureMenuOpen(false);
+    setPictureViewerOpen(false);
+  }, [isOpen, cameraStream]);
 
   React.useEffect(() => {
     const media = window.matchMedia("(max-width: 900px)");
@@ -300,11 +366,197 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     setConfirmarSenha("");
   };
 
+  const applyUserProfileUpdate = (updatedUser: UserMe) => {
+    setUserInfo(updatedUser);
+    setFormData((prev) => ({
+      ...prev,
+      nome: updatedUser.nome ?? prev.nome,
+      usuario: updatedUser.usuario ?? updatedUser.email ?? prev.usuario,
+      bio: updatedUser.bio ?? "",
+      profilePictureUrl: updatedUser.profilePictureUrl ?? "",
+    }));
+    localStorage.setItem("nome", updatedUser.nome ?? "");
+    setPictureLoadError(false);
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingSettings(true);
+    setFeedback(null);
+    try {
+      const result = await atualizarMeuPerfil({
+        nome: formData.nome.trim(),
+        bio: formData.bio,
+      });
+      applyUserProfileUpdate(result.user);
+      setFeedback({
+        type: "success",
+        message: result.message || "Perfil atualizado com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Erro ao salvar perfil",
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleChoosePictureClick = () => {
+    setPictureMenuOpen(false);
+    profilePictureFileInputRef.current?.click();
+  };
+
+  const handlePictureSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setFeedback({ type: "error", message: "Selecione um arquivo de imagem válido." });
+      return;
+    }
+
+    const maxBytes = 3 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setFeedback({ type: "error", message: "A imagem deve ter no máximo 3MB." });
+      return;
+    }
+
+    event.target.value = "";
+    setPictureActionLoading(true);
+    try {
+      const result = await uploadMinhaFotoPerfil(file);
+      applyUserProfileUpdate(result.user);
+      setPictureMenuOpen(false);
+      setFeedback({
+        type: "success",
+        message: result.message || "Foto atualizada com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Erro ao atualizar foto",
+      });
+    } finally {
+      setPictureActionLoading(false);
+    }
+  };
+
+  const handleTakePictureClick = () => {
+    setPictureMenuOpen(false);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setFeedback({ type: "error", message: "Câmera não suportada neste navegador." });
+      return;
+    }
+    setCameraModalOpen(true);
+    setCameraLoading(true);
+    navigator.mediaDevices
+      .getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      })
+      .then((stream) => {
+        setCameraStream(stream);
+      })
+      .catch(() => {
+        setCameraModalOpen(false);
+        setFeedback({
+          type: "error",
+          message: "Não foi possível acessar a câmera. Verifique a permissão no navegador.",
+        });
+      })
+      .finally(() => {
+        setCameraLoading(false);
+      });
+  };
+
+  const closeCameraModal = () => {
+    setCameraModalOpen(false);
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const handleCaptureFromCamera = async () => {
+    const video = profileCameraVideoRef.current;
+    const canvas = profileCameraCanvasRef.current;
+    if (!video || !canvas) return;
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) {
+      setFeedback({ type: "error", message: "A câmera ainda não está pronta." });
+      return;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setFeedback({ type: "error", message: "Falha ao processar imagem da câmera." });
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.92)
+    );
+    if (!blob) {
+      setFeedback({ type: "error", message: "Não foi possível capturar a foto." });
+      return;
+    }
+
+    const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+    setPictureActionLoading(true);
+    try {
+      const result = await uploadMinhaFotoPerfil(file);
+      applyUserProfileUpdate(result.user);
+      closeCameraModal();
+      setFeedback({
+        type: "success",
+        message: result.message || "Foto atualizada com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Erro ao atualizar foto",
+      });
+    } finally {
+      setPictureActionLoading(false);
+    }
+  };
+
+  const handleRemovePicture = async () => {
+    setPictureActionLoading(true);
+    try {
+      const result = await atualizarMeuPerfil({ profilePictureUrl: "" });
+      applyUserProfileUpdate(result.user);
+      setPictureMenuOpen(false);
+      setFeedback({
+        type: "success",
+        message: result.message || "Foto removida com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Erro ao remover foto",
+      });
+    } finally {
+      setPictureActionLoading(false);
+    }
+  };
+
   const handleSaveSettings = () => {
     try {
       setSavingSettings(true);
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-      window.dispatchEvent(new CustomEvent('perfil-settings-changed', { detail: settings }));
+      const normalizedSettings = {
+        ...settings,
+        corPreferida: normalizeHexColor(settings.corPreferida),
+      };
+      setSettings(normalizedSettings);
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalizedSettings));
+      window.dispatchEvent(new CustomEvent('perfil-settings-changed', { detail: normalizedSettings }));
       setFeedback({ type: "success", message: "Configurações salvas com sucesso!" });
     } catch {
       setFeedback({ type: "error", message: "Não foi possível salvar as configurações." });
@@ -316,6 +568,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const handleResetSettings = () => {
     setSettings(defaultSettings);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(defaultSettings));
+    window.dispatchEvent(new CustomEvent('perfil-settings-changed', { detail: defaultSettings }));
     setFeedback({ type: "success", message: "Configurações restauradas." });
   };
 
@@ -339,6 +592,11 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
       return [group, filtered] as const;
     })
     .filter(([, items]) => items.length > 0);
+
+  const currentPictureSrc = !pictureLoadError
+    ? (formData.profilePictureUrl || userInfo?.profilePictureUrl || "")
+    : "";
+  const profileInitial = (formData.nome || formData.usuario || "?").trim().charAt(0).toUpperCase();
 
   return createPortal(
     <AnimatePresence>
@@ -490,17 +748,94 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                     <>
                       <h2 className="settingsSectionTitle">Minha Conta</h2>
                       <div className="profilePreviewCard">
-                        <div className="profilePreviewBanner" />
-                        <div className="profilePreviewBody">
+                        <div className="profileHero">
+                          <div className="profilePreviewBanner" />
                           <div className="profilePreviewAvatarWrap">
-                            <div className="profilePreviewAvatar">
-                              {formData.nome.slice(0, 1).toUpperCase()}
-                            </div>
+                            <input
+                              ref={profilePictureFileInputRef}
+                              type="file"
+                              accept="image/*"
+                              style={{ display: "none" }}
+                              onChange={handlePictureSelected}
+                            />
+                            <button
+                              type="button"
+                              className="profilePreviewAvatar profilePreviewAvatarButton"
+                              onClick={() => setPictureMenuOpen(true)}
+                              title="Alterar foto de perfil"
+                              aria-label="Alterar foto de perfil"
+                              disabled={pictureActionLoading}
+                            >
+                              {currentPictureSrc ? (
+                                <img
+                                  src={currentPictureSrc}
+                                  alt="Foto de perfil"
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    borderRadius: "999px",
+                                  }}
+                                  onError={() => {
+                                    setPictureLoadError(true);
+                                  }}
+                                />
+                              ) : (
+                                <span aria-hidden="true">{profileInitial}</span>
+                              )}
+                            </button>
+                            {pictureMenuOpen && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="profilePhotoMenuBackdrop"
+                                  onClick={() => setPictureMenuOpen(false)}
+                                  aria-label="Fechar menu de foto"
+                                />
+                                <div className="profilePhotoMenu" role="menu" aria-label="Ações da foto">
+                                  <button
+                                    type="button"
+                                    className="profilePhotoMenuItem"
+                                    onClick={() => {
+                                      setPictureMenuOpen(false);
+                                      setPictureViewerOpen(true);
+                                    }}
+                                    disabled={!currentPictureSrc}
+                                  >
+                                    <Eye size={16} />
+                                    <span>Mostrar foto</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="profilePhotoMenuItem"
+                                    onClick={handleTakePictureClick}
+                                    disabled={pictureActionLoading}
+                                  >
+                                    <Camera size={16} />
+                                    <span>Tirar foto</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="profilePhotoMenuItem"
+                                    onClick={handleChoosePictureClick}
+                                    disabled={pictureActionLoading}
+                                  >
+                                    <FolderOpen size={16} />
+                                    <span>Carregar foto</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="profilePhotoMenuItem danger"
+                                    onClick={handleRemovePicture}
+                                    disabled={pictureActionLoading || !currentPictureSrc}
+                                  >
+                                    <Trash2 size={16} />
+                                    <span>Remover foto</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
                             <div className="profilePreviewStatus" />
-                          </div>
-                          <div className="profilePreviewInfo">
-                            <div className="profilePreviewName">{formData.nome}</div>
-                            <div className="profilePreviewUser">@{formData.usuario}</div>
                           </div>
                         </div>
                         <div className="profilePreviewFields">
@@ -510,13 +845,43 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                           </div>
                           <div className="profileFieldDivider" />
                           <div className="profileField">
-                            <div className="profileFieldLabel">Nome de Usuário</div>
-                            <div className="profileFieldValue">@{formData.usuario}</div>
+                            <div className="profileFieldLabel">E-mail</div>
+                            <div className="profileFieldValue">{formData.usuario}</div>
                           </div>
                           <div className="profileFieldDivider" />
                           <div className="profileField">
                             <div className="profileFieldLabel">Cargo</div>
                             <div className="profileFieldValue">{roleLabelText(role)}</div>
+                          </div>
+                        </div>
+                        <div className="profileEditorArea">
+                          <div className="formGroup">
+                            <label className="formLabel">Bio</label>
+                            <textarea
+                              className="formInput"
+                              rows={3}
+                              value={formData.bio}
+                              placeholder="Escreva uma breve descrição sobre você..."
+                              onChange={(e) =>
+                                setFormData((prev) => ({ ...prev, bio: e.target.value }))
+                              }
+                            />
+                          </div>
+                          <div className="formGroup">
+                            <label className="formLabel">Foto de perfil</label>
+                            <small className="formHint">
+                              Clique na foto para abrir as ações. A troca/remoção acontece na hora.
+                            </small>
+                          </div>
+                          <div className="settingsActions">
+                            <AnimatedButton
+                              className="btnSalvar"
+                              onClick={handleSaveProfile}
+                              disabled={savingSettings}
+                              loading={savingSettings}
+                            >
+                              {savingSettings ? "Salvando..." : "Salvar perfil"}
+                            </AnimatedButton>
                           </div>
                         </div>
                       </div>
@@ -622,6 +987,43 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                               <option value="claro">Claro</option>
                               <option value="escuro">Escuro</option>
                             </AnimatedSelect>
+                          </div>
+                          <div className="settingsItem">
+                            <div className="settingsInfo">
+                              <h3>Cor preferida</h3>
+                              <p>Escolha a cor de destaque do portal</p>
+                            </div>
+                            <div className="settingsColorControl">
+                              <input
+                                type="color"
+                                className="settingsColorInput"
+                                value={settings.corPreferida}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    corPreferida: normalizeHexColor(e.target.value),
+                                  }))
+                                }
+                              />
+                              <input
+                                type="text"
+                                className="settingsColorHex"
+                                value={settings.corPreferida}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    corPreferida: e.target.value,
+                                  }))
+                                }
+                                onBlur={(e) =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    corPreferida: normalizeHexColor(e.target.value),
+                                  }))
+                                }
+                                placeholder="#e11d2e"
+                              />
+                            </div>
                           </div>
                         </div>
                         <div className="settingsActions">
@@ -760,6 +1162,58 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   <AnimatedButton type="button" className="btnCancel" onClick={closeSenhaModal}>Cancelar</AnimatedButton>
                   <AnimatedButton type="button" className="btnConfirm" onClick={handleChangeSenha} disabled={savingSenha} loading={savingSenha}>
                     {savingSenha ? iconLabel(<Loader2 size={14} />, "Alterando...") : iconLabel(<CheckCircle size={14} />, "Alterar Senha")}
+                  </AnimatedButton>
+                </div>
+              </div>
+            </div>
+          )}
+          {pictureViewerOpen && currentPictureSrc && (
+            <div
+              className="profilePhotoViewerOverlay"
+              onClick={() => setPictureViewerOpen(false)}
+              style={{ zIndex: 10003 }}
+            >
+              <div className="profilePhotoViewerContent" onClick={(e) => e.stopPropagation()}>
+                <img src={currentPictureSrc} alt="Foto de perfil ampliada" />
+                <AnimatedButton
+                  className="btnCancel"
+                  type="button"
+                  onClick={() => setPictureViewerOpen(false)}
+                >
+                  Fechar
+                </AnimatedButton>
+              </div>
+            </div>
+          )}
+          {cameraModalOpen && (
+            <div
+              className="profilePhotoViewerOverlay"
+              style={{ zIndex: 10004 }}
+              onClick={closeCameraModal}
+            >
+              <div className="profileCameraModal" onClick={(e) => e.stopPropagation()}>
+                <div className="profileCameraPreview">
+                  {cameraLoading && <div className="profileCameraLoading">Abrindo câmera...</div>}
+                  <video ref={profileCameraVideoRef} autoPlay playsInline muted />
+                  <canvas ref={profileCameraCanvasRef} style={{ display: "none" }} />
+                </div>
+                <div className="profileCameraActions">
+                  <AnimatedButton
+                    type="button"
+                    className="btnCancel"
+                    onClick={closeCameraModal}
+                    disabled={pictureActionLoading}
+                  >
+                    Cancelar
+                  </AnimatedButton>
+                  <AnimatedButton
+                    type="button"
+                    className="btnSalvar"
+                    onClick={handleCaptureFromCamera}
+                    disabled={pictureActionLoading || cameraLoading}
+                    loading={pictureActionLoading}
+                  >
+                    Capturar
                   </AnimatedButton>
                 </div>
               </div>

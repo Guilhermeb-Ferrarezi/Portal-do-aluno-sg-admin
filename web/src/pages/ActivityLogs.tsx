@@ -22,6 +22,12 @@ import {
   ClipboardList,
   Paperclip,
   RefreshCcw,
+  LogIn,
+  LogOut,
+  KeyRound,
+  ShieldCheck,
+  ImageUp,
+  ImageMinus,
 } from "lucide-react";
 import "./ActivityLogs.css";
 
@@ -49,6 +55,26 @@ const ACTION_OPTIONS = [
   { value: "update", label: "Atualização" },
   { value: "delete", label: "Exclusão" },
   { value: "duplicate", label: "Duplicação" },
+  { value: "mark_template", label: "Marcar como template" },
+  { value: "unmark_template", label: "Desmarcar template" },
+  { value: "login", label: "Login" },
+  { value: "login_failed", label: "Falha no login" },
+  { value: "logout", label: "Logout" },
+  { value: "token_refresh", label: "Refresh token" },
+  { value: "password_change", label: "Troca de senha" },
+  { value: "profile_update", label: "Perfil atualizado" },
+  { value: "profile_picture_upload", label: "Upload de foto" },
+  { value: "profile_picture_update", label: "Foto atualizada" },
+  { value: "profile_picture_remove", label: "Foto removida" },
+  { value: "user_create", label: "Usuário criado" },
+  { value: "user_update", label: "Usuário atualizado" },
+  { value: "user_delete", label: "Usuário removido" },
+  { value: "badge_create", label: "Medalha criada" },
+  { value: "badge_update", label: "Medalha atualizada" },
+  { value: "badge_delete", label: "Medalha excluída" },
+  { value: "badge_holder_create", label: "Medalha atribuída" },
+  { value: "badge_holder_update", label: "Medalha alterada" },
+  { value: "badge_holder_delete", label: "Medalha removida" },
 ];
 
 const ENTITY_OPTIONS = [
@@ -59,6 +85,9 @@ const ENTITY_OPTIONS = [
   { value: "template", label: "Template" },
   { value: "material", label: "Material" },
   { value: "videoaula", label: "Videoaula" },
+  { value: "auth", label: "Autenticação" },
+  { value: "security", label: "Segurança" },
+  { value: "badge", label: "Medalha" },
 ];
 
 const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
@@ -66,6 +95,26 @@ const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; clas
   update: { icon: <Pencil size={14} />, label: "Atualização", className: "actionUpdate" },
   delete: { icon: <Trash2 size={14} />, label: "Exclusão", className: "actionDelete" },
   duplicate: { icon: <Copy size={14} />, label: "Duplicação", className: "actionDuplicate" },
+  mark_template: { icon: <Package size={14} />, label: "Marcar template", className: "actionInfo" },
+  unmark_template: { icon: <Package size={14} />, label: "Desmarcar template", className: "actionWarning" },
+  login: { icon: <LogIn size={14} />, label: "Login", className: "actionAuth" },
+  login_failed: { icon: <ShieldCheck size={14} />, label: "Falha no login", className: "actionDanger" },
+  logout: { icon: <LogOut size={14} />, label: "Logout", className: "actionAuth" },
+  token_refresh: { icon: <RefreshCcw size={14} />, label: "Refresh token", className: "actionInfo" },
+  password_change: { icon: <KeyRound size={14} />, label: "Troca de senha", className: "actionSecurity" },
+  profile_update: { icon: <User size={14} />, label: "Perfil atualizado", className: "actionInfo" },
+  profile_picture_upload: { icon: <ImageUp size={14} />, label: "Upload de foto", className: "actionInfo" },
+  profile_picture_update: { icon: <ImageUp size={14} />, label: "Foto atualizada", className: "actionInfo" },
+  profile_picture_remove: { icon: <ImageMinus size={14} />, label: "Foto removida", className: "actionWarning" },
+  user_create: { icon: <Plus size={14} />, label: "Usuário criado", className: "actionCreate" },
+  user_update: { icon: <Pencil size={14} />, label: "Usuário atualizado", className: "actionUpdate" },
+  user_delete: { icon: <Trash2 size={14} />, label: "Usuário removido", className: "actionDelete" },
+  badge_create: { icon: <Plus size={14} />, label: "Medalha criada", className: "actionCreate" },
+  badge_update: { icon: <Pencil size={14} />, label: "Medalha atualizada", className: "actionUpdate" },
+  badge_delete: { icon: <Trash2 size={14} />, label: "Medalha excluída", className: "actionDelete" },
+  badge_holder_create: { icon: <Plus size={14} />, label: "Medalha atribuída", className: "actionAuth" },
+  badge_holder_update: { icon: <Pencil size={14} />, label: "Medalha alterada", className: "actionUpdate" },
+  badge_holder_delete: { icon: <Trash2 size={14} />, label: "Medalha removida", className: "actionDelete" },
 };
 
 const ENTITY_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -75,6 +124,9 @@ const ENTITY_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = 
   template: { icon: <Package size={14} />, label: "Template" },
   material: { icon: <FileText size={14} />, label: "Material" },
   videoaula: { icon: <Film size={14} />, label: "Videoaula" },
+  auth: { icon: <LogIn size={14} />, label: "Autenticação" },
+  security: { icon: <ShieldCheck size={14} />, label: "Segurança" },
+  badge: { icon: <Package size={14} />, label: "Medalha" },
 };
 
 function formatDate(value: string) {

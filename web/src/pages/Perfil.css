@@ -167,15 +167,15 @@
 
 .btnSalvar,
 .btnConfirm {
-  background: linear-gradient(135deg, var(--red), #d41c28);
+  background: var(--red);
   color: white;
-  box-shadow: 0 4px 12px rgba(225, 29, 46, 0.2);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.22);
 }
 
 .btnSalvar:hover,
 .btnConfirm:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(225, 29, 46, 0.3);
+  box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.32);
 }
 
 .btnSalvar:disabled,
@@ -305,6 +305,50 @@
   display: flex;
   gap: 12px;
   margin-top: 16px;
+}
+
+.settingsColorControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settingsColorInput {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.settingsColorInput::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.settingsColorInput::-webkit-color-swatch {
+  border: none;
+  border-radius: 9px;
+}
+
+.settingsColorHex {
+  width: 112px;
+  height: 42px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--background-secondary);
+  color: var(--text);
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: lowercase;
+}
+
+.settingsColorHex:focus {
+  outline: 0;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
 }
 
 /* TOGGLE */
@@ -804,7 +848,7 @@
 
 .settingsNavLogout {
   margin-top: 6px;
-  color: var(--red);
+  color: #e11d2e;
 }
 
 /* RIGHT CONTENT */
@@ -822,69 +866,200 @@
 
 /* PROFILE PREVIEW CARD (Discord-style, inside "Minha Conta") */
 .profilePreviewCard {
-  background: var(--card, var(--background));
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: #11141b;
+  border: 1px solid #2c313c;
+  border-radius: 16px;
   overflow: hidden;
   margin-bottom: 24px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.profileHero {
+  position: relative;
 }
 
 .profilePreviewBanner {
-  height: 100px;
-  background: linear-gradient(135deg, #e11d2e, #b91c1c);
-}
-
-.profilePreviewBody {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-  padding: 0 24px;
-  margin-top: -40px;
+  min-height: 112px;
+  background: linear-gradient(135deg, #6c5ce7, #4c3dbf);
+  padding: 14px 18px 14px 120px;
 }
 
 .profilePreviewAvatarWrap {
-  position: relative;
-  flex-shrink: 0;
+  position: absolute;
+  left: 22px;
+  top: 66px;
+  z-index: 2;
 }
 
 .profilePreviewAvatar {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e11d2e, #b91c1c);
+  background: linear-gradient(135deg, #6c5ce7, #4c3dbf);
   color: white;
   display: grid;
   place-items: center;
   font-weight: 800;
   font-size: 32px;
-  border: 6px solid var(--card, var(--background));
+  border: 6px solid #11141b;
+}
+
+.profilePreviewAvatarButton {
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
 }
 
 .profilePreviewStatus {
   position: absolute;
-  bottom: 4px;
-  right: 4px;
+  bottom: 6px;
+  left: 6px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: #22c55e;
-  border: 4px solid var(--card, var(--background));
+  border: 4px solid #11141b;
 }
 
-.profilePreviewInfo {
-  padding-bottom: 12px;
+.profilePhotoMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  z-index: 10020;
 }
 
-.profilePreviewName {
-  font-size: 20px;
-  font-weight: 800;
+.profilePhotoMenu {
+  position: absolute;
+  left: 94px;
+  top: 40px;
+  min-width: 190px;
+  border-radius: 14px;
+  padding: 8px;
+  background: rgba(20, 24, 38, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
+  z-index: 10021;
+}
+
+.profilePhotoMenuItem {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.profilePhotoMenuItem:hover {
+  background: rgba(255, 255, 255, 0.07);
   color: var(--text);
 }
 
+.profilePhotoMenuItem:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.profilePhotoMenuItem.danger:hover {
+  background: rgba(225, 29, 46, 0.22);
+  color: #ffb4bc;
+}
+
+.profilePhotoViewerOverlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 11, 20, 0.82);
+  backdrop-filter: blur(2px);
+}
+
+.profilePhotoViewerContent {
+  display: grid;
+  gap: 12px;
+  max-width: min(520px, calc(100vw - 48px));
+  width: 100%;
+}
+
+.profilePhotoViewerContent img {
+  width: 100%;
+  max-height: 74vh;
+  object-fit: contain;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #0b1020;
+}
+
+.profileCameraModal {
+  width: min(560px, calc(100vw - 36px));
+  display: grid;
+  gap: 12px;
+}
+
+.profileCameraPreview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #060a14;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.profileCameraPreview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profileCameraLoading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 11, 20, 0.7);
+  color: #fff;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.profileCameraActions {
+  display: flex;
+  gap: 10px;
+}
+
+.profilePreviewInfo {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.profilePreviewName {
+  font-size: 30px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
 .profilePreviewUser {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-top: 2px;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 4px;
+  line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .profilePreviewFields {
@@ -892,9 +1067,10 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: var(--background-secondary);
+  background: #1b202a;
   margin: 16px;
-  border-radius: 10px;
+  border: 1px solid #2c313c;
+  border-radius: 12px;
 }
 
 .profileField {
@@ -911,13 +1087,13 @@
 
 .profileFieldDivider {
   height: 1px;
-  background: var(--line);
+  background: #323845;
 }
 
 .profileFieldLabel {
   font-size: 11px;
   font-weight: 800;
-  color: var(--text-tertiary);
+  color: #8f97a8;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
@@ -926,11 +1102,57 @@
 .profileFieldValue {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text);
+  color: #f2f4f8;
+  word-break: break-word;
+}
+
+.profileEditorArea {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.profileEditorArea .formLabel {
+  color: #a7afbf;
+}
+
+.profileEditorArea .formInput {
+  background: #1b202a;
+  border-color: #343a47;
+  color: #f0f3f9;
+}
+
+.profileEditorArea .formInput::placeholder {
+  color: #8f97a8;
+}
+
+.profileMediaActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 /* RESPONSIVO */
 @media (max-width: 900px) {
+  .profilePreviewBanner {
+    min-height: 108px;
+    padding: 14px 14px 14px 108px;
+  }
+
+  .profilePreviewAvatarWrap {
+    left: 14px;
+    top: 64px;
+  }
+
+  .profilePreviewName {
+    font-size: 28px;
+  }
+
+  .profilePreviewUser {
+    font-size: 14px;
+  }
+
   .settingsOverlay {
     padding: 0;
   }
@@ -1083,24 +1305,38 @@
   }
 
   .profilePreviewBanner {
-    height: 60px;
+    min-height: 96px;
+    padding: 12px 12px 12px 94px;
+  }
+
+  .profilePreviewAvatarWrap {
+    left: 12px;
+    top: 58px;
   }
 
   .profilePreviewAvatar {
-    width: 64px;
-    height: 64px;
+    width: 62px;
+    height: 62px;
     font-size: 24px;
     border-width: 4px;
   }
 
-  .profilePreviewBody {
-    margin-top: -32px;
-    padding: 0 16px;
+  .profilePreviewName {
+    font-size: 22px;
+  }
+
+  .profilePreviewUser {
+    font-size: 13px;
   }
 
   .profilePreviewFields {
     margin: 12px;
     padding: 12px 16px 16px;
+  }
+
+  .profileMediaActions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .settingsSectionTitle {

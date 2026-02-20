@@ -13,7 +13,7 @@
 
 .ppBanner {
   height: 60px;
-  background: linear-gradient(135deg, #e11d2e, #b91c1c);
+  background: var(--primary);
 }
 
 .ppAvatarWrap {
@@ -28,7 +28,7 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e11d2e, #b91c1c);
+  background: var(--primary);
   color: white;
   display: grid;
   place-items: center;
@@ -36,6 +36,14 @@
   font-size: 24px;
   border: 4px solid #1e293b;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.ppAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .ppStatusDot {

@@ -12,6 +12,7 @@ import { turmasRouter } from "./routes/turmas.route";
 import { materiaisRouter } from "./routes/materiais.route";
 import { videoaulasRouter } from "./routes/videoaulas.route";
 import { activityLogsRouter } from "./routes/activityLogs";
+import { badgesRouter } from "./routes/badges";
 import { startPublishScheduledExercisesJob } from "./jobs/publishScheduledExercises";
 import { startWeeklyExerciseReleaseJob } from "./jobs/releaseWeeklyExercises";
 import { initializeDatabaseTables } from "./db/migrations";
@@ -75,6 +76,7 @@ app.use(turmasRouter(env.JWT_SECRET));
 app.use(materiaisRouter(env.JWT_SECRET));
 app.use(videoaulasRouter(env.JWT_SECRET));
 app.use(activityLogsRouter(env.JWT_SECRET));
+app.use(badgesRouter(env.JWT_SECRET));
 
 // ===== ROTAS COM /api (pra prod/proxy) =====
 app.use(
@@ -95,6 +97,7 @@ app.use("/api", materiaisRouter(env.JWT_SECRET));
 app.use("/api", videoaulasRouter(env.JWT_SECRET));
 // (se videoaulasRouter registra /videoaulas, vira /api/videoaulas)
 app.use("/api", activityLogsRouter(env.JWT_SECRET));
+app.use("/api", badgesRouter(env.JWT_SECRET));
 
 // handler de 404
 app.use((req, res) => {

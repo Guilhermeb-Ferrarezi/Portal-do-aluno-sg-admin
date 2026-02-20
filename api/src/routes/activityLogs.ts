@@ -7,13 +7,9 @@ import type { AuthRequest } from "../middlewares/auth";
 type ActivityLogRow = {
   id: string;
   actor_id: string | null;
-  actor_role: string | null;
   action: string;
   entity_type: string;
-  entity_id: string | null;
-  metadata: any;
-  ip_address: string | null;
-  user_agent: string | null;
+  message: string | null;
   created_at: string;
   actor_nome: string | null;
   actor_usuario: string | null;
@@ -41,11 +37,16 @@ export function activityLogsRouter(jwtSecret: string) {
 
         const baseQuery = `
           SELECT
-            l.id, l.actor_id, l.actor_role, l.action, l.entity_type, l.entity_id,
-            l.metadata, l.ip_address, l.user_agent, l.created_at,
-            u.nome as actor_nome, u.usuario as actor_usuario
-          FROM activity_logs l
-          LEFT JOIN users u ON u.id = l.actor_id
+            l.id::text as id,
+            l.user_id::text as actor_id,
+            l.action as action,
+            COALESCE(l.entity_name, 'unknown') as entity_type,
+            l."Message" as message,
+            l."LogDate" as created_at,
+            u.name as actor_nome,
+            u.email as actor_usuario
+          FROM logs l
+          LEFT JOIN "user" u ON u.id = l.user_id
         `;
 
         const conditions: string[] = [];
@@ -58,56 +59,56 @@ export function activityLogsRouter(jwtSecret: string) {
 
         if (entityType) {
           params.push(entityType);
-          conditions.push(`l.entity_type = $${params.length}`);
+          conditions.push(`l.entity_name = $${params.length}`);
         }
 
         if (actorId) {
           params.push(actorId);
-          conditions.push(`l.actor_id = $${params.length}`);
+          conditions.push(`l.user_id::text = $${params.length}`);
         }
 
         if (from) {
           params.push(from);
-          conditions.push(`l.created_at >= $${params.length}`);
+          conditions.push(`l."LogDate" >= $${params.length}`);
         }
 
         if (to) {
           params.push(to);
-          conditions.push(`l.created_at <= $${params.length}`);
+          conditions.push(`l."LogDate" <= $${params.length}`);
         }
 
         if (q) {
           params.push(`%${q}%`);
           conditions.push(`(
-            u.nome ILIKE $${params.length}
-            OR u.usuario ILIKE $${params.length}
-            OR l.entity_type ILIKE $${params.length}
+            u.name ILIKE $${params.length}
+            OR u.email ILIKE $${params.length}
+            OR l.entity_name ILIKE $${params.length}
             OR l.action ILIKE $${params.length}
-            OR l.entity_id::text ILIKE $${params.length}
+            OR l."Message" ILIKE $${params.length}
           )`);
         }
 
         const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
-        const countQuery = `SELECT COUNT(*)::int as total FROM activity_logs l LEFT JOIN users u ON u.id = l.actor_id${whereClause}`;
+        const countQuery = `SELECT COUNT(*)::int as total FROM logs l LEFT JOIN "user" u ON u.id = l.user_id${whereClause}`;
         const countResult = await pool.query<{ total: number }>(countQuery, params);
 
-        const query = `${baseQuery}${whereClause} ORDER BY l.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        const query = `${baseQuery}${whereClause} ORDER BY l."LogDate" DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         const result = await pool.query<ActivityLogRow>(query, [...params, limit, offset]);
 
         return res.json({
           items: result.rows.map((row) => ({
             id: row.id,
             actorId: row.actor_id,
-            actorRole: row.actor_role,
+            actorRole: null,
             actorNome: row.actor_nome,
             actorUsuario: row.actor_usuario,
             action: row.action,
             entityType: row.entity_type,
-            entityId: row.entity_id,
-            metadata: row.metadata,
-            ipAddress: row.ip_address,
-            userAgent: row.user_agent,
+            entityId: null,
+            metadata: row.message ? { message: row.message } : null,
+            ipAddress: null,
+            userAgent: null,
             createdAt: row.created_at,
           })),
           total: countResult.rows[0]?.total ?? 0,

@@ -8,6 +8,7 @@ import "./ProfilePopup.css";
 type ProfilePopupProps = {
   name: string;
   role: string | null;
+  profilePictureUrl?: string;
   anchorRef: React.RefObject<HTMLDivElement | null>;
   onClose: () => void;
   onOpenSettings: () => void;
@@ -28,6 +29,7 @@ function roleBadgeColor(role: string | null) {
 export default function ProfilePopup({
   name,
   role,
+  profilePictureUrl,
   anchorRef,
   onClose,
   onOpenSettings,
@@ -72,6 +74,7 @@ export default function ProfilePopup({
   }, [onClose]);
 
   const color = roleBadgeColor(role);
+  const effectiveProfilePicture = profilePictureUrl || userInfo?.profilePictureUrl || "";
 
   return createPortal(
     <AnimatePresence>
@@ -89,7 +92,13 @@ export default function ProfilePopup({
 
         {/* Avatar */}
         <div className="ppAvatarWrap">
-          <div className="ppAvatar">{name.slice(0, 1).toUpperCase()}</div>
+          <div className="ppAvatar">
+            {effectiveProfilePicture ? (
+              <img src={effectiveProfilePicture} alt={name} className="ppAvatarImg" />
+            ) : (
+              name.slice(0, 1).toUpperCase()
+            )}
+          </div>
           <div className="ppStatusDot" />
         </div>
 

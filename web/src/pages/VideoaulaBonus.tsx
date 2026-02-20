@@ -32,6 +32,7 @@ import {
 import {
   listarTurmas,
   listarAlunos,
+  listarModulos,
   listarVideoaulas,
   criarVideoaula,
   deletarVideoaula,
@@ -39,6 +40,7 @@ import {
   type Turma,
   type User,
   type Videoaula,
+  type Modulo,
 } from "../services/api";
 import "./VideoaulaBonus.css";
 
@@ -63,6 +65,8 @@ export default function VideoaulaBonusPage() {
 
   // Estados
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
+  const [buscaModuloFiltro, setBuscaModuloFiltro] = React.useState<string>("");
+  const [showSugestoesModuloFiltro, setShowSugestoesModuloFiltro] = React.useState(false);
   const [busca, setBusca] = React.useState<string>("");
   const [turmaFiltro, setTurmaFiltro] = React.useState<string>("todas");
   const [modalAberto, setModalAberto] = React.useState(false);
@@ -72,10 +76,14 @@ export default function VideoaulaBonusPage() {
   const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
+  const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
   const [alunoFiltro, setAlunoFiltro] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<Videoaula | null>(null);
+  const [buscaModuloForm, setBuscaModuloForm] = React.useState<string>("");
+  const [showSugestoesModuloForm, setShowSugestoesModuloForm] = React.useState(false);
+  const [formError, setFormError] = React.useState<string>("");
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -126,7 +134,7 @@ export default function VideoaulaBonusPage() {
   const [formData, setFormData] = React.useState({
     titulo: "",
     descricao: "",
-    modulo: "",
+    moduloId: "",
     tipo: "youtube" as "youtube" | "vimeo" | "arquivo",
     url: "",
     arquivo: null as File | null,
@@ -143,6 +151,10 @@ export default function VideoaulaBonusPage() {
       listarAlunos()
         .then(setAlunosDisponiveis)
         .catch((err) => console.error("Erro ao carregar alunos:", err));
+
+      listarModulos()
+        .then(setModulosDisponiveis)
+        .catch((err) => console.error("Erro ao carregar módulos:", err));
     }
   }, [canUpload]);
 
@@ -155,8 +167,11 @@ export default function VideoaulaBonusPage() {
         return false;
       }
     }
+    const termoModulo = buscaModuloFiltro.trim().toLowerCase();
     const matchModulo =
-      filtroModulo === "todos" || v.modulo === filtroModulo;
+      filtroModulo !== "todos"
+        ? v.modulo === filtroModulo
+        : termoModulo === "" || v.modulo.toLowerCase().includes(termoModulo);
     const matchBusca =
       busca === "" ||
       v.titulo.toLowerCase().includes(busca.toLowerCase()) ||
@@ -170,7 +185,26 @@ export default function VideoaulaBonusPage() {
   });
 
   // Obter lista única de módulos
-  const modulos = Array.from(new Set(videoaulas.map((v) => v.modulo)));
+  const modulos = Array.from(
+    new Set([
+      ...videoaulas.map((v) => v.modulo).filter(Boolean),
+      ...modulosDisponiveis.map((m) => m.nome).filter(Boolean),
+    ])
+  );
+
+  const termoModuloFiltro = buscaModuloFiltro.trim().toLowerCase();
+  const modulosFiltradosNoFiltro =
+    termoModuloFiltro.length === 0
+      ? []
+      : modulos.filter((mod) => mod.toLowerCase().includes(termoModuloFiltro));
+
+  const termoModuloForm = buscaModuloForm.trim().toLowerCase();
+  const modulosFiltradosNoForm =
+    termoModuloForm.length === 0
+      ? []
+      : modulosDisponiveis.filter((mod) =>
+          mod.nome.toLowerCase().includes(termoModuloForm)
+        );
 
   const handleAssistir = (videoaula: Videoaula) => {
     setVideoSelecionado(videoaula);
@@ -187,16 +221,40 @@ export default function VideoaulaBonusPage() {
   };
 
   const handleAddVideoaula = async () => {
+    const moduloIdSelecionado = formData.moduloId.trim();
+    const moduloDigitado = buscaModuloForm.trim();
+    const moduloParcial = moduloDigitado.toLowerCase();
+    const primeiroModuloCompativel =
+      moduloParcial.length > 0
+        ? modulosDisponiveis.find((m) =>
+            m.nome.toLowerCase().includes(moduloParcial)
+          )?.id
+        : "";
+    const moduloEncontrado =
+      moduloIdSelecionado ||
+      modulosDisponiveis.find(
+        (m) => m.nome.toLowerCase() === moduloDigitado.toLowerCase()
+      )?.id ||
+      primeiroModuloCompativel ||
+      "";
+
     if (
       !formData.titulo.trim() ||
-      !formData.modulo.trim() ||
+      !moduloEncontrado ||
       !formData.duracao.trim()
     ) {
-      addToast("Por favor, preencha todos os campos obrigatórios", "error");
+      if (!moduloEncontrado) {
+        setFormError("Selecione um módulo existente para continuar.");
+        addToast("Selecione um módulo existente", "error");
+      } else {
+        setFormError("Preencha todos os campos obrigatórios.");
+        addToast("Por favor, preencha todos os campos obrigatórios", "error");
+      }
       return;
     }
 
     if ((formData.tipo === "youtube" || formData.tipo === "vimeo") && !formData.url.trim()) {
+      setFormError(`Informe a URL do ${formData.tipo === "youtube" ? "YouTube" : "Vimeo"}.`);
       addToast(
         `Por favor, cole a URL do ${formData.tipo === "youtube" ? "YouTube" : "Vimeo"}`,
         "error"
@@ -205,18 +263,20 @@ export default function VideoaulaBonusPage() {
     }
 
     if (formData.tipo === "arquivo" && !formData.arquivo) {
+      setFormError("Selecione um arquivo de vídeo.");
       addToast("Por favor, selecione um arquivo de vídeo", "error");
       return;
     }
 
     try {
+      setFormError("");
       setSubmitting(true);
 
       // Preparar FormData para envio
       const formDataToSend = new FormData();
       formDataToSend.append("titulo", formData.titulo);
       formDataToSend.append("descricao", formData.descricao);
-      formDataToSend.append("modulo", formData.modulo);
+      formDataToSend.append("moduloId", moduloEncontrado);
       formDataToSend.append("duracao", formData.duracao);
       formDataToSend.append("tipo", formData.tipo);
 
@@ -252,7 +312,7 @@ export default function VideoaulaBonusPage() {
       setFormData({
         titulo: "",
         descricao: "",
-        modulo: "",
+        moduloId: "",
         tipo: "youtube",
         url: "",
         arquivo: null,
@@ -261,6 +321,9 @@ export default function VideoaulaBonusPage() {
       setTurmasSelecionadas([]);
       setAlunosSelecionados([]);
       setModoAtribuicao("turma");
+      setBuscaModuloForm("");
+      setShowSugestoesModuloForm(false);
+      setFormError("");
 
       setModalAberto(false);
       addToast("Videoaula adicionada com sucesso!", "success");
@@ -348,19 +411,52 @@ export default function VideoaulaBonusPage() {
               />
             </div>
 
-            {/* Filtro de Módulo */}
-            <AnimatedSelect
-              value={filtroModulo}
-              onChange={(e) => setFiltroModulo(e.target.value)}
-              className="filterSelect"
-            >
-              <option value="todos">Todos os módulos</option>
-              {modulos.map((mod) => (
-                <option key={mod} value={mod}>
-                  {mod}
-                </option>
-              ))}
-            </AnimatedSelect>
+            {/* Filtro de Módulo por escrita */}
+            <div style={{ position: "relative", minWidth: 260 }}>
+              <input
+                type="text"
+                placeholder="Filtrar módulo..."
+                value={buscaModuloFiltro}
+                onChange={(e) => {
+                  setBuscaModuloFiltro(e.target.value);
+                  setFiltroModulo("todos");
+                  setShowSugestoesModuloFiltro(true);
+                }}
+                className="filterSelect"
+              />
+              {showSugestoesModuloFiltro && modulosFiltradosNoFiltro.length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 6px)",
+                    left: 0,
+                    right: 0,
+                    zIndex: 30,
+                    border: "1px solid var(--line)",
+                    borderRadius: 10,
+                    background: "var(--background)",
+                    maxHeight: 210,
+                    overflowY: "auto",
+                  }}
+                >
+                  {modulosFiltradosNoFiltro.map((mod) => (
+                    <button
+                      key={mod}
+                      type="button"
+                      onClick={() => {
+                        setFiltroModulo(mod);
+                        setBuscaModuloFiltro(mod);
+                        setShowSugestoesModuloFiltro(false);
+                      }}
+                      style={{ width: "100%", textAlign: "left" }}
+                      className="badgeFilterOption"
+                    >
+                      {mod}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Filtro de Turmas */}
             <AnimatedSelect
@@ -695,7 +791,7 @@ export default function VideoaulaBonusPage() {
                 onClick={handleAddVideoaula}
                 disabled={submitting}
                 style={{
-                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  background: 'var(--red)',
                   color: 'white',
                   border: 'none',
                   padding: '12px 18px',
@@ -724,52 +820,87 @@ export default function VideoaulaBonusPage() {
 
               <div className="formGroup">
                 <label className="formLabel">Módulo *</label>
-                <AnimatedSelect
-                  value={formData.modulo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, modulo: e.target.value })
-                  }
-                  className="formInput"
-                >
-                  <option value="">Selecione um módulo</option>
-                  {modulos.map((mod) => (
-                    <option key={mod} value={mod}>
-                      {mod}
-                    </option>
-                  ))}
-                  <option value="novo">+ Novo Módulo</option>
-                </AnimatedSelect>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    placeholder="Buscar módulo por nome..."
+                    value={buscaModuloForm}
+                  onChange={(e) => {
+                    setBuscaModuloForm(e.target.value);
+                    setFormData({ ...formData, moduloId: "" });
+                    setShowSugestoesModuloForm(true);
+                    if (formError) setFormError("");
+                  }}
+                    className="formInput"
+                  />
+                  {showSugestoesModuloForm && modulosFiltradosNoForm.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        border: "1px solid var(--line)",
+                        borderRadius: 10,
+                        background: "var(--background)",
+                        maxHeight: 210,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {modulosFiltradosNoForm.map((mod) => (
+                        <button
+                          key={mod.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, moduloId: mod.id });
+                            setBuscaModuloForm(mod.nome);
+                            setShowSugestoesModuloForm(false);
+                          }}
+                          style={{ width: "100%", textAlign: "left" }}
+                          className="badgeFilterOption"
+                        >
+                          {mod.nome}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="formGroup">
                 <label className="formLabel">Tipo *</label>
-                <div className="radioGroup">
-                  <label className="radioLabel">
-                    <input
-                      type="radio"
-                      name="tipo"
-                      value="youtube"
-                      checked={formData.tipo === "youtube"}
-                      onChange={(e) =>
-                        setFormData({ ...formData, tipo: e.target.value as "youtube" | "vimeo" | "arquivo" })
-                      }
-                    />
+                <div className="videoTypeSegment" role="tablist" aria-label="Tipo de videoaula">
+                  <button
+                    type="button"
+                    className={`videoTypeOption ${formData.tipo === "youtube" ? "active" : ""}`}
+                    onClick={() =>
+                      setFormData({ ...formData, tipo: "youtube" })
+                    }
+                  >
                     {iconLabel(<Youtube size={16} />, "YouTube")}
-                  </label>
-                  <label className="radioLabel">
-                    <input
-                      type="radio"
-                      name="tipo"
-                      value="arquivo"
-                      checked={formData.tipo === "arquivo"}
-                      onChange={(e) =>
-                        setFormData({ ...formData, tipo: e.target.value as "youtube" | "vimeo" | "arquivo" })
-                      }
-                    />
+                  </button>
+                  <button
+                    type="button"
+                    className={`videoTypeOption ${formData.tipo === "arquivo" ? "active" : ""}`}
+                    onClick={() =>
+                      setFormData({ ...formData, tipo: "arquivo" })
+                    }
+                  >
                     {iconLabel(<FolderUp size={16} />, "Upload Local")}
-                  </label>
+                  </button>
                 </div>
               </div>
+
+              {formError ? (
+                <div
+                  style={{
+                    marginTop: "6px",
+                    marginBottom: "4px",
+                    color: "#fda4af",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {formError}
+                </div>
+              ) : null}
 
               <div className="formGroup">
                 <label className="formLabel">Descrição</label>
@@ -872,11 +1003,13 @@ export default function VideoaulaBonusPage() {
                           (aluno) =>
                             alunoFiltro === "" ||
                             aluno.nome.toLowerCase().includes(alunoFiltro.toLowerCase()) ||
-                            aluno.usuario.toLowerCase().includes(alunoFiltro.toLowerCase())
+                            (aluno.email ?? aluno.usuario ?? "")
+                              .toLowerCase()
+                              .includes(alunoFiltro.toLowerCase())
                         )
                         .map((aluno) => (
                           <option key={aluno.id} value={aluno.id}>
-                            {aluno.nome} ({aluno.usuario})
+                            {aluno.nome} ({aluno.email ?? aluno.usuario ?? "-"})
                           </option>
                         ))}
                     </select>

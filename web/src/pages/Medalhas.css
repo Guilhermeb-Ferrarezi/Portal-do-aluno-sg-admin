@@ -1,0 +1,470 @@
+.medalhasPage {
+  display: grid;
+  gap: 16px;
+}
+
+.medalhasTabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.medalhasTab {
+  border: 1px solid var(--line);
+  background: var(--background-secondary);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.medalhasTab.active {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.12);
+}
+
+.medalhasTab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.medalhasMessage {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.medalhasMessage.success {
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  color: #22c55e;
+}
+
+.medalhasMessage.error {
+  background: rgba(var(--primary-rgb), 0.12);
+  border: 1px solid rgba(var(--primary-rgb), 0.35);
+  color: var(--primary);
+}
+
+.medalhasGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.medalhasView {
+  display: grid;
+  gap: 14px;
+}
+
+.medalhasSearchCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--background-secondary);
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.medalhasSearchCard label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+}
+
+.medalhasSearchCard input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.medalhaCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--background-secondary);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+}
+
+.medalhaIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  background: linear-gradient(135deg, #2d3341, #202531);
+  overflow: hidden;
+  position: relative;
+}
+
+.medalhaIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+}
+
+.medalhaIcon span {
+  position: relative;
+  z-index: 1;
+  color: #f4f6fa;
+  font-weight: 800;
+}
+
+.medalhaContent h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+}
+
+.medalhaContent p {
+  margin: 0 0 8px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.medalhaUsageCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.medalhaContent small {
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.medalhaActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.medalhaActionBtn {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.medalhaActionBtn.danger {
+  background: rgba(var(--primary-rgb), 0.18);
+  border: 1px solid rgba(var(--primary-rgb), 0.4);
+}
+
+.medalhaEmpty {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--background-secondary);
+}
+
+.medalhaFormCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--background-secondary);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.medalhaFormCard h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.medalhaFormRow {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.medalhaFormRow label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+}
+
+.medalhaFormRow input,
+.medalhaFormRow textarea,
+.medalhaFormRow select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.medalhaFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 10px;
+}
+
+.medalhaSubmit {
+  border: none;
+  border-radius: 10px;
+  padding: 11px 14px;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.medalhaSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.medalhaCancelBtn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.medalhasHoldersCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--background-secondary);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.medalhasHoldersHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.medalhasHoldersHeader h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.medalhasHoldersHeader select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--text);
+  padding: 8px 10px;
+  min-width: 210px;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.medalhasHoldersFilters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.medalhasHoldersFilters input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--text);
+  padding: 8px 10px;
+  min-width: 210px;
+}
+
+.holdersList {
+  display: grid;
+  gap: 8px;
+}
+
+.holderItem {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) minmax(140px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.holderMain {
+  display: grid;
+  gap: 2px;
+}
+
+.holderMain strong {
+  font-size: 14px;
+}
+
+.holderMain span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.holderMeta {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.holderMeta span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.holderMeta small {
+  color: var(--text-secondary);
+}
+
+.holderEdit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+.holderEdit select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  color: var(--text);
+  padding: 7px 8px;
+  min-width: 150px;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.medalhasPage select option {
+  text-align: left;
+}
+
+.holderEdit button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.holderEdit button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.holderDeleteBtn {
+  background: rgba(var(--primary-rgb), 0.18) !important;
+  border: 1px solid rgba(var(--primary-rgb), 0.4);
+}
+
+.medalhasAssignCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--background-secondary);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.medalhasAssignCard h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.medalhasAssignGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.assignSearchList {
+  display: grid;
+  gap: 6px;
+  max-height: 190px;
+  overflow: auto;
+  padding-right: 2px;
+  min-height: 0;
+}
+
+.assignSearchItem {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text);
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.assignSearchItem:hover {
+  border-color: rgba(var(--primary-rgb), 0.45);
+}
+
+.assignSearchItem.active {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.12);
+}
+
+@media (max-width: 640px) {
+  .holderItem {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .holderEdit {
+    justify-self: stretch;
+    flex-wrap: wrap;
+  }
+
+  .holderEdit select {
+    width: 100%;
+  }
+
+  .medalhaFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .medalhasAssignGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .medalhaSubmit {
+    width: 100%;
+    justify-content: center;
+  }
+}

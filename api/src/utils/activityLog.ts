@@ -23,6 +23,7 @@ export async function logActivity(params: ActivityLogParams) {
   } = params;
 
   const normalizedEntityId = Array.isArray(entityId) ? entityId[0] : entityId;
+  if (!actorId) return;
 
   const forwarded = req?.headers["x-forwarded-for"];
   const ip =
@@ -32,19 +33,36 @@ export async function logActivity(params: ActivityLogParams) {
     null;
   const userAgent = (req?.headers["user-agent"] as string | undefined) ?? null;
 
+  const messageParts: string[] = [];
+  if (normalizedEntityId) {
+    messageParts.push(`entityId=${normalizedEntityId}`);
+  }
+  if (actorRole) {
+    messageParts.push(`actorRole=${actorRole}`);
+  }
+  if (ip) {
+    messageParts.push(`ip=${ip}`);
+  }
+  if (metadata) {
+    try {
+      messageParts.push(`metadata=${JSON.stringify(metadata)}`);
+    } catch {
+      messageParts.push("metadata=[unserializable]");
+    }
+  }
+  if (userAgent) {
+    messageParts.push(`ua=${userAgent}`);
+  }
+
+  const message =
+    messageParts.length > 0
+      ? messageParts.join(" | ").slice(0, 4000)
+      : `${action} em ${entityType}`;
+
   await pool.query(
-    `INSERT INTO activity_logs
-      (actor_id, actor_role, action, entity_type, entity_id, metadata, ip_address, user_agent)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [
-      actorId,
-      actorRole,
-      action,
-      entityType,
-      normalizedEntityId,
-      metadata ? JSON.stringify(metadata) : null,
-      ip,
-      userAgent,
-    ]
+    `INSERT INTO logs
+      (user_id, "Message", action, entity_name, "LogDate")
+     VALUES ($1, $2, $3, $4, NOW())`,
+    [Number(actorId), message, action, entityType]
   );
 }

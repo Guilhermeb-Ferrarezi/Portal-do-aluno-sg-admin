@@ -21,6 +21,7 @@ import TrilhaCursoPage from "./pages/TrilhaCurso";
 import MateriaisPage from "./pages/Materiais";
 import VideoaulaBonusPage from "./pages/VideoaulaBonus";
 import PerfilPage from "./pages/Perfil";
+import MedalhasPage from "./pages/Medalhas";
 
 function AppContent() {
   useTheme();
@@ -128,6 +129,9 @@ function AppContent() {
             path="/dashboard/videoaulas"
             element={<VideoaulaBonusPage />}
           />
+
+          {/* medalhas: qualquer logado */}
+          <Route path="/dashboard/medalhas" element={<MedalhasPage />} />
 
           {/* perfil: qualquer logado */}
           <Route path="/dashboard/perfil" element={<PerfilPage />} />

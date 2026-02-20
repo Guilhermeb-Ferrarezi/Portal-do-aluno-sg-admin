@@ -1653,11 +1653,13 @@ export default function ExerciciosPage() {
                                 (aluno) =>
                                   alunoFiltro === "" ||
                                   aluno.nome.toLowerCase().includes(alunoFiltro.toLowerCase()) ||
-                                  aluno.usuario.toLowerCase().includes(alunoFiltro.toLowerCase())
+                                  (aluno.email ?? aluno.usuario ?? "")
+                                    .toLowerCase()
+                                    .includes(alunoFiltro.toLowerCase())
                               )
                               .map((aluno) => (
                                 <option key={aluno.id} value={aluno.id}>
-                                  {aluno.nome} ({aluno.usuario})
+                                  {aluno.nome} ({aluno.email ?? aluno.usuario ?? "-"})
                                 </option>
                               ))}
                           </AnimatedSelect>

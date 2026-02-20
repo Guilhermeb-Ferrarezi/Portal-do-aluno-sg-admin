@@ -1,42 +1,48 @@
 import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcrypt";
+import multer from "multer";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
-import type { AuthRequest, Role } from "../middlewares/auth";
+import type { AuthRequest } from "../middlewares/auth";
+import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
 
+type UserRole = "aluno" | "professor" | "admin";
+type NumericRole = 1 | 2 | 3;
+
 type DbUserRow = {
-  id: string;
-  usuario: string;
-  nome: string;
-  role: Role;
-  ativo: boolean;
-  created_at: string; // pode ser Date dependendo do pg, mas string funciona bem
+  id: number;
+  name: string;
+  email: string;
+  role: number;
+  bio: string | null;
+  profile_picture_url: string | null;
+  created_at: string;
 };
 
-const passwordSchema = z
-  .string()
-  .min(6, "Senha muito curta")
+const passwordSchema = z.string().min(6, "Senha muito curta");
 
 const createUserSchema = z.object({
   usuario: z.string().min(3, "Usuário muito curto"),
+  email: z.string().min(3, "E-mail inválido").optional(),
   nome: z.string().min(2, "Nome obrigatório"),
   senha: passwordSchema,
   role: z.enum(["admin", "professor", "aluno"]).optional(),
-  ativo: z.boolean().optional(),
 });
 
 const updateMeSchema = z.object({
-  nome: z.string().min(2, "Nome obrigatório"),
+  nome: z.string().min(2, "Nome obrigatório").optional(),
+  bio: z.string().max(500, "Bio muito longa").optional(),
+  profilePictureUrl: z.string().optional(),
 });
 
 const updateUserSchema = z.object({
   nome: z.string().min(2, "Nome obrigatório").optional(),
   usuario: z.string().min(3, "Usuário muito curto").optional(),
+  email: z.string().min(3, "E-mail inválido").optional(),
   role: z.enum(["admin", "professor", "aluno"]).optional(),
-  ativo: z.boolean().optional(),
 });
 
 const changePasswordSchema = z.object({
@@ -44,16 +50,38 @@ const changePasswordSchema = z.object({
   novaSenha: passwordSchema,
 });
 
+const profileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Apenas imagens são permitidas"));
+  },
+});
+
+function toNumericRole(role: UserRole): NumericRole {
+  if (role === "aluno") return 1;
+  if (role === "professor") return 2;
+  return 3;
+}
+
+function toRole(role: number): UserRole {
+  if (role === 1) return "aluno";
+  if (role === 2) return "professor";
+  return "admin";
+}
+
 export function usersRouter(jwtSecret: string) {
   const router = Router();
 
-  // Quem tá logado (pra testar token e pegar role/nome no front)
   router.get("/users/me", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const userId = req.user!.sub;
-
+    const userId = Number(req.user!.sub);
     const r = await pool.query<DbUserRow>(
-      `SELECT id, usuario, nome, role, ativo, created_at
-       FROM users
+      `SELECT id, name, email, role, bio, profile_picture_url, created_at
+       FROM "user"
        WHERE id = $1
        LIMIT 1`,
       [userId]
@@ -63,60 +91,57 @@ export function usersRouter(jwtSecret: string) {
 
     const u = r.rows[0];
     return res.json({
-      id: u.id,
-      usuario: u.usuario,
-      nome: u.nome,
-      role: u.role,
-      ativo: u.ativo,
+      id: String(u.id),
+      usuario: u.email,
+      email: u.email,
+      nome: u.name,
+      bio: u.bio,
+      profilePictureUrl: u.profile_picture_url,
+      role: toRole(u.role),
+      ativo: true,
       createdAt: u.created_at,
     });
   });
 
-  // Listar usuários (admin) ou professores (admin/professor)
   router.get(
     "/users",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
-      const userRole = req.user!.role;
-      const roleFilter = req.query.role as string | undefined;
+      const roleFilter = req.query.role as UserRole | undefined;
 
-      let query = `SELECT id, usuario, nome, role, ativo, created_at
-         FROM users
-         WHERE ativo = true`;
-
-      // Se for professor, só pode ver professores (para atribuir turmas)
-      if (userRole === "professor" && !roleFilter) {
-        query += ` AND role = 'professor'`;
+      const params: unknown[] = [];
+      let where = "";
+      if (roleFilter === "admin" || roleFilter === "professor" || roleFilter === "aluno") {
+        params.push(toNumericRole(roleFilter));
+        where = "WHERE role = $1";
       }
 
-      // Se solicitou filtro específico e é admin, aplica
-      if (roleFilter && userRole === "admin") {
-        query += ` AND role = $1`;
-      } else if (roleFilter && userRole === "professor") {
-        // Professor só pode ver professores, ignora outro filtro
-        query += ` AND role = 'professor'`;
-      }
-
-      query += ` ORDER BY created_at DESC LIMIT 200`;
-
-      const params = roleFilter && userRole === "admin" ? [roleFilter] : [];
-      const r = await pool.query<DbUserRow>(query, params);
+      const r = await pool.query<DbUserRow>(
+        `SELECT id, name, email, role, bio, profile_picture_url, created_at
+         FROM "user"
+         ${where}
+         ORDER BY created_at DESC
+         LIMIT 200`,
+        params
+      );
 
       return res.json(
         r.rows.map((u) => ({
-          id: u.id,
-          usuario: u.usuario,
-          nome: u.nome,
-          role: u.role,
-          ativo: u.ativo,
+          id: String(u.id),
+          usuario: u.email,
+          email: u.email,
+          nome: u.name,
+          bio: u.bio,
+          profilePictureUrl: u.profile_picture_url,
+          role: toRole(u.role),
+          ativo: true,
           createdAt: u.created_at,
         }))
       );
     }
   );
 
-  // Atualizar perfil do próprio usuário
   router.put("/users/me", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const parsed = updateMeSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -126,36 +151,82 @@ export function usersRouter(jwtSecret: string) {
       });
     }
 
-    const userId = req.user!.sub;
-    const { nome } = parsed.data;
+    const userId = Number(req.user!.sub);
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
 
-    const updated = await pool.query<DbUserRow>(
-      `UPDATE users
-       SET nome = $1
-       WHERE id = $2
-       RETURNING id, usuario, nome, role, ativo, created_at`,
-      [nome.trim(), userId]
-    );
-
-    if (!updated.rowCount) {
-      return res.status(404).json({ message: "Usuário não encontrado" });
+    if (parsed.data.nome !== undefined) {
+      updates.push(`name = $${idx++}`);
+      values.push(parsed.data.nome.trim());
+    }
+    if (parsed.data.bio !== undefined) {
+      updates.push(`bio = $${idx++}`);
+      values.push(parsed.data.bio.trim() === "" ? null : parsed.data.bio.trim());
+    }
+    if (parsed.data.profilePictureUrl !== undefined) {
+      updates.push(`profile_picture_url = $${idx++}`);
+      values.push(
+        parsed.data.profilePictureUrl.trim() === ""
+          ? null
+          : parsed.data.profilePictureUrl.trim()
+      );
     }
 
+    if (updates.length === 0) {
+      return res.status(400).json({ message: "Nenhum campo para atualizar" });
+    }
+
+    values.push(userId);
+    const updated = await pool.query<DbUserRow>(
+      `UPDATE "user"
+       SET ${updates.join(", ")}, updated_at = NOW()
+       WHERE id = $${idx}
+       RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+      values
+    );
+
+    if (!updated.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
     const u = updated.rows[0];
+    const pictureChanged = parsed.data.profilePictureUrl !== undefined;
+    const pictureRemoved = pictureChanged && parsed.data.profilePictureUrl?.trim() === "";
+    const action = pictureRemoved
+      ? "profile_picture_remove"
+      : pictureChanged
+        ? "profile_picture_update"
+        : "profile_update";
+
+    logActivity({
+      actorId: String(userId),
+      actorRole: req.user?.role ?? null,
+      action,
+      entityType: "user",
+      entityId: String(u.id),
+      metadata: {
+        nome: parsed.data.nome !== undefined,
+        bio: parsed.data.bio !== undefined,
+        profilePictureUrl: parsed.data.profilePictureUrl !== undefined,
+      },
+      req,
+    }).catch((err) => console.error("activity log error:", err));
+
     return res.json({
       message: "Perfil atualizado com sucesso!",
       user: {
-        id: u.id,
-        usuario: u.usuario,
-        nome: u.nome,
-        role: u.role,
-        ativo: u.ativo,
+        id: String(u.id),
+        usuario: u.email,
+        email: u.email,
+        nome: u.name,
+        bio: u.bio,
+        profilePictureUrl: u.profile_picture_url,
+        role: toRole(u.role),
+        ativo: true,
         createdAt: u.created_at,
       },
     });
   });
 
-  // Alterar senha do próprio usuário
   router.put("/users/me/password", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const parsed = changePasswordSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -165,239 +236,266 @@ export function usersRouter(jwtSecret: string) {
       });
     }
 
-    const userId = req.user!.sub;
-    const { senhaAtual, novaSenha } = parsed.data;
-
-    const result = await pool.query<{ senha_hash: string }>(
-      `SELECT senha_hash FROM users WHERE id = $1 LIMIT 1`,
+    const userId = Number(req.user!.sub);
+    const result = await pool.query<{ password_hash: string }>(
+      `SELECT password_hash FROM "user" WHERE id = $1 LIMIT 1`,
       [userId]
     );
 
-    if (!result.rowCount) {
-      return res.status(404).json({ message: "Usuário não encontrado" });
-    }
+    if (!result.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
 
-    const ok = await bcrypt.compare(senhaAtual, result.rows[0].senha_hash);
-    if (!ok) {
-      return res.status(401).json({ message: "Senha atual incorreta" });
-    }
+    const ok = await bcrypt.compare(parsed.data.senhaAtual, result.rows[0].password_hash);
+    if (!ok) return res.status(401).json({ message: "Senha atual incorreta" });
 
-    const senhaHash = await bcrypt.hash(novaSenha, 10);
-    await pool.query(`UPDATE users SET senha_hash = $1 WHERE id = $2`, [senhaHash, userId]);
+    const senhaHash = await bcrypt.hash(parsed.data.novaSenha, 10);
+    await pool.query(`UPDATE "user" SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [
+      senhaHash,
+      userId,
+    ]);
+
+    logActivity({
+      actorId: String(userId),
+      actorRole: req.user?.role ?? null,
+      action: "password_change",
+      entityType: "security",
+      entityId: String(userId),
+      req,
+    }).catch((err) => console.error("activity log error:", err));
 
     return res.json({ message: "Senha alterada com sucesso!" });
   });
 
-  // Criar usuário:
-  // - admin pode criar admin/professor/aluno
-  // - professor pode criar APENAS aluno (se tentar outro, força aluno)
   router.post(
-    "/users",
+    "/users/me/profile-picture",
     authGuard(jwtSecret),
-    requireRole(["admin"]),
+    profileUpload.single("file"),
     async (req: AuthRequest, res) => {
-      const parsed = createUserSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({
-          message: "Dados inválidos",
-          issues: parsed.error.flatten().fieldErrors,
-        });
-      }
-
-      const { usuario, nome, senha } = parsed.data;
-
-      const role: Role = (parsed.data.role ?? "aluno") as Role;
-
-      const ativo = parsed.data.ativo ?? true;
-
-      const senhaHash = await bcrypt.hash(senha, 10);
-
       try {
-        const created = await pool.query<DbUserRow>(
-          `INSERT INTO users (usuario, nome, senha_hash, role, ativo)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id, usuario, nome, role, ativo, created_at`,
-          [usuario.trim(), nome.trim(), senhaHash, role, ativo]
+        const userId = Number(req.user!.sub);
+        if (!req.file) {
+          return res.status(400).json({ message: "Arquivo de imagem é obrigatório" });
+        }
+
+        const current = await pool.query<{ profile_picture_url: string | null }>(
+          `SELECT profile_picture_url FROM "user" WHERE id = $1 LIMIT 1`,
+          [userId]
         );
 
-        const u = created.rows[0];
-
-        logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
-          action: "create",
-          entityType: "user",
-          entityId: u.id,
-          metadata: {
-            usuario: u.usuario,
-            nome: u.nome,
-            role: u.role,
-            ativo: u.ativo,
-          },
-          req,
-        }).catch((err) => console.error("activity log error:", err));
-
-        return res.status(201).json({
-          message: "Usuário criado com sucesso!",
-          user: {
-            id: u.id,
-            usuario: u.usuario,
-            nome: u.nome,
-            role: u.role,
-            ativo: u.ativo,
-            createdAt: u.created_at,
-          },
-        });
-      } catch (err: any) {
-        // unique violation (usuario)
-        if (err?.code === "23505") {
-          return res.status(409).json({ message: "Usuário já existe" });
-        }
-        console.error(err);
-        return res.status(500).json({ message: "Erro interno" });
-      }
-    }
-  );
-
-  // Atualizar usuário (admin)
-  router.put(
-    "/users/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const parsed = updateUserSchema.safeParse(req.body);
-
-      if (!parsed.success) {
-        return res.status(400).json({
-          message: "Dados inválidos",
-          issues: parsed.error.flatten().fieldErrors,
-        });
-      }
-
-      try {
-        const { nome, usuario, role, ativo } = parsed.data;
-
-        // Construir query dinamicamente
-        const updates: string[] = [];
-        const params: any[] = [];
-        let paramIndex = 1;
-
-        if (nome !== undefined) {
-          updates.push(`nome = $${paramIndex++}`);
-          params.push(nome.trim());
-        }
-
-        if (usuario !== undefined) {
-          updates.push(`usuario = $${paramIndex++}`);
-          params.push(usuario.trim());
-        }
-
-        if (role !== undefined) {
-          updates.push(`role = $${paramIndex++}`);
-          params.push(role);
-        }
-
-        if (ativo !== undefined) {
-          updates.push(`ativo = $${paramIndex++}`);
-          params.push(ativo);
-        }
-
-        if (updates.length === 0) {
-          return res
-            .status(400)
-            .json({ message: "Nenhum campo para atualizar" });
-        }
-
-        params.push(id);
-
-        const updated = await pool.query<DbUserRow>(
-          `UPDATE users
-           SET ${updates.join(", ")}
-           WHERE id = $${paramIndex}
-           RETURNING id, usuario, nome, role, ativo, created_at`,
-          params
-        );
-
-        if (!updated.rowCount) {
+        if (!current.rowCount) {
           return res.status(404).json({ message: "Usuário não encontrado" });
         }
 
-        const u = updated.rows[0];
+        const pictureUrl = await uploadToR2(req.file, "profile-pictures");
 
+        const updated = await pool.query<DbUserRow>(
+          `UPDATE "user"
+           SET profile_picture_url = $1, updated_at = NOW()
+           WHERE id = $2
+           RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+          [pictureUrl, userId]
+        );
+
+        const oldPicture = current.rows[0]?.profile_picture_url;
+        if (oldPicture && oldPicture !== pictureUrl) {
+          deleteFromR2(oldPicture).catch(() => undefined);
+        }
+
+        const u = updated.rows[0];
         logActivity({
-          actorId: req.user?.sub ?? null,
+          actorId: String(userId),
           actorRole: req.user?.role ?? null,
-          action: "update",
+          action: "profile_picture_upload",
           entityType: "user",
-          entityId: u.id,
-          metadata: {
-            updatedFields: Object.keys(parsed.data),
-            usuario: u.usuario,
-            nome: u.nome,
-            role: u.role,
-            ativo: u.ativo,
-          },
+          entityId: String(u.id),
+          metadata: { oldPictureExists: !!oldPicture },
           req,
         }).catch((err) => console.error("activity log error:", err));
 
-        return res.json({
-          message: "Usuário atualizado com sucesso!",
+        return res.status(200).json({
+          message: "Foto de perfil atualizada com sucesso!",
+          profilePictureUrl: pictureUrl,
           user: {
-            id: u.id,
-            usuario: u.usuario,
-            nome: u.nome,
-            role: u.role,
-            ativo: u.ativo,
+            id: String(u.id),
+            usuario: u.email,
+            email: u.email,
+            nome: u.name,
+            bio: u.bio,
+            profilePictureUrl: u.profile_picture_url,
+            role: toRole(u.role),
+            ativo: true,
             createdAt: u.created_at,
           },
         });
-      } catch (err: any) {
-        // unique violation (usuario)
-        if (err?.code === "23505") {
-          return res.status(409).json({ message: "Usuário já existe" });
-        }
-        console.error(err);
-        return res.status(500).json({ message: "Erro ao atualizar usuário" });
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Erro ao atualizar foto de perfil" });
       }
     }
   );
 
-  // Deletar usuário (admin)
+  router.post("/users", authGuard(jwtSecret), requireRole(["admin"]), async (req: AuthRequest, res) => {
+    const parsed = createUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Dados inválidos",
+        issues: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { usuario, email, nome, senha } = parsed.data;
+    const finalEmail = (email ?? usuario).trim();
+    const role = parsed.data.role ?? "aluno";
+    const senhaHash = await bcrypt.hash(senha, 10);
+
+    try {
+      const created = await pool.query<DbUserRow>(
+        `INSERT INTO "user" (name, email, password_hash, role, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NOW(), NOW())
+         RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+        [nome.trim(), finalEmail, senhaHash, toNumericRole(role)]
+      );
+
+      const u = created.rows[0];
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "user_create",
+        entityType: "user",
+        entityId: String(u.id),
+        metadata: { role: toRole(u.role) },
+        req,
+      }).catch((error) => console.error("activity log error:", error));
+
+      return res.status(201).json({
+        message: "Usuário criado com sucesso!",
+        user: {
+          id: String(u.id),
+          usuario: u.email,
+          email: u.email,
+          nome: u.name,
+          bio: u.bio,
+          profilePictureUrl: u.profile_picture_url,
+          role: toRole(u.role),
+          ativo: true,
+          createdAt: u.created_at,
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === "23505") return res.status(409).json({ message: "Usuário já existe" });
+      console.error(err);
+      return res.status(500).json({ message: "Erro interno" });
+    }
+  });
+
+  router.put("/users/:id", authGuard(jwtSecret), requireRole(["admin"]), async (req: AuthRequest, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
+
+    const parsed = updateUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Dados inválidos",
+        issues: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (parsed.data.nome !== undefined) {
+      updates.push(`name = $${idx++}`);
+      params.push(parsed.data.nome.trim());
+    }
+    const nextEmail = parsed.data.email ?? parsed.data.usuario;
+    if (nextEmail !== undefined) {
+      updates.push(`email = $${idx++}`);
+      params.push(nextEmail.trim());
+    }
+    if (parsed.data.role !== undefined) {
+      updates.push(`role = $${idx++}`);
+      params.push(toNumericRole(parsed.data.role));
+    }
+
+    if (!updates.length) return res.status(400).json({ message: "Nenhum campo para atualizar" });
+
+    updates.push(`updated_at = NOW()`);
+    params.push(id);
+
+    try {
+      const updated = await pool.query<DbUserRow>(
+        `UPDATE "user"
+         SET ${updates.join(", ")}
+         WHERE id = $${idx}
+         RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+        params
+      );
+
+      if (!updated.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
+      const u = updated.rows[0];
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "user_update",
+        entityType: "user",
+        entityId: String(u.id),
+        metadata: {
+          nome: parsed.data.nome !== undefined,
+          email: nextEmail !== undefined,
+          role: parsed.data.role !== undefined,
+        },
+        req,
+      }).catch((error) => console.error("activity log error:", error));
+
+      return res.json({
+        message: "Usuário atualizado com sucesso!",
+        user: {
+          id: String(u.id),
+          usuario: u.email,
+          email: u.email,
+          nome: u.name,
+          bio: u.bio,
+          profilePictureUrl: u.profile_picture_url,
+          role: toRole(u.role),
+          ativo: true,
+          createdAt: u.created_at,
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === "23505") return res.status(409).json({ message: "Usuário já existe" });
+      console.error(err);
+      return res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+
   router.delete(
     "/users/:id",
     authGuard(jwtSecret),
     requireRole(["admin"]),
     async (req: AuthRequest, res) => {
-      const { id } = req.params;
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
+
+      if (String(id) === req.user!.sub) {
+        return res.status(400).json({ message: "Você não pode deletar sua própria conta" });
+      }
 
       try {
-        // Não deixar deletar a si mesmo
-        if (id === req.user!.sub) {
-          return res.status(400).json({
-            message: "Você não pode deletar sua própria conta",
-          });
-        }
-
-        const deleted = await pool.query<DbUserRow>(
-          `DELETE FROM users WHERE id = $1 RETURNING id`,
+        const deleted = await pool.query<{ id: number }>(
+          `DELETE FROM "user" WHERE id = $1 RETURNING id`,
           [id]
         );
 
-        if (!deleted.rowCount) {
-          return res.status(404).json({ message: "Usuário não encontrado" });
-        }
-
+        if (!deleted.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
         logActivity({
           actorId: req.user?.sub ?? null,
           actorRole: req.user?.role ?? null,
-          action: "delete",
+          action: "user_delete",
           entityType: "user",
-          entityId: id,
-          metadata: { id },
+          entityId: String(id),
           req,
-        }).catch((err) => console.error("activity log error:", err));
-
+        }).catch((error) => console.error("activity log error:", error));
         return res.json({ message: "Usuário deletado com sucesso!" });
       } catch (err) {
         console.error(err);
