@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import multer from "multer";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
@@ -8,6 +9,7 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
+import { getForcePasswordChange, setForcePasswordChange } from "../utils/userSecurityFlags";
 
 type UserRole = "aluno" | "professor" | "admin";
 type NumericRole = 1 | 2 | 3;
@@ -30,6 +32,8 @@ const createUserSchema = z.object({
   nome: z.string().min(2, "Nome obrigatório"),
   senha: passwordSchema,
   role: z.enum(["admin", "professor", "aluno"]).optional(),
+  adminPassword: z.string().min(1, "Senha do administrador obrigatória").optional(),
+  forcePasswordChange: z.boolean().optional(),
 });
 
 const updateMeSchema = z.object({
@@ -62,6 +66,38 @@ const profileUpload = multer({
   },
 });
 
+function sha256Base64(value: string) {
+  return crypto.createHash("sha256").update(value).digest("base64");
+}
+
+function sha256Hex(value: string) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+async function verifyPassword(inputPassword: string, storedHash: string) {
+  const normalized = storedHash.trim();
+  const normalizedBcrypt = normalized.replace(/^\$\$2([aby])\$\$/i, "$2$1$");
+
+  if (
+    normalizedBcrypt.startsWith("$2a$") ||
+    normalizedBcrypt.startsWith("$2b$") ||
+    normalizedBcrypt.startsWith("$2y$")
+  ) {
+    return bcrypt.compare(inputPassword, normalizedBcrypt);
+  }
+
+  const matchesBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(normalized);
+  if (matchesBase64 && normalized.length >= 43) {
+    return sha256Base64(inputPassword) === normalized;
+  }
+
+  if (/^[A-Fa-f0-9]{64}$/.test(normalized)) {
+    return sha256Hex(inputPassword) === normalized.toLowerCase();
+  }
+
+  return false;
+}
+
 function toNumericRole(role: UserRole): NumericRole {
   if (role === "aluno") return 1;
   if (role === "professor") return 2;
@@ -90,6 +126,7 @@ export function usersRouter(jwtSecret: string) {
     if (!r.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
 
     const u = r.rows[0];
+    const mustChangePassword = await getForcePasswordChange(u.id);
     return res.json({
       id: String(u.id),
       usuario: u.email,
@@ -98,6 +135,7 @@ export function usersRouter(jwtSecret: string) {
       bio: u.bio,
       profilePictureUrl: u.profile_picture_url,
       role: toRole(u.role),
+      mustChangePassword,
       ativo: true,
       createdAt: u.created_at,
     });
@@ -127,17 +165,20 @@ export function usersRouter(jwtSecret: string) {
       );
 
       return res.json(
-        r.rows.map((u) => ({
-          id: String(u.id),
-          usuario: u.email,
-          email: u.email,
-          nome: u.name,
-          bio: u.bio,
-          profilePictureUrl: u.profile_picture_url,
-          role: toRole(u.role),
-          ativo: true,
-          createdAt: u.created_at,
-        }))
+        await Promise.all(
+          r.rows.map(async (u) => ({
+            id: String(u.id),
+            usuario: u.email,
+            email: u.email,
+            nome: u.name,
+            bio: u.bio,
+            profilePictureUrl: u.profile_picture_url,
+            role: toRole(u.role),
+            mustChangePassword: await getForcePasswordChange(u.id),
+            ativo: true,
+            createdAt: u.created_at,
+          }))
+        )
       );
     }
   );
@@ -244,14 +285,15 @@ export function usersRouter(jwtSecret: string) {
 
     if (!result.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
 
-    const ok = await bcrypt.compare(parsed.data.senhaAtual, result.rows[0].password_hash);
-    if (!ok) return res.status(401).json({ message: "Senha atual incorreta" });
+    const ok = await verifyPassword(parsed.data.senhaAtual, result.rows[0].password_hash);
+    if (!ok) return res.status(403).json({ message: "Senha atual incorreta" });
 
     const senhaHash = await bcrypt.hash(parsed.data.novaSenha, 10);
     await pool.query(`UPDATE "user" SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [
       senhaHash,
       userId,
     ]);
+    await setForcePasswordChange(userId, false);
 
     logActivity({
       actorId: String(userId),
@@ -342,9 +384,35 @@ export function usersRouter(jwtSecret: string) {
       });
     }
 
-    const { usuario, email, nome, senha } = parsed.data;
+    const { usuario, email, nome, senha, adminPassword, forcePasswordChange } = parsed.data;
     const finalEmail = (email ?? usuario).trim();
     const role = parsed.data.role ?? "aluno";
+
+    if (role === "admin") {
+      const actorId = Number(req.user?.sub);
+      if (!Number.isInteger(actorId)) {
+        return res.status(401).json({ message: "Sessão inválida" });
+      }
+
+      if (!adminPassword) {
+        return res.status(400).json({ message: "Senha do administrador é obrigatória para criar outro admin" });
+      }
+
+      const actor = await pool.query<{ password_hash: string }>(
+        `SELECT password_hash FROM "user" WHERE id = $1 LIMIT 1`,
+        [actorId]
+      );
+
+      if (!actor.rowCount) {
+        return res.status(401).json({ message: "Administrador não encontrado" });
+      }
+
+      const valid = await verifyPassword(adminPassword, actor.rows[0].password_hash);
+      if (!valid) {
+        return res.status(403).json({ message: "Senha do administrador inválida" });
+      }
+    }
+
     const senhaHash = await bcrypt.hash(senha, 10);
 
     try {
@@ -356,13 +424,14 @@ export function usersRouter(jwtSecret: string) {
       );
 
       const u = created.rows[0];
+      await setForcePasswordChange(u.id, !!forcePasswordChange);
       logActivity({
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
         action: "user_create",
         entityType: "user",
         entityId: String(u.id),
-        metadata: { role: toRole(u.role) },
+        metadata: { role: toRole(u.role), forcePasswordChange: !!forcePasswordChange },
         req,
       }).catch((error) => console.error("activity log error:", error));
 
@@ -376,6 +445,7 @@ export function usersRouter(jwtSecret: string) {
           bio: u.bio,
           profilePictureUrl: u.profile_picture_url,
           role: toRole(u.role),
+          mustChangePassword: !!forcePasswordChange,
           ativo: true,
           createdAt: u.created_at,
         },

@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { pool } from "../db";
 import { logActivity } from "../utils/activityLog";
+import { getForcePasswordChange } from "../utils/userSecurityFlags";
 
 export type Role = 1 | 2 | 3;
 
@@ -188,6 +189,7 @@ export function authRouter(
 
       const token = signAccessToken(user);
       const refreshToken = await issueRefreshToken(user.id);
+      const mustChangePassword = await getForcePasswordChange(user.id);
 
       logActivity({
         actorId: String(user.id),
@@ -209,6 +211,7 @@ export function authRouter(
           email: user.email,
           nome: user.name,
           role: user.role,
+          mustChangePassword,
         },
       });
     } catch (err) {

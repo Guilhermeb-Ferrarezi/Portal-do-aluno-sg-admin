@@ -706,6 +706,115 @@
   overflow-y: auto;
 }
 
+.alMetadataTable {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--background-secondary);
+}
+
+.alMetadataHeader {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.2fr) 90px minmax(160px, 2fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(148, 163, 184, 0.12);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.alMetadataRow {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.2fr) 90px minmax(160px, 2fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.alMetadataRow:last-child {
+  border-bottom: 0;
+}
+
+.alMetadataKey {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.alMetadataType {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  border: 1px solid transparent;
+}
+
+.alMetadataType.type-texto {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.alMetadataType.type-numero {
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
+  border-color: rgba(5, 150, 105, 0.22);
+}
+
+.alMetadataType.type-booleano {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.22);
+}
+
+.alMetadataType.type-lista,
+.alMetadataType.type-objeto {
+  background: rgba(127, 29, 29, 0.12);
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.2);
+}
+
+.alMetadataType.type-nulo {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+  border-color: rgba(71, 85, 105, 0.18);
+}
+
+.alMetadataValue {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.alMetadataPre {
+  grid-column: 1 / -1;
+  margin: 2px 0 0 0;
+  padding: 10px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 12px;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ── Responsive ── */
 @media (max-width: 1100px) {
   .alStats {
@@ -773,6 +882,19 @@
 
   .alLogDetailsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .alMetadataHeader,
+  .alMetadataRow {
+    grid-template-columns: 1fr;
+  }
+
+  .alMetadataHeader {
+    display: none;
+  }
+
+  .alMetadataRow {
+    gap: 6px;
   }
 }
 

@@ -3,21 +3,22 @@
 .perfilContainer {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 /* CARD */
 .perfilCard {
-  background: var(--background);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 6px;
-  box-shadow: var(--shadow);
-  transition: all 0.3s ease;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--motion-base) ease, border-color var(--motion-base) ease;
 }
 
 .perfilCard:hover {
-  box-shadow: 0 12px 32px rgba(225, 29, 46, 0.08);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .cardHeader {
@@ -50,18 +51,18 @@
 }
 
 .perfilMessage.success {
-  color: #16a34a;
-  background: rgba(34, 197, 94, 0.08);
-  border-color: rgba(34, 197, 94, 0.35);
+  color: var(--green);
+  background: rgba(var(--green-rgb), 0.08);
+  border-color: rgba(var(--green-rgb), 0.35);
 }
 
 .perfilMessage.error {
   color: var(--red);
-  background: rgba(225, 29, 46, 0.08);
-  border-color: rgba(225, 29, 46, 0.35);
+  background: rgba(var(--primary-rgb), 0.08);
+  border-color: rgba(var(--primary-rgb), 0.35);
 }
 
-/* BOT�ES */
+/* BOTÕES */
 .editBtn,
 .altBtn {
   padding: 10px 18px;
@@ -72,19 +73,19 @@
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
   white-space: nowrap;
 }
 
 .editBtn:hover,
 .altBtn:hover {
-  background: linear-gradient(135deg, var(--red), #d41c28);
+  background: linear-gradient(135deg, var(--red), var(--primary-dark));
   color: white;
   border-color: var(--red);
-  box-shadow: 0 4px 12px rgba(225, 29, 46, 0.25);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.25);
 }
 
-/* FORMUL�RIO DE EDI��O */
+/* FORMULÁRIO DE EDIÇÃO */
 .editForm {
   display: flex;
   flex-direction: column;
@@ -107,7 +108,7 @@
 }
 
 .formHint.success {
-  color: #16a34a;
+  color: var(--green);
 }
 
 .formLabel {
@@ -120,20 +121,20 @@
 
 .formInput {
   padding: 12px 14px;
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--input-border);
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
-  background: var(--background);
-  color: var(--text);
-  transition: all 0.2s ease;
+  background: var(--input-bg);
+  color: var(--input-text);
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 
 .formInput:focus {
   outline: 0;
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
-  background: var(--background-secondary);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
 }
 
 .formActions {
@@ -152,7 +153,7 @@
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 
 .btnCancel {
@@ -190,6 +191,20 @@
 .btnConfirm:disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* Icon alignment on action controls */
+.editBtn,
+.altBtn,
+.btnCancel,
+.btnSalvar,
+.btnConfirm,
+.settingsCloseBtn,
+.settingsBackBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* INFO GRID */
@@ -287,18 +302,20 @@
 .settingsSelect {
   min-width: 180px;
   padding: 10px 12px;
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--input-border);
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
-  background: var(--background);
-  color: var(--text);
+  background: var(--input-bg);
+  color: var(--input-text);
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 
 .settingsSelect:focus {
   outline: 0;
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
 }
 
 .settingsActions {
@@ -392,7 +409,7 @@
 }
 
 .switch input:checked + .slider {
-  background: rgba(225, 29, 46, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   border-color: var(--red);
 }
 
@@ -414,16 +431,16 @@
   gap: 12px;
   padding: 20px;
   background: linear-gradient(135deg, #1f2937, #111827);
-  border: 1px solid rgba(225, 29, 46, 0.2);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
   border-radius: 12px;
-  transition: all 0.3s ease;
+  transition: all var(--motion-base) ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .statCard:hover {
   border-color: var(--red);
   background: linear-gradient(135deg, #2a3748, #1a202c);
-  box-shadow: 0 6px 16px rgba(225, 29, 46, 0.15);
+  box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.15);
   transform: translateY(-2px);
 }
 
@@ -468,12 +485,12 @@
   background: var(--background-secondary);
   border-radius: 12px;
   border: 1px solid var(--line);
-  transition: all 0.2s ease;
+  transition: all var(--motion-fast) ease;
 }
 
 .turmaItem:hover {
   border-color: var(--red);
-  background: linear-gradient(135deg, rgba(225, 29, 46, 0.05), rgba(225, 29, 46, 0.02));
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.05), rgba(var(--primary-rgb), 0.02));
 }
 
 .turmaIcon {
@@ -512,13 +529,13 @@
 }
 
 .badgeCategoria {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  background: rgba(var(--info-rgb), 0.1);
+  color: var(--info);
 }
 
 .badgeTipo {
-  background: rgba(168, 85, 247, 0.1);
-  color: #a855f7;
+  background: rgba(var(--violet-rgb), 0.1);
+  color: var(--violet);
 }
 
 /* EMPTY STATE */
@@ -917,7 +934,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--green);
   border: 4px solid #11141b;
 }
 
@@ -970,7 +987,7 @@
 }
 
 .profilePhotoMenuItem.danger:hover {
-  background: rgba(225, 29, 46, 0.22);
+  background: rgba(var(--primary-rgb), 0.22);
   color: #ffb4bc;
 }
 
@@ -1113,17 +1130,17 @@
 }
 
 .profileEditorArea .formLabel {
-  color: #a7afbf;
+  color: var(--text-secondary);
 }
 
 .profileEditorArea .formInput {
-  background: #1b202a;
-  border-color: #343a47;
-  color: #f0f3f9;
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-text);
 }
 
 .profileEditorArea .formInput::placeholder {
-  color: #8f97a8;
+  color: var(--input-placeholder);
 }
 
 .profileMediaActions {
@@ -1268,6 +1285,39 @@
 
   .settingsActions {
     flex-direction: column;
+  }
+}
+
+/* Dense mobile form layout */
+@media (max-width: 768px) {
+  .perfilContainer {
+    gap: 14px;
+  }
+
+  .perfilCard {
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .editForm,
+  .settingsGrid,
+  .securityContent {
+    gap: 12px;
+  }
+
+  .formInput,
+  .settingsSelect,
+  .settingsColorHex {
+    min-height: 42px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+    font-size: var(--fs-sm);
+  }
+
+  .formLabel,
+  .infoLabel {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.4px;
   }
 }
 

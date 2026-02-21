@@ -26,13 +26,13 @@ import {
 } from "lucide-react";
 
 export default function AdminUsersPage() {
-  const [usuarios, setUsuarios] = React.useState<User[]>([]);
+  const [usuários, setUsuarios] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [erro, setErro] = React.useState<string | null>(null);
   const [filtroTipo, setFiltroTipo] = React.useState<"todos" | "aluno" | "professor" | "admin">("todos");
   const [busca, setBusca] = React.useState("");
 
-  // Estados do modal de edi��o
+  // Estados do modal de edição
   const [editandoUsuario, setEditandoUsuario] = React.useState<User | null>(null);
   const [editNome, setEditNome] = React.useState("");
   const [editEmail, setEditEmail] = React.useState("");
@@ -70,16 +70,16 @@ export default function AdminUsersPage() {
     );
   };
 
-  // Pagina��o
+  // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
-  // Carregar usu�rios ao montar
+  // Carregar usuários ao montar
   React.useEffect(() => {
     carregarUsuarios();
   }, []);
 
-  // Auto-dismiss feedback ap�s 3 segundos
+  // Auto-dismiss feedback após 3 segundos
   React.useEffect(() => {
     if (feedback) {
       const timer = setTimeout(() => {
@@ -100,21 +100,21 @@ export default function AdminUsersPage() {
         listarAdmins(),
       ]);
 
-      // Adicionar role aos usuarios
+      // Adicionar role aos usuários
       const alunosComRole: User[] = alunos.map(a => ({ ...a, email: a.email ?? a.usuario ?? "", role: "aluno" }));
       const professoresComRole: User[] = professores.map(p => ({ ...p, email: p.email ?? p.usuario ?? "", role: "professor" }));
       const adminsComRole: User[] = admins.map(ad => ({ ...ad, email: ad.email ?? ad.usuario ?? "", role: "admin" }));
 
       setUsuarios([...adminsComRole, ...professoresComRole, ...alunosComRole]);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao carregar usu�rios");
+      setErro(err instanceof Error ? err.message : "Erro ao carregar usuários");
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtrar usu�rios
-  const usuariosFiltrados = usuarios.filter((u) => {
+  // Filtrar usuários
+  const usuáriosFiltrados = usuários.filter((u) => {
     const matchTipo = filtroTipo === "todos" || u.role === filtroTipo;
     const matchBusca =
       busca === "" ||
@@ -124,11 +124,11 @@ export default function AdminUsersPage() {
     return matchTipo && matchBusca;
   });
 
-  const totalItems = usuariosFiltrados.length;
+  const totalItems = usuáriosFiltrados.length;
 
-  // Pagina��o
+  // Paginação
   const startIdx = (currentPage - 1) * itemsPerPage;
-  const usuariosPaginados = usuariosFiltrados.slice(
+  const usuáriosPaginados = usuáriosFiltrados.slice(
     startIdx,
     startIdx + itemsPerPage
   );
@@ -153,13 +153,13 @@ export default function AdminUsersPage() {
     if (!editNome.trim() || !editEmail.trim()) {
       setFeedback({
         tipo: "erro",
-        mensagem: "Nome e usu�rio s�o obrigat�rios",
+        mensagem: "Nome e usuário são obrigatórios",
       });
       return;
     }
 
     try {
-      // Chamar API para atualizar usu�rio
+      // Chamar API para atualizar usuário
       await atualizarUsuario(editandoUsuario.id, {
         nome: editNome.trim(),
         email: editEmail.trim(),
@@ -167,7 +167,7 @@ export default function AdminUsersPage() {
 
       // Atualizar na lista local
       setUsuarios(
-        usuarios.map((u) =>
+        usuários.map((u) =>
           u.id === editandoUsuario.id
             ? { ...u, nome: editNome, email: editEmail }
             : u
@@ -177,12 +177,12 @@ export default function AdminUsersPage() {
       fecharEditar();
       setFeedback({
         tipo: "sucesso",
-        mensagem: "Usu�rio atualizado com sucesso!",
+        mensagem: "Usuário atualizado com sucesso!",
       });
     } catch (err) {
       setFeedback({
         tipo: "erro",
-        mensagem: err instanceof Error ? err.message : "Erro ao atualizar usu�rio",
+        mensagem: err instanceof Error ? err.message : "Erro ao atualizar usuário",
       });
     }
   };
@@ -193,21 +193,21 @@ export default function AdminUsersPage() {
     try {
       setDeletando(true);
 
-      // Chamar API para deletar usu�rio
+      // Chamar API para deletar usuário
       await deletarUsuario(usuarioDeletar.id);
 
       // Remover da lista local
-      setUsuarios(usuarios.filter((u) => u.id !== usuarioDeletar.id));
+      setUsuarios(usuários.filter((u) => u.id !== usuarioDeletar.id));
       setUsuarioDeletar(null);
 
       setFeedback({
         tipo: "sucesso",
-        mensagem: "Usu�rio deletado com sucesso!",
+        mensagem: "Usuário deletado com sucesso!",
       });
     } catch (err) {
       setFeedback({
         tipo: "erro",
-        mensagem: err instanceof Error ? err.message : "Erro ao deletar usu�rio",
+        mensagem: err instanceof Error ? err.message : "Erro ao deletar usuário",
       });
     } finally {
       setDeletando(false);
@@ -217,11 +217,11 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <DashboardLayout
-        title="Gerenciar Usu�rios"
+        title="Gerenciar Usuários"
         subtitle="Gerencie alunos, professores e admins"
       >
         <div style={{ textAlign: "center", padding: "2rem" }}>
-          <p>Carregando usu�rios...</p>
+          <p>Carregando usuários...</p>
         </div>
       </DashboardLayout>
     );
@@ -230,7 +230,7 @@ export default function AdminUsersPage() {
   if (erro) {
     return (
       <DashboardLayout
-        title="Gerenciar Usu�rios"
+        title="Gerenciar Usuários"
         subtitle="Gerencie alunos, professores e admins"
       >
         <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
@@ -243,12 +243,12 @@ export default function AdminUsersPage() {
 
   return (
     <DashboardLayout
-      title="Gerenciar Usu�rios"
+      title="Gerenciar Usuários"
       subtitle="Gerencie alunos, professores e admins"
     >
       <FadeInUp duration={0.28}>
         <div className="adminUsersContainer">
-          {/* FEEDBACK DE NOTIFICA��O */}
+          {/* FEEDBACK DE NOTIFICAÇÃO */}
           <AnimatedToast
             message={feedback?.mensagem || null}
             type={feedback?.tipo === "sucesso" ? "success" : "error"}
@@ -293,11 +293,11 @@ export default function AdminUsersPage() {
             </div>
           </FadeInUp>
 
-          {/* TABELA DE USU�RIOS */}
-          {usuariosFiltrados.length === 0 ? (
+          {/* TABELA DE USUÁRIOS */}
+          {usuáriosFiltrados.length === 0 ? (
             <FadeInUp duration={0.28} delay={0.16}>
               <div className="emptyState">
-                <p>Nenhum usu�rio encontrado</p>
+                <p>Nenhum usuário encontrado</p>
               </div>
             </FadeInUp>
           ) : (
@@ -308,34 +308,36 @@ export default function AdminUsersPage() {
                     <thead>
                       <tr>
                         <th>Nome</th>
-                        <th>Usu�rio</th>
+                        <th>Usuário</th>
                         <th>Tipo</th>
-                        <th>A��es</th>
+                        <th>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {usuariosPaginados.map((usuario, idx) => (
+                      {usuáriosPaginados.map((usuario, idx) => (
                         <FadeInUp key={usuario.id} duration={0.28} delay={0.16 + idx * 0.04}>
-                          <tr>
-                            <td>{usuario.nome}</td>
-                            <td className="usuarioCell">{usuario.email ?? usuario.usuario}</td>
-                            <td>
+                          <tr className="userRow">
+                            <td data-label="Nome">{usuario.nome}</td>
+                            <td data-label="Usuário" className="usuarioCell">
+                              {usuario.email ?? usuario.usuario}
+                            </td>
+                            <td data-label="Tipo">
                               <span className={`roleTag role-${usuario.role}`}>
                                 {roleLabel(usuario.role)}
                               </span>
                             </td>
-                            <td className="actionCell">
+                            <td data-label="Ações" className="actionCell">
                               <AnimatedButton
                                 className="btnEdit"
                                 onClick={() => abrirEditar(usuario)}
-                                title="Editar usu�rio"
+                                title="Editar usuário"
                               >
                                 <Pencil size={16} />
                               </AnimatedButton>
                               <AnimatedButton
                                 className="btnDelete"
                                 onClick={() => setUsuarioDeletar(usuario)}
-                                title="Deletar usu�rio"
+                                title="Deletar usuário"
                               >
                                 <Trash2 size={16} />
                               </AnimatedButton>
@@ -360,11 +362,11 @@ export default function AdminUsersPage() {
             </>
           )}
 
-          {/* MODAL DE EDI��O */}
+          {/* MODAL DE EDIÇÃO */}
           <Modal
             isOpen={editarAberto && !!editandoUsuario}
             onClose={fecharEditar}
-            title="Editar Usu�rio"
+            title="Editar Usuário"
             size="sm"
             footer={
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -372,7 +374,7 @@ export default function AdminUsersPage() {
                   Cancelar
                 </AnimatedButton>
                 <AnimatedButton onClick={salvarEdicao}>
-                  Salvar Altera��es
+                  Salvar Alterações
                 </AnimatedButton>
               </div>
             }
@@ -405,18 +407,18 @@ export default function AdminUsersPage() {
                 {editandoUsuario?.role ? roleLabel(editandoUsuario.role) : "-"}
               </p>
               <small style={{ color: "var(--muted)", fontSize: "12px" }}>
-                Alterar o tipo de usu�rio requer altera��o manual no banco de dados
+                Alterar o tipo de usuário requer alteração manual no banco de dados
               </small>
             </div>
           </Modal>
 
-          {/* MODAL DE CONFIRMA��O DE DELE��O */}
+          {/* MODAL DE CONFIRMAÇÃO DE DELEÇÃO */}
           <ConfirmDialog
             isOpen={!!usuarioDeletar}
             onClose={() => setUsuarioDeletar(null)}
             onConfirm={confirmarDeletar}
-            title="Deletar Usu�rio"
-            message={`Tem certeza que deseja deletar o usu�rio "${usuarioDeletar?.nome}"? Esta a��o n�o pode ser desfeita.`}
+            title="Deletar Usuário"
+            message={`Tem certeza que deseja deletar o usuário "${usuarioDeletar?.nome}"? Esta ação não pode ser desfeita.`}
             confirmText="Deletar"
             cancelText="Cancelar"
             isLoading={deletando}

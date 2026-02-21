@@ -1,12 +1,12 @@
-﻿/* ===== EXERCï¿½CIOS PAGE ===== */
+﻿/* ===== EXERCÍCIOS PAGE ===== */
 
 .exercisesContainer {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
-/* CABEï¿½ALHO COM BOTï¿½O */
+/* CABEÇALHO COM BOTÃO */
 .exercisesHeader {
   display: flex;
   justify-content: space-between;
@@ -60,32 +60,32 @@
 }
 
 .exercisesTab:hover {
-  background: rgba(225, 29, 46, 0.1);
+  background: rgba(var(--primary-rgb), 0.1);
   color: var(--red);
 }
 
 .exercisesTab.active {
-  background: linear-gradient(135deg, var(--red), #d41c28);
+  background: linear-gradient(135deg, var(--red), var(--primary-dark));
   color: #fff;
-  box-shadow: 0 6px 16px rgba(225, 29, 46, 0.28);
+  box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.28);
 }
 
 .templateScheduleBtn {
-  background: var(--bg);
+  background: var(--surface-2);
   color: var(--red);
   border: 1.5px solid var(--line);
   font-weight: 600;
   padding: 11px 18px;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .templateScheduleBtn:hover {
   border-color: var(--red);
-  background: rgba(225, 29, 46, 0.06);
-  box-shadow: 0 4px 12px rgba(225, 29, 46, 0.15);
+  background: rgba(var(--primary-rgb), 0.06);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.15);
   transform: translateY(-2px);
 }
 
@@ -95,7 +95,7 @@
 }
 
 .refreshBtn {
-  background: linear-gradient(135deg, var(--red), #d41c28);
+  background: linear-gradient(135deg, var(--red), var(--primary-dark));
   color: white;
   border: 0;
   font-weight: 600;
@@ -103,8 +103,8 @@
   border-radius: 12px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px rgba(225, 29, 46, 0.28);
+  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+  box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.28);
   position: relative;
   overflow: hidden;
 }
@@ -126,12 +126,24 @@
 
 .refreshBtn:hover:not(:disabled) {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(225, 29, 46, 0.35);
+  box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.35);
 }
 
 .refreshBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Icon alignment on action controls */
+.templateScheduleBtn,
+.refreshBtn,
+.exSubmitBtn,
+.exerciseEditBtn,
+.exerciseDeleteBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* MENSAGENS */
@@ -143,22 +155,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  animation: slideIn 0.3s ease;
+  animation: slideIn var(--motion-base) ease;
 }
 
 .exMessage.error {
-  background: rgba(225, 29, 46, 0.08);
+  background: rgba(var(--primary-rgb), 0.08);
   color: var(--red);
-  border-color: rgba(225, 29, 46, 0.2);
+  border-color: rgba(var(--primary-rgb), 0.2);
 }
 
 .exMessage.success {
-  background: rgba(34, 197, 94, 0.08);
+  background: rgba(var(--green-rgb), 0.08);
   color: var(--green);
-  border-color: rgba(34, 197, 94, 0.2);
+  border-color: rgba(var(--green-rgb), 0.2);
 }
 
-/* File picker (exercï¿½cios) */
+/* File picker (exercícios) */
 .filePicker {
   display: inline-flex;
   align-items: center;
@@ -169,7 +181,7 @@
   background: var(--background-secondary);
   color: var(--text);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
   margin: 8px;
 }
 
@@ -178,8 +190,8 @@
 }
 
 .filePicker:hover {
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.12);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
 }
 
 .filePickerIcon {
@@ -224,10 +236,10 @@
 }
 
 .exMessage.warning {
-  background: rgba(59, 130, 246, 0.08);
-  color: #2563eb;
-  border-color: rgba(59, 130, 246, 0.2);
-  border-left: 4px solid #2563eb;
+  background: rgba(var(--info-rgb), 0.08);
+  color: var(--info);
+  border-color: rgba(var(--info-rgb), 0.2);
+  border-left: 4px solid var(--info);
 }
 
 @keyframes slideIn {
@@ -241,12 +253,12 @@
   }
 }
 
-/* SEï¿½ï¿½O DE CRIAR EXERCï¿½CIO */
+/* SEÇÃO DE CRIAR EXERCÍCIO */
 .createExerciseCard {
-  border: 1.5px solid rgba(225, 29, 46, 0.14);
+  border: 1.5px solid rgba(var(--primary-rgb), 0.14);
   border-radius: 20px;
   padding: 40px;
-  box-shadow: 0 16px 48px rgba(225, 29, 46, 0.12), inset 0 2px 4px rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 16px 48px rgba(var(--primary-rgb), 0.12), inset 0 2px 4px rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   overflow: hidden;
   position: relative;
   transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
@@ -259,7 +271,7 @@
   right: 0;
   width: 280px;
   height: 280px;
-  background: radial-gradient(circle, rgba(225, 29, 46, 0.07), transparent);
+  background: radial-gradient(circle, rgba(var(--primary-rgb), 0.07), transparent);
   border-radius: 0 20px 0 999px;
   pointer-events: none;
   transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
@@ -272,20 +284,20 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(225, 29, 46, 0.15), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--primary-rgb), 0.15), transparent);
   pointer-events: none;
 }
 
 .createExerciseCard:hover {
-  box-shadow: 0 24px 60px rgba(225, 29, 46, 0.18), inset 0 2px 4px rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
-  border-color: rgba(225, 29, 46, 0.20);
+  box-shadow: 0 24px 60px rgba(var(--primary-rgb), 0.18), inset 0 2px 4px rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  border-color: rgba(var(--primary-rgb), 0.20);
   transform: translateY(-3px);
 }
 
 .createExerciseCard:hover::before {
   width: 340px;
   height: 340px;
-  background: radial-gradient(circle, rgba(225, 29, 46, 0.10), transparent);
+  background: radial-gradient(circle, rgba(var(--primary-rgb), 0.10), transparent);
 }
 
 .exFormTitle {
@@ -306,7 +318,7 @@
 .exFormTitle::before {
   content: '';
   font-size: 32px;
-  background: linear-gradient(135deg, var(--red) 0%, #d41c28 100%);
+  background: linear-gradient(135deg, var(--red) 0%, var(--primary-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -354,7 +366,7 @@
   letter-spacing: 0.4px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--motion-fast) ease;
 }
 
 .exToggleOption:hover {
@@ -363,9 +375,9 @@
 }
 
 .exToggleOption.active {
-  border-color: rgba(59, 130, 246, 0.6);
-  background: rgba(59, 130, 246, 0.08);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+  border-color: rgba(var(--info-rgb), 0.6);
+  background: rgba(var(--info-rgb), 0.08);
+  box-shadow: 0 0 0 1px rgba(var(--info-rgb), 0.25);
 }
 
 .exToggleInput {
@@ -383,7 +395,7 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  transition: all 0.2s ease;
+  transition: all var(--motion-fast) ease;
   flex-shrink: 0;
 }
 
@@ -426,16 +438,16 @@
 .exInputGroup:has(input:focus),
 .exInputGroup:has(textarea:focus),
 .exInputGroup:has(select:focus) .exLabel {
-  color: var(--red);
+  color: var(--focus-color);
 }
 
 .exLabel {
   font-weight: 700;
-  font-size: 12px;
-  color: var(--text);
+  font-size: var(--fs-xs);
+  color: var(--text-strong);
   text-transform: uppercase;
   letter-spacing: 0.7px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color var(--motion-fast) ease;
 }
 
 .exInput,
@@ -443,13 +455,13 @@
 .exSelect {
   width: 100%;
   padding: 18px 18px;
-  border: 2px solid var(--line);
+  border: 1px solid var(--input-border);
   border-radius: 14px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-family: inherit;
-  background: var(--card);
-  color: var(--text);
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--input-bg);
+  color: var(--input-text);
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
   position: relative;
   z-index: 1;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -459,27 +471,25 @@
 
 .exInput::placeholder,
 .exTextarea::placeholder {
-  color: var(--muted);
+  color: var(--input-placeholder);
   font-weight: 400;
 }
 
 .exInput:hover,
 .exTextarea:hover,
 .exSelect:hover {
-  border-color: var(--red);
-  background: var(--card);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02), 0 8px 20px rgba(225, 29, 46, 0.08);
-  transform: translateY(-2px);
+  border-color: var(--input-border-hover);
+  background: var(--input-bg);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .exInput:focus,
 .exTextarea:focus,
 .exSelect:focus {
   outline: 0;
-  border-color: var(--red);
-  background: var(--card);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02), 0 0 0 6px rgba(225, 29, 46, 0.1), 0 12px 28px rgba(225, 29, 46, 0.16);
-  transform: translateY(-3px);
+  border-color: var(--focus-color);
+  background: var(--input-bg-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .exTextarea {
@@ -495,7 +505,7 @@
   padding: 10px 8px;
 }
 
-/* Aumentar ï¿½rea clicï¿½vel do botï¿½o de calendï¿½rio no input de data */
+/* Aumentar área clicável do botão de calendário no input de data */
 input[type="datetime-local"].exInput {
   padding-right: 50px;
 }
@@ -518,7 +528,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exSubmitBtn {
-  background: linear-gradient(135deg, var(--red) 0%, #d41c28 100%);
+  background: linear-gradient(135deg, var(--red) 0%, var(--primary-dark) 100%);
   color: white;
   border: 0;
   font-weight: 800;
@@ -529,7 +539,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   letter-spacing: 0.5px;
   margin-top: 20px;
   transition: all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 14px 32px rgba(225, 29, 46, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 14px 32px rgba(var(--primary-rgb), 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.1);
   width: 100%;
   position: relative;
   overflow: hidden;
@@ -568,7 +578,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 
 .exSubmitBtn:hover:not(:disabled) {
   transform: translateY(-5px);
-  box-shadow: 0 20px 48px rgba(225, 29, 46, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 48px rgba(var(--primary-rgb), 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.15);
 }
 
 .exSubmitBtn:hover:not(:disabled)::before {
@@ -582,7 +592,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 
 .exSubmitBtn:active:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(225, 29, 46, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.1);
 }
 
 .exSubmitBtn:disabled {
@@ -607,7 +617,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   position: relative;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(225, 29, 46, 0.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(var(--primary-rgb), 0.06);
 }
 
 .exFormNote::before {
@@ -622,11 +632,11 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 
 .exFormNote:hover {
   border-color: var(--red);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 6px 16px rgba(225, 29, 46, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02), 0 6px 16px rgba(var(--primary-rgb), 0.12);
   transform: translateY(-1px);
 }
 
-/* LISTA DE EXERCï¿½CIOS */
+/* LISTA DE EXERCÍCIOS */
 .exercisesList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -679,7 +689,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(225, 29, 46, 0.04), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--primary-rgb), 0.04), transparent);
   transition: left 0.4s ease;
   pointer-events: none;
 }
@@ -707,7 +717,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.2s ease;
+  transition: all var(--motion-fast) ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -717,27 +727,27 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseEditBtn {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(var(--info-rgb), 0.1);
+  color: var(--info);
+  border: 1px solid rgba(var(--info-rgb), 0.2);
 }
 
 .exerciseEditBtn:hover {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(var(--info-rgb), 0.2);
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .exerciseDeleteBtn {
-  background: rgba(225, 29, 46, 0.1);
+  background: rgba(var(--primary-rgb), 0.1);
   color: var(--red);
-  border: 1px solid rgba(225, 29, 46, 0.2);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
 }
 
 .exerciseDeleteBtn:hover {
-  background: rgba(225, 29, 46, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(225, 29, 46, 0.2);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
 }
 
 .exerciseDeleteBtn:disabled {
@@ -835,9 +845,9 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseTypePill.isCodigo {
-  background: rgba(59, 130, 246, 0.14);
+  background: rgba(var(--info-rgb), 0.14);
   color: #93c5fd;
-  border-color: rgba(59, 130, 246, 0.35);
+  border-color: rgba(var(--info-rgb), 0.35);
 }
 
 .exerciseTypePill.isEscrita {
@@ -901,7 +911,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 
 .exerciseDeadline.overdue {
   color: #fecaca;
-  background: rgba(225, 29, 46, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   border-color: rgba(248, 113, 113, 0.4);
 }
 
@@ -926,8 +936,8 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exercisePhasePill {
-  border-color: rgba(59, 130, 246, 0.45);
-  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(var(--info-rgb), 0.45);
+  background: rgba(var(--info-rgb), 0.16);
   color: #bfdbfe;
 }
 
@@ -983,15 +993,15 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 
 .exerciseAccessBadge.isAluno,
 .exerciseAccessBadge.isAll {
-  background: rgba(34, 197, 94, 0.16);
-  color: #22c55e;
-  border-color: rgba(34, 197, 94, 0.36);
+  background: rgba(var(--green-rgb), 0.16);
+  color: var(--green);
+  border-color: rgba(var(--green-rgb), 0.36);
 }
 
 .exerciseAccessBadge.isTurmas {
-  background: rgba(59, 130, 246, 0.16);
+  background: rgba(var(--info-rgb), 0.16);
   color: #93c5fd;
-  border-color: rgba(59, 130, 246, 0.36);
+  border-color: rgba(var(--info-rgb), 0.36);
 }
 
 .exerciseTurmaBadge {
@@ -1005,27 +1015,27 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .exerciseTurmaBadge.isTurma {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(var(--info-rgb), 0.1);
   color: #93c5fd;
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: rgba(var(--info-rgb), 0.3);
 }
 
 .exerciseTurmaBadge.isParticular {
-  background: rgba(168, 85, 247, 0.12);
+  background: rgba(var(--violet-rgb), 0.12);
   color: #d8b4fe;
-  border-color: rgba(168, 85, 247, 0.3);
+  border-color: rgba(var(--violet-rgb), 0.3);
 }
 
 .exerciseTopic {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(var(--info-rgb), 0.08);
   color: #3b82f6;
   border-radius: 6px;
   font-size: 11px;
   font-weight: 700;
-  border: 1px solid rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(var(--info-rgb), 0.1);
   letter-spacing: 0.3px;
 }
 
@@ -1125,17 +1135,17 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--motion-fast) ease;
 }
 
 .monacoLanguageSelect:hover {
-  border-color: var(--red);
+  border-color: var(--input-border-hover);
 }
 
 .monacoLanguageSelect:focus {
   outline: 0;
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
 }
 
 /* TURMA BADGES */
@@ -1149,13 +1159,13 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
 }
 
 .turmaBadge.turma {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  background: rgba(var(--info-rgb), 0.1);
+  color: var(--info);
 }
 
 .turmaBadge.particular {
-  background: rgba(168, 85, 247, 0.1);
-  color: #a855f7;
+  background: rgba(var(--violet-rgb), 0.1);
+  color: var(--violet);
 }
 
 /* FILTROS */
@@ -1340,7 +1350,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
     width: 100%;
   }
   
-  /* Opcional: Se tiver nï¿½mero ï¿½mpar de selects, o ï¿½ltimo ocupa tudo */
+  /* Opcional: Se tiver número ímpar de selects, o último ocupa tudo */
   .filterRow:last-child .filterGroup:last-child:nth-child(odd) {
     grid-column: span 2;
   }
@@ -1353,6 +1363,36 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   .filterGroup input {
     height: 48px;
     min-height: 48px;
+  }
+}
+
+/* Dense mobile form layout */
+@media (max-width: 768px) {
+  .exercisesContainer {
+    gap: 14px;
+  }
+
+  .createExerciseCard {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .exFormGrid,
+  .exInputGroup {
+    gap: 10px;
+  }
+
+  .exInput,
+  .exTextarea,
+  .exSelect {
+    min-height: 42px;
+    padding: 10px 12px;
+    font-size: var(--fs-sm);
+  }
+
+  .exLabel {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.4px;
   }
 }
 
@@ -1401,4 +1441,3 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   letter-spacing: 0.5px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
-

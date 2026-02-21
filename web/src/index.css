@@ -19,11 +19,17 @@
   
   --line: #e5e7eb;           /* Gray 200 */
   --line-strong: #d1d5db;    /* Gray 300 */
+  --line-soft: #eef2f7;
 
   /* Semantic */
   --red: #ef4444;
   --green: #10b981;
+  --green-rgb: 16, 185, 129;
   --blue: #3b82f6;
+  --info: #2563eb;
+  --info-rgb: 37, 99, 235;
+  --violet: #7c3aed;
+  --violet-rgb: 124, 58, 237;
   --yellow: #f59e0b;
   
   /* Shadows */
@@ -41,6 +47,36 @@
   --r-xl: 24px;
   --r-full: 9999px;
 
+  /* Typography scale */
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --lh-tight: 1.2;
+  --lh-base: 1.5;
+
+  /* Standardized surface + controls */
+  --surface-1: var(--card);
+  --surface-2: var(--background-secondary);
+  --surface-3: var(--background-hover);
+  --text-strong: var(--text);
+  --text-muted: var(--text-secondary);
+  --text-soft: var(--text-tertiary);
+  --border-subtle: var(--line);
+  --border-strong: var(--line-strong);
+  --focus-color: var(--primary);
+  --focus-ring: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
+  --input-bg: color-mix(in srgb, var(--surface-2) 66%, var(--surface-1) 34%);
+  --input-bg-focus: color-mix(in srgb, var(--surface-2) 52%, var(--surface-1) 48%);
+  --input-border: color-mix(in srgb, var(--border-subtle) 58%, transparent);
+  --input-border-hover: color-mix(in srgb, var(--border-strong) 75%, transparent);
+  --input-text: var(--text-strong);
+  --input-placeholder: var(--text-muted);
+  --motion-fast: 0.18s;
+  --motion-base: 0.24s;
+  --motion-slow: 0.32s;
+
   /* Dashboard variables mapping */
   --bg: #f3f4f6; /* Slighly darker than pure white for contrast */
   --card: #ffffff;
@@ -51,9 +87,9 @@
 /* TEMA ESCURO */
 :root[data-theme="dark"] {
   /* Neutrals */
-  --text: #f9fafb;           /* Gray 50 */
-  --text-secondary: #9ca3af; /* Gray 400 */
-  --text-tertiary: #6b7280;  /* Gray 500 */
+  --text: #f8fafc;           /* Slate 50 */
+  --text-secondary: #cbd5e1; /* Slate 300 */
+  --text-tertiary: #94a3b8;  /* Slate 400 */
 
   --background: #0f172a;     /* Slate 900 */
   --background-secondary: #1e293b; /* Slate 800 */
@@ -61,6 +97,7 @@
   
   --line: #334155;           /* Slate 700 */
   --line-strong: #475569;    /* Slate 600 */
+  --line-soft: #1f2a3d;
 
   --header: #0f172a;
   --sidebar-color: #0f172a;
@@ -75,6 +112,24 @@
   --card: #1e293b; /* Richer dark blue-gray */
   --muted: var(--text-secondary);
   --ring: #334155;
+
+  /* Standardized surface + controls */
+  --surface-1: var(--card);
+  --surface-2: #172339;
+  --surface-3: #1f2f4a;
+  --text-strong: var(--text);
+  --text-muted: var(--text-secondary);
+  --text-soft: var(--text-tertiary);
+  --border-subtle: var(--line);
+  --border-strong: #64748b;
+  --focus-color: #f43f5e;
+  --focus-ring: 0 0 0 3px rgba(244, 63, 94, 0.22);
+  --input-bg: color-mix(in srgb, var(--surface-2) 70%, var(--surface-1) 30%);
+  --input-bg-focus: color-mix(in srgb, var(--surface-3) 62%, var(--surface-1) 38%);
+  --input-border: color-mix(in srgb, var(--border-subtle) 65%, transparent);
+  --input-border-hover: color-mix(in srgb, var(--border-strong) 78%, transparent);
+  --input-text: var(--text-strong);
+  --input-placeholder: var(--text-muted);
 }
 
 /* MODO COMPACTO */
@@ -189,6 +244,17 @@ body {
   line-height: 1.5;
 }
 
+/* Icon/Text alignment baseline for interactive controls */
+button,
+a[role="button"] {
+  line-height: 1;
+}
+
+button svg,
+a[role="button"] svg {
+  flex-shrink: 0;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -236,33 +302,30 @@ body {
 /* Inputs e selects */
 input, textarea, select {
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: var(--fs-sm);
   padding: 0.625rem 0.875rem;
   border-radius: var(--r);
-  border: 1px solid var(--line);
-  background: var(--background);
-  color: var(--text);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:hover, textarea:hover, select:hover {
+  border-color: var(--input-border-hover);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 0.92;
 }
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
-}
-
-:root[data-theme="dark"] input,
-:root[data-theme="dark"] textarea,
-:root[data-theme="dark"] select {
-  background-color: var(--background-secondary);
-  border-color: var(--line);
-}
-
-:root[data-theme="dark"] input:focus,
-:root[data-theme="dark"] textarea:focus,
-:root[data-theme="dark"] select:focus {
-  background-color: var(--background-secondary);
-  border-color: var(--primary);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
 }
 
 /* Modal */

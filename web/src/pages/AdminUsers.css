@@ -1,7 +1,8 @@
 .adminUsersContainer {
-  padding: 20px;
-  background: var(--background-secondary);
-  border-radius: var(--r);
+  padding: 24px;
+  background: var(--surface-2);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-subtle);
   position: relative;
 }
 
@@ -12,8 +13,8 @@
   justify-content: space-between;
   padding: 14px 16px;
   margin-bottom: 16px;
-  border-radius: 8px;
-  animation: slideDown 0.2s ease;
+  border-radius: 10px;
+  animation: slideDown var(--motion-fast) ease;
 }
 
 @keyframes slideDown {
@@ -28,15 +29,15 @@
 }
 
 .feedbackNotification.feedback-sucesso {
-  background: rgba(34, 197, 94, 0.1);
-  border-left: 4px solid #22c55e;
-  color: #16a34a;
+  background: rgba(var(--green-rgb), 0.1);
+  border-left: 4px solid var(--green);
+  color: var(--green);
 }
 
 .feedbackNotification.feedback-erro {
-  background: rgba(220, 53, 69, 0.1);
-  border-left: 4px solid #dc3545;
-  color: #991b1b;
+  background: rgba(var(--primary-rgb), 0.1);
+  border-left: 4px solid var(--red);
+  color: var(--red);
 }
 
 .feedbackContent {
@@ -64,7 +65,7 @@
   padding: 4px 8px;
   font-size: 16px;
   opacity: 0.6;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--motion-fast) ease;
 }
 
 .feedbackClose:hover {
@@ -101,34 +102,39 @@
 .searchInput {
   width: 100%;
   padding: 10px 14px 10px 38px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   font-size: 14px;
-  background: var(--card);
-  color: var(--text);
+  background: var(--input-bg);
+  color: var(--input-text);
   font-family: inherit;
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 
 .searchInput:focus {
   outline: none;
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
 }
 
 .filterSelect {
   padding: 14px 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--card);
-  color: var(--text);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--input-text);
   font-size: 14px;
   font-family: inherit;
   cursor: pointer;
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 
 .filterSelect:focus {
   outline: none;
-  border-color: var(--red);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
 }
 
 /* TABELA DE USUÁRIOS */
@@ -141,9 +147,9 @@
   width: 100%;
   border-collapse: collapse;
   background: var(--card);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .usersTable thead {
@@ -163,11 +169,11 @@
 
 .usersTable tbody tr {
   border-bottom: 1px solid var(--line);
-  transition: background-color 0.2s ease;
+  transition: background-color var(--motion-fast) ease;
 }
 
 .usersTable tbody tr:hover {
-  background-color: rgba(225, 29, 46, 0.02);
+  background-color: rgba(var(--primary-rgb), 0.04);
 }
 
 .usersTable tbody tr:last-child {
@@ -196,17 +202,17 @@
 }
 
 .roleTag.role-aluno {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  background: rgba(var(--info-rgb), 0.1);
+  color: var(--info);
 }
 
 .roleTag.role-professor {
-  background: rgba(168, 85, 247, 0.1);
-  color: #a855f7;
+  background: rgba(var(--violet-rgb), 0.1);
+  color: var(--violet);
 }
 
 .roleTag.role-admin {
-  background: rgba(225, 29, 46, 0.1);
+  background: rgba(var(--primary-rgb), 0.1);
   color: var(--red);
 }
 
@@ -221,31 +227,31 @@
 .btnDelete {
   padding: 8px 12px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: transform var(--motion-fast) ease, background-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
   background: transparent;
 }
 
 .btnEdit {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  background: rgba(var(--info-rgb), 0.1);
+  color: var(--info);
 }
 
 .btnEdit:hover {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(var(--info-rgb), 0.2);
   transform: translateY(-2px);
 }
 
 .btnDelete {
-  background: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--red);
 }
 
 .btnDelete:hover {
-  background: rgba(220, 53, 69, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   transform: translateY(-2px);
 }
 
@@ -278,13 +284,13 @@
 
 .modalContent {
   background: var(--card);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 24px;
   width: 90%;
   max-width: 500px;
   max-height: calc(100vh - 120px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  animation: modalSlideIn 0.2s ease;
+  box-shadow: var(--shadow-xl);
+  animation: modalSlideIn var(--motion-fast) ease;
   display:flex;
   flex-direction:column;
 }
@@ -323,19 +329,21 @@
 .formInput {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   font-size: 14px;
-  color: var(--text);
-  background: var(--background-secondary);
+  color: var(--input-text);
+  background: var(--input-bg);
   font-family: inherit;
   box-sizing: border-box;
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 
 .formInput:focus {
   outline: none;
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
 }
 
 .confirmText {
@@ -356,11 +364,11 @@
   flex: 1;
   padding: 10px 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 
 .btnCancel {
@@ -374,13 +382,13 @@
 }
 
 .btnConfirm {
-  background: linear-gradient(135deg, var(--red), #d41c28);
+  background: linear-gradient(135deg, var(--red), var(--primary-dark));
   color: white;
 }
 
 .btnConfirm:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(225, 29, 46, 0.3);
+  box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.3);
 }
 
 .btnCancel:disabled,
@@ -389,10 +397,102 @@
   cursor: not-allowed;
 }
 
+/* Icon alignment for action buttons */
+.btnEdit,
+.btnDelete,
+.btnCancel,
+.btnConfirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 /* RESPONSIVE */
+@media (min-width: 769px) and (max-width: 1100px) {
+  .adminUsersContainer {
+    padding: 18px;
+  }
+
+  .adminHeader {
+    margin-bottom: 16px;
+  }
+
+  .filterRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .searchBox {
+    min-width: 0;
+  }
+
+  .searchInput,
+  .filterSelect {
+    min-height: 44px;
+  }
+
+  .usersTable {
+    table-layout: fixed;
+  }
+
+  .usersTable th,
+  .usersTable td {
+    padding: 11px 10px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  .usersTable th:nth-child(1),
+  .usersTable td:nth-child(1) {
+    width: 28%;
+  }
+
+  .usersTable th:nth-child(2),
+  .usersTable td:nth-child(2) {
+    width: 34%;
+  }
+
+  .usersTable th:nth-child(3),
+  .usersTable td:nth-child(3) {
+    width: 18%;
+  }
+
+  .usersTable th:nth-child(4),
+  .usersTable td:nth-child(4) {
+    width: 20%;
+  }
+
+  .usuarioCell {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .roleTag {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .actionCell {
+    gap: 6px;
+    padding: 10px !important;
+  }
+
+  .btnEdit,
+  .btnDelete {
+    min-width: 34px;
+    min-height: 34px;
+    padding: 6px 9px;
+  }
+}
+
 @media (max-width: 768px) {
   .adminUsersContainer {
-    padding: 16px;
+    padding: 14px;
   }
 
   .filterRow {
@@ -404,21 +504,105 @@
     width: 100%;
   }
 
-  .usersTable {
-    font-size: 13px;
+  .usersTableContainer {
+    overflow-x: visible;
   }
 
-  .usersTable th,
+  .usersTable {
+    font-size: 13px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .usersTable thead {
+    display: none;
+  }
+
+  .usersTable tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .usersTable .userRow {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+    overflow: hidden;
+  }
+
   .usersTable td {
-    padding: 12px;
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    word-break: break-word;
+  }
+
+  .usersTable td:last-child {
+    border-bottom: none;
+  }
+
+  .usersTable td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+  }
+
+  .usuarioCell {
+    font-size: 12px;
   }
 
   .actionCell {
     padding: 12px !important;
+    display: flex !important;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .actionCell::before {
+    display: none;
   }
 
   .modalContent {
     width: 95%;
     max-width: none;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .searchInput,
+  .filterSelect,
+  .formInput {
+    min-height: 42px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .adminUsersContainer {
+    padding: 12px;
+  }
+
+  .adminHeader {
+    margin-bottom: 14px;
+  }
+
+  .usersTable td {
+    grid-template-columns: 70px minmax(0, 1fr);
+    padding: 9px 10px;
+  }
+
+  .btnEdit,
+  .btnDelete {
+    min-width: 36px;
+    min-height: 34px;
+    padding: 6px 10px;
   }
 }

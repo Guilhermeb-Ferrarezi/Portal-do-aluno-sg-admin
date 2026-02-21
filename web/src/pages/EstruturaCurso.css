@@ -31,7 +31,7 @@
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
   background: color-mix(in srgb, var(--background-secondary) 70%, var(--card) 30%);
-  color: var(--text);
+  color: var(--text-strong);
   font-weight: 700;
   padding: 10px 14px;
   cursor: pointer;
@@ -60,8 +60,8 @@
   flex-direction: column;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
-    var(--card);
-  border: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+    var(--surface-1);
+  border: 1px solid var(--border-subtle);
   border-radius: 16px;
   padding: 18px;
   box-shadow: var(--shadow-sm);
@@ -81,9 +81,10 @@
 
 .estruturaCard h2 {
   margin: 0;
-  font-size: 28px;
+  font-size: var(--fs-xl);
   letter-spacing: -0.02em;
-  line-height: 1;
+  line-height: var(--lh-tight);
+  color: var(--text-strong);
 }
 
 .estruturaCardHead {
@@ -92,8 +93,8 @@
 
 .estruturaCardHead p {
   margin: 6px 0 0;
-  color: var(--text-secondary);
-  font-size: 16px;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
 }
 
 .estruturaForm {
@@ -107,7 +108,7 @@
 .estruturaForm label {
   margin-top: 2px;
   font-size: 14px;
-  color: var(--text);
+  color: var(--text-strong);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -204,19 +205,19 @@
 .estruturaForm input,
 .estruturaForm textarea,
 .estruturaForm select {
-  border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+  border: 1px solid var(--input-border);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--background-secondary) 66%, var(--card) 34%);
-  color: var(--text);
+  background: var(--input-bg);
+  color: var(--input-text);
   padding: 14px 15px;
   width: 100%;
   transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
-  font-size: 17px;
+  font-size: var(--fs-sm);
 }
 
 .estruturaForm input::placeholder,
 .estruturaForm textarea::placeholder {
-  color: var(--text-secondary);
+  color: var(--input-placeholder);
   opacity: 0.9;
 }
 
@@ -224,9 +225,9 @@
 .estruturaForm textarea:focus,
 .estruturaForm select:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--primary) 40%, var(--line));
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
-  background: color-mix(in srgb, var(--background-secondary) 52%, var(--card) 48%);
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
 }
 
 .estruturaBuscaWrap {
@@ -522,5 +523,45 @@
 
   .estruturaViewerGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Consistent icon/text alignment on action buttons */
+.estruturaTabBtn,
+.estruturaSubmitBtn,
+.filtroLimparBtn,
+.estruturaModalBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Dense mobile form layout */
+@media (max-width: 768px) {
+  .estruturaContainerSingle {
+    gap: 10px;
+  }
+
+  .estruturaCard {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .estruturaForm {
+    gap: 8px;
+  }
+
+  .estruturaForm input,
+  .estruturaForm textarea,
+  .estruturaForm select {
+    padding: 10px 12px;
+    font-size: var(--fs-sm);
+    min-height: 42px;
+  }
+
+  .estruturaForm label {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.4px;
   }
 }

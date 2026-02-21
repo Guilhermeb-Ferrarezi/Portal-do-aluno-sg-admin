@@ -158,6 +158,73 @@ function truncate(value: string | null | undefined, max = 40) {
   return `${value.slice(0, max)}...`;
 }
 
+function detectOSFromUserAgent(userAgent: string | null | undefined) {
+  if (!userAgent) return null;
+  const ua = userAgent.toLowerCase();
+
+  if (ua.includes("windows nt 10.0")) return "Windows 10/11";
+  if (ua.includes("windows nt 6.3")) return "Windows 8.1";
+  if (ua.includes("windows nt 6.2")) return "Windows 8";
+  if (ua.includes("windows nt 6.1")) return "Windows 7";
+  if (ua.includes("windows")) return "Windows";
+  if (ua.includes("android")) return "Android";
+  if (ua.includes("iphone") || ua.includes("ipad") || ua.includes("ios")) return "iOS";
+  if (ua.includes("mac os x") || ua.includes("macintosh")) return "macOS";
+  if (ua.includes("linux")) return "Linux";
+  if (ua.includes("cros")) return "ChromeOS";
+
+  return "SO desconhecido";
+}
+
+function detectBrowserFromUserAgent(userAgent: string | null | undefined) {
+  if (!userAgent) return null;
+  const ua = userAgent.toLowerCase();
+
+  if (ua.includes("edg/")) return "Microsoft Edge";
+  if (ua.includes("opr/") || ua.includes("opera")) return "Opera";
+  if (ua.includes("firefox/")) return "Mozilla Firefox";
+  if (ua.includes("samsungbrowser/")) return "Samsung Internet";
+  if (ua.includes("chrome/") && !ua.includes("edg/") && !ua.includes("opr/")) return "Google Chrome";
+  if (ua.includes("safari/") && !ua.includes("chrome/")) return "Safari";
+
+  return "Navegador desconhecido";
+}
+
+type MetadataEntry = {
+  key: string;
+  type: "texto" | "numero" | "booleano" | "lista" | "objeto" | "nulo";
+  valueLabel: string;
+  rawValue: unknown;
+};
+
+function metadataType(value: unknown): MetadataEntry["type"] {
+  if (value === null) return "nulo";
+  if (Array.isArray(value)) return "lista";
+  if (typeof value === "number") return "numero";
+  if (typeof value === "boolean") return "booleano";
+  if (typeof value === "object") return "objeto";
+  return "texto";
+}
+
+function metadataLabel(value: unknown) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return `${value.length} item(ns)`;
+  if (typeof value === "object") return `${Object.keys(value as Record<string, unknown>).length} campo(s)`;
+  return String(value);
+}
+
+function normalizeMetadata(metadata: ActivityLog["metadata"]): MetadataEntry[] {
+  if (!metadata) return [];
+  return Object.entries(metadata)
+    .map(([key, value]) => ({
+      key,
+      type: metadataType(value),
+      valueLabel: metadataLabel(value),
+      rawValue: value,
+    }))
+    .sort((a, b) => a.key.localeCompare(b.key, "pt-BR"));
+}
+
 export default function ActivityLogsPage() {
   const [logs, setLogs] = React.useState<ActivityLog[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -440,8 +507,8 @@ export default function ActivityLogsPage() {
                   };
                   const actorName = log.actorNome || log.actorUsuario || "Sistema";
                   const isExpanded = expandedRow === log.id;
-                  const metadataObj = log.metadata;
-                  const hasMetadata = metadataObj && Object.keys(metadataObj).length > 0;
+                  const metadataEntries = normalizeMetadata(log.metadata);
+                  const hasMetadata = metadataEntries.length > 0;
 
                   return (
                     <div
@@ -530,6 +597,22 @@ export default function ActivityLogsPage() {
                               </div>
                             )}
                             {log.userAgent && (
+                              <div className="alLogDetailItem">
+                                <span className="alLogDetailLabel">Sistema Operacional</span>
+                                <span className="alLogDetailValue">
+                                  {detectOSFromUserAgent(log.userAgent)}
+                                </span>
+                              </div>
+                            )}
+                            {log.userAgent && (
+                              <div className="alLogDetailItem">
+                                <span className="alLogDetailLabel">Navegador</span>
+                                <span className="alLogDetailValue">
+                                  {detectBrowserFromUserAgent(log.userAgent)}
+                                </span>
+                              </div>
+                            )}
+                            {log.userAgent && (
                               <div className="alLogDetailItem alLogDetailFull">
                                 <span className="alLogDetailLabel">User Agent</span>
                                 <span className="alLogDetailValue alLogDetailMono">{log.userAgent}</span>
@@ -538,9 +621,31 @@ export default function ActivityLogsPage() {
                             {hasMetadata && (
                               <div className="alLogDetailItem alLogDetailFull">
                                 <span className="alLogDetailLabel">Metadata</span>
-                                <pre className="alLogDetailPre">
-                                  {JSON.stringify(metadataObj, null, 2)}
-                                </pre>
+                                <div className="alMetadataTable" role="table" aria-label="Metadados do log">
+                                  <div className="alMetadataHeader" role="row">
+                                    <span role="columnheader">Campo</span>
+                                    <span role="columnheader">Tipo</span>
+                                    <span role="columnheader">Valor</span>
+                                  </div>
+                                  {metadataEntries.map((entry) => (
+                                    <div key={entry.key} className="alMetadataRow" role="row">
+                                      <span className="alMetadataKey" role="cell">
+                                        {entry.key}
+                                      </span>
+                                      <span className={`alMetadataType type-${entry.type}`} role="cell">
+                                        {entry.type}
+                                      </span>
+                                      <span className="alMetadataValue" role="cell" title={entry.valueLabel}>
+                                        {entry.valueLabel}
+                                      </span>
+                                      {(entry.type === "objeto" || entry.type === "lista") && (
+                                        <pre className="alMetadataPre">
+                                          {JSON.stringify(entry.rawValue, null, 2)}
+                                        </pre>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
