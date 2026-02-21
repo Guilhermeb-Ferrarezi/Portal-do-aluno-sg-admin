@@ -9,7 +9,6 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
-import { getForcePasswordChange, setForcePasswordChange } from "../utils/userSecurityFlags";
 
 type UserRole = "aluno" | "professor" | "admin";
 type NumericRole = 1 | 2 | 3;
@@ -33,7 +32,6 @@ const createUserSchema = z.object({
   senha: passwordSchema,
   role: z.enum(["admin", "professor", "aluno"]).optional(),
   adminPassword: z.string().min(1, "Senha do administrador obrigatória").optional(),
-  forcePasswordChange: z.boolean().optional(),
 });
 
 const updateMeSchema = z.object({
@@ -126,7 +124,6 @@ export function usersRouter(jwtSecret: string) {
     if (!r.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
 
     const u = r.rows[0];
-    const mustChangePassword = await getForcePasswordChange(u.id);
     return res.json({
       id: String(u.id),
       usuario: u.email,
@@ -135,7 +132,6 @@ export function usersRouter(jwtSecret: string) {
       bio: u.bio,
       profilePictureUrl: u.profile_picture_url,
       role: toRole(u.role),
-      mustChangePassword,
       ativo: true,
       createdAt: u.created_at,
     });
@@ -165,20 +161,17 @@ export function usersRouter(jwtSecret: string) {
       );
 
       return res.json(
-        await Promise.all(
-          r.rows.map(async (u) => ({
-            id: String(u.id),
-            usuario: u.email,
-            email: u.email,
-            nome: u.name,
-            bio: u.bio,
-            profilePictureUrl: u.profile_picture_url,
-            role: toRole(u.role),
-            mustChangePassword: await getForcePasswordChange(u.id),
-            ativo: true,
-            createdAt: u.created_at,
-          }))
-        )
+        r.rows.map((u) => ({
+          id: String(u.id),
+          usuario: u.email,
+          email: u.email,
+          nome: u.name,
+          bio: u.bio,
+          profilePictureUrl: u.profile_picture_url,
+          role: toRole(u.role),
+          ativo: true,
+          createdAt: u.created_at,
+        }))
       );
     }
   );
@@ -293,7 +286,6 @@ export function usersRouter(jwtSecret: string) {
       senhaHash,
       userId,
     ]);
-    await setForcePasswordChange(userId, false);
 
     logActivity({
       actorId: String(userId),
@@ -384,7 +376,7 @@ export function usersRouter(jwtSecret: string) {
       });
     }
 
-    const { usuario, email, nome, senha, adminPassword, forcePasswordChange } = parsed.data;
+    const { usuario, email, nome, senha, adminPassword } = parsed.data;
     const finalEmail = (email ?? usuario).trim();
     const role = parsed.data.role ?? "aluno";
 
@@ -424,14 +416,13 @@ export function usersRouter(jwtSecret: string) {
       );
 
       const u = created.rows[0];
-      await setForcePasswordChange(u.id, !!forcePasswordChange);
       logActivity({
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
         action: "user_create",
         entityType: "user",
         entityId: String(u.id),
-        metadata: { role: toRole(u.role), forcePasswordChange: !!forcePasswordChange },
+        metadata: { role: toRole(u.role) },
         req,
       }).catch((error) => console.error("activity log error:", error));
 
@@ -445,7 +436,6 @@ export function usersRouter(jwtSecret: string) {
           bio: u.bio,
           profilePictureUrl: u.profile_picture_url,
           role: toRole(u.role),
-          mustChangePassword: !!forcePasswordChange,
           ativo: true,
           createdAt: u.created_at,
         },

@@ -5,9 +5,8 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { pool } from "../db";
 import { logActivity } from "../utils/activityLog";
-import { getForcePasswordChange } from "../utils/userSecurityFlags";
 
-export type Role = 1 | 2 | 3;
+export type Role = 2 | 3;
 
 type DbUserRow = {
   id: number;
@@ -97,7 +96,7 @@ function parseDurationToMs(value: string, fallbackMs: number) {
 }
 
 function isValidRole(role: number): role is Role {
-  return role === 1 || role === 2 || role === 3;
+  return role === 2 || role === 3;
 }
 
 export function authRouter(
@@ -166,7 +165,16 @@ export function authRouter(
       }
 
       if (!isValidRole(user.role)) {
-        return res.status(403).json({ message: "Perfil sem permissao de acesso" });
+        logActivity({
+          actorId: String(user.id),
+          actorRole: String(user.role),
+          action: "login_failed",
+          entityType: "auth",
+          entityId: String(user.id),
+          metadata: { motivo: "role_not_allowed", loginInput },
+          req: req as any,
+        }).catch((error) => console.error("activity log error:", error));
+        return res.status(403).json({ message: "Acesso indisponível para este perfil" });
       }
 
       if (!user.password_hash || user.password_hash.trim() === "") {
@@ -189,7 +197,6 @@ export function authRouter(
 
       const token = signAccessToken(user);
       const refreshToken = await issueRefreshToken(user.id);
-      const mustChangePassword = await getForcePasswordChange(user.id);
 
       logActivity({
         actorId: String(user.id),
@@ -211,7 +218,6 @@ export function authRouter(
           email: user.email,
           nome: user.name,
           role: user.role,
-          mustChangePassword,
         },
       });
     } catch (err) {
@@ -246,7 +252,7 @@ export function authRouter(
       }
 
       if (!isValidRole(row.role)) {
-        return res.status(403).json({ message: "Perfil sem permissao de acesso" });
+        return res.status(403).json({ message: "Acesso indisponível para este perfil" });
       }
 
       if (row.revoked_at) {

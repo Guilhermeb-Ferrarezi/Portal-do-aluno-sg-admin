@@ -29,14 +29,6 @@ type FieldErrors = {
 };
 
 type EmailStatus = "idle" | "checking" | "available" | "exists" | "error";
-type SubmitMode = "single" | "another";
-
-type CreatedCredentials = {
-  email: string;
-  senha: string;
-  role: Role;
-  forcePasswordChange: boolean;
-};
 
 function roleLabel(role: Role | null) {
   if (role === "admin") return "Administrador";
@@ -68,18 +60,6 @@ function passwordStrengthLabel(score: number) {
   return "Forte";
 }
 
-function generateTemporaryPassword(length = 14) {
-  const alphabet =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*?";
-  const bytes = new Uint32Array(length);
-  window.crypto.getRandomValues(bytes);
-  let output = "";
-  for (let i = 0; i < length; i += 1) {
-    output += alphabet[bytes[i] % alphabet.length];
-  }
-  return output;
-}
-
 export default function CreateUser() {
   const navigate = useNavigate();
 
@@ -89,18 +69,11 @@ export default function CreateUser() {
   const [confirmarSenha, setConfirmarSenha] = React.useState("");
   const [adminPassword, setAdminPassword] = React.useState("");
   const [role, setRole] = React.useState<Role>("aluno");
-  const [forcePasswordChange, setForcePasswordChange] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [msg, setMsg] = React.useState<Msg | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
   const [emailStatus, setEmailStatus] = React.useState<EmailStatus>("idle");
   const [registeredEmails, setRegisteredEmails] = React.useState<Set<string>>(new Set());
-  const [lastCreatedCredentials, setLastCreatedCredentials] = React.useState<CreatedCredentials | null>(null);
-  const [copyStatus, setCopyStatus] = React.useState<"idle" | "ok" | "error">("idle");
-  const [credentialsModalOpen, setCredentialsModalOpen] = React.useState(false);
-  const [tempPasswordModalOpen, setTempPasswordModalOpen] = React.useState(false);
-  const [lastGeneratedPassword, setLastGeneratedPassword] = React.useState("");
-  const [tempPasswordCopyStatus, setTempPasswordCopyStatus] = React.useState<"idle" | "ok" | "error">("idle");
 
   const viewerName = getName() ?? "Usuário";
   const viewerRole = getRole();
@@ -138,11 +111,10 @@ export default function CreateUser() {
 
   React.useEffect(() => {
     const normalized = normalizeEmail(email);
-    const previousError = fieldErrors.email;
 
     if (!normalized) {
       setEmailStatus("idle");
-      if (previousError) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+      setFieldErrors((prev) => (prev.email ? { ...prev, email: undefined } : prev));
       return;
     }
 
@@ -165,7 +137,7 @@ export default function CreateUser() {
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [email, registeredEmails, fieldErrors.email]);
+  }, [email, registeredEmails]);
 
   function validateForm() {
     const nextErrors: FieldErrors = {};
@@ -181,7 +153,6 @@ export default function CreateUser() {
 
     if (!senha) nextErrors.senha = "Senha é obrigatória.";
     else if (senha.length < 6) nextErrors.senha = "Senha deve ter pelo menos 6 caracteres.";
-    else if (senhaScore <= 2) nextErrors.senha = "Senha fraca. Use letras maiúsculas, números e símbolos.";
 
     if (!confirmarSenha) nextErrors.confirmarSenha = "Confirme a senha.";
     else if (confirmarSenha !== senha) nextErrors.confirmarSenha = "As senhas não conferem.";
@@ -197,13 +168,8 @@ export default function CreateUser() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
-    setCopyStatus("idle");
     if (!validateForm()) return;
 
-    const nativeEvent = e.nativeEvent as SubmitEvent;
-    const submitter = nativeEvent.submitter as HTMLButtonElement | null;
-    const submitMode = (submitter?.dataset.mode as SubmitMode | undefined) ?? "single";
-    const keepCreating = submitMode === "another";
     const normalizedEmail = normalizeEmail(email);
 
     setLoading(true);
@@ -215,31 +181,17 @@ export default function CreateUser() {
           nome: nome.trim(),
           senha,
           role,
-          forcePasswordChange,
           ...(role === "admin" ? { adminPassword } : {}),
         }),
       });
 
-      setMsg({
-        text: keepCreating ? "Usuário criado! Formulário pronto para o próximo." : "Usuário criado com sucesso!",
-        type: "ok",
-      });
-      setLastCreatedCredentials({
-        email: normalizedEmail,
-        senha,
-        role,
-        forcePasswordChange,
-      });
-      setCredentialsModalOpen(true);
+      setMsg({ text: "Usuário criado com sucesso!", type: "ok" });
       setEmail("");
       setNome("");
       setSenha("");
       setConfirmarSenha("");
       setAdminPassword("");
-      if (!keepCreating) {
-        setRole("aluno");
-      }
-      setForcePasswordChange(true);
+      setRole("aluno");
       setFieldErrors({});
       setEmailStatus("idle");
       setRegisteredEmails((prev) => {
@@ -274,46 +226,6 @@ export default function CreateUser() {
       setMsg({ text: message, type: "error" });
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function copyCredentials() {
-    if (!lastCreatedCredentials) return;
-    const lines = [
-      `Usuário: ${lastCreatedCredentials.email}`,
-      `Senha temporária: ${lastCreatedCredentials.senha}`,
-      `Cargo: ${roleLabel(lastCreatedCredentials.role)}`,
-      `Troca obrigatória de senha: ${lastCreatedCredentials.forcePasswordChange ? "Sim" : "Não"}`,
-    ];
-    try {
-      await navigator.clipboard.writeText(lines.join("\n"));
-      setCopyStatus("ok");
-    } catch {
-      setCopyStatus("error");
-    }
-  }
-
-  function handleGeneratePassword() {
-    const generated = generateTemporaryPassword();
-    setSenha(generated);
-    setConfirmarSenha(generated);
-    setLastGeneratedPassword(generated);
-    setTempPasswordModalOpen(true);
-    setTempPasswordCopyStatus("idle");
-    setFieldErrors((prev) => ({
-      ...prev,
-      senha: undefined,
-      confirmarSenha: undefined,
-    }));
-  }
-
-  async function copyGeneratedPassword() {
-    if (!lastGeneratedPassword) return;
-    try {
-      await navigator.clipboard.writeText(lastGeneratedPassword);
-      setTempPasswordCopyStatus("ok");
-    } catch {
-      setTempPasswordCopyStatus("error");
     }
   }
 
@@ -372,11 +284,6 @@ export default function CreateUser() {
                 required
                 minLength={6}
               />
-              <div className="cuInlineActions">
-                <button type="button" className="cuMiniBtn" onClick={handleGeneratePassword}>
-                  Gerar senha temporária
-                </button>
-              </div>
               <div className="cuStrength" aria-live="polite">
                 <div className="cuStrengthTrack">
                   <span
@@ -454,46 +361,7 @@ export default function CreateUser() {
               </label>
             )}
 
-            <label className="cuToggleRow">
-              <input
-                type="checkbox"
-                checked={forcePasswordChange}
-                onChange={(e) => setForcePasswordChange(e.target.checked)}
-              />
-              <span>Forçar troca de senha no primeiro login</span>
-            </label>
-
             {msg ? <div className={`cuMsg ${msg.type}`}>{msg.text}</div> : null}
-
-            {lastCreatedCredentials && (
-              <div className="cuCredentialsBox">
-                <div className="cuCredentialsHead">
-                  <strong>Credenciais do último usuário criado</strong>
-                  <button type="button" className="cuMiniBtn" onClick={copyCredentials}>
-                    Copiar credenciais
-                  </button>
-                </div>
-                <div className="cuCredentialsList">
-                  <span>
-                    <strong>Usuário:</strong> {lastCreatedCredentials.email}
-                  </span>
-                  <span>
-                    <strong>Senha:</strong> {lastCreatedCredentials.senha}
-                  </span>
-                  <span>
-                    <strong>Cargo:</strong> {roleLabel(lastCreatedCredentials.role)}
-                  </span>
-                  <span>
-                    <strong>Troca obrigatória:</strong>{" "}
-                    {lastCreatedCredentials.forcePasswordChange ? "Sim" : "Não"}
-                  </span>
-                </div>
-                {copyStatus === "ok" && <small className="cuFieldOk">Credenciais copiadas.</small>}
-                {copyStatus === "error" && (
-                  <small className="cuFieldError">Não foi possível copiar automaticamente.</small>
-                )}
-              </div>
-            )}
 
             <div className="cuActions">
               <button
@@ -503,11 +371,8 @@ export default function CreateUser() {
               >
                 Voltar
               </button>
-              <button type="submit" data-mode="single" className="cuBtn ghost" disabled={loading}>
+              <button type="submit" className="cuBtn" disabled={loading}>
                 {loading ? "Criando..." : "Criar"}
-              </button>
-              <button type="submit" data-mode="another" className="cuBtn" disabled={loading}>
-                {loading ? "Criando..." : "Criar e criar outro"}
               </button>
             </div>
           </form>
@@ -557,79 +422,6 @@ export default function CreateUser() {
           </div>
         </div>
       </section>
-
-      {credentialsModalOpen && lastCreatedCredentials && (
-        <div className="cuModalBackdrop" role="dialog" aria-modal="true" aria-label="Credenciais do novo usuário">
-          <div className="cuModalCard">
-            <div className="cuModalHead">
-              <h3>Credenciais geradas</h3>
-              <p>Salve agora. Esta é a senha inicial do usuário.</p>
-            </div>
-
-            <div className="cuModalCredentials">
-              <div className="cuModalLine">
-                <span>Usuário</span>
-                <code>{lastCreatedCredentials.email}</code>
-              </div>
-              <div className="cuModalLine">
-                <span>Senha</span>
-                <code>{lastCreatedCredentials.senha}</code>
-              </div>
-              <div className="cuModalLine">
-                <span>Cargo</span>
-                <strong>{roleLabel(lastCreatedCredentials.role)}</strong>
-              </div>
-              <div className="cuModalLine">
-                <span>Troca obrigatória</span>
-                <strong>{lastCreatedCredentials.forcePasswordChange ? "Sim" : "Não"}</strong>
-              </div>
-            </div>
-
-            <div className="cuModalActions">
-              <button type="button" className="cuBtn ghost" onClick={() => setCredentialsModalOpen(false)}>
-                Fechar
-              </button>
-              <button type="button" className="cuBtn" onClick={copyCredentials}>
-                Copiar credenciais
-              </button>
-            </div>
-
-            {copyStatus === "ok" && <small className="cuFieldOk">Credenciais copiadas.</small>}
-            {copyStatus === "error" && (
-              <small className="cuFieldError">Não foi possível copiar automaticamente.</small>
-            )}
-          </div>
-        </div>
-      )}
-
-      {tempPasswordModalOpen && lastGeneratedPassword && (
-        <div className="cuModalBackdrop" role="dialog" aria-modal="true" aria-label="Senha temporária gerada">
-          <div className="cuModalCard">
-            <div className="cuModalHead">
-              <h3>Senha temporária gerada</h3>
-              <p>Use esta senha no novo cadastro.</p>
-            </div>
-
-            <div className="cuTempPasswordBox">
-              <code>{lastGeneratedPassword}</code>
-            </div>
-
-            <div className="cuModalActions">
-              <button type="button" className="cuBtn ghost" onClick={() => setTempPasswordModalOpen(false)}>
-                Fechar
-              </button>
-              <button type="button" className="cuBtn" onClick={copyGeneratedPassword}>
-                Copiar senha
-              </button>
-            </div>
-
-            {tempPasswordCopyStatus === "ok" && <small className="cuFieldOk">Senha copiada.</small>}
-            {tempPasswordCopyStatus === "error" && (
-              <small className="cuFieldError">Não foi possível copiar automaticamente.</small>
-            )}
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
 }
