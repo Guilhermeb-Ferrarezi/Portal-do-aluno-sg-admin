@@ -1,7 +1,7 @@
 import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
-import { Medal, PlusCircle, Eye, CalendarClock, Pencil, Trash2 } from "lucide-react";
+import { Medal, PlusCircle, Eye, CalendarClock, Pencil, Trash2, ChevronDown } from "lucide-react";
 import {
   atribuirBadgeAoUsuario,
   atualizarBadgeDoUsuario,
@@ -516,6 +516,9 @@ export default function MedalhasPage() {
                             {new Date(group.latestAwardedAt).toLocaleDateString("pt-BR")}
                           </small>
                         </div>
+                        <span className="holderChevron" aria-hidden="true">
+                          <ChevronDown size={16} />
+                        </span>
                       </summary>
 
                       <div className="holderGroupItems">
