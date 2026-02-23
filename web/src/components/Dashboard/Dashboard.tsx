@@ -8,9 +8,8 @@ import {
   listarTurmas,
   obterTurmasResponsavel,
   obterTotalTurmas,
+  obterContagemAlunosDashboard,
   listarExercicios,
-  listarAlunos,
-  obterTurma,
   todasMinhasSubmissoes,
   type Exercicio,
   type Submissao,
@@ -121,78 +120,60 @@ export default function Dashboard() {
 
   // Carregar dados
   React.useEffect(() => {
+    let active = true;
+
     (async () => {
       try {
         setLoading(true);
         setErro(null);
 
-        const [turmasData, exerciciosData, submissoesData, turmasResponsavelResult, totalTurmasResult] = await Promise.all([
+        const [
+          turmasData,
+          exerciciosData,
+          turmasResponsavelResult,
+          totalTurmasResult,
+          contagemAlunos,
+        ] = await Promise.all([
           listarTurmas(),
           listarExercicios(),
-          todasMinhasSubmissoes().catch(() => []),
           obterTurmasResponsavel().catch(() => ({ total: 0 })),
           obterTotalTurmas().catch(() => ({ total: 0 })),
+          obterContagemAlunosDashboard().catch(() => ({ total: 0, totalSistema: 0 })),
         ]);
+
+        if (!active) return;
 
         setTurmas(turmasData);
         setTurmasResponsavel(turmasResponsavelResult.total);
         setTotalTurmasDoSistema(totalTurmasResult.total);
         setExercicios(exerciciosData);
-        setSubmissoes(submissoesData);
-        setSequencia(calcularSequencia(submissoesData));
+        setTotalAlunos(contagemAlunos.total);
+        setTotalAlunosDoSistema(contagemAlunos.totalSistema ?? 0);
 
-        let alunosCount = 0;
-        let totalAlunosSistema = 0;
-
-        if (isAdmin) {
-          // Contar alunos nas turmas que o admin é responsável
-          const detalhes = await Promise.all(
-            turmasData.map((turma) => obterTurma(turma.id).catch(() => null))
-          );
-
-          const ids = new Set<string>();
-          for (const detalhe of detalhes) {
-            if (!detalhe) continue;
-            detalhe.alunos.forEach((aluno) => ids.add(aluno.id));
-          }
-
-          alunosCount = ids.size;
-
-          // Total de alunos do sistema
-          const alunosData = await listarAlunos().catch(() => []);
-          const alunosFiltered = alunosData.filter((user) => user.role === "aluno");
-          totalAlunosSistema = alunosFiltered.length;
-        } else if (role === "aluno") {
-          const turmaAtual = turmasData[0];
-          if (turmaAtual) {
-            const detalhe = await obterTurma(turmaAtual.id).catch(() => null);
-            alunosCount = detalhe?.alunos.length ?? 0;
-          } else {
-            alunosCount = 0;
-          }
-        } else {
-          const detalhes = await Promise.all(
-            turmasData.map((turma) => obterTurma(turma.id).catch(() => null))
-          );
-
-          const ids = new Set<string>();
-          for (const detalhe of detalhes) {
-            if (!detalhe) continue;
-            detalhe.alunos.forEach((aluno) => ids.add(aluno.id));
-          }
-
-          alunosCount = ids.size;
-        }
-
-        setTotalAlunos(alunosCount);
-        setTotalAlunosDoSistema(totalAlunosSistema);
+        void todasMinhasSubmissoes()
+          .then((submissoesData) => {
+            if (!active) return;
+            setSubmissoes(submissoesData);
+            setSequencia(calcularSequencia(submissoesData));
+          })
+          .catch(() => {
+            if (!active) return;
+            setSubmissoes([]);
+            setSequencia(0);
+          });
       } catch (e) {
+        if (!active) return;
         setErro(e instanceof Error ? e.message : "Erro ao carregar dados");
       } finally {
+        if (!active) return;
         setLoading(false);
       }
     })();
-  }, [isAdmin]);
+
+    return () => {
+      active = false;
+    };
+  }, [role]);
 
   if (loading) {
     return (

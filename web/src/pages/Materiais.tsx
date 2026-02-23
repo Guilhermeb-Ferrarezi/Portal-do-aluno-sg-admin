@@ -3,22 +3,22 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { getRole, getUserId, hasRole } from "../auth/auth";
+import { hasRole } from "../auth/auth";
 import { useToast } from "../contexts/ToastContext";
 import { useCachedData } from "../hooks/useCachedData";
 import {
   FadeInUp,
   PopInBadge,
-  PulseLoader,
   AnimatedButton,
   AnimatedSelect,
-  AnimatedRadioLabel,
 } from "../components/animate-ui";
 import {
+  File,
+  FileArchive,
+  FileImage,
+  FileSpreadsheet,
   FileText,
   Link as LinkIcon,
-  Users,
-  User as UserIcon,
   BookOpen,
   Landmark,
   Globe,
@@ -34,18 +34,136 @@ import {
   listarModulos,
   type Modulo,
   listarTurmas,
-  listarAlunos,
   atribuirMaterialTurmas,
   type Turma,
-  type User,
 } from "../services/api";
 import "./Materiais.css";
 
+type MaterialCategoria =
+  | "link"
+  | "pdf"
+  | "word"
+  | "excel"
+  | "powerpoint"
+  | "imagem"
+  | "texto"
+  | "compactado"
+  | "arquivo";
+
+type FormatoArquivo = Exclude<MaterialCategoria, "link">;
+
+const FORMATO_ARQUIVO_OPTIONS: Array<{ value: FormatoArquivo; label: string }> = [
+  { value: "arquivo", label: "Qualquer arquivo" },
+  { value: "pdf", label: "PDF" },
+  { value: "word", label: "Word (DOC/DOCX)" },
+  { value: "excel", label: "Excel (XLS/XLSX/CSV)" },
+  { value: "powerpoint", label: "PowerPoint (PPT/PPTX)" },
+  { value: "imagem", label: "Imagem (PNG/JPG/WebP/GIF)" },
+  { value: "texto", label: "Texto (TXT/MD)" },
+  { value: "compactado", label: "Compactado (ZIP/RAR/7Z)" },
+];
+
+const FILTER_TIPO_OPTIONS: Array<{ value: "todos" | MaterialCategoria; label: string }> = [
+  { value: "todos", label: "Todos os tipos" },
+  { value: "pdf", label: "PDF" },
+  { value: "word", label: "Word" },
+  { value: "excel", label: "Excel" },
+  { value: "powerpoint", label: "PowerPoint" },
+  { value: "imagem", label: "Imagem" },
+  { value: "texto", label: "Texto" },
+  { value: "compactado", label: "Compactado" },
+  { value: "arquivo", label: "Outros arquivos" },
+  { value: "link", label: "Links" },
+];
+
+const EXT_BY_FORMAT: Record<FormatoArquivo, string[]> = {
+  arquivo: [
+    "pdf",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+    "csv",
+    "ppt",
+    "pptx",
+    "txt",
+    "md",
+    "zip",
+    "rar",
+    "7z",
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "svg",
+  ],
+  pdf: ["pdf"],
+  word: ["doc", "docx"],
+  excel: ["xls", "xlsx", "csv"],
+  powerpoint: ["ppt", "pptx"],
+  imagem: ["png", "jpg", "jpeg", "webp", "gif", "svg"],
+  texto: ["txt", "md"],
+  compactado: ["zip", "rar", "7z"],
+};
+
+const ACCEPT_BY_FORMAT: Record<FormatoArquivo, string> = {
+  arquivo:
+    ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md,.zip,.rar,.7z,.png,.jpg,.jpeg,.webp,.gif,.svg",
+  pdf: ".pdf,application/pdf",
+  word: ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  excel:
+    ".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv",
+  powerpoint:
+    ".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  imagem: "image/*",
+  texto: ".txt,.md,text/plain,text/markdown",
+  compactado: ".zip,.rar,.7z,application/zip,application/x-rar-compressed,application/x-7z-compressed",
+};
+
+function getFileExtension(value: string): string | null {
+  const noQuery = value.split("?")[0].split("#")[0];
+  const ext = noQuery.split(".").pop()?.toLowerCase() ?? "";
+  return ext.length > 0 && ext !== noQuery.toLowerCase() ? ext : null;
+}
+
+function getMaterialCategoria(material: Material): MaterialCategoria {
+  if (material.tipo === "link") return "link";
+  const ext = getFileExtension(material.url);
+  if (!ext) return "arquivo";
+  if (EXT_BY_FORMAT.pdf.includes(ext)) return "pdf";
+  if (EXT_BY_FORMAT.word.includes(ext)) return "word";
+  if (EXT_BY_FORMAT.excel.includes(ext)) return "excel";
+  if (EXT_BY_FORMAT.powerpoint.includes(ext)) return "powerpoint";
+  if (EXT_BY_FORMAT.imagem.includes(ext)) return "imagem";
+  if (EXT_BY_FORMAT.texto.includes(ext)) return "texto";
+  if (EXT_BY_FORMAT.compactado.includes(ext)) return "compactado";
+  return "arquivo";
+}
+
+function getCategoriaLabel(categoria: MaterialCategoria): string {
+  if (categoria === "pdf") return "PDF";
+  if (categoria === "word") return "Word";
+  if (categoria === "excel") return "Excel";
+  if (categoria === "powerpoint") return "PowerPoint";
+  if (categoria === "imagem") return "Imagem";
+  if (categoria === "texto") return "Texto";
+  if (categoria === "compactado") return "Compactado";
+  if (categoria === "link") return "Link";
+  return "Arquivo";
+}
+
+function getCategoriaIcon(categoria: MaterialCategoria): React.ReactNode {
+  if (categoria === "link") return <LinkIcon size={14} />;
+  if (categoria === "excel") return <FileSpreadsheet size={14} />;
+  if (categoria === "imagem") return <FileImage size={14} />;
+  if (categoria === "compactado") return <FileArchive size={14} />;
+  if (categoria === "pdf" || categoria === "word" || categoria === "texto") return <FileText size={14} />;
+  return <File size={14} />;
+}
+
 export default function MateriaisPage() {
   const canUpload = hasRole(["admin", "professor"]);
-  const role = getRole();
-  const userId = getUserId();
-  const isStaff = role === "admin" || role === "professor";
   const { addToast } = useToast();
   const iconLabel = (icon: React.ReactNode, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -64,7 +182,7 @@ export default function MateriaisPage() {
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
   const [buscaModuloFiltro, setBuscaModuloFiltro] = React.useState<string>("");
   const [showSugestoesModuloFiltro, setShowSugestoesModuloFiltro] = React.useState(false);
-  const [filtroTipo, setFiltroTipo] = React.useState<string>("todos");
+  const [filtroTipo, setFiltroTipo] = React.useState<"todos" | MaterialCategoria>("todos");
   const [busca, setBusca] = React.useState<string>("");
   const [turmaFiltro, setTurmaFiltro] = React.useState<string>("todas");
   const [modalAberto, setModalAberto] = React.useState(false);
@@ -75,16 +193,13 @@ export default function MateriaisPage() {
   const [buscaModuloForm, setBuscaModuloForm] = React.useState("");
   const [showSugestoesModuloForm, setShowSugestoesModuloForm] = React.useState(false);
   const [formTipo, setFormTipo] = React.useState<"arquivo" | "link">("arquivo");
+  const [formFormatoArquivo, setFormFormatoArquivo] = React.useState<FormatoArquivo>("arquivo");
   const [formDescricao, setFormDescricao] = React.useState("");
   const [formUrl, setFormUrl] = React.useState("");
   const [formArquivo, setFormArquivo] = React.useState<File | null>(null);
   const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
   const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
-  const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
-  const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
-  const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
   const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
-  const [alunoFiltro, setAlunoFiltro] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<Material | null>(null);
@@ -95,59 +210,13 @@ export default function MateriaisPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
-  const alunoNameById = React.useMemo(() => {
-    const map = new Map<string, string>();
-    alunosDisponiveis.forEach((aluno) => {
-      map.set(aluno.id, aluno.nome || aluno.usuario || aluno.id);
-    });
-    return map;
-  }, [alunosDisponiveis]);
+  // Carregar turmas e modulos quando puder fazer upload
 
-  function getAlunoIds(material: Material): string[] {
-    const alunos = Array.isArray((material as any).alunos)
-      ? (material as any).alunos.map((a: any) => a?.id).filter(Boolean)
-      : [];
-    const idsSnake = Array.isArray((material as any).aluno_ids)
-      ? (material as any).aluno_ids
-      : [];
-    const idsCamel = Array.isArray((material as any).alunoIds)
-      ? (material as any).alunoIds
-      : [];
-    return Array.from(new Set([...alunos, ...idsSnake, ...idsCamel]));
-  }
-
-  function getAlunoNames(material: Material): string[] {
-    const alunos = Array.isArray((material as any).alunos)
-      ? (material as any).alunos
-        .map((a: any) => a?.nome || a?.usuario || a?.id)
-        .filter(Boolean)
-      : [];
-    if (alunos.length > 0) return alunos as string[];
-
-    const ids = getAlunoIds(material);
-    return ids
-      .map((id) => alunoNameById.get(id))
-      .filter((nome): nome is string => !!nome);
-  }
-
-  function formatAlunoLabel(names: string[]) {
-    if (names.length === 0) return "Aluno específico";
-    if (names.length === 1) return `Para: ${names[0]}`;
-    if (names.length === 2) return `Para: ${names.join(", ")}`;
-    return `Para: ${names[0]} +${names.length - 1}`;
-  }
-
-  // Carregar turmas e alunos quando puder fazer upload
   React.useEffect(() => {
     if (canUpload) {
       listarTurmas()
         .then(setTurmasDisponiveis)
         .catch((err) => console.error("Erro ao carregar turmas:", err));
-
-      listarAlunos()
-        .then(setAlunosDisponiveis)
-        .catch((err) => console.error("Erro ao carregar alunos:", err));
-
       listarModulos()
         .then(setModulosDisponiveis)
         .catch((err) => console.error("Erro ao carregar módulos:", err));
@@ -156,19 +225,13 @@ export default function MateriaisPage() {
 
   // Filtrar materiais
   const materiaisFiltrados = materiais.filter((m) => {
-    const alunoIds = getAlunoIds(m);
-    const hasAlunoAssignment = alunoIds.length > 0;
-    if (!isStaff && hasAlunoAssignment) {
-      if (!userId || !alunoIds.includes(userId)) {
-        return false;
-      }
-    }
+    const categoria = getMaterialCategoria(m);
     const termoModuloFiltro = buscaModuloFiltro.trim().toLowerCase();
     const matchModulo =
       filtroModulo !== "todos"
         ? m.modulo === filtroModulo
         : termoModuloFiltro === "" || m.modulo.toLowerCase().includes(termoModuloFiltro);
-    const matchTipo = filtroTipo === "todos" || m.tipo === filtroTipo;
+    const matchTipo = filtroTipo === "todos" || categoria === filtroTipo;
     const matchBusca =
       busca === "" ||
       m.titulo.toLowerCase().includes(busca.toLowerCase()) ||
@@ -177,7 +240,7 @@ export default function MateriaisPage() {
     const matchTurma =
       turmaFiltro === "todas" ||
       (m.turmas && m.turmas.some((t) => t.id === turmaFiltro)) ||
-      (!hasAlunoAssignment && (!m.turmas || m.turmas.length === 0)); // Materiais sem turma visíveis para todos
+      (!m.turmas || m.turmas.length === 0); // Materiais sem turma visíveis para todos
 
     return matchModulo && matchTipo && matchBusca && matchTurma;
   });
@@ -208,13 +271,30 @@ export default function MateriaisPage() {
     setBuscaModuloForm("");
     setShowSugestoesModuloForm(false);
     setFormTipo("arquivo");
+    setFormFormatoArquivo("arquivo");
     setFormDescricao("");
     setFormUrl("");
     setFormArquivo(null);
     setTurmasSelecionadas([]);
-    setAlunosSelecionados([]);
-    setModoAtribuicao("turma");
     setFormError(null);
+  };
+
+  const handleArquivoChange = (file: File | null) => {
+    if (!file) {
+      setFormArquivo(null);
+      return;
+    }
+
+    const ext = getFileExtension(file.name);
+    const allowedExtensions = EXT_BY_FORMAT[formFormatoArquivo];
+    if (formFormatoArquivo !== "arquivo" && (!ext || !allowedExtensions.includes(ext))) {
+      setFormError(`Arquivo incompatível com o formato selecionado (${getCategoriaLabel(formFormatoArquivo)}).`);
+      setFormArquivo(null);
+      return;
+    }
+
+    setFormError(null);
+    setFormArquivo(file);
   };
 
   const handleSubmit = async () => {
@@ -261,11 +341,9 @@ export default function MateriaisPage() {
         formData.append("url", formUrl);
       }
 
-      // Adicionar turma_ids ou aluno_ids
-      if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
+      // Adicionar turma_ids
+      if (turmasSelecionadas.length > 0) {
         formData.append("turma_ids", JSON.stringify(turmasSelecionadas));
-      } else if (modoAtribuicao === "aluno" && alunosSelecionados.length > 0) {
-        formData.append("aluno_ids", JSON.stringify(alunosSelecionados));
       }
 
       const resultado = await criarMaterial(formData);
@@ -324,8 +402,12 @@ export default function MateriaisPage() {
         title="Materiais"
         subtitle="Acesse arquivos e links de estudo"
       >
-        <div style={{ textAlign: "center", padding: "2rem" }}>
-          <PulseLoader size="large" text="Carregando materiais..." />
+        <div className="materiaisContainer">
+          <div className="materiaisGrid">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={`material-skeleton-${index}`} className="materialCard materialCardSkeleton" />
+            ))}
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -370,16 +452,18 @@ export default function MateriaisPage() {
               {/* Filtro de Tipo */}
               <AnimatedSelect
                 value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value)}
+                onChange={(e) => setFiltroTipo(e.target.value as "todos" | MaterialCategoria)}
                 className="filterSelect"
               >
-                <option value="todos">Todos os tipos</option>
-                <option value="arquivo">Arquivos</option>
-                <option value="link">Links</option>
+                {FILTER_TIPO_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </AnimatedSelect>
 
               {/* Filtro de Módulo por escrita */}
-              <div style={{ position: "relative", minWidth: 260 }}>
+              <div style={{ position: "relative", minWidth: 200 }}>
                 <input
                   type="text"
                   placeholder="Filtrar módulo..."
@@ -484,31 +568,19 @@ export default function MateriaisPage() {
                     <>
                       <div className="materiaisGrid">
                         {paginatedMateriais.map((material, index) => {
-                          const alunoIds = getAlunoIds(material);
-                          const hasAlunoAssignment = alunoIds.length > 0;
-                          const alunoNames = hasAlunoAssignment ? getAlunoNames(material) : [];
-                          const showParaMim =
-                            !isStaff && !!userId && alunoIds.includes(userId);
-                          const alunoLabel = showParaMim
-                            ? "Para mim"
-                            : formatAlunoLabel(alunoNames);
-                          const alunoTitle = showParaMim
-                            ? "Disponível apenas para você"
-                            : alunoNames.length > 0
-                              ? `Disponível apenas para: ${alunoNames.join(", ")}`
-                              : "Disponível para aluno(s) específico(s)";
-
+                          const categoria = getMaterialCategoria(material);
                           return (
                             <FadeInUp key={material.id} delay={index * 0.1}>
                               <div className="materialCard">
                                 <div className="materialHeader">
                                   <div className="materialIcon">
-                                    {material.tipo === "arquivo" ? <FileText size={14} /> : <LinkIcon size={14} />}
+                                    {getCategoriaIcon(categoria)}
                                   </div>
                                   <div className="materialInfo">
                                     <h3 className="materialTitulo">{material.titulo}</h3>
                                     <div className="materialMeta">
                                       <span className="metaBadge">{material.modulo}</span>
+                                      <span className="metaBadge materialTypeBadge">{getCategoriaLabel(categoria)}</span>
                                       <span className="metaData">
                                         {new Date(material.createdAt).toLocaleDateString(
                                           "pt-BR"
@@ -531,27 +603,7 @@ export default function MateriaisPage() {
                                     gap: "6px",
                                   }}
                                 >
-                                  {hasAlunoAssignment ? (
-                                    <PopInBadge delay={0.1}>
-                                      <span
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: "4px",
-                                          padding: "4px 10px",
-                                          fontSize: "11px",
-                                          fontWeight: 700,
-                                          borderRadius: "12px",
-                                          background: "rgba(34, 197, 94, 0.15)",
-                                          color: "#15803d",
-                                          border: "1px solid rgba(34, 197, 94, 0.3)",
-                                        }}
-                                        title={alunoTitle}
-                                      >
-                                        {iconLabel(<UserIcon size={12} />, alunoLabel)}
-                                      </span>
-                                    </PopInBadge>
-                                  ) : material.turmas && material.turmas.length > 0 ? (
+                                  {material.turmas && material.turmas.length > 0 ? (
                                     <>
                                       <PopInBadge delay={0.1}>
                                         <span
@@ -785,14 +837,20 @@ export default function MateriaisPage() {
                   <button
                     type="button"
                     className={`materialTypeOption ${formTipo === "arquivo" ? "active" : ""}`}
-                    onClick={() => setFormTipo("arquivo")}
+                    onClick={() => {
+                      setFormTipo("arquivo");
+                      setFormUrl("");
+                    }}
                   >
                     {iconLabel(<FileText size={14} />, "Arquivo")}
                   </button>
                   <button
                     type="button"
                     className={`materialTypeOption ${formTipo === "link" ? "active" : ""}`}
-                    onClick={() => setFormTipo("link")}
+                    onClick={() => {
+                      setFormTipo("link");
+                      setFormArquivo(null);
+                    }}
                   >
                     {iconLabel(<LinkIcon size={14} />, "Link")}
                   </button>
@@ -811,119 +869,60 @@ export default function MateriaisPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Atribuição</label>
-                <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                  <AnimatedRadioLabel
-                    name="modoAtribuicao"
-                    value="turma"
-                    checked={modoAtribuicao === "turma"}
-                    onChange={() => {
-                      setModoAtribuicao("turma");
-                      setAlunosSelecionados([]);
-                    }}
-                    label="Turma Específica"
-                    icon={<Users size={14} />}
-                  />
-                  <AnimatedRadioLabel
-                    name="modoAtribuicao"
-                    value="aluno"
-                    checked={modoAtribuicao === "aluno"}
-                    onChange={() => {
-                      setModoAtribuicao("aluno");
-                      setTurmasSelecionadas([]);
-                    }}
-                    label="Aluno Específico"
-                    icon={<UserIcon size={14} />}
-                  />
-                </div>
+                <label className="formLabel">Turmas (opcional)</label>
+                <select
+                  className="formInput"
+                  multiple
+                  value={turmasSelecionadas}
+                  onChange={(e) =>
+                    setTurmasSelecionadas(
+                      Array.from(e.target.selectedOptions, (opt) => opt.value)
+                    )
+                  }
+                  size={4}
+                  style={{ minHeight: "100px" }}
+                >
+                  {turmasDisponiveis.map((turma) => (
+                    <option key={turma.id} value={turma.id}>
+                      {turma.nome} ({turma.tipo})
+                    </option>
+                  ))}
+                </select>
+                <small className="formHint">
+                  Segure Ctrl/Cmd para selecionar multiplas. Deixe vazio para "Todos".
+                </small>
               </div>
-
-              {modoAtribuicao === "turma" && (
-                <div className="formGroup">
-                  <label className="formLabel">Turmas (opcional)</label>
-                  <select
-                    className="formInput"
-                    multiple
-                    value={turmasSelecionadas}
-                    onChange={(e) =>
-                      setTurmasSelecionadas(
-                        Array.from(e.target.selectedOptions, (opt) => opt.value)
-                      )
-                    }
-                    size={4}
-                    style={{ minHeight: "100px" }}
-                  >
-                    {turmasDisponiveis.map((turma) => (
-                      <option key={turma.id} value={turma.id}>
-                        {turma.nome} ({turma.tipo})
-                      </option>
-                    ))}
-                  </select>
-                  <small className="formHint">
-                    Segure Ctrl/Cmd para selecionar múltiplas. Deixe vazio para
-                    "Todos".
-                  </small>
-                </div>
-              )}
-
-              {modoAtribuicao === "aluno" && (
-                <>
-                  <div className="formGroup">
-                    <label className="formLabel">Pesquisar Alunos</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      placeholder="Digite nome ou usuário..."
-                      value={alunoFiltro}
-                      onChange={(e) => setAlunoFiltro(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">Alunos</label>
-                    <select
-                      className="formInput"
-                      multiple
-                      value={alunosSelecionados}
-                      onChange={(e) =>
-                        setAlunosSelecionados(
-                          Array.from(e.target.selectedOptions, (opt) => opt.value)
-                        )
-                      }
-                      size={4}
-                      style={{ minHeight: "100px" }}
-                    >
-                      {alunosDisponiveis
-                        .filter(
-                          (aluno) =>
-                            alunoFiltro === "" ||
-                            aluno.nome.toLowerCase().includes(alunoFiltro.toLowerCase()) ||
-                            (aluno.email ?? aluno.usuario ?? "")
-                              .toLowerCase()
-                              .includes(alunoFiltro.toLowerCase())
-                        )
-                        .map((aluno) => (
-                          <option key={aluno.id} value={aluno.id}>
-                            {aluno.nome} ({aluno.email ?? aluno.usuario ?? "-"})
-                          </option>
-                        ))}
-                    </select>
-                    <small className="formHint">
-                      Segure Ctrl/Cmd para selecionar múltiplos alunos
-                    </small>
-                  </div>
-                </>
-              )}
 
               {/* Input dinâmico baseado no tipo */}
               {formTipo === "arquivo" ? (
                 <div className="formGroup">
+                  <label className="formLabel">Formato do Arquivo</label>
+                  <select
+                    className="formInput"
+                    value={formFormatoArquivo}
+                    onChange={(e) => {
+                      setFormFormatoArquivo(e.target.value as FormatoArquivo);
+                      setFormArquivo(null);
+                      setFormError(null);
+                    }}
+                  >
+                    {FORMATO_ARQUIVO_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <small className="formHint">
+                    Selecione um formato específico para restringir os arquivos permitidos.
+                  </small>
+
                   <label className="formLabel">Arquivo *</label>
                   <input
                     ref={fileInputRef}
                     type="file"
+                    accept={ACCEPT_BY_FORMAT[formFormatoArquivo]}
                     className="materialFileInputHidden"
-                    onChange={(e) => setFormArquivo(e.target.files?.[0] || null)}
+                    onChange={(e) => handleArquivoChange(e.target.files?.[0] || null)}
                   />
                   <div className="materialFilePicker">
                     <AnimatedButton
@@ -970,3 +969,4 @@ export default function MateriaisPage() {
     </DashboardLayout>
   );
 }
+

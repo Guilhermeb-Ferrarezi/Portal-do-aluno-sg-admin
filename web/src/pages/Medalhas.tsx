@@ -22,6 +22,11 @@ import {
 import "./Medalhas.css";
 
 type Aba = "ver" | "criar";
+type HolderGroup = {
+  user: BadgeHolder["user"];
+  items: BadgeHolder[];
+  latestAwardedAt: string;
+};
 
 export default function MedalhasPage() {
   const [aba, setAba] = React.useState<Aba>("ver");
@@ -295,6 +300,37 @@ export default function MedalhasPage() {
     );
   }, [holders, buscaHolder]);
 
+  const holdersAgrupados = React.useMemo<HolderGroup[]>(() => {
+    const grouped = new Map<string, HolderGroup>();
+
+    for (const holder of holdersFiltrados) {
+      const existing = grouped.get(holder.user.id);
+      if (existing) {
+        existing.items.push(holder);
+        if (
+          new Date(holder.awardedAt).getTime() >
+          new Date(existing.latestAwardedAt).getTime()
+        ) {
+          existing.latestAwardedAt = holder.awardedAt;
+        }
+      } else {
+        grouped.set(holder.user.id, {
+          user: holder.user,
+          items: [holder],
+          latestAwardedAt: holder.awardedAt,
+        });
+      }
+    }
+
+    return Array.from(grouped.values()).map((group) => ({
+      ...group,
+      items: [...group.items].sort(
+        (a, b) =>
+          new Date(b.awardedAt).getTime() - new Date(a.awardedAt).getTime()
+      ),
+    }));
+  }, [holdersFiltrados]);
+
   const usuariosFiltradosAtribuicao = React.useMemo(() => {
     const q = assignUserQuery.trim().toLowerCase();
     if (!q) return [];
@@ -458,64 +494,80 @@ export default function MedalhasPage() {
               </div>
 
               {loadingHolders ? (
-                <div className="medalhaEmpty">Carregando usuários...</div>
-              ) : holdersFiltrados.length === 0 ? (
-                <div className="medalhaEmpty">Ninguém recebeu essa medalha ainda.</div>
+                <div className="medalhaEmpty">Carregando usuarios...</div>
+              ) : holdersAgrupados.length === 0 ? (
+                <div className="medalhaEmpty">Ninguem recebeu essa medalha ainda.</div>
               ) : (
                 <div className="holdersList">
-                  {holdersFiltrados.map((holder, index) => (
-                    <div
-                      key={`${holder.holderId}-${holder.user.id}-${holder.awardedAt}-${index}`}
-                      className="holderItem"
-                    >
-                      <div className="holderMain">
-                        <strong>{holder.user.nome}</strong>
-                        <span>{holder.user.email}</span>
-                      </div>
-                      <div className="holderMeta">
-                        <span>{holder.badgeName}</span>
-                        <small>
-                          {new Date(holder.awardedAt).toLocaleDateString("pt-BR")}
-                        </small>
-                      </div>
-                      {role === "admin" && (
-                        <div className="holderEdit">
-                          <select
-                            value={holderBadgeDraft[holder.holderId] ?? holder.badgeId}
-                            onChange={(e) =>
-                              setHolderBadgeDraft((prev) => ({
-                                ...prev,
-                                [holder.holderId]: e.target.value,
-                              }))
-                            }
-                          >
-                            {badgeOptions.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => salvarEdicaoHolder(holder.holderId)}
-                            disabled={
-                              savingHolderId === holder.holderId ||
-                              (holderBadgeDraft[holder.holderId] ?? holder.badgeId) === holder.badgeId
-                            }
-                          >
-                            {savingHolderId === holder.holderId ? "Salvando..." : "Salvar"}
-                          </button>
-                          <button
-                            type="button"
-                            className="holderDeleteBtn"
-                            onClick={() => removerMedalhaDoHolder(holder.holderId)}
-                            disabled={removingHolderId === holder.holderId}
-                          >
-                            {removingHolderId === holder.holderId ? "Removendo..." : "Remover"}
-                          </button>
+                  {holdersAgrupados.map((group) => (
+                    <details key={group.user.id} className="holderGroup">
+                      <summary className="holderGroupSummary">
+                        <div className="holderMain">
+                          <strong>{group.user.nome}</strong>
+                          <span>{group.user.email}</span>
                         </div>
-                      )}
-                    </div>
+                        <div className="holderGroupMeta">
+                          <span>
+                            {group.items.length} medalha
+                            {group.items.length === 1 ? "" : "s"}
+                          </span>
+                          <small>
+                            Ultima: {" "}
+                            {new Date(group.latestAwardedAt).toLocaleDateString("pt-BR")}
+                          </small>
+                        </div>
+                      </summary>
+
+                      <div className="holderGroupItems">
+                        {group.items.map((holder) => (
+                          <div key={holder.holderId} className="holderItem">
+                            <div className="holderMeta">
+                              <span>{holder.badgeName}</span>
+                              <small>
+                                {new Date(holder.awardedAt).toLocaleDateString("pt-BR")}
+                              </small>
+                            </div>
+                            {role === "admin" && (
+                              <div className="holderEdit">
+                                <select
+                                  value={holderBadgeDraft[holder.holderId] ?? holder.badgeId}
+                                  onChange={(e) =>
+                                    setHolderBadgeDraft((prev) => ({
+                                      ...prev,
+                                      [holder.holderId]: e.target.value,
+                                    }))
+                                  }
+                                >
+                                  {badgeOptions.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                      {b.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => salvarEdicaoHolder(holder.holderId)}
+                                  disabled={
+                                    savingHolderId === holder.holderId ||
+                                    (holderBadgeDraft[holder.holderId] ?? holder.badgeId) === holder.badgeId
+                                  }
+                                >
+                                  {savingHolderId === holder.holderId ? "Salvando..." : "Salvar"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="holderDeleteBtn"
+                                  onClick={() => removerMedalhaDoHolder(holder.holderId)}
+                                  disabled={removingHolderId === holder.holderId}
+                                >
+                                  {removingHolderId === holder.holderId ? "Removendo..." : "Remover"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   ))}
                 </div>
               )}

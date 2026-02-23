@@ -40,6 +40,8 @@ type Filters = {
   to: string;
 };
 
+type LogSection = "users" | "staff";
+
 const defaultFilters: Filters = {
   q: "",
   action: "",
@@ -226,6 +228,7 @@ function normalizeMetadata(metadata: ActivityLog["metadata"]): MetadataEntry[] {
 }
 
 export default function ActivityLogsPage() {
+  const [logSection, setLogSection] = React.useState<LogSection>("users");
   const [logs, setLogs] = React.useState<ActivityLog[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [erro, setErro] = React.useState<string | null>(null);
@@ -245,6 +248,7 @@ export default function ActivityLogsPage() {
       const { items, total } = await listarActivityLogs({
         limit: itemsPerPage,
         offset,
+        actorGroup: logSection === "users" ? "user" : "staff",
         q: filters.q || undefined,
         action: filters.action || undefined,
         entityType: filters.entityType || undefined,
@@ -259,7 +263,7 @@ export default function ActivityLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, filters]);
+  }, [currentPage, itemsPerPage, filters, logSection]);
 
   React.useEffect(() => {
     carregarLogs();
@@ -280,6 +284,13 @@ export default function ActivityLogsPage() {
     if (e.key === "Enter") aplicarFiltros();
   };
 
+  const handleSectionChange = (section: LogSection) => {
+    if (section === logSection) return;
+    setLogSection(section);
+    setCurrentPage(1);
+    setExpandedRow(null);
+  };
+
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   // Stats
@@ -294,10 +305,41 @@ export default function ActivityLogsPage() {
   return (
     <DashboardLayout
       title="Logs de Atividade"
-      subtitle="Acompanhe todas as alterações feitas no sistema"
+      subtitle={
+        logSection === "users"
+          ? "Acompanhe atividades dos usuarios (alunos)"
+          : "Acompanhe atividades de administradores e professores"
+      }
     >
       <FadeInUp duration={0.28}>
         <div className="alContainer">
+          <div className="alSectionTabs" role="tablist" aria-label="Secoes de logs">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={logSection === "users"}
+              className={`alSectionTab ${logSection === "users" ? "active" : ""}`}
+              onClick={() => handleSectionChange("users")}
+            >
+              <span style={{ display: "inline-flex" }}>
+                <User size={15} />
+              </span>
+              Logs de usuarios
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={logSection === "staff"}
+              className={`alSectionTab ${logSection === "staff" ? "active" : ""}`}
+              onClick={() => handleSectionChange("staff")}
+            >
+              <span style={{ display: "inline-flex" }}>
+                <ShieldCheck size={15} />
+              </span>
+              Logs de admin/professor
+            </button>
+          </div>
+
           {/* Stats Cards */}
           <div className="alStats">
             <ScaleIn delay={0}>
@@ -483,7 +525,9 @@ export default function ActivityLogsPage() {
               <span className="alEmptyText">
                 {hasActiveFilters
                   ? "Tente ajustar os filtros para encontrar o que procura."
-                  : "Ainda não há registros de atividade no sistema."}
+                  : logSection === "users"
+                    ? "Ainda nao ha registros de atividade de usuarios."
+                    : "Ainda nao ha registros de atividade de admin/professor."}
               </span>
               {hasActiveFilters && (
                 <AnimatedButton className="alBtnGhost" onClick={limparFiltros}>

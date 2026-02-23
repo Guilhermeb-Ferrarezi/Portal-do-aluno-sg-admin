@@ -15,22 +15,22 @@
   justify-content: space-between;
 }
 
-.filtrosRow {
+.videoaulasContainer .filtrosRow {
   display: flex;
   gap: 12px;
   flex: 1;
-  min-width: 300px;
+  min-width: 220px;
   flex-wrap: wrap;
   align-items: center;
 }
 
-.searchBox {
+.videoaulasContainer .searchBox {
   position: relative;
   flex: 1;
-  min-width: 200px;
+  min-width: 180px;
 }
 
-.searchIcon {
+.videoaulasContainer .searchIcon {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -39,7 +39,7 @@
   pointer-events: none;
 }
 
-.searchInput {
+.videoaulasContainer .searchInput {
   height: 50px;
   width: 100%;
   padding: 12px 16px 12px 40px;
@@ -52,14 +52,14 @@
   transition: all 0.2s ease;
 }
 
-.searchInput:focus {
+.videoaulasContainer .searchInput:focus {
   outline: 0;
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
   background: var(--ring);
 }
 
-.filterSelect {
+.videoaulasContainer .filterSelect {
   padding: 12px 14px;
   border: 1.5px solid var(--line);
   border-radius: 10px;
@@ -69,21 +69,22 @@
   color: var(--text);
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 150px;
+  min-width: 120px;
+  height: 50px;
 }
 
-.filterSelect:focus {
+.videoaulasContainer .filterSelect:focus {
   outline: 0;
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
   background: var(--ring);
 }
 
-.filterSelect:hover {
+.videoaulasContainer .filterSelect:hover {
   border-color: var(--red);
 }
 
-.uploadBtn {
+.videoaulasContainer .uploadBtn {
   padding: 12px 20px;
   background: linear-gradient(135deg, var(--red), #d41c28);
   color: white;
@@ -95,14 +96,18 @@
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(225, 29, 46, 0.2);
   white-space: nowrap;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.uploadBtn:hover {
+.videoaulasContainer .uploadBtn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(225, 29, 46, 0.3);
 }
 
-.uploadBtn:active {
+.videoaulasContainer .uploadBtn:active {
   transform: translateY(0);
 }
 
@@ -618,17 +623,17 @@ select.formInput[multiple] {
     align-items: stretch;
   }
 
-  .filtrosRow {
+  .videoaulasContainer .filtrosRow {
     flex-direction: column;
     flex: none;
   }
 
-  .filterSelect,
-  .searchInput {
+  .videoaulasContainer .filterSelect,
+  .videoaulasContainer .searchInput {
     width: 100%;
   }
 
-  .uploadBtn {
+  .videoaulasContainer .uploadBtn {
     width: 100%;
   }
 

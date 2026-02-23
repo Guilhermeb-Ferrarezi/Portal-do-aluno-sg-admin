@@ -7,6 +7,7 @@ import type { AuthRequest } from "../middlewares/auth";
 type ActivityLogRow = {
   id: string;
   actor_id: string | null;
+  actor_role: number | null;
   action: string;
   entity_type: string;
   message: string | null;
@@ -17,6 +18,23 @@ type ActivityLogRow = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toActorRole(role: number | null): "aluno" | "professor" | "admin" | null {
+  if (role === 1) return "aluno";
+  if (role === 2) return "professor";
+  if (role === 3) return "admin";
+  return null;
+}
+
+function normalizeActorRole(value: string | null): "aluno" | "professor" | "admin" | null {
+  if (!value) return null;
+  const role = value.trim().toLowerCase();
+  if (!role) return null;
+  if (role === "1" || role === "aluno" || role === "user") return "aluno";
+  if (role === "2" || role === "professor" || role === "teacher") return "professor";
+  if (role === "3" || role === "admin" || role === "administrador") return "admin";
+  return null;
 }
 
 function parseMessageMetadata(message: string | null) {
@@ -118,11 +136,13 @@ export function activityLogsRouter(jwtSecret: string) {
         const q = (req.query.q as string | undefined)?.trim();
         const from = (req.query.from as string | undefined)?.trim();
         const to = (req.query.to as string | undefined)?.trim();
+        const actorGroup = (req.query.actorGroup as string | undefined)?.trim();
 
         const baseQuery = `
           SELECT
             l.id::text as id,
             l.user_id::text as actor_id,
+            u.role as actor_role,
             l.action as action,
             COALESCE(l.entity_name, 'unknown') as entity_type,
             l."Message" as message,
@@ -134,7 +154,7 @@ export function activityLogsRouter(jwtSecret: string) {
         `;
 
         const conditions: string[] = [];
-        const params: any[] = [];
+        const params: unknown[] = [];
 
         if (action) {
           params.push(action);
@@ -161,6 +181,12 @@ export function activityLogsRouter(jwtSecret: string) {
           conditions.push(`l."LogDate" <= $${params.length}`);
         }
 
+        if (actorGroup === "user") {
+          conditions.push(`u.role = 1`);
+        } else if (actorGroup === "staff") {
+          conditions.push(`u.role IN (2, 3)`);
+        }
+
         if (q) {
           params.push(`%${q}%`);
           conditions.push(`(
@@ -183,10 +209,11 @@ export function activityLogsRouter(jwtSecret: string) {
         return res.json({
           items: result.rows.map((row) => {
             const parsed = parseMessageMetadata(row.message);
+            const roleFromMessage = normalizeActorRole(parsed.actorRole);
             return {
               id: row.id,
               actorId: row.actor_id,
-              actorRole: parsed.actorRole,
+              actorRole: roleFromMessage ?? toActorRole(row.actor_role),
               actorNome: row.actor_nome,
               actorUsuario: row.actor_usuario,
               action: row.action,

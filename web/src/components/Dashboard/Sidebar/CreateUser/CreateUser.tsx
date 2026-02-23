@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { BadgeCheck, CircleCheck, ShieldCheck } from "lucide-react";
+import { BadgeCheck, CircleCheck, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { getName, getRole } from "../../../../auth/auth";
 import {
   apiFetch,
@@ -68,6 +68,7 @@ export default function CreateUser() {
   const [senha, setSenha] = React.useState("");
   const [confirmarSenha, setConfirmarSenha] = React.useState("");
   const [adminPassword, setAdminPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [role, setRole] = React.useState<Role>("aluno");
   const [loading, setLoading] = React.useState(false);
   const [msg, setMsg] = React.useState<Msg | null>(null);
@@ -191,6 +192,7 @@ export default function CreateUser() {
       setSenha("");
       setConfirmarSenha("");
       setAdminPassword("");
+      setShowPassword(false);
       setRole("aluno");
       setFieldErrors({});
       setEmailStatus("idle");
@@ -275,15 +277,26 @@ export default function CreateUser() {
 
             <label>
               Senha
-              <input
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="mín. 6 caracteres"
-                type="password"
-                className={fieldErrors.senha ? "cuInputError" : ""}
-                required
-                minLength={6}
-              />
+              <div className="cuPasswordWrap">
+                <input
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="min. 6 caracteres"
+                  type={showPassword ? "text" : "password"}
+                  className={fieldErrors.senha ? "cuInputError" : ""}
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  className="cuPasswordToggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               <div className="cuStrength" aria-live="polite">
                 <div className="cuStrengthTrack">
                   <span
@@ -292,7 +305,7 @@ export default function CreateUser() {
                   />
                 </div>
                 <small>
-                  Força da senha: <strong>{passwordStrengthLabel(senhaScore)}</strong>
+                  Forca da senha: <strong>{passwordStrengthLabel(senhaScore)}</strong>
                 </small>
               </div>
               {fieldErrors.senha ? <small className="cuFieldError">{fieldErrors.senha}</small> : null}
@@ -304,7 +317,7 @@ export default function CreateUser() {
                 value={confirmarSenha}
                 onChange={(e) => setConfirmarSenha(e.target.value)}
                 placeholder="repita a senha"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 className={fieldErrors.confirmarSenha ? "cuInputError" : ""}
                 required
                 minLength={6}

@@ -519,6 +519,10 @@ export async function obterTotalTurmas() {
   return apiFetch<{ total: number }>("/turmas/total");
 }
 
+export async function obterContagemAlunosDashboard() {
+  return apiFetch<{ total: number; totalSistema: number }>("/turmas/alunos/count");
+}
+
 export async function obterTurma(id: string) {
   return apiFetch<Turma & {
     alunos: Array<{ id: string; usuario?: string; email?: string; nome: string; role: Role }>;
@@ -1079,6 +1083,7 @@ export async function listarActivityLogs(params: {
   action?: string;
   entityType?: string;
   actorId?: string;
+  actorGroup?: "user" | "staff";
   q?: string;
   from?: string;
   to?: string;
@@ -1089,6 +1094,7 @@ export async function listarActivityLogs(params: {
   if (params.action) search.set("action", params.action);
   if (params.entityType) search.set("entityType", params.entityType);
   if (params.actorId) search.set("actorId", params.actorId);
+  if (params.actorGroup) search.set("actorGroup", params.actorGroup);
   if (params.q) search.set("q", params.q);
   if (params.from) search.set("from", params.from);
   if (params.to) search.set("to", params.to);

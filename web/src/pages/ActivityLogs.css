@@ -8,6 +8,44 @@
   gap: 24px;
 }
 
+.alSectionTabs {
+  display: inline-flex;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.alSectionTab {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.alSectionTab:hover {
+  background: var(--background-secondary);
+  color: var(--text);
+}
+
+.alSectionTab.active {
+  background: rgba(225, 29, 46, 0.1);
+  color: var(--red);
+}
+
 /* ── Stats Cards ── */
 .alStats {
   display: grid;
@@ -825,6 +863,15 @@
 @media (max-width: 768px) {
   .alContainer {
     gap: 16px;
+  }
+
+  .alSectionTabs {
+    width: 100%;
+  }
+
+  .alSectionTab {
+    flex: 1;
+    justify-content: center;
   }
 
   .alStats {

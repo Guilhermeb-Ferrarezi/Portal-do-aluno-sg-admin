@@ -553,6 +553,70 @@ export function turmasRouter(jwtSecret: string) {
     }
   });
 
+  // GET /turmas/alunos/count
+  router.get("/turmas/alunos/count", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+    try {
+      const userRole = req.user!.role;
+      const userId = Number(req.user!.sub);
+
+      if (userRole === "aluno") {
+        const turmaAtual = await pool.query<{ id: number }>(
+          `SELECT c.id
+           FROM class c
+           JOIN enrollment e ON e.class_id = c.id
+           WHERE e.user_id = $1
+           ORDER BY c.created_at DESC
+           LIMIT 1`,
+          [userId]
+        );
+
+        const turmaId = turmaAtual.rows[0]?.id;
+        if (!turmaId) {
+          return res.json({ total: 0, totalSistema: 0 });
+        }
+
+        const count = await pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+           FROM enrollment e
+           JOIN "user" u ON u.id = e.user_id
+           WHERE e.class_id = $1 AND u.role = 1`,
+          [turmaId]
+        );
+
+        return res.json({
+          total: Number(count.rows[0]?.count ?? "0"),
+          totalSistema: 0,
+        });
+      }
+
+      const totalNasTurmas = await pool.query<{ count: string }>(
+        `SELECT COUNT(DISTINCT e.user_id)::text AS count
+         FROM enrollment e
+         JOIN "user" u ON u.id = e.user_id
+         WHERE u.role = 1`
+      );
+
+      if (userRole === "admin") {
+        const totalSistema = await pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM "user" WHERE role = 1`
+        );
+
+        return res.json({
+          total: Number(totalNasTurmas.rows[0]?.count ?? "0"),
+          totalSistema: Number(totalSistema.rows[0]?.count ?? "0"),
+        });
+      }
+
+      return res.json({
+        total: Number(totalNasTurmas.rows[0]?.count ?? "0"),
+        totalSistema: 0,
+      });
+    } catch (error) {
+      console.error("Erro ao contar alunos para dashboard:", error);
+      return res.status(500).json({ message: "Erro ao contar alunos" });
+    }
+  });
+
   // GET /turmas/:id
   router.get("/turmas/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const id = Number(req.params.id);

@@ -3,15 +3,13 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { getRole, getUserId, hasRole } from "../auth/auth";
+import { hasRole } from "../auth/auth";
 import { useToast } from "../contexts/ToastContext";
 import { useCachedData } from "../hooks/useCachedData";
 import {
   Search,
-  Users,
   Plus,
   Film,
-  User as UserIcon,
   Landmark,
   Globe,
   Trash2,
@@ -27,28 +25,80 @@ import {
   PulseLoader,
   AnimatedButton,
   AnimatedSelect,
-  AnimatedRadioLabel,
 } from "../components/animate-ui";
 import {
   listarTurmas,
-  listarAlunos,
   listarModulos,
   listarVideoaulas,
   criarVideoaula,
   deletarVideoaula,
   atribuirVideoaulaTurmas,
   type Turma,
-  type User,
   type Videoaula,
   type Modulo,
 } from "../services/api";
 import "./VideoaulaBonus.css";
 
+type VideoTipoFiltro = "todos" | "youtube" | "vimeo" | "arquivo";
+
+function normalizeYoutubeUrl(input: string): string {
+  const raw = input.trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+
+    if (host.includes("youtu.be")) {
+      const id = url.pathname.replace("/", "").trim();
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+
+    if (host.includes("youtube.com")) {
+      if (url.pathname.startsWith("/embed/")) {
+        const id = url.pathname.split("/")[2];
+        if (id) return `https://www.youtube.com/embed/${id}`;
+      }
+      if (url.pathname.startsWith("/shorts/")) {
+        const id = url.pathname.split("/")[2];
+        if (id) return `https://www.youtube.com/embed/${id}`;
+      }
+      const id = url.searchParams.get("v");
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+  } catch {
+    const maybeId = raw.split("v=")[1]?.split("&")[0] || "";
+    if (maybeId) return `https://www.youtube.com/embed/${maybeId}`;
+  }
+  return raw;
+}
+
+function normalizeVimeoUrl(input: string): string {
+  const raw = input.trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    if (!host.includes("vimeo.com")) return raw;
+
+    const parts = url.pathname.split("/").filter(Boolean);
+    const videoId = parts.includes("video")
+      ? parts[parts.indexOf("video") + 1]
+      : parts[0];
+    if (videoId) return `https://player.vimeo.com/video/${videoId}`;
+  } catch {
+    // fallback: mantém URL original
+  }
+  return raw;
+}
+
+function getPlayableVideoUrl(videoaula: Videoaula): string {
+  if (videoaula.tipo === "youtube") return normalizeYoutubeUrl(videoaula.url || "");
+  if (videoaula.tipo === "vimeo") return normalizeVimeoUrl(videoaula.url || "");
+  return videoaula.url || "";
+}
+
 export default function VideoaulaBonusPage() {
   const canUpload = hasRole(["admin", "professor"]);
-  const role = getRole();
-  const userId = getUserId();
-  const isStaff = role === "admin" || role === "professor";
   const { addToast } = useToast();
   const iconLabel = (icon: React.ReactNode, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -67,17 +117,14 @@ export default function VideoaulaBonusPage() {
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
   const [buscaModuloFiltro, setBuscaModuloFiltro] = React.useState<string>("");
   const [showSugestoesModuloFiltro, setShowSugestoesModuloFiltro] = React.useState(false);
+  const [filtroTipo, setFiltroTipo] = React.useState<VideoTipoFiltro>("todos");
   const [busca, setBusca] = React.useState<string>("");
   const [turmaFiltro, setTurmaFiltro] = React.useState<string>("todas");
   const [modalAberto, setModalAberto] = React.useState(false);
   const [videoSelecionado, setVideoSelecionado] = React.useState<Videoaula | null>(null);
   const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
   const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
-  const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
-  const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
-  const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
   const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
-  const [alunoFiltro, setAlunoFiltro] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<Videoaula | null>(null);
@@ -89,48 +136,6 @@ export default function VideoaulaBonusPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
-  const alunoNameById = React.useMemo(() => {
-    const map = new Map<string, string>();
-    alunosDisponiveis.forEach((aluno) => {
-      map.set(aluno.id, aluno.nome || aluno.usuario || aluno.id);
-    });
-    return map;
-  }, [alunosDisponiveis]);
-
-  function getAlunoIds(videoaula: Videoaula): string[] {
-    const alunos = Array.isArray((videoaula as any).alunos)
-      ? (videoaula as any).alunos.map((a: any) => a?.id).filter(Boolean)
-      : [];
-    const idsSnake = Array.isArray((videoaula as any).aluno_ids)
-      ? (videoaula as any).aluno_ids
-      : [];
-    const idsCamel = Array.isArray((videoaula as any).alunoIds)
-      ? (videoaula as any).alunoIds
-      : [];
-    return Array.from(new Set([...alunos, ...idsSnake, ...idsCamel]));
-  }
-
-  function getAlunoNames(videoaula: Videoaula): string[] {
-    const alunos = Array.isArray((videoaula as any).alunos)
-      ? (videoaula as any).alunos
-          .map((a: any) => a?.nome || a?.usuario || a?.id)
-          .filter(Boolean)
-      : [];
-    if (alunos.length > 0) return alunos as string[];
-
-    const ids = getAlunoIds(videoaula);
-    return ids
-      .map((id) => alunoNameById.get(id))
-      .filter((nome): nome is string => !!nome);
-  }
-
-  function formatAlunoLabel(names: string[]) {
-    if (names.length === 0) return "Aluno específico";
-    if (names.length === 1) return `Para: ${names[0]}`;
-    if (names.length === 2) return `Para: ${names.join(", ")}`;
-    return `Para: ${names[0]} +${names.length - 1}`;
-  }
-
   const [formData, setFormData] = React.useState({
     titulo: "",
     descricao: "",
@@ -141,16 +146,12 @@ export default function VideoaulaBonusPage() {
     duracao: "",
   });
 
-  // Carregar turmas e alunos quando puder fazer upload
+  // Carregar turmas e módulos quando puder fazer upload
   React.useEffect(() => {
     if (canUpload) {
       listarTurmas()
         .then(setTurmasDisponiveis)
         .catch((err) => console.error("Erro ao carregar turmas:", err));
-
-      listarAlunos()
-        .then(setAlunosDisponiveis)
-        .catch((err) => console.error("Erro ao carregar alunos:", err));
 
       listarModulos()
         .then(setModulosDisponiveis)
@@ -160,18 +161,12 @@ export default function VideoaulaBonusPage() {
 
   // Filtrar videoaulas
   const videoaulasFiltradas = videoaulas.filter((v) => {
-    const alunoIds = getAlunoIds(v);
-    const hasAlunoAssignment = alunoIds.length > 0;
-    if (!isStaff && hasAlunoAssignment) {
-      if (!userId || !alunoIds.includes(userId)) {
-        return false;
-      }
-    }
     const termoModulo = buscaModuloFiltro.trim().toLowerCase();
     const matchModulo =
       filtroModulo !== "todos"
         ? v.modulo === filtroModulo
         : termoModulo === "" || v.modulo.toLowerCase().includes(termoModulo);
+    const matchTipo = filtroTipo === "todos" || v.tipo === filtroTipo;
     const matchBusca =
       busca === "" ||
       v.titulo.toLowerCase().includes(busca.toLowerCase()) ||
@@ -179,9 +174,9 @@ export default function VideoaulaBonusPage() {
     const matchTurma =
       turmaFiltro === "todas" ||
       (v.turmas && v.turmas.some((t) => t.id === turmaFiltro)) ||
-      (!hasAlunoAssignment && (!v.turmas || v.turmas.length === 0)); // Videoaulas sem turma visíveis para todos
+      (!v.turmas || v.turmas.length === 0); // Videoaulas sem turma visíveis para todos
 
-    return matchModulo && matchBusca && matchTurma;
+    return matchModulo && matchTipo && matchBusca && matchTurma;
   });
 
   // Obter lista única de módulos
@@ -209,6 +204,11 @@ export default function VideoaulaBonusPage() {
   const handleAssistir = (videoaula: Videoaula) => {
     setVideoSelecionado(videoaula);
   };
+
+  const playableVideoUrl = React.useMemo(
+    () => (videoSelecionado ? getPlayableVideoUrl(videoSelecionado) : ""),
+    [videoSelecionado]
+  );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -283,14 +283,16 @@ export default function VideoaulaBonusPage() {
       if (formData.tipo === "arquivo" && formData.arquivo) {
         formDataToSend.append("file", formData.arquivo);
       } else if (formData.tipo === "youtube" || formData.tipo === "vimeo") {
-        formDataToSend.append("url", formData.url);
+        const normalizedUrl =
+          formData.tipo === "youtube"
+            ? normalizeYoutubeUrl(formData.url)
+            : normalizeVimeoUrl(formData.url);
+        formDataToSend.append("url", normalizedUrl);
       }
 
       // Adicionar turmas se selecionadas
-      if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
+      if (turmasSelecionadas.length > 0) {
         formDataToSend.append("turma_ids", JSON.stringify(turmasSelecionadas));
-      } else if (modoAtribuicao === "aluno" && alunosSelecionados.length > 0) {
-        formDataToSend.append("aluno_ids", JSON.stringify(alunosSelecionados));
       }
 
       // Enviar para API
@@ -319,8 +321,6 @@ export default function VideoaulaBonusPage() {
         duracao: "",
       });
       setTurmasSelecionadas([]);
-      setAlunosSelecionados([]);
-      setModoAtribuicao("turma");
       setBuscaModuloForm("");
       setShowSugestoesModuloForm(false);
       setFormError("");
@@ -411,8 +411,20 @@ export default function VideoaulaBonusPage() {
               />
             </div>
 
+            {/* Filtro de Tipo */}
+            <AnimatedSelect
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value as VideoTipoFiltro)}
+              className="filterSelect"
+            >
+              <option value="todos">Todos os tipos</option>
+              <option value="youtube">YouTube</option>
+              <option value="vimeo">Vimeo</option>
+              <option value="arquivo">Upload Local</option>
+            </AnimatedSelect>
+
             {/* Filtro de Módulo por escrita */}
-            <div style={{ position: "relative", minWidth: 260 }}>
+            <div style={{ position: "relative", minWidth: 200 }}>
               <input
                 type="text"
                 placeholder="Filtrar módulo..."
@@ -516,19 +528,6 @@ export default function VideoaulaBonusPage() {
                   <>
                     <div className="videoaulasGrid">
                       {paginatedVideoaulas.map((videoaula, index) => {
-                        const alunoIds = getAlunoIds(videoaula);
-                        const hasAlunoAssignment = alunoIds.length > 0;
-                        const alunoNames = hasAlunoAssignment ? getAlunoNames(videoaula) : [];
-                        const showParaMim =
-                          !isStaff && !!userId && alunoIds.includes(userId);
-                        const alunoLabel = showParaMim
-                          ? "Para mim"
-                          : formatAlunoLabel(alunoNames);
-                        const alunoTitle = showParaMim
-                          ? "Disponível apenas para você"
-                          : alunoNames.length > 0
-                            ? `Disponível apenas para: ${alunoNames.join(", ")}`
-                            : "Disponível para aluno(s) específico(s)";
 
                         return (
                         <FadeInUp key={videoaula.id} delay={index * 0.05}>
@@ -559,27 +558,7 @@ export default function VideoaulaBonusPage() {
                         gap: "6px",
                       }}
                     >
-                      {hasAlunoAssignment ? (
-                        <PopInBadge delay={0.1}>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            padding: "4px 10px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            borderRadius: "12px",
-                            background: "rgba(34, 197, 94, 0.15)",
-                            color: "#15803d",
-                            border: "1px solid rgba(34, 197, 94, 0.3)",
-                          }}
-                          title={alunoTitle}
-                        >
-                          {iconLabel(<UserIcon size={12} />, alunoLabel)}
-                        </span>
-                        </PopInBadge>
-                      ) : videoaula.turmas && videoaula.turmas.length > 0 ? (
+                      {videoaula.turmas && videoaula.turmas.length > 0 ? (
                         <>
                           <PopInBadge delay={0.1}>
                           <span
@@ -712,7 +691,7 @@ export default function VideoaulaBonusPage() {
                 <iframe
                   width="100%"
                   height="400"
-                  src={videoSelecionado?.url || ""}
+                  src={playableVideoUrl}
                   title={videoSelecionado?.titulo || ""}
                   frameBorder={0}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -722,7 +701,7 @@ export default function VideoaulaBonusPage() {
                 <iframe
                   width="100%"
                   height="400"
-                  src={videoSelecionado?.url || ""}
+                  src={playableVideoUrl}
                   title={videoSelecionado?.titulo || ""}
                   frameBorder={0}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -736,7 +715,7 @@ export default function VideoaulaBonusPage() {
                   style={{ backgroundColor: "#000" }}
                 >
                   <source
-                    src={videoSelecionado?.url || ""}
+                    src={playableVideoUrl}
                     type="video/mp4"
                   />
                   Seu navegador não suporta a tag de vídeo.
@@ -916,36 +895,7 @@ export default function VideoaulaBonusPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Atribuição</label>
-                <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                  <AnimatedRadioLabel
-                    name="modoAtribuicao"
-                    value="turma"
-                    checked={modoAtribuicao === "turma"}
-                    onChange={() => {
-                      setModoAtribuicao("turma");
-                      setAlunosSelecionados([]);
-                    }}
-                    label="Turma Específica"
-                    icon={<Users size={14} />}
-                  />
-                  <AnimatedRadioLabel
-                    name="modoAtribuicao"
-                    value="aluno"
-                    checked={modoAtribuicao === "aluno"}
-                    onChange={() => {
-                      setModoAtribuicao("aluno");
-                      setTurmasSelecionadas([]);
-                    }}
-                    label="Aluno Específico"
-                    icon={<UserIcon size={14} />}
-                  />
-                </div>
-              </div>
-
-              {modoAtribuicao === "turma" && (
-                <div className="formGroup">
-                  <label className="formLabel">Turmas (opcional)</label>
+                <label className="formLabel">Turmas (opcional)</label>
                   <select
                     className="formInput"
                     multiple
@@ -969,56 +919,6 @@ export default function VideoaulaBonusPage() {
                     "Todos".
                   </small>
                 </div>
-              )}
-
-              {modoAtribuicao === "aluno" && (
-                <>
-                  <div className="formGroup">
-                    <label className="formLabel">Pesquisar Alunos</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      placeholder="Digite nome ou usuário..."
-                      value={alunoFiltro}
-                      onChange={(e) => setAlunoFiltro(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">Alunos</label>
-                    <select
-                      className="formInput"
-                      multiple
-                      value={alunosSelecionados}
-                      onChange={(e) =>
-                        setAlunosSelecionados(
-                          Array.from(e.target.selectedOptions, (opt) => opt.value)
-                        )
-                      }
-                      size={4}
-                      style={{ minHeight: "100px" }}
-                    >
-                      {alunosDisponiveis
-                        .filter(
-                          (aluno) =>
-                            alunoFiltro === "" ||
-                            aluno.nome.toLowerCase().includes(alunoFiltro.toLowerCase()) ||
-                            (aluno.email ?? aluno.usuario ?? "")
-                              .toLowerCase()
-                              .includes(alunoFiltro.toLowerCase())
-                        )
-                        .map((aluno) => (
-                          <option key={aluno.id} value={aluno.id}>
-                            {aluno.nome} ({aluno.email ?? aluno.usuario ?? "-"})
-                          </option>
-                        ))}
-                    </select>
-                    <small className="formHint">
-                      Segure Ctrl/Cmd para selecionar múltiplos alunos
-                    </small>
-                  </div>
-                </>
-              )}
 
               {formData.tipo === "youtube" || formData.tipo === "vimeo" ? (
                 <div className="formGroup">
@@ -1087,3 +987,5 @@ export default function VideoaulaBonusPage() {
     </DashboardLayout>
   );
 }
+
+
