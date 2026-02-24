@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
 .estruturaContainer {
   position: relative;
   display: grid;
@@ -11,45 +13,120 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 4px;
+  gap: 16px;
+  padding: 6px;
   width: min(1280px, 100%);
   margin: 0 auto;
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Manrope", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.estruturaContainerSingle::before {
+  content: none;
+}
+
+.estruturaContainerSingle > * {
+  position: relative;
+  z-index: 1;
 }
 
 .estruturaTabs {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 82%, var(--card) 18%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+  background-clip: padding-box;
+  clip-path: inset(0 round 9999px);
+}
+
+.estruturaTabs::before {
+  content: "EXIBIR:";
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--text-secondary) 86%, var(--text) 14%);
+  padding: 0 10px 0 8px;
+  white-space: nowrap;
 }
 
 .estruturaTabBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
-  background: color-mix(in srgb, var(--background-secondary) 70%, var(--card) 30%);
-  color: var(--text-strong);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--background-secondary) 68%, #0f172a 32%);
+  color: color-mix(in srgb, var(--text) 92%, #fff 8%);
   font-weight: 700;
-  padding: 10px 14px;
+  padding: 9px 16px;
   cursor: pointer;
-  transition: all .2s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .estruturaTabBtn:hover {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--line));
+  background: color-mix(in srgb, var(--background-secondary) 56%, #111827 44%);
+  transform: translateY(-1px);
 }
 
 .estruturaTabBtn.active {
-  border-color: color-mix(in srgb, var(--primary) 70%, var(--line));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--primary) 22%, transparent),
-    color-mix(in srgb, var(--primary) 8%, transparent)
-  );
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--line));
+  background: color-mix(in srgb, var(--primary) 76%, #6d28d9 24%);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 6px 14px rgba(var(--primary-rgb), 0.3);
+}
+
+.estruturaTabBtn.active svg {
+  color: #ffffff;
+}
+
+.estruturaOverview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.estruturaOverviewCard {
+  border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--background-secondary) 70%, var(--card) 30%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.estruturaOverviewCard span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.estruturaOverviewCard strong {
+  font-size: clamp(24px, 3.5vw, 30px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text-strong);
+}
+
+.estruturaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
 }
 
 .estruturaCard {
@@ -58,30 +135,21 @@
   min-height: fit-content;
   display: flex;
   flex-direction: column;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
-    var(--surface-1);
+  background: var(--surface-1);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 18px;
-  box-shadow: var(--shadow-sm);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm), 0 14px 30px rgba(4, 8, 20, 0.16);
   overflow: visible;
 }
 
 .estruturaCard::before {
-  content: "";
-  position: absolute;
-  inset: -120px auto auto -80px;
-  width: 220px;
-  height: 220px;
-  border-radius: 999px;
-  background: radial-gradient(circle at center, rgba(var(--primary-rgb), 0.16), transparent 70%);
-  pointer-events: none;
+  content: none;
 }
 
 .estruturaCard h2 {
   margin: 0;
-  font-size: var(--fs-xl);
+  font-size: clamp(24px, 2.8vw, 32px);
   letter-spacing: -0.02em;
   line-height: var(--lh-tight);
   color: var(--text-strong);
@@ -94,7 +162,7 @@
 .estruturaCardHead p {
   margin: 6px 0 0;
   color: var(--text-muted);
-  font-size: var(--fs-md);
+  font-size: clamp(14px, 1.4vw, 16px);
 }
 
 .estruturaForm {
@@ -102,16 +170,16 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
 .estruturaForm label {
   margin-top: 2px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-strong);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
 }
 
 .filtroLimparBtn {
@@ -119,9 +187,9 @@
   border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
   background: color-mix(in srgb, var(--background-secondary) 66%, var(--card) 34%);
   color: var(--text-secondary);
-  border-radius: 9px;
-  padding: 6px 10px;
-  font-size: 14px;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -206,10 +274,10 @@
 .estruturaForm textarea,
 .estruturaForm select {
   border: 1px solid var(--input-border);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--input-bg);
   color: var(--input-text);
-  padding: 14px 15px;
+  padding: 13px 14px;
   width: 100%;
   transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
   font-size: var(--fs-sm);
@@ -277,16 +345,16 @@
 }
 
 .estruturaSubmitBtn {
-  margin-top: 6px;
+  margin-top: 8px;
   width: 100%;
   justify-content: center;
-  border-radius: 12px;
-  font-weight: 700;
-  min-height: 52px;
-  font-size: 20px;
-  letter-spacing: 0.01em;
+  border-radius: 14px;
+  font-weight: 800;
+  min-height: 50px;
+  font-size: 17px;
+  letter-spacing: 0.02em;
   border: 1px solid color-mix(in srgb, var(--primary) 50%, var(--line));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 26%, transparent), color-mix(in srgb, var(--primary) 10%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 15%, transparent), color-mix(in srgb, var(--primary) 6%, transparent));
   color: color-mix(in srgb, var(--text) 90%, #fff 10%);
 }
 
@@ -396,8 +464,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 320px;
+  max-height: 360px;
   overflow: auto;
+  padding-right: 2px;
 }
 
 .viewerItem {
@@ -406,17 +475,20 @@
   border: 1px solid color-mix(in srgb, var(--line) 56%, transparent);
   background: var(--card);
   color: var(--text);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 12px;
+  padding: 11px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .viewerItem:hover {
   border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(10, 20, 40, 0.12);
 }
 
 .viewerItem.active {
@@ -430,8 +502,9 @@
 
 .viewerItemTitle {
   font-size: 16px;
-  font-weight: 600;
-  color: var(--red)
+  font-weight: 500;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--text);
 }
 
 .viewerItemMeta {
@@ -487,7 +560,7 @@
 .estruturaModalBtn {
   min-width: 130px;
   min-height: 42px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
   background: color-mix(in srgb, var(--background-secondary) 70%, var(--card) 30%);
   color: var(--text);
@@ -513,16 +586,24 @@
 }
 
 @media (max-width: 900px) {
-  .estruturaContainer {
+  .estruturaTabs {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .estruturaTabs::before {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 12px;
+  }
+
+  .estruturaGrid {
     grid-template-columns: 1fr;
   }
 
-  .estruturaCard h2 {
-    font-size: 32px;
-  }
-
-  .estruturaViewerGrid {
-    grid-template-columns: 1fr;
+  .estruturaOverview {
+    grid-template-columns: 1fr 1fr 1fr;
   }
 }
 
@@ -540,12 +621,16 @@
 /* Dense mobile form layout */
 @media (max-width: 768px) {
   .estruturaContainerSingle {
-    gap: 10px;
+    gap: 12px;
   }
 
   .estruturaCard {
     padding: 14px;
     border-radius: 12px;
+  }
+
+  .estruturaOverview {
+    grid-template-columns: 1fr;
   }
 
   .estruturaForm {

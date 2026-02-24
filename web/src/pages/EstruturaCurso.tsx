@@ -322,8 +322,23 @@ export default function EstruturaCursoPage() {
           </button>
         </div>
 
+        <div className="estruturaOverview" aria-label="Resumo da estrutura">
+          <div className="estruturaOverviewCard">
+            <span>Cursos</span>
+            <strong>{cursos.length}</strong>
+          </div>
+          <div className="estruturaOverviewCard">
+            <span>Módulos</span>
+            <strong>{modulosCurso.length}</strong>
+          </div>
+          <div className="estruturaOverviewCard">
+            <span>Fases</span>
+            <strong>{fasesModulo.length}</strong>
+          </div>
+        </div>
+
         {abaAtiva === "curso" && (
-          <>
+          <div className="estruturaGrid">
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Criar Curso</h2>
@@ -364,7 +379,7 @@ export default function EstruturaCursoPage() {
                     label: c.nome,
                     meta: c.isPaid ? "Pago" : "Gratuito",
                   }))}
-                  placeholder="Filtrar por curso (lista paginada)"
+                  placeholder="Busque ou selecione um curso"
                   emptyText="Nenhum curso para selecionar"
                 />
                 {filtroCursoId && (
@@ -401,11 +416,11 @@ export default function EstruturaCursoPage() {
                 onItemsPerPageChange={setItensCursos}
               />
             </div>
-          </>
+          </div>
         )}
 
         {abaAtiva === "modulo" && (
-          <>
+          <div className="estruturaGrid">
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Criar Módulo</h2>
@@ -491,11 +506,11 @@ export default function EstruturaCursoPage() {
                 onItemsPerPageChange={setItensModulos}
               />
             </div>
-          </>
+          </div>
         )}
 
         {abaAtiva === "fase" && (
-          <>
+          <div className="estruturaGrid">
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Criar Fase</h2>
@@ -579,7 +594,7 @@ export default function EstruturaCursoPage() {
                 onItemsPerPageChange={setItensFases}
               />
             </div>
-          </>
+          </div>
         )}
 
         <Modal

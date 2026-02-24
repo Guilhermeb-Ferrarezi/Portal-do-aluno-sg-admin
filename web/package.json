@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "check:text-escapes": "node scripts/check-text-escapes.mjs",
+    "build": "npm run check:text-escapes && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

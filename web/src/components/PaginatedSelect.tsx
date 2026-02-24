@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import "./PaginatedSelect.css";
 
 export type PaginatedSelectOption = {
@@ -73,10 +73,13 @@ export default function PaginatedSelect({
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span className="paginatedSelectValue">
-          {selected ? selected.label : placeholder}
+        <span className="paginatedSelectValueWrap">
+          <span className="paginatedSelectValue">
+            {selected ? selected.label : placeholder}
+          </span>
+          {selected?.meta ? <small className="paginatedSelectValueMeta">{selected.meta}</small> : null}
         </span>
-        <ChevronDown size={16} />
+        <ChevronDown size={16} className={`paginatedSelectChevron ${open ? "isOpen" : ""}`} />
       </button>
 
       {open && !disabled && (
@@ -109,7 +112,10 @@ export default function PaginatedSelect({
                     setOpen(false);
                   }}
                 >
-                  <span>{opt.label}</span>
+                  <span className="paginatedSelectOptionMain">
+                    <span>{opt.label}</span>
+                    {value === opt.value ? <Check size={14} className="paginatedSelectOptionCheck" /> : null}
+                  </span>
                   {opt.meta ? <small>{opt.meta}</small> : null}
                 </button>
               ))
