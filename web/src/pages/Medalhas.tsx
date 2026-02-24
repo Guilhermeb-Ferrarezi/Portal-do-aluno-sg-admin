@@ -49,6 +49,7 @@ export default function MedalhasPage() {
   const [savingHolderId, setSavingHolderId] = React.useState<string | null>(null);
   const [removingHolderId, setRemovingHolderId] = React.useState<string | null>(null);
   const [holderBadgeDraft, setHolderBadgeDraft] = React.useState<Record<string, string>>({});
+  const [openHolderGroups, setOpenHolderGroups] = React.useState<Record<string, boolean>>({});
   const [buscaHolder, setBuscaHolder] = React.useState("");
   const [medalhasPage, setMedalhasPage] = React.useState(1);
   const [medalhasPerPage, setMedalhasPerPage] = React.useState(10);
@@ -145,6 +146,13 @@ export default function MedalhasPage() {
   React.useEffect(() => {
     setHoldersPage(1);
   }, [badgeFiltro, holdersPerPage]);
+
+  const toggleHolderGroup = (userId: string) => {
+    setOpenHolderGroups((prev) => ({
+      ...prev,
+      [userId]: !prev[userId],
+    }));
+  };
 
   const salvarEdicaoHolder = async (holderId: string) => {
     const novoBadgeId = holderBadgeDraft[holderId];
@@ -500,8 +508,17 @@ export default function MedalhasPage() {
               ) : (
                 <div className="holdersList">
                   {holdersAgrupados.map((group) => (
-                    <details key={group.user.id} className="holderGroup">
-                      <summary className="holderGroupSummary">
+                    <div
+                      key={group.user.id}
+                      className={`holderGroup ${openHolderGroups[group.user.id] ? "isOpen" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="holderGroupSummary"
+                        onClick={() => toggleHolderGroup(group.user.id)}
+                        aria-expanded={Boolean(openHolderGroups[group.user.id])}
+                        aria-controls={`holder-group-items-${group.user.id}`}
+                      >
                         <div className="holderMain">
                           <strong>{group.user.nome}</strong>
                           <span>{group.user.email}</span>
@@ -519,9 +536,12 @@ export default function MedalhasPage() {
                         <span className="holderChevron" aria-hidden="true">
                           <ChevronDown size={16} />
                         </span>
-                      </summary>
+                      </button>
 
-                      <div className="holderGroupItems">
+                      <div
+                        id={`holder-group-items-${group.user.id}`}
+                        className="holderGroupItems"
+                      >
                         {group.items.map((holder) => (
                           <div key={holder.holderId} className="holderItem">
                             <div className="holderMeta">
@@ -570,7 +590,7 @@ export default function MedalhasPage() {
                           </div>
                         ))}
                       </div>
-                    </details>
+                    </div>
                   ))}
                 </div>
               )}

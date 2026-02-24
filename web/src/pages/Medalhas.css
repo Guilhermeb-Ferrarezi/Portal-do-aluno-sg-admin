@@ -323,19 +323,16 @@
   gap: 12px;
   padding: 10px 12px;
   cursor: pointer;
-  list-style: none;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   transition: background-color 0.4s ease;
 }
 
-.holderGroupSummary::-webkit-details-marker {
-  display: none;
-}
-
-.holderGroupSummary::marker {
-  content: "";
-}
-
-.holderGroup[open] .holderGroupSummary {
+.holderGroup.isOpen .holderGroupSummary {
   background: rgba(var(--primary-rgb), 0.08);
 }
 
@@ -366,7 +363,7 @@
   transition: max-height 0.58s ease, opacity 0.22s ease, padding 0.28s ease;
 }
 
-.holderGroup[open] .holderGroupItems {
+.holderGroup.isOpen .holderGroupItems {
   max-height: 1200px;
   opacity: 1;
   padding: 0 12px 12px;
@@ -380,7 +377,7 @@
   transition: transform 0.42s ease, color 0.22s ease;
 }
 
-.holderGroup[open] .holderChevron {
+.holderGroup.isOpen .holderChevron {
   transform: rotate(180deg);
   color: var(--text);
 }
