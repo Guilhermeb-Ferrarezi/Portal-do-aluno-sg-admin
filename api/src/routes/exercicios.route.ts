@@ -24,7 +24,6 @@ type ExercicioRow = {
   tipo_exercicio: TipoExercicio | null;
   gabarito: string | null;
   linguagem_esperada: string | null;
-  is_template: boolean;
   categoria: string;
   mouse_regras: string | null;
   multipla_regras: string | null;
@@ -117,7 +116,6 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
     publicado: true,
     publishedAt: null,
     tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
-    is_template: false,
     categoria: "programacao",
     mouse_regras: null,
     multipla_regras: null,
@@ -180,7 +178,6 @@ async function getFromNewExerciseSchema(id: string, userId: string | undefined, 
     tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
     gabarito: null,
     linguagemEsperada: null,
-    is_template: false,
     categoria: "programacao",
     mouse_regras: null,
     multipla_regras: null,
@@ -319,7 +316,6 @@ const createSchema = z.object({
   published_at: z.coerce.date().optional().nullable(),
   gabarito: z.string().optional().nullable(),
   linguagem_esperada: z.string().optional().nullable(),
-  is_template: z.boolean().optional().default(false),
   categoria: z.string().optional().default("programacao"),
   mouse_regras: z.string().optional().nullable(),
   multipla_regras: z.string().optional().nullable(),
@@ -369,9 +365,7 @@ export function exerciciosRouter(jwtSecret: string) {
       return res.json(mapped);
     }
 
-    const conditions: string[] = [
-      "e.is_template = false",
-    ];
+    const conditions: string[] = ["1=1"];
     const params: any[] = [];
 
     // Alunos só veem exercícios publicados e com published_at no passado
@@ -410,7 +404,7 @@ export function exerciciosRouter(jwtSecret: string) {
     const query = `
       SELECT
         e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
-        e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
+        e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.categoria, e.mouse_regras,
         e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
         e.intervalo_reenvio, e.anexo_url, e.anexo_nome, e.created_at, e.updated_at,
         COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
@@ -447,7 +441,6 @@ export function exerciciosRouter(jwtSecret: string) {
         publicado: row.publicado,
         publishedAt: row.published_at,
         tipoExercicio: row.tipo_exercicio,
-        is_template: row.is_template,
         categoria: row.categoria,
         mouse_regras: row.mouse_regras,
         multipla_regras: row.multipla_regras,
@@ -483,7 +476,6 @@ export function exerciciosRouter(jwtSecret: string) {
     if (isAluno) {
       conditions.push("e.publicado = true");
       conditions.push("(e.published_at IS NULL OR e.published_at <= NOW())");
-      conditions.push("e.is_template = false");
     }
     if (isAluno) {
       const alunoParam = `$${params.length + 1}`;
@@ -515,7 +507,7 @@ export function exerciciosRouter(jwtSecret: string) {
     const r = await pool.query<ExercicioAccessRow>(
       `SELECT
          e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
-         e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.is_template, e.categoria, e.mouse_regras,
+         e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.categoria, e.mouse_regras,
          e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
          e.intervalo_reenvio, e.anexo_url, e.anexo_nome, e.created_at, e.updated_at,
          COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
@@ -556,7 +548,6 @@ export function exerciciosRouter(jwtSecret: string) {
       tipoExercicio: row.tipo_exercicio,
       gabarito: isAluno ? undefined : row.gabarito,
       linguagemEsperada: row.linguagem_esperada,
-      is_template: row.is_template,
       categoria: row.categoria,
       mouse_regras: row.mouse_regras,
       multipla_regras: row.multipla_regras,
@@ -588,7 +579,7 @@ export function exerciciosRouter(jwtSecret: string) {
         });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio } = parsed.data;
 
       // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
@@ -598,9 +589,9 @@ export function exerciciosRouter(jwtSecret: string) {
       const shouldPublish = published_at ? false : (publicado ?? true);
 
       const created = await pool.query<ExercicioRow>(
-        `INSERT INTO exercicios (titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, anexo_url, anexo_nome, created_at, updated_at`,
+        `INSERT INTO exercicios (titulo, descricao, modulo, tema, prazo, publicado, published_at, created_by, tipo_exercicio, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, anexo_url, anexo_nome, created_at, updated_at`,
         [
           titulo,
           descricao,
@@ -613,7 +604,6 @@ export function exerciciosRouter(jwtSecret: string) {
           tipoExercicio,
           gabarito ?? null,
           linguagem_esperada ?? null,
-          is_template ?? false,
           categoria ?? "programacao",
           mouse_regras ?? null,
           multipla_regras ?? null,
@@ -654,7 +644,7 @@ export function exerciciosRouter(jwtSecret: string) {
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
         action: "create",
-        entityType: row.is_template ? "template" : "exercicio",
+        entityType: "exercicio",
         entityId: row.id,
         metadata: {
           titulo: row.titulo,
@@ -681,7 +671,6 @@ export function exerciciosRouter(jwtSecret: string) {
           gabarito: row.gabarito,
           linguagemEsperada: row.linguagem_esperada,
           categoria: row.categoria,
-          is_template: row.is_template,
           mouse_regras: row.mouse_regras,
           multipla_regras: row.multipla_regras,
           atalho_tipo: row.atalho_tipo,
@@ -715,7 +704,7 @@ export function exerciciosRouter(jwtSecret: string) {
 
       // Verificar se exercício existe
       const checkExercicio = await pool.query<ExercicioRow>(
-        `SELECT id FROM exercicios WHERE id = $1`,
+        `SELECT id, anexo_url FROM exercicios WHERE id = $1`,
         [id]
       );
 
@@ -738,7 +727,7 @@ export function exerciciosRouter(jwtSecret: string) {
              categoria = $11, mouse_regras = $12, multipla_regras = $13, atalho_tipo = $14, permitir_repeticao = $15,
              max_tentativas = $16, penalidade_por_tentativa = $17, intervalo_reenvio = $18, updated_at = NOW()
          WHERE id = $19
-         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, anexo_url, anexo_nome, created_at, updated_at`,
+         RETURNING id, titulo, descricao, modulo, tema, prazo, publicado, created_by, tipo_exercicio, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, anexo_url, anexo_nome, created_at, updated_at`,
         [
           titulo,
           descricao,
@@ -807,7 +796,7 @@ export function exerciciosRouter(jwtSecret: string) {
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
         action: "update",
-        entityType: row.is_template ? "template" : "exercicio",
+        entityType: "exercicio",
         entityId: row.id,
         metadata: {
           titulo: row.titulo,
@@ -832,7 +821,6 @@ export function exerciciosRouter(jwtSecret: string) {
           gabarito: row.gabarito,
           linguagemEsperada: row.linguagem_esperada,
           categoria: row.categoria,
-          is_template: row.is_template,
           mouse_regras: row.mouse_regras,
           multipla_regras: row.multipla_regras,
           atalho_tipo: row.atalho_tipo,
@@ -950,6 +938,25 @@ export function exerciciosRouter(jwtSecret: string) {
       }
 
       // Deletar submissões primeiro (cascade)
+      const exercicio = checkExercicio.rows[0];
+      if (exercicio.anexo_url) {
+        await deleteFromR2(exercicio.anexo_url).catch((err) =>
+          console.error("Erro ao deletar anexo do exercício:", err)
+        );
+      }
+
+      const arquivosSubmissoes = await pool.query<{ arquivo_url: string | null }>(
+        `SELECT arquivo_url FROM submissoes WHERE exercicio_id = $1 AND arquivo_url IS NOT NULL`,
+        [id]
+      );
+      for (const row of arquivosSubmissoes.rows) {
+        if (row.arquivo_url) {
+          await deleteFromR2(row.arquivo_url).catch((err) =>
+            console.error("Erro ao deletar arquivo de submissão:", err)
+          );
+        }
+      }
+
       await pool.query(
         `DELETE FROM submissoes WHERE exercicio_id = $1`,
         [id]
@@ -975,181 +982,6 @@ export function exerciciosRouter(jwtSecret: string) {
       return res.json({ message: "Exercício deletado com sucesso" });
     }
   );
-
-  // GET /exercicios/templates - Listar templates (apenas admin)
-  router.get(
-    "/templates",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (_req: AuthRequest, res) => {
-      try {
-        const result = await pool.query<ExercicioRow>(
-          `SELECT id, titulo, descricao, modulo, tema, prazo, publicado, published_at,
-                   created_by, tipo_exercicio, gabarito, linguagem_esperada, is_template, categoria,
-                   mouse_regras, multipla_regras, created_at, updated_at
-           FROM exercicios
-           WHERE is_template = true
-           ORDER BY categoria, modulo, titulo ASC`
-        );
-
-        return res.json({
-          templates: result.rows.map((row) => ({
-            id: row.id,
-            titulo: row.titulo,
-            descricao: row.descricao,
-            modulo: row.modulo,
-            tema: row.tema,
-            categoria: row.categoria,
-            tipoExercicio: row.tipo_exercicio,
-            mouse_regras: row.mouse_regras,
-            multipla_regras: row.multipla_regras,
-            createdAt: row.created_at,
-          })),
-        });
-      } catch (error) {
-        console.error("Erro ao listar templates:", error);
-        return res.status(500).json({ message: "Erro ao listar templates" });
-      }
-    }
-  );
-
-  // POST /exercicios/templates/:id/duplicate - Duplicar template (apenas admin)
-  router.post(
-    "/templates/:id/duplicate",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const { nova_titulo } = req.body;
-
-      try {
-        // Buscar template
-        const templateResult = await pool.query<ExercicioRow>(
-          `SELECT * FROM exercicios WHERE id = $1 AND is_template = true`,
-          [id]
-        );
-
-        if (templateResult.rows.length === 0) {
-          return res.status(404).json({ message: "Template não encontrado" });
-        }
-
-        const template = templateResult.rows[0];
-
-        // Duplicar exercício
-        const result = await pool.query<ExercicioRow>(
-          `INSERT INTO exercicios (
-            id, titulo, descricao, modulo, tema, prazo, publicado, published_at,
-            created_by, gabarito, linguagem_esperada, is_template, mouse_regras, multipla_regras, categoria, tipo_exercicio,
-            max_tentativas, penalidade_por_tentativa, intervalo_reenvio, created_at, updated_at
-          ) VALUES (
-            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
-          ) RETURNING *`,
-          [
-            nova_titulo || template.titulo,
-            template.descricao,
-            template.modulo,
-            template.tema,
-            template.prazo,
-            true,
-            null,
-            req.user?.sub,
-            template.gabarito,
-            template.linguagem_esperada,
-            template.mouse_regras,
-            template.multipla_regras,
-            template.categoria ?? 'programacao',
-            template.tipo_exercicio ?? 'texto',
-            template.max_tentativas ?? null,
-            template.penalidade_por_tentativa ?? 0,
-            template.intervalo_reenvio ?? null,
-          ]
-        );
-
-        const newExercicio = result.rows[0];
-        
-        logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
-          action: "duplicate",
-          entityType: "template",
-          entityId: newExercicio.id,
-          metadata: {
-            sourceTemplateId: id,
-            titulo: newExercicio.titulo,
-          },
-          req,
-        }).catch((err) => console.error("activity log error:", err));
-
-      return res.status(201).json({
-          message: "Template duplicado com sucesso!",
-          exercicio: {
-            id: newExercicio.id,
-            titulo: newExercicio.titulo,
-            modulo: newExercicio.modulo,
-            tipoExercicio: newExercicio.tipo_exercicio,
-            createdAt: newExercicio.created_at,
-          },
-        });
-      } catch (error) {
-        console.error("Erro ao duplicar template:", error);
-        return res.status(500).json({ message: "Erro ao duplicar template" });
-      }
-    }
-  );
-
-  // PUT /exercicios/:id/marcar-como-template - Marcar exercício como template (apenas admin)
-  router.put(
-    "/:id/marcar-como-template",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
-      const { id } = req.params;
-      const { is_template } = req.body;
-
-      try {
-        const result = await pool.query<ExercicioRow>(
-          `UPDATE exercicios
-           SET is_template = $1, updated_at = NOW()
-           WHERE id = $2
-           RETURNING *`,
-          [is_template === true, id]
-        );
-
-        if (result.rows.length === 0) {
-          return res.status(404).json({ message: "Exercício não encontrado" });
-        }
-
-        const updated = result.rows[0];
-        
-        logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
-          action: updated.is_template ? "mark_template" : "unmark_template",
-          entityType: "exercicio",
-          entityId: updated.id,
-          metadata: {
-            titulo: updated.titulo,
-            is_template: updated.is_template,
-          },
-          req,
-        }).catch((err) => console.error("activity log error:", err));
-
-      return res.json({
-          message: `Exercício marcado como ${updated.is_template ? "template" : "exercício normal"}`,
-          exercicio: {
-            id: updated.id,
-            titulo: updated.titulo,
-            isTemplate: updated.is_template,
-          },
-        });
-      } catch (error) {
-        console.error("Erro ao marcar template:", error);
-        return res.status(500).json({ message: "Erro ao marcar template" });
-      }
-    }
-  );
-
-  
 
   return router;
 }

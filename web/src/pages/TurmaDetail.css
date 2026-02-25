@@ -1,4 +1,4 @@
-/* ===== TURMA DETAIL PAGE ===== */
+﻿/* ===== TURMA DETAIL PAGE ===== */
 
 .turmaDetailContainer {
   display: flex;
@@ -235,7 +235,7 @@
   color: var(--muted);
 }
 
-/* SEÇÕES */
+/* SEÃ‡Ã•ES */
 .turmaSection {
   display: flex;
   flex-direction: column;
@@ -313,7 +313,7 @@
 }
 
 /* ADD TEMPLATE BOX */
-.addTemplateBox {
+.addExercicioBox {
   padding: 16px;
   border: 1.5px solid rgba(225, 29, 46, 0.12);
   border-radius: 12px;
@@ -324,7 +324,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
-.templateBoxTitle {
+\.exercicioBoxTitle {
   margin-top: 0;
   margin-bottom: 12px;
   font-size: 16px;
@@ -332,24 +332,24 @@
   color: var(--text);
 }
 
-.templateBoxControls {
+\.exercicioBoxControls {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
   align-items: flex-end;
 }
 
-.templateBoxField {
+\.exercicioBoxField {
   flex: 1;
   min-width: 150px;
 }
 
-.templateBoxFieldLarge {
+\.exercicioBoxFieldLarge {
   flex: 2;
   min-width: 200px;
 }
 
-.templateBoxLabel {
+\.exercicioBoxLabel {
   display: block;
   margin-bottom: 6px;
   font-size: 13px;
@@ -358,7 +358,7 @@
   text-transform: capitalize;
 }
 
-.templateBoxSelect {
+\.exercicioBoxSelect {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--line);
@@ -370,19 +370,19 @@
   transition: all 0.2s ease;
 }
 
-.templateBoxSelect:hover {
+\.exercicioBoxSelect:hover {
   border-color: var(--red);
   box-shadow: 0 2px 8px rgba(225, 29, 46, 0.1);
 }
 
-.templateBoxSelect:focus {
+\.exercicioBoxSelect:focus {
   outline: none;
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
 }
 
 /* TEMPLATE BUTTON */
-.btnAdicionarTemplate {
+.btnAdicionarExercicio {
   padding: 8px 16px;
   background: linear-gradient(135deg, var(--red), #d41c28);
   color: white;
@@ -395,12 +395,12 @@
   box-shadow: 0 2px 8px rgba(225, 29, 46, 0.2);
 }
 
-.btnAdicionarTemplate:not(:disabled):hover {
+.btnAdicionarExercicio:not(:disabled):hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(225, 29, 46, 0.3);
 }
 
-.btnAdicionarTemplate:disabled {
+.btnAdicionarExercicio:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -619,7 +619,7 @@
   border-color: rgba(225, 29, 46, 0.3);
 }
 
-/* EXERCÍCIOS LIST */
+/* EXERCÃCIOS LIST */
 .exerciciosList {
   display: flex;
   flex-direction: column;
@@ -938,3 +938,4 @@
     margin-top: 8px;
   }
 }
+

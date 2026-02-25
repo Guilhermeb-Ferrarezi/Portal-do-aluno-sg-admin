@@ -568,6 +568,38 @@
   margin-bottom: 10px;
 }
 
+.rvStudentToggle {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.45);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rvStudentToggle:hover {
+  border-color: #334155;
+  background: rgba(30, 41, 59, 0.62);
+}
+
+.rvStudentMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rvStudentChevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+}
+
 .rvStudentName {
   margin: 0;
   font-size: 18px;
@@ -590,6 +622,7 @@
 .rvAnswers {
   display: grid;
   gap: 10px;
+  margin-top: 10px;
 }
 
 .rvAnswerCard {
@@ -597,6 +630,63 @@
   border-radius: 10px;
   padding: 12px;
   background: var(--ring);
+}
+
+.rvAnswerToggleRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.rvCheckCompact {
+  margin-right: 0;
+}
+
+.rvAnswerToggle {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.56);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rvAnswerToggle:hover {
+  border-color: #3b4e6b;
+  background: rgba(30, 41, 59, 0.74);
+}
+
+.rvAnswerToggleMain {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rvAnswerQuestionBadge {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #cbd5e1;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rvAnswerPreview {
+  color: var(--muted);
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rvQuestion {
@@ -673,6 +763,19 @@
   min-height: 110px;
   padding: 10px 12px;
   resize: vertical;
+}
+
+.rvFieldLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 8px 0 6px;
+}
+
+.rvFeedbackTextarea {
+  min-height: 88px;
 }
 
 .rvOk {
@@ -764,5 +867,14 @@
   }
   .rvStats {
     margin-left: 0;
+  }
+
+  .rvAnswerToggleMain {
+    display: grid;
+    gap: 4px;
+  }
+
+  .rvAnswerPreview {
+    white-space: normal;
   }
 }

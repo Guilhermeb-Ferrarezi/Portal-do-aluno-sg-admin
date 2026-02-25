@@ -160,7 +160,6 @@ export type Exercicio = {
   prazo: string | null;
   publishedAt: string | null;
   tipoExercicio?: "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho" | null;
-  is_template?: boolean;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
   multipla_regras?: string | null;
@@ -205,6 +204,7 @@ export type ExerciseAnswerItem = {
   answerText: string | null;
   selectedOption: number | null;
   isCorrect: boolean | null;
+  feedback: string | null;
   answeredAt: string | null;
 };
 
@@ -269,7 +269,6 @@ export async function criarExercicio(dados: {
   published_at?: string | null;
   gabarito?: string | null;
   linguagem_esperada?: string | null;
-  is_template?: boolean;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
   multipla_regras?: string | null;
@@ -296,7 +295,6 @@ export async function atualizarExercicio(id: string, dados: {
   published_at?: string | null;
   gabarito?: string | null;
   linguagem_esperada?: string | null;
-  is_template?: boolean;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
   multipla_regras?: string | null;
@@ -431,7 +429,7 @@ export async function listarAnswersExercicio(
 
 export async function atualizarAnswer(
   answerId: string | number,
-  dados: { answer_text?: string | null; selected_option?: number | null; is_correct?: boolean | null }
+  dados: { answer_text?: string | null; selected_option?: number | null; is_correct?: boolean | null; feedback?: string | null }
 ) {
   return apiFetch<{
     message: string;
@@ -443,6 +441,7 @@ export async function atualizarAnswer(
       answerText: string | null;
       selectedOption: number | null;
       isCorrect: boolean | null;
+      feedback: string | null;
       answeredAt: string | null;
     };
   }>(`/answers/${answerId}`, {
@@ -453,7 +452,7 @@ export async function atualizarAnswer(
 
 export async function atualizarAnswersEmLote(dados: {
   answer_ids: number[];
-  patch: { answer_text?: string | null; selected_option?: number | null; is_correct?: boolean | null };
+  patch: { answer_text?: string | null; selected_option?: number | null; is_correct?: boolean | null; feedback?: string | null };
 }) {
   return apiFetch<{
     message: string;
@@ -628,6 +627,7 @@ export type User = {
   nome: string;
   bio?: string | null;
   profilePictureUrl?: string | null;
+  coverPictureUrl?: string | null;
   role: Role;
 };
 
@@ -644,6 +644,7 @@ export async function atualizarMeuPerfil(dados: {
   nome?: string;
   bio?: string;
   profilePictureUrl?: string;
+  coverPictureUrl?: string;
 }) {
   return apiFetch<{ message: string; user: UserMe }>("/users/me", {
     method: "PUT",
@@ -672,6 +673,31 @@ export async function uploadMinhaFotoPerfil(file: File) {
   return res.json() as Promise<{
     message: string;
     profilePictureUrl: string;
+    user: UserMe;
+  }>;
+}
+
+export async function uploadMeuBannerPerfil(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/users/me/cover-picture`, {
+    method: "POST",
+    headers: await buildAuthHeaders(),
+    body: form,
+  });
+
+  if (!res.ok) {
+    const message = await parseError(res);
+    if (res.status === 401) {
+      handleUnauthorized(message);
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{
+    message: string;
+    coverPictureUrl: string;
     user: UserMe;
   }>;
 }

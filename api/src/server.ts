@@ -24,7 +24,7 @@ const envSchema = z.object({
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("30d"),
   CORS_ORIGIN: z
     .string()
-    .default("http://localhost:5173,https://portaldoaluno.santos-tech.com"),
+    .default("http://localhost:5173,https://painel-portaldoaluno.santos-tech.com"),
 });
 
 const env = envSchema.parse(process.env);

@@ -17,7 +17,6 @@ import {
   Users,
   User,
   Plus,
-  Package,
   Blocks,
   KeyRound,
   BarChart3,
@@ -76,7 +75,6 @@ export default function DashboardLayout({
 
   const isDashboard = location.pathname === "/dashboard";
   const isExercicios = location.pathname === "/dashboard/exercicios";
-  const isTemplates = location.pathname === "/dashboard/templates";
 
   const isMateriais = location.pathname === "/dashboard/materiais";
   const isVideoaulas = location.pathname === "/dashboard/videoaulas";
@@ -177,13 +175,6 @@ export default function DashboardLayout({
 
           {canCreateUser && (
             <>
-              <Link className={`sbItem ${isTemplates ? "active" : ""}`} to="/dashboard/templates">
-                <span className="sbIcon" aria-hidden="true">
-                  <Package size={18} />
-                </span>
-                Templates
-              </Link>
-
               <Link className={`sbItem ${isAdminUsers ? "active" : ""}`} to="/dashboard/usuarios">
                 <span className="sbIcon" aria-hidden="true">
                   <KeyRound size={18} />

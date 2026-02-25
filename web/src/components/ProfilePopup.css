@@ -13,7 +13,11 @@
 
 .ppBanner {
   height: 60px;
-  background: var(--primary);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--primary-rgb), 0.92),
+    rgba(var(--primary-rgb), 0.58)
+  );
 }
 
 .ppAvatarWrap {

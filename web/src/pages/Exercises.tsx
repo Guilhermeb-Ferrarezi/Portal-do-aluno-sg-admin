@@ -14,7 +14,6 @@ import {
   Laptop,
   Monitor,
   ClipboardList,
-  Package,
   Code,
   PenLine,
   ListChecks,
@@ -31,7 +30,6 @@ import {
   XCircle,
   X,
   Lightbulb,
-  Info,
   Users,
   User as UserIcon,
   Globe,
@@ -50,7 +48,6 @@ export default function ExerciciosPage() {
   const userId = getUserId();
   const isStaff = role === "admin" || role === "professor";
   const canCreate = isStaff;
-  const canManageTemplates = role === "admin";
   const iconLabel = (icon: React.ReactNode, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       {icon}
@@ -89,14 +86,6 @@ export default function ExerciciosPage() {
   const [prazo, setPrazo] = React.useState(""); // datetime-local
   const [publishNow, setPublishNow] = React.useState(true); // Publicar agora ou agendar
   const [publishedAt, setPublishedAt] = React.useState(""); // datetime-local
-  const [isTemplate, setIsTemplate] = React.useState(false); // Template ou Atividade Normal
-
-  // Quando marca como template, forçar publicação imediata
-  React.useEffect(() => {
-    if (isTemplate && !publishNow) {
-      setPublishNow(true);
-    }
-  }, [isTemplate, publishNow]);
   const [categoria, setCategoria] = React.useState("programacao"); // programacao ou informatica
   const [componenteInterativo, setComponenteInterativo] = React.useState("nenhum"); // nenhum, mouse, multipla, escrita, ou código
   const [diaNumero, setDiaNumero] = React.useState(1); // Número do dia para componentes interativos
@@ -288,7 +277,6 @@ export default function ExerciciosPage() {
         prazo: prazo ? new Date(prazo).toISOString() : null,
         publicado: publishNow,
         published_at: publishNow ? null : (publishedAt ? new Date(publishedAt).toISOString() : null),
-        is_template: isTemplate,
         categoria: categoria,
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
         // Incluir o tipo de exercício determinado explicitamente
@@ -350,7 +338,6 @@ export default function ExerciciosPage() {
       setPrazo("");
       setPublishNow(true);
       setPublishedAt("");
-      setIsTemplate(false);
       setCategoria("programacao");
       setComponenteInterativo("");
       setDiaNumero(1);
@@ -398,7 +385,6 @@ export default function ExerciciosPage() {
     );
     setModulo(exercicio.modulo);
     setTema(exercicio.tema || "");
-    setIsTemplate(exercicio.is_template || false);
 
     // Converter data de ISO para formato datetime-local
     if (exercicio.prazo) {
@@ -529,7 +515,6 @@ export default function ExerciciosPage() {
     setPrazo("");
     setPublishNow(true);
     setPublishedAt("");
-    setIsTemplate(false);
     setCategoria("programacao");
     setComponenteInterativo("");
     setDiaNumero(1);
@@ -603,16 +588,7 @@ export default function ExerciciosPage() {
       <div className="exercisesContainer">
         {/* HEADER COM BOTÃO */}
         <div className="exercisesHeader">
-          <div className="headerActions">
-            {canManageTemplates && (
-              <button
-                className="templateScheduleBtn"
-                onClick={() => navigate("/dashboard/templates")}
-              >
-                Cronograma (Templates)
-              </button>
-            )}
-          </div>
+          <div className="headerActions" />
           <button className="refreshBtn" onClick={load} disabled={loading}>
             {loading
               ? iconLabel(<Loader2 size={16} />, "Carregando...")
@@ -800,46 +776,6 @@ export default function ExerciciosPage() {
                         </span>
                       </label>
                     </div>
-                  </div>
-                </div>
-
-                {/* TEMPLATE VS ATIVIDADE */}
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <div className="exToggleGroup">
-                      <label className={`exToggleOption ${!isTemplate ? "active" : ""}`}>
-                        <input
-                          className="exToggleInput"
-                          type="radio"
-                          name="tipoAtividade"
-                          value="atividade"
-                          checked={!isTemplate}
-                          onChange={() => setIsTemplate(false)}
-                        />
-                        <span className="exToggleDot" aria-hidden="true" />
-                        <span className="exToggleLabel">
-                          {iconLabel(<ClipboardList size={14} />, "Atividade Padrao")}
-                        </span>
-                      </label>
-
-                      <label className={`exToggleOption ${isTemplate ? "active" : ""}`}>
-                        <input
-                          className="exToggleInput"
-                          type="radio"
-                          name="tipoAtividade"
-                          value="template"
-                          checked={isTemplate}
-                          onChange={() => setIsTemplate(true)}
-                        />
-                        <span className="exToggleDot" aria-hidden="true" />
-                        <span className="exToggleLabel">
-                          {iconLabel(<Package size={14} />, "Template (Reutilizavel)")}
-                        </span>
-                      </label>
-                    </div>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 6, display: "block" }}>
-                      {isTemplate ? "Template reutilizavel" : "Atividade padrao para a turma"}
-                    </small>
                   </div>
                 </div>
 
@@ -1544,14 +1480,13 @@ export default function ExerciciosPage() {
                       <AnimatedToggle
                         checked={publishNow}
                         onChange={setPublishNow}
-                        disabled={isTemplate}
                       />
                       Publicar agora
                     </label>
                   </div>
                 </div>
 
-                <ConditionalFieldAnimation isVisible={!publishNow && !isTemplate}>
+                <ConditionalFieldAnimation isVisible={!publishNow}>
                   <div className="exInputRow">
                     <div className="exInputGroup" style={{ cursor: "pointer" }}>
                       <label className="exLabel" style={{ cursor: "pointer" }}>{iconLabel(<Calendar size={14} />, "Agendar Publicação")}</label>
@@ -1569,12 +1504,6 @@ export default function ExerciciosPage() {
                     </div>
                   </div>
                 </ConditionalFieldAnimation>
-
-                {isTemplate && (
-                  <div style={{ padding: "12px", background: "#dbeafe", borderRadius: "4px", color: "#075985", fontSize: "14px", marginTop: "12px" }}>
-                    {iconLabel(<Info size={16} />, "Templates são sempre publicados imediatamente para poderem ser reutilizados")}
-                  </div>
-                )}
 
                 {canCreate && (turmasDisponiveis.length > 0 || alunosDisponiveis.length > 0) && (
                   <>
@@ -1854,7 +1783,6 @@ export default function ExerciciosPage() {
                   <div style={{ marginBottom: "16px" }}>
                     {(() => {
                       const filteredExercises = items.filter((ex) => {
-                        if (ex.is_template) return false;
                         const alunoIds = getAlunoIds(ex);
                         const hasAlunoAssignment = alunoIds.length > 0;
                         if (!isStaff && hasAlunoAssignment) {

@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Loader2, RefreshCcw, Save, Search } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCcw, Save, Search } from "lucide-react";
 import { getRole } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import {
@@ -15,6 +15,7 @@ import "./ExerciseDetail.css";
 
 type EditingAnswer = {
   answerText: string;
+  feedback: string;
   selectedOption: string;
   isCorrect: "true" | "false" | "null";
 };
@@ -35,6 +36,7 @@ export default function ExerciseDetail() {
   const [editing, setEditing] = React.useState<Record<number, EditingAnswer>>({});
 
   const [studentFilter, setStudentFilter] = React.useState<string>("todos");
+  const [questionFilter, setQuestionFilter] = React.useState<string>("todas");
   const [statusFilter, setStatusFilter] = React.useState<"todos" | "corrigida" | "pendente">("todos");
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<"recent" | "oldest" | "student">("recent");
@@ -55,6 +57,8 @@ export default function ExerciseDetail() {
 
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
   const [batchIsCorrect, setBatchIsCorrect] = React.useState<"null" | "true" | "false">("null");
+  const [openStudentIds, setOpenStudentIds] = React.useState<Set<number>>(new Set());
+  const [openAnswerIds, setOpenAnswerIds] = React.useState<Set<number>>(new Set());
 
   const load = React.useCallback(async () => {
     if (!id || !canReview) return;
@@ -86,6 +90,7 @@ export default function ExerciseDetail() {
         aluno.answers.forEach((a) => {
           next[a.id] = {
             answerText: a.answerText ?? "",
+            feedback: a.feedback ?? "",
             selectedOption: a.selectedOption == null ? "" : String(a.selectedOption),
             isCorrect: a.isCorrect == null ? "null" : a.isCorrect ? "true" : "false",
           };
@@ -93,6 +98,8 @@ export default function ExerciseDetail() {
       });
       setEditing(next);
       setSelectedIds(new Set());
+      setOpenStudentIds(new Set());
+      setOpenAnswerIds(new Set());
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao carregar painel de respostas");
     } finally {
@@ -108,14 +115,25 @@ export default function ExerciseDetail() {
   async function salvarAnswer(answerId: number) {
     const data = editing[answerId];
     if (!data) return;
+    const answer = alunos.flatMap((aluno) => aluno.answers).find((a) => a.id === answerId);
+    const isDissertativa = !!answer && (answer.options?.length ?? 0) === 0;
     try {
       setSavingId(answerId);
       setErro(null);
-      await atualizarAnswer(answerId, {
+      const payload: {
+        answer_text: string | null;
+        selected_option: number | null;
+        is_correct: boolean | null;
+        feedback?: string | null;
+      } = {
         answer_text: data.answerText,
         selected_option: data.selectedOption.trim() === "" ? null : Number(data.selectedOption),
         is_correct: data.isCorrect === "null" ? null : data.isCorrect === "true",
-      });
+      };
+      if (isDissertativa) {
+        payload.feedback = data.feedback;
+      }
+      await atualizarAnswer(answerId, payload);
       setOkMsg(`Resposta ${answerId} atualizada`);
       await load();
     } catch (e) {
@@ -155,7 +173,73 @@ export default function ExerciseDetail() {
     });
   }
 
-  const allVisibleIds = React.useMemo(() => alunos.flatMap((a) => a.answers.map((x) => x.id)), [alunos]);
+  const answerCards = React.useMemo(
+    () =>
+      alunos.flatMap((aluno) =>
+        aluno.answers.map((answer) => ({
+          ...answer,
+          alunoId: aluno.alunoId,
+          alunoNome: aluno.alunoNome,
+          alunoEmail: aluno.alunoEmail,
+        }))
+      ),
+    [alunos]
+  );
+
+  const questionOptions = React.useMemo(() => {
+    const seen = new Set<number>();
+    const options: Array<{ id: number; label: string }> = [];
+    for (const a of answerCards) {
+      if (seen.has(a.questionId)) continue;
+      seen.add(a.questionId);
+      const enunciado = (a.question ?? "").trim();
+      const curto = enunciado.length > 70 ? `${enunciado.slice(0, 70)}...` : enunciado;
+      options.push({
+        id: a.questionId,
+        label: `Pergunta ${a.questionId}${curto ? ` - ${curto}` : ""}`,
+      });
+    }
+    return options.sort((x, y) => x.id - y.id);
+  }, [answerCards]);
+
+  const visibleAnswersByStudent = React.useMemo(() => {
+    if (questionFilter === "todas") {
+      return alunos.filter((aluno) => aluno.answers.length > 0);
+    }
+    const qId = Number(questionFilter);
+    if (!Number.isFinite(qId)) {
+      return alunos.filter((aluno) => aluno.answers.length > 0);
+    }
+    return alunos
+      .map((aluno) => ({
+        ...aluno,
+        answers: aluno.answers.filter((a) => a.questionId === qId),
+      }))
+      .filter((aluno) => aluno.answers.length > 0);
+  }, [alunos, questionFilter]);
+
+  const allVisibleIds = React.useMemo(
+    () => visibleAnswersByStudent.flatMap((aluno) => aluno.answers.map((a) => a.id)),
+    [visibleAnswersByStudent]
+  );
+
+  function toggleStudent(alunoId: number) {
+    setOpenStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(alunoId)) next.delete(alunoId);
+      else next.add(alunoId);
+      return next;
+    });
+  }
+
+  function toggleAnswer(answerId: number) {
+    setOpenAnswerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(answerId)) next.delete(answerId);
+      else next.add(answerId);
+      return next;
+    });
+  }
 
   function toggleSelectAllVisible() {
     setSelectedIds((prev) => {
@@ -234,6 +318,22 @@ export default function ExerciseDetail() {
               </div>
 
               <div className="rvFilterField">
+                <label className="rvFilterLabel">Filtro: Questão</label>
+                <select
+                  className="rvSelect"
+                  value={questionFilter}
+                  onChange={(e) => setQuestionFilter(e.target.value)}
+                >
+                  <option value="todas">Todas as questões</option>
+                  {questionOptions.map((q) => (
+                    <option key={q.id} value={String(q.id)}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rvFilterField">
                 <label className="rvFilterLabel">Filtro: Status</label>
                 <select
                   className="rvSelect"
@@ -284,125 +384,181 @@ export default function ExerciseDetail() {
               </button>
             </div>
 
-            {alunos.length === 0 ? (
+            {visibleAnswersByStudent.length === 0 ? (
               <div className="emptyState">Nenhuma resposta encontrada para este exercício.</div>
             ) : (
               <div className="rvGrid">
-                {alunos.map((aluno) => (
-                  <div key={aluno.alunoId} className="rvStudentCard">
-                    <div className="rvStudentHead">
-                      <div>
-                        <h3 className="rvStudentName">{aluno.alunoNome}</h3>
-                        <div className="rvStudentEmail">{aluno.alunoEmail}</div>
-                      </div>
-                      <div className="rvCount">{aluno.answers.length} resposta(s)</div>
-                    </div>
+                {visibleAnswersByStudent.map((aluno) => {
+                  const isOpen = openStudentIds.has(aluno.alunoId);
+                  return (
+                    <div key={aluno.alunoId} className="rvStudentCard">
+                      <button
+                        type="button"
+                        className="rvStudentToggle"
+                        onClick={() => toggleStudent(aluno.alunoId)}
+                      >
+                        <div>
+                          <h3 className="rvStudentName">{aluno.alunoNome}</h3>
+                          <div className="rvStudentEmail">{aluno.alunoEmail}</div>
+                        </div>
+                        <div className="rvStudentMeta">
+                          <span className="rvCount">{aluno.answers.length} questão(ões)</span>
+                          <span className="rvStudentChevron">
+                            {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </span>
+                        </div>
+                      </button>
 
-                    <div className="rvAnswers">
-                      {aluno.answers.map((a) => {
-                        const options = a.options ?? [];
-                        const selectedOptionId = editing[a.id]?.selectedOption ?? (a.selectedOption == null ? "" : String(a.selectedOption));
-                        return (
-                          <div key={a.id} className="rvAnswerCard">
-                            <div className="rvQuestionHeader">
-                              <label className="rvCheckLabel" style={{ marginRight: 10 }}>
-                                <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} />
-                              </label>
-                              <span className="rvAnswerId">Resposta #{a.id}</span>
-                            </div>
-
-                            <div className="rvQuestionBlock">
-                              <div className="rvQuestionNumber">Pergunta {a.questionId}</div>
-                              <div className="rvQuestion">{a.question}</div>
-                            </div>
-
-                            {options.length > 0 && (
-                              <div className="rvOptionsList">
-                                {options.map((opt) => {
-                                  const isSelected =
-                                    String(opt.id) === selectedOptionId || String(opt.position) === selectedOptionId;
-                                  return (
-                                    <div key={opt.id} className={`rvOptionItem ${isSelected ? "selected" : ""}`}>
-                                      <span className={`rvOptionBullet ${isSelected ? "selected" : ""}`}>{isSelected ? "●" : "○"}</span>
-                                      <span className="rvOptionText">{opt.text}</span>
-                                      {isSelected && <span className="rvOptionTag">Selecionada</span>}
+                      {isOpen && (
+                        <div className="rvAnswers">
+                          {aluno.answers.map((a) => {
+                            const options = a.options ?? [];
+                            const isDissertativa = options.length === 0;
+                            const selectedOptionId = editing[a.id]?.selectedOption ?? (a.selectedOption == null ? "" : String(a.selectedOption));
+                            const isAnswerOpen = openAnswerIds.has(a.id);
+                            const perguntaCurta = (a.question ?? "").trim();
+                            const perguntaPreview =
+                              perguntaCurta.length > 78 ? `${perguntaCurta.slice(0, 78)}...` : perguntaCurta;
+                            return (
+                              <div key={a.id} className="rvAnswerCard">
+                                <div className="rvAnswerToggleRow">
+                                  <label className="rvCheckLabel rvCheckCompact">
+                                    <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="rvAnswerToggle"
+                                    onClick={() => toggleAnswer(a.id)}
+                                  >
+                                    <div className="rvAnswerToggleMain">
+                                      <span className="rvAnswerId">Resposta #{a.id}</span>
+                                      <span className="rvAnswerQuestionBadge">Pergunta {a.questionId}</span>
+                                      {perguntaPreview ? <span className="rvAnswerPreview">{perguntaPreview}</span> : null}
                                     </div>
-                                  );
-                                })}
+                                    <span className="rvStudentChevron">
+                                      {isAnswerOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                    </span>
+                                  </button>
+                                </div>
+
+                                {isAnswerOpen && (
+                                  <>
+                                    <div className="rvQuestionBlock">
+                                      <div className="rvQuestionNumber">Pergunta {a.questionId}</div>
+                                      <div className="rvQuestion">{a.question}</div>
+                                    </div>
+
+                                    {options.length > 0 && (
+                                      <div className="rvOptionsList">
+                                        {options.map((opt) => {
+                                          const isSelected =
+                                            String(opt.id) === selectedOptionId || String(opt.position) === selectedOptionId;
+                                          return (
+                                            <div key={opt.id} className={`rvOptionItem ${isSelected ? "selected" : ""}`}>
+                                              <span className={`rvOptionBullet ${isSelected ? "selected" : ""}`}>{isSelected ? "●" : "○"}</span>
+                                              <span className="rvOptionText">{opt.text}</span>
+                                              {isSelected && <span className="rvOptionTag">Selecionada</span>}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+
+                                    <textarea
+                                      className="rvTextarea"
+                                      value={editing[a.id]?.answerText ?? ""}
+                                      onChange={(e) =>
+                                        setEditing((prev) => ({
+                                          ...prev,
+                                          [a.id]: {
+                                            ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                            answerText: e.target.value,
+                                          },
+                                        }))
+                                      }
+                                      placeholder="Resposta (dissertativa)"
+                                    />
+
+                                    {isDissertativa && (
+                                      <>
+                                        <div className="rvFieldLabel">Feedback para o aluno</div>
+                                        <textarea
+                                          className="rvTextarea rvFeedbackTextarea"
+                                          value={editing[a.id]?.feedback ?? ""}
+                                          onChange={(e) =>
+                                            setEditing((prev) => ({
+                                              ...prev,
+                                              [a.id]: {
+                                                ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                                feedback: e.target.value,
+                                              },
+                                            }))
+                                          }
+                                          placeholder="Digite aqui o feedback da resposta..."
+                                        />
+                                      </>
+                                    )}
+
+                                    <div className="rvControls">
+                                      <select
+                                        className="rvSelect small"
+                                        value={editing[a.id]?.selectedOption ?? ""}
+                                        onChange={(e) =>
+                                          setEditing((prev) => ({
+                                            ...prev,
+                                            [a.id]: {
+                                              ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                              selectedOption: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                      >
+                                        <option value="">Sem opção</option>
+                                        {options.map((opt) => (
+                                          <option key={opt.id} value={String(opt.position)}>
+                                            {opt.position}. {opt.text}
+                                          </option>
+                                        ))}
+                                      </select>
+
+                                      <select
+                                        className="rvSelect small"
+                                        value={editing[a.id]?.isCorrect ?? "null"}
+                                        onChange={(e) =>
+                                          setEditing((prev) => ({
+                                            ...prev,
+                                            [a.id]: {
+                                              ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                              isCorrect: e.target.value as "true" | "false" | "null",
+                                            },
+                                          }))
+                                        }
+                                      >
+                                        <option value="null">Sem correção</option>
+                                        <option value="true">Correta</option>
+                                        <option value="false">Incorreta</option>
+                                      </select>
+
+                                      <button className="edPrimaryBtn" onClick={() => void salvarAnswer(a.id)} disabled={savingId === a.id}>
+                                        {savingId === a.id ? <Loader2 size={14} /> : <Save size={14} />} Salvar
+                                      </button>
+
+                                      {(editing[a.id]?.isCorrect === "true" || a.isCorrect === true) && (
+                                        <span className="rvOk">
+                                          <CheckCircle2 size={14} /> Correta
+                                        </span>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
                               </div>
-                            )}
-
-                            <textarea
-                              className="rvTextarea"
-                              value={editing[a.id]?.answerText ?? ""}
-                              onChange={(e) =>
-                                setEditing((prev) => ({
-                                  ...prev,
-                                  [a.id]: {
-                                    ...(prev[a.id] ?? { answerText: "", selectedOption: "", isCorrect: "null" }),
-                                    answerText: e.target.value,
-                                  },
-                                }))
-                              }
-                              placeholder="Resposta (dissertativa)"
-                            />
-
-                            <div className="rvControls">
-                              <select
-                                className="rvSelect small"
-                                value={editing[a.id]?.selectedOption ?? ""}
-                                onChange={(e) =>
-                                  setEditing((prev) => ({
-                                    ...prev,
-                                    [a.id]: {
-                                      ...(prev[a.id] ?? { answerText: "", selectedOption: "", isCorrect: "null" }),
-                                      selectedOption: e.target.value,
-                                    },
-                                  }))
-                                }
-                              >
-                                <option value="">Sem opção</option>
-                                {options.map((opt) => (
-                                  <option key={opt.id} value={String(opt.position)}>
-                                    {opt.position}. {opt.text}
-                                  </option>
-                                ))}
-                              </select>
-
-                              <select
-                                className="rvSelect small"
-                                value={editing[a.id]?.isCorrect ?? "null"}
-                                onChange={(e) =>
-                                  setEditing((prev) => ({
-                                    ...prev,
-                                    [a.id]: {
-                                      ...(prev[a.id] ?? { answerText: "", selectedOption: "", isCorrect: "null" }),
-                                      isCorrect: e.target.value as "true" | "false" | "null",
-                                    },
-                                  }))
-                                }
-                              >
-                                <option value="null">Sem correção</option>
-                                <option value="true">Correta</option>
-                                <option value="false">Incorreta</option>
-                              </select>
-
-                              <button className="edPrimaryBtn" onClick={() => void salvarAnswer(a.id)} disabled={savingId === a.id}>
-                                {savingId === a.id ? <Loader2 size={14} /> : <Save size={14} />} Salvar
-                              </button>
-
-                              {(editing[a.id]?.isCorrect === "true" || a.isCorrect === true) && (
-                                <span className="rvOk">
-                                  <CheckCircle2 size={14} /> Correta
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

@@ -20,6 +20,7 @@ type DbUserRow = {
   role: number;
   bio: string | null;
   profile_picture_url: string | null;
+  cover_photo_url: string | null;
   created_at: string;
 };
 
@@ -38,6 +39,7 @@ const updateMeSchema = z.object({
   nome: z.string().min(2, "Nome obrigatório").optional(),
   bio: z.string().max(500, "Bio muito longa").optional(),
   profilePictureUrl: z.string().optional(),
+  coverPictureUrl: z.string().optional(),
 });
 
 const updateUserSchema = z.object({
@@ -114,7 +116,7 @@ export function usersRouter(jwtSecret: string) {
   router.get("/users/me", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const userId = Number(req.user!.sub);
     const r = await pool.query<DbUserRow>(
-      `SELECT id, name, email, role, bio, profile_picture_url, created_at
+      `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at
        FROM "user"
        WHERE id = $1
        LIMIT 1`,
@@ -131,6 +133,7 @@ export function usersRouter(jwtSecret: string) {
       nome: u.name,
       bio: u.bio,
       profilePictureUrl: u.profile_picture_url,
+      coverPictureUrl: u.cover_photo_url,
       role: toRole(u.role),
       ativo: true,
       createdAt: u.created_at,
@@ -152,7 +155,7 @@ export function usersRouter(jwtSecret: string) {
       }
 
       const r = await pool.query<DbUserRow>(
-        `SELECT id, name, email, role, bio, profile_picture_url, created_at
+        `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at
          FROM "user"
          ${where}
          ORDER BY created_at DESC
@@ -168,6 +171,7 @@ export function usersRouter(jwtSecret: string) {
           nome: u.name,
           bio: u.bio,
           profilePictureUrl: u.profile_picture_url,
+      coverPictureUrl: u.cover_photo_url,
           role: toRole(u.role),
           ativo: true,
           createdAt: u.created_at,
@@ -186,6 +190,15 @@ export function usersRouter(jwtSecret: string) {
     }
 
     const userId = Number(req.user!.sub);
+    const current = await pool.query<{
+      profile_picture_url: string | null;
+      cover_photo_url: string | null;
+    }>(
+      `SELECT profile_picture_url, cover_photo_url FROM "user" WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+    if (!current.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
     const updates: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
@@ -206,6 +219,14 @@ export function usersRouter(jwtSecret: string) {
           : parsed.data.profilePictureUrl.trim()
       );
     }
+    if (parsed.data.coverPictureUrl !== undefined) {
+      updates.push(`cover_photo_url = $${idx++}`);
+      values.push(
+        parsed.data.coverPictureUrl.trim() === ""
+          ? null
+          : parsed.data.coverPictureUrl.trim()
+      );
+    }
 
     if (updates.length === 0) {
       return res.status(400).json({ message: "Nenhum campo para atualizar" });
@@ -216,13 +237,21 @@ export function usersRouter(jwtSecret: string) {
       `UPDATE "user"
        SET ${updates.join(", ")}, updated_at = NOW()
        WHERE id = $${idx}
-       RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+       RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
       values
     );
 
     if (!updated.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
 
     const u = updated.rows[0];
+    const oldProfilePicture = current.rows[0]?.profile_picture_url;
+    const oldCoverPicture = current.rows[0]?.cover_photo_url;
+    if (oldProfilePicture && oldProfilePicture !== u.profile_picture_url) {
+      deleteFromR2(oldProfilePicture).catch(() => undefined);
+    }
+    if (oldCoverPicture && oldCoverPicture !== u.cover_photo_url) {
+      deleteFromR2(oldCoverPicture).catch(() => undefined);
+    }
     const pictureChanged = parsed.data.profilePictureUrl !== undefined;
     const pictureRemoved = pictureChanged && parsed.data.profilePictureUrl?.trim() === "";
     const action = pictureRemoved
@@ -241,6 +270,7 @@ export function usersRouter(jwtSecret: string) {
         nome: parsed.data.nome !== undefined,
         bio: parsed.data.bio !== undefined,
         profilePictureUrl: parsed.data.profilePictureUrl !== undefined,
+        coverPictureUrl: parsed.data.coverPictureUrl !== undefined,
       },
       req,
     }).catch((err) => console.error("activity log error:", err));
@@ -254,6 +284,7 @@ export function usersRouter(jwtSecret: string) {
         nome: u.name,
         bio: u.bio,
         profilePictureUrl: u.profile_picture_url,
+      coverPictureUrl: u.cover_photo_url,
         role: toRole(u.role),
         ativo: true,
         createdAt: u.created_at,
@@ -319,13 +350,16 @@ export function usersRouter(jwtSecret: string) {
           return res.status(404).json({ message: "Usuário não encontrado" });
         }
 
-        const pictureUrl = await uploadToR2(req.file, "profile-pictures");
+        const now = new Date();
+        const yyyy = now.getUTCFullYear();
+        const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+        const pictureUrl = await uploadToR2(req.file, `users/profile/${yyyy}/${mm}`);
 
         const updated = await pool.query<DbUserRow>(
           `UPDATE "user"
            SET profile_picture_url = $1, updated_at = NOW()
            WHERE id = $2
-           RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+           RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
           [pictureUrl, userId]
         );
 
@@ -355,6 +389,7 @@ export function usersRouter(jwtSecret: string) {
             nome: u.name,
             bio: u.bio,
             profilePictureUrl: u.profile_picture_url,
+      coverPictureUrl: u.cover_photo_url,
             role: toRole(u.role),
             ativo: true,
             createdAt: u.created_at,
@@ -363,6 +398,78 @@ export function usersRouter(jwtSecret: string) {
       } catch (error) {
         console.error(error);
         return res.status(500).json({ message: "Erro ao atualizar foto de perfil" });
+      }
+    }
+  );
+
+  router.post(
+    "/users/me/cover-picture",
+    authGuard(jwtSecret),
+    profileUpload.single("file"),
+    async (req: AuthRequest, res) => {
+      try {
+        const userId = Number(req.user!.sub);
+        if (!req.file) {
+          return res.status(400).json({ message: "Arquivo de imagem Ã© obrigatÃ³rio" });
+        }
+
+        const current = await pool.query<{ cover_photo_url: string | null }>(
+          `SELECT cover_photo_url FROM "user" WHERE id = $1 LIMIT 1`,
+          [userId]
+        );
+
+        if (!current.rowCount) {
+          return res.status(404).json({ message: "UsuÃ¡rio nÃ£o encontrado" });
+        }
+
+        const now = new Date();
+        const yyyy = now.getUTCFullYear();
+        const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+        const coverUrl = await uploadToR2(req.file, `users/cover/${yyyy}/${mm}`);
+
+        const updated = await pool.query<DbUserRow>(
+          `UPDATE "user"
+           SET cover_photo_url = $1, updated_at = NOW()
+           WHERE id = $2
+           RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
+          [coverUrl, userId]
+        );
+
+        const oldCover = current.rows[0]?.cover_photo_url;
+        if (oldCover && oldCover !== coverUrl) {
+          deleteFromR2(oldCover).catch(() => undefined);
+        }
+
+        const u = updated.rows[0];
+        logActivity({
+          actorId: String(userId),
+          actorRole: req.user?.role ?? null,
+          action: "profile_cover_upload",
+          entityType: "user",
+          entityId: String(u.id),
+          metadata: { oldCoverExists: !!oldCover },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        return res.status(200).json({
+          message: "Banner de perfil atualizado com sucesso!",
+          coverPictureUrl: coverUrl,
+          user: {
+            id: String(u.id),
+            usuario: u.email,
+            email: u.email,
+            nome: u.name,
+            bio: u.bio,
+            profilePictureUrl: u.profile_picture_url,
+            coverPictureUrl: u.cover_photo_url,
+            role: toRole(u.role),
+            ativo: true,
+            createdAt: u.created_at,
+          },
+        });
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Erro ao atualizar banner de perfil" });
       }
     }
   );
@@ -411,7 +518,7 @@ export function usersRouter(jwtSecret: string) {
       const created = await pool.query<DbUserRow>(
         `INSERT INTO "user" (name, email, password_hash, role, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW())
-         RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+         RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
         [nome.trim(), finalEmail, senhaHash, toNumericRole(role)]
       );
 
@@ -435,6 +542,7 @@ export function usersRouter(jwtSecret: string) {
           nome: u.name,
           bio: u.bio,
           profilePictureUrl: u.profile_picture_url,
+      coverPictureUrl: u.cover_photo_url,
           role: toRole(u.role),
           ativo: true,
           createdAt: u.created_at,
@@ -487,7 +595,7 @@ export function usersRouter(jwtSecret: string) {
         `UPDATE "user"
          SET ${updates.join(", ")}
          WHERE id = $${idx}
-         RETURNING id, name, email, role, bio, profile_picture_url, created_at`,
+         RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
         params
       );
 
@@ -517,6 +625,7 @@ export function usersRouter(jwtSecret: string) {
           nome: u.name,
           bio: u.bio,
           profilePictureUrl: u.profile_picture_url,
+      coverPictureUrl: u.cover_photo_url,
           role: toRole(u.role),
           ativo: true,
           createdAt: u.created_at,
@@ -542,12 +651,25 @@ export function usersRouter(jwtSecret: string) {
       }
 
       try {
+        const current = await pool.query<{
+          profile_picture_url: string | null;
+          cover_photo_url: string | null;
+        }>(
+          `SELECT profile_picture_url, cover_photo_url FROM "user" WHERE id = $1 LIMIT 1`,
+          [id]
+        );
+        if (!current.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
         const deleted = await pool.query<{ id: number }>(
           `DELETE FROM "user" WHERE id = $1 RETURNING id`,
           [id]
         );
 
         if (!deleted.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+        const oldProfilePicture = current.rows[0]?.profile_picture_url;
+        const oldCoverPicture = current.rows[0]?.cover_photo_url;
+        if (oldProfilePicture) deleteFromR2(oldProfilePicture).catch(() => undefined);
+        if (oldCoverPicture) deleteFromR2(oldCoverPicture).catch(() => undefined);
         logActivity({
           actorId: req.user?.sub ?? null,
           actorRole: req.user?.role ?? null,
@@ -566,3 +688,9 @@ export function usersRouter(jwtSecret: string) {
 
   return router;
 }
+
+
+
+
+
+

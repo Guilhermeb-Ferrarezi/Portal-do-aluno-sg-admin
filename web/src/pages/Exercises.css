@@ -89,30 +89,6 @@
     0 6px 14px rgba(var(--primary-rgb), 0.28);
 }
 
-.templateScheduleBtn {
-  background: var(--surface-2);
-  color: var(--red);
-  border: 1.5px solid var(--line);
-  font-weight: 600;
-  padding: 11px 18px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease, background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.templateScheduleBtn:hover {
-  border-color: var(--red);
-  background: rgba(var(--primary-rgb), 0.06);
-  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.15);
-  transform: translateY(-2px);
-}
-
-.templateScheduleBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .refreshBtn {
   background: linear-gradient(135deg, var(--red), var(--primary-dark));
   color: white;
@@ -154,7 +130,6 @@
 }
 
 /* Icon alignment on action controls */
-.templateScheduleBtn,
 .refreshBtn,
 .exSubmitBtn,
 .exerciseEditBtn,

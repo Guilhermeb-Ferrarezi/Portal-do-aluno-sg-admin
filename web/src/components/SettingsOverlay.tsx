@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRole } from "../auth/auth";
@@ -9,6 +9,7 @@ import {
   listarTurmas,
   todasMinhasSubmissoes,
   uploadMinhaFotoPerfil,
+  uploadMeuBannerPerfil,
   type Submissao,
   type UserMe,
   type Turma,
@@ -20,6 +21,7 @@ import {
   AnimatedToggle,
 } from "./animate-ui";
 import ConfirmModal from "./ConfirmModal";
+import { getCoverPositionY, getCoverZoom, setCoverPositionY, setCoverZoom } from "../utils/coverPosition";
 import {
   Users,
   Flame,
@@ -183,11 +185,25 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   >(null);
   const [toastMsg, setToastMsg] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [pictureLoadError, setPictureLoadError] = React.useState(false);
+  const [coverLoadError, setCoverLoadError] = React.useState(false);
   const profilePictureFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const coverPictureFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const profileCameraVideoRef = React.useRef<HTMLVideoElement | null>(null);
   const profileCameraCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const [pictureMenuOpen, setPictureMenuOpen] = React.useState(false);
   const [pictureViewerOpen, setPictureViewerOpen] = React.useState(false);
+  const [coverViewerOpen, setCoverViewerOpen] = React.useState(false);
+  const [pendingCoverFile, setPendingCoverFile] = React.useState<File | null>(null);
+  const [pendingCoverPreviewUrl, setPendingCoverPreviewUrl] = React.useState<string | null>(null);
+  const [coverPositionY, setCoverPositionYState] = React.useState(50);
+  const [coverDraftPositionY, setCoverDraftPositionY] = React.useState(50);
+  const [coverZoom, setCoverZoomState] = React.useState(100);
+  const [coverDraftZoom, setCoverDraftZoom] = React.useState(100);
+  const [coverMinZoom, setCoverMinZoom] = React.useState(100);
+  const coverEditorViewportRef = React.useRef<HTMLDivElement | null>(null);
+  const coverPreviewBannerRef = React.useRef<HTMLDivElement | null>(null);
+  const [coverAspectRatio, setCoverAspectRatio] = React.useState(16 / 9);
+  const coverDragRef = React.useRef<{ startClientY: number; startPositionY: number; viewportHeight: number } | null>(null);
   const [pictureActionLoading, setPictureActionLoading] = React.useState(false);
   const [cameraModalOpen, setCameraModalOpen] = React.useState(false);
   const [cameraLoading, setCameraLoading] = React.useState(false);
@@ -197,6 +213,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     usuario: "",
     bio: "",
     profilePictureUrl: "",
+    coverPictureUrl: "",
   });
   const [senhaAtual, setSenhaAtual] = React.useState("");
   const [novaSenha, setNovaSenha] = React.useState("");
@@ -213,11 +230,68 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const [statsError, setStatsError] = React.useState<string | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = React.useState(false);
 
+  async function buildCroppedCoverFile(
+    file: File,
+    zoomPercent: number,
+    positionYPercent: number,
+    viewportRatio: number
+  ) {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Nao foi possivel carregar a imagem do banner."));
+      };
+      image.src = url;
+    });
+
+    // Usa a mesma proporcao da area visivel no editor para o resultado ser identico ao preview.
+    const safeRatio = Number.isFinite(viewportRatio) && viewportRatio > 0 ? viewportRatio : 16 / 9;
+    const canvasWidth = 2000;
+    const canvasHeight = Math.max(1, Math.round(canvasWidth / safeRatio));
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Nao foi possivel preparar o recorte do banner.");
+    }
+
+    const scale = Math.max(1, zoomPercent / 100);
+    const drawWidth = canvasWidth * scale;
+    const drawHeight = drawWidth * (img.naturalHeight / img.naturalWidth);
+    const x = (canvasWidth - drawWidth) * 0.5;
+    const y = (canvasHeight - drawHeight) * (positionYPercent / 100);
+    ctx.drawImage(img, x, y, drawWidth, drawHeight);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.92)
+    );
+    if (!blob) {
+      throw new Error("Nao foi possivel gerar o recorte do banner.");
+    }
+
+    return new File([blob], `banner-crop-${Date.now()}.jpg`, { type: "image/jpeg" });
+  }
+
   const role = userInfo?.role ?? roleLocal;
+  const coverUserKey = userInfo?.id ?? userInfo?.email ?? userInfo?.usuario ?? formData.usuario ?? "me";
   const mobileTitle = mobileSection
     ? NAV_ITEMS.find((item) => item.key === mobileSection)?.label || "Configurações"
     : "Configurações";
   const logoutAction = () => setLogoutConfirmOpen(true);
+  const refreshCoverAspectRatio = React.useCallback(() => {
+    const rect = coverPreviewBannerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    const nextRatio = rect.width / rect.height;
+    if (!Number.isFinite(nextRatio) || nextRatio <= 0) return;
+    setCoverAspectRatio(nextRatio);
+  }, []);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -234,10 +308,20 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
           usuario: data.usuario ?? data.email ?? "",
           bio: data.bio ?? "",
           profilePictureUrl: data.profilePictureUrl ?? "",
+          coverPictureUrl: data.coverPictureUrl ?? "",
         });
         setPictureLoadError(false);
+        setCoverLoadError(false);
         setPictureMenuOpen(false);
         setPictureViewerOpen(false);
+        setCoverViewerOpen(false);
+        setPendingCoverFile(null);
+        setPendingCoverPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return null;
+        });
+        setCoverPositionYState(getCoverPositionY(data.id ?? data.email ?? data.usuario ?? "me"));
+        setCoverZoomState(getCoverZoom(data.id ?? data.email ?? data.usuario ?? "me"));
         localStorage.setItem("nome", data.nome ?? "");
 
         try {
@@ -279,6 +363,14 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   }, [cameraStream]);
 
   React.useEffect(() => {
+    return () => {
+      if (pendingCoverPreviewUrl) {
+        URL.revokeObjectURL(pendingCoverPreviewUrl);
+      }
+    };
+  }, [pendingCoverPreviewUrl]);
+
+  React.useEffect(() => {
     if (isOpen) return;
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
@@ -287,7 +379,11 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     setCameraModalOpen(false);
     setPictureMenuOpen(false);
     setPictureViewerOpen(false);
-  }, [isOpen, cameraStream]);
+    setCoverViewerOpen(false);
+    setPendingCoverFile(null);
+    if (pendingCoverPreviewUrl) URL.revokeObjectURL(pendingCoverPreviewUrl);
+    setPendingCoverPreviewUrl(null);
+  }, [isOpen, cameraStream, pendingCoverPreviewUrl]);
 
   React.useEffect(() => {
     const media = window.matchMedia("(max-width: 900px)");
@@ -316,6 +412,23 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
       setMobileSection(null);
     }
   }, [isOpen, isMobile]);
+
+  React.useEffect(() => {
+    if (!isOpen || activeSection !== "conta") return;
+    refreshCoverAspectRatio();
+    const target = coverPreviewBannerRef.current;
+    if (!target) return;
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => refreshCoverAspectRatio());
+      observer.observe(target);
+      return () => observer.disconnect();
+    }
+
+    const onResize = () => refreshCoverAspectRatio();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [isOpen, activeSection, refreshCoverAspectRatio]);
 
   // Close on Escape
   React.useEffect(() => {
@@ -372,9 +485,11 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
       usuario: updatedUser.usuario ?? updatedUser.email ?? prev.usuario,
       bio: updatedUser.bio ?? "",
       profilePictureUrl: updatedUser.profilePictureUrl ?? "",
+      coverPictureUrl: updatedUser.coverPictureUrl ?? "",
     }));
     localStorage.setItem("nome", updatedUser.nome ?? "");
     setPictureLoadError(false);
+    setCoverLoadError(false);
   };
 
   const handleSaveProfile = async () => {
@@ -403,6 +518,107 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const handleChoosePictureClick = () => {
     setPictureMenuOpen(false);
     profilePictureFileInputRef.current?.click();
+  };
+
+  const handleChooseCoverClick = () => {
+    coverPictureFileInputRef.current?.click();
+  };
+
+  const handleOpenCover = () => {
+    if (!currentCoverSrc) {
+      handleChooseCoverClick();
+      return;
+    }
+    refreshCoverAspectRatio();
+    setCoverDraftPositionY(coverPositionY);
+    setCoverDraftZoom(Math.max(coverZoom, coverMinZoom));
+    setCoverViewerOpen(true);
+  };
+
+  const handleCloseCoverEditor = () => {
+    setCoverViewerOpen(false);
+    setPendingCoverFile(null);
+    if (pendingCoverPreviewUrl) URL.revokeObjectURL(pendingCoverPreviewUrl);
+    setPendingCoverPreviewUrl(null);
+  };
+
+  const handleApplyCoverPosition = async () => {
+    setPictureActionLoading(true);
+    setFeedback(null);
+    try {
+      if (pendingCoverFile) {
+        const viewportRect = coverEditorViewportRef.current?.getBoundingClientRect();
+        const viewportRatio =
+          viewportRect && viewportRect.height > 0
+            ? viewportRect.width / viewportRect.height
+            : coverAspectRatio;
+        const croppedFile = await buildCroppedCoverFile(
+          pendingCoverFile,
+          coverDraftZoom,
+          coverDraftPositionY,
+          viewportRatio
+        );
+        const result = await uploadMeuBannerPerfil(croppedFile);
+        const refreshedUser = await obterUsuarioAtual();
+        if (!refreshedUser?.coverPictureUrl) {
+          throw new Error("Upload concluido, mas o banner nao foi confirmado no perfil.");
+        }
+        applyUserProfileUpdate(refreshedUser);
+        const saved = setCoverPositionY(coverUserKey, 50);
+        const savedZoom = setCoverZoom(coverUserKey, 100);
+        setCoverPositionYState(saved);
+        setCoverZoomState(savedZoom);
+        setFeedback({
+          type: "success",
+          message: result.message || "Banner recortado e atualizado com sucesso!",
+        });
+      } else {
+        const saved = setCoverPositionY(coverUserKey, coverDraftPositionY);
+        const savedZoom = setCoverZoom(coverUserKey, coverDraftZoom);
+        setCoverPositionYState(saved);
+        setCoverZoomState(savedZoom);
+      }
+      handleCloseCoverEditor();
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Erro ao atualizar banner",
+      });
+    } finally {
+      setPictureActionLoading(false);
+    }
+  };
+
+  const handleResetCoverPosition = () => {
+    setCoverDraftPositionY(50);
+    setCoverDraftZoom(coverMinZoom);
+  };
+
+  const handleCoverDragStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!coverEditorViewportRef.current) return;
+    const rect = coverEditorViewportRef.current.getBoundingClientRect();
+    if (!rect.height) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    coverDragRef.current = {
+      startClientY: event.clientY,
+      startPositionY: coverDraftPositionY,
+      viewportHeight: rect.height,
+    };
+  };
+
+  const handleCoverDragMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!coverDragRef.current) return;
+    const deltaY = event.clientY - coverDragRef.current.startClientY;
+    const deltaPct = (deltaY / coverDragRef.current.viewportHeight) * 100;
+    const next = Math.max(0, Math.min(100, coverDragRef.current.startPositionY + deltaPct));
+    setCoverDraftPositionY(Math.round(next));
+  };
+
+  const handleCoverDragEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    coverDragRef.current = null;
   };
 
   const handlePictureSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -545,6 +761,56 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     }
   };
 
+  const handleCoverSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setFeedback({ type: "error", message: "Selecione um arquivo de imagem válido para o banner." });
+      return;
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setFeedback({ type: "error", message: "O banner deve ter no máximo 5MB." });
+      return;
+    }
+
+    if (pendingCoverPreviewUrl) URL.revokeObjectURL(pendingCoverPreviewUrl);
+    const previewUrl = URL.createObjectURL(file);
+    setPendingCoverFile(file);
+    setPendingCoverPreviewUrl(previewUrl);
+    setCoverDraftPositionY(50);
+    setCoverDraftZoom(100);
+    refreshCoverAspectRatio();
+    setCoverViewerOpen(true);
+    event.target.value = "";
+  };
+
+  const handleRemoveCover = async () => {
+    setPictureActionLoading(true);
+    try {
+      const result = await atualizarMeuPerfil({ coverPictureUrl: "" });
+      applyUserProfileUpdate(result.user);
+      const saved = setCoverPositionY(coverUserKey, 50);
+      const savedZoom = setCoverZoom(coverUserKey, 100);
+      setCoverPositionYState(saved);
+      setCoverZoomState(savedZoom);
+      handleCloseCoverEditor();
+      setFeedback({
+        type: "success",
+        message: result.message || "Banner removido com sucesso!",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Erro ao remover banner",
+      });
+    } finally {
+      setPictureActionLoading(false);
+    }
+  };
+
   const handleSaveSettings = () => {
     try {
       setSavingSettings(true);
@@ -594,7 +860,42 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const currentPictureSrc = !pictureLoadError
     ? (formData.profilePictureUrl || userInfo?.profilePictureUrl || "")
     : "";
+  const currentCoverSrc = !coverLoadError
+    ? (formData.coverPictureUrl || userInfo?.coverPictureUrl || "")
+    : "";
+  const editorCoverSrc = pendingCoverPreviewUrl || currentCoverSrc;
+  const coverZoomMax = Math.max(220, Math.ceil(coverMinZoom) + 180);
   const profileInitial = (formData.nome || formData.usuario || "?").trim().charAt(0).toUpperCase();
+
+  React.useEffect(() => {
+    if (!coverViewerOpen || !editorCoverSrc) {
+      setCoverMinZoom(100);
+      return;
+    }
+    let active = true;
+    const image = new Image();
+    image.onload = () => {
+      if (!active) return;
+      const imageRatio = image.naturalHeight / image.naturalWidth;
+      const viewportRect = coverEditorViewportRef.current?.getBoundingClientRect();
+      const viewportRatio =
+        viewportRect && viewportRect.width > 0 && viewportRect.height > 0
+          ? viewportRect.height / viewportRect.width
+          : (coverAspectRatio > 0 ? 1 / coverAspectRatio : 9 / 16);
+      const safeViewportRatio = Number.isFinite(viewportRatio) && viewportRatio > 0 ? viewportRatio : 9 / 16;
+      const computedMin = Math.max(100, Math.ceil((safeViewportRatio / imageRatio) * 100));
+      setCoverMinZoom(computedMin);
+      setCoverDraftZoom((prev) => Math.max(prev, computedMin));
+    };
+    image.onerror = () => {
+      if (!active) return;
+      setCoverMinZoom(100);
+    };
+    image.src = editorCoverSrc;
+    return () => {
+      active = false;
+    };
+  }, [coverViewerOpen, editorCoverSrc, coverAspectRatio]);
 
   return createPortal(
     <AnimatePresence>
@@ -747,7 +1048,64 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                       <h2 className="settingsSectionTitle">Minha Conta</h2>
                       <div className="profilePreviewCard">
                         <div className="profileHero">
-                          <div className="profilePreviewBanner" />
+                          <input
+                            ref={coverPictureFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            onChange={handleCoverSelected}
+                          />
+                          <div
+                            ref={coverPreviewBannerRef}
+                            className="profilePreviewBanner profilePreviewBannerBtn"
+                            onClick={handleOpenCover}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleOpenCover();
+                              }
+                            }}
+                            title={currentCoverSrc ? "Ver banner" : "Banner padrão"}
+                            style={
+                              currentCoverSrc
+                                ? {
+                                    backgroundImage: `linear-gradient(rgba(17,20,27,0.15), rgba(17,20,27,0.4)), url(${currentCoverSrc})`,
+                                    backgroundSize: `${coverZoom}%`,
+                                    backgroundRepeat: "no-repeat",
+                                    backgroundPosition: `center ${coverPositionY}%`,
+                                  }
+                                : undefined
+                            }
+                          >
+                            <div className="profileBannerHoverOverlay" onClick={(e) => e.stopPropagation()}>
+                              <div className="profileBannerMenuTrigger">
+                                <Camera size={14} />
+                                <span>Mudar banner</span>
+                              </div>
+                              <div className="profileBannerMenu" role="menu" aria-label="Ações do banner">
+                                <button
+                                  type="button"
+                                  className="profileBannerMenuItem"
+                                  onClick={handleChooseCoverClick}
+                                  disabled={pictureActionLoading}
+                                >
+                                  <FolderOpen size={14} />
+                                  <span>Alterar</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="profileBannerMenuItem danger"
+                                  onClick={handleRemoveCover}
+                                  disabled={pictureActionLoading || !currentCoverSrc}
+                                >
+                                  <Trash2 size={14} />
+                                  <span>Remover</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                           <div className="profilePreviewAvatarWrap">
                             <input
                               ref={profilePictureFileInputRef}
@@ -759,9 +1117,9 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                             <button
                               type="button"
                               className="profilePreviewAvatar profilePreviewAvatarButton"
-                              onClick={() => setPictureMenuOpen(true)}
-                              title="Alterar foto de perfil"
-                              aria-label="Alterar foto de perfil"
+                              onClick={() => currentPictureSrc && setPictureViewerOpen(true)}
+                              title="Ver foto de perfil"
+                              aria-label="Ver foto de perfil"
                               disabled={pictureActionLoading}
                             >
                               {currentPictureSrc ? (
@@ -781,6 +1139,16 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                               ) : (
                                 <span aria-hidden="true">{profileInitial}</span>
                               )}
+                            </button>
+                            <button
+                              type="button"
+                              className="profileAvatarMenuBtn"
+                              onClick={() => setPictureMenuOpen(true)}
+                              title="Ações da foto"
+                              aria-label="Ações da foto"
+                              disabled={pictureActionLoading}
+                            >
+                              <Camera size={14} />
                             </button>
                             {pictureMenuOpen && (
                               <>
@@ -864,12 +1232,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                                 setFormData((prev) => ({ ...prev, bio: e.target.value }))
                               }
                             />
-                          </div>
-                          <div className="formGroup">
-                            <label className="formLabel">Foto de perfil</label>
-                            <small className="formHint">
-                              Clique na foto para abrir as ações. A troca/remoção acontece na hora.
-                            </small>
                           </div>
                           <div className="settingsActions">
                             <AnimatedButton
@@ -1047,7 +1409,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                       <h2 className="settingsSectionTitle">Seu Desempenho</h2>
                       {statsLoading ? (
                         <div style={{ display: "grid", placeItems: "center", padding: 32, color: "var(--muted)" }}>
-                          Carregando estat??sticas...
+                          Carregando estatísticas...
                         </div>
                       ) : statsError ? (
                         <div style={{ display: "grid", placeItems: "center", padding: 32, color: "var(--red)" }}>
@@ -1063,7 +1425,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                             </div>
                           </div>
                           <div className="statCard">
-                            <div className="statIcon">★</div>
+                            <div className="statIcon">*</div>
                             <div className="statInfo">
                               <div className="statValue">
                                 {stats.notaMedia === null ? "-" : `${stats.notaMedia.toFixed(1)}/10`}
@@ -1183,6 +1545,74 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
               </div>
             </div>
           )}
+          {coverViewerOpen && editorCoverSrc && (
+            <div
+              className="profilePhotoViewerOverlay"
+              onClick={handleCloseCoverEditor}
+              style={{ zIndex: 10003 }}
+            >
+              <div className="coverEditorModal" onClick={(e) => e.stopPropagation()}>
+                <div className="coverEditorHeader">
+                  <h3>Editar banner</h3>
+                  <button type="button" className="settingsCloseBtn" onClick={handleCloseCoverEditor} aria-label="Fechar editor de banner">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div
+                  ref={coverEditorViewportRef}
+                  className="coverEditorViewport"
+                  style={{ aspectRatio: coverAspectRatio }}
+                  onPointerDown={handleCoverDragStart}
+                  onPointerMove={handleCoverDragMove}
+                  onPointerUp={handleCoverDragEnd}
+                  onPointerCancel={handleCoverDragEnd}
+                >
+                  <div
+                    className="coverEditorImage"
+                    style={{
+                      backgroundImage: `url(${editorCoverSrc})`,
+                      backgroundSize: `${Math.max(coverDraftZoom, coverMinZoom)}%`,
+                      backgroundPosition: `center ${coverDraftPositionY}%`,
+                    }}
+                  />
+                  <div
+                    className="coverEditorFrame"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div className="coverEditorControls">
+                  <input
+                    type="range"
+                    min={String(Math.ceil(coverMinZoom))}
+                    max={String(coverZoomMax)}
+                    value={coverDraftZoom}
+                    onChange={(e) => setCoverDraftZoom(Math.max(Number(e.target.value), Math.ceil(coverMinZoom)))}
+                  />
+                  <span>{coverDraftZoom}%</span>
+                </div>
+                <div className="coverEditorActions">
+                  <button type="button" className="coverEditorGhostBtn" onClick={handleResetCoverPosition}>
+                    Redefinir
+                  </button>
+                  <AnimatedButton
+                    type="button"
+                    className="btnCancel"
+                    onClick={handleCloseCoverEditor}
+                  >
+                    Cancelar
+                  </AnimatedButton>
+                  <AnimatedButton
+                    type="button"
+                    className="btnSalvar"
+                    onClick={() => void handleApplyCoverPosition()}
+                    disabled={pictureActionLoading}
+                  >
+                    {pictureActionLoading ? "Aplicando..." : "Aplicar"}
+                  </AnimatedButton>
+                </div>
+              </div>
+            </div>
+          )}
           {cameraModalOpen && (
             <div
               className="profilePhotoViewerOverlay"
@@ -1237,3 +1667,8 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     document.body
   );
 }
+
+
+
+
+

@@ -12,7 +12,6 @@ import Dashboard from "./components/Dashboard/Dashboard";
 import CreateUser from "./components/Dashboard/Sidebar/CreateUser/CreateUser";
 import ExerciciosPage from "./pages/Exercises";
 import ExerciseDetail from "./pages/ExerciseDetail";
-import ExerciseTemplates from "./pages/ExerciseTemplates";
 import AdminUsersPage from "./pages/AdminUsers";
 import ActivityLogsPage from "./pages/ActivityLogs";
 import Turmas from "./pages/Turmas";
@@ -140,11 +139,6 @@ function AppContent() {
             <Route
               path="/criar-usuario"
               element={<Navigate to="/dashboard/criar-usuario" replace />}
-            />
-            <Route path="/dashboard/templates" element={<ExerciseTemplates />} />
-            <Route
-              path="/templates"
-              element={<Navigate to="/dashboard/templates" replace />}
             />
             <Route path="/dashboard/usuarios" element={<AdminUsersPage />} />
             <Route path="/dashboard/estrutura-curso/cursos" element={<EstruturaCursoPage />} />

@@ -22,7 +22,6 @@ import {
   School,
   Plus,
   KeyRound,
-  Package,
 } from "lucide-react";
 
 function toDateKey(date: Date) {
@@ -530,14 +529,6 @@ export default function Dashboard() {
                         </span>
                       </RippleButton>
 
-                      <RippleButton
-                        onClick={() => navigate("/dashboard/templates")}
-                        className="dashboardActionBtn"
-                      >
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Package size={16} /> Templates
-                        </span>
-                      </RippleButton>
                     </>
                   )}
                 </div>

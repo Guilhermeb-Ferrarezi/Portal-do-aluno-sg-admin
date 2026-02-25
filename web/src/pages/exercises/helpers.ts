@@ -118,7 +118,6 @@ export function filterExercises(items: Exercicio[], filters: ExerciseFilterInput
   } = filters;
 
   return items.filter((ex) => {
-    if (ex.is_template) return false;
     const alunoIds = getAlunoIds(ex);
     const hasAlunoAssignment = alunoIds.length > 0;
 

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, User, Shield } from "lucide-react";
 import { obterUsuarioAtual, type UserMe } from "../services/api";
+import { COVER_POSITION_EVENT, COVER_POSITION_KEY_PREFIX, COVER_ZOOM_KEY_PREFIX, getCoverPositionY, getCoverZoom } from "../utils/coverPosition";
 import "./ProfilePopup.css";
 
 type ProfilePopupProps = {
@@ -37,6 +38,8 @@ export default function ProfilePopup({
   const popupRef = useRef<HTMLDivElement>(null);
   const [userInfo, setUserInfo] = useState<UserMe | null>(null);
   const [position, setPosition] = useState({ bottom: 0, left: 0 });
+  const [coverPositionY, setCoverPositionY] = useState(50);
+  const [coverZoom, setCoverZoom] = useState(100);
 
   useEffect(() => {
     obterUsuarioAtual().then(setUserInfo).catch(console.error);
@@ -75,6 +78,45 @@ export default function ProfilePopup({
 
   const color = roleBadgeColor(role);
   const effectiveProfilePicture = profilePictureUrl || userInfo?.profilePictureUrl || "";
+  const effectiveCoverPicture = userInfo?.coverPictureUrl || "";
+  const coverUserKey = userInfo?.id ?? userInfo?.email ?? userInfo?.usuario ?? null;
+
+  useEffect(() => {
+    setCoverPositionY(getCoverPositionY(coverUserKey));
+    setCoverZoom(getCoverZoom(coverUserKey));
+  }, [coverUserKey]);
+
+  useEffect(() => {
+    const onCoverPositionChange = (event: Event) => {
+      const custom = event as CustomEvent<{ userKey?: string; positionY?: number; zoom?: number }>;
+      if (!custom.detail?.userKey || coverUserKey == null) return;
+      if (custom.detail.userKey !== coverUserKey) return;
+      const next = Number(custom.detail.positionY);
+      if (Number.isFinite(next)) {
+        setCoverPositionY(Math.max(0, Math.min(100, next)));
+      }
+      const nextZoom = Number(custom.detail.zoom);
+      if (Number.isFinite(nextZoom)) {
+        setCoverZoom(Math.max(100, Math.min(220, nextZoom)));
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || coverUserKey == null) return;
+      const expectedKey = `${COVER_POSITION_KEY_PREFIX}:${coverUserKey}`;
+      const expectedZoomKey = `${COVER_ZOOM_KEY_PREFIX}:${coverUserKey}`;
+      if (event.key !== expectedKey && event.key !== expectedZoomKey) return;
+      setCoverPositionY(getCoverPositionY(coverUserKey));
+      setCoverZoom(getCoverZoom(coverUserKey));
+    };
+
+    window.addEventListener(COVER_POSITION_EVENT, onCoverPositionChange as EventListener);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(COVER_POSITION_EVENT, onCoverPositionChange as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [coverUserKey]);
 
   return createPortal(
     <AnimatePresence>
@@ -88,7 +130,19 @@ export default function ProfilePopup({
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
         {/* Banner */}
-        <div className="ppBanner" />
+        <div
+          className="ppBanner"
+          style={
+            effectiveCoverPicture
+              ? {
+                  backgroundImage: `linear-gradient(rgba(17,20,27,0.12), rgba(17,20,27,0.36)), url(${effectiveCoverPicture})`,
+                  backgroundSize: `${coverZoom}%`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: `center ${coverPositionY}%`,
+                }
+              : undefined
+          }
+        />
 
         {/* Avatar */}
         <div className="ppAvatarWrap">

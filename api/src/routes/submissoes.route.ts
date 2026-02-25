@@ -71,6 +71,7 @@ const updateAnswerSchema = z.object({
   answer_text: z.string().optional().nullable(),
   selected_option: z.coerce.number().int().optional().nullable(),
   is_correct: z.boolean().optional().nullable(),
+  feedback: z.string().optional().nullable(),
 });
 
 const batchUpdateAnswersSchema = z.object({
@@ -751,6 +752,7 @@ export function submissoesRouter(jwtSecret: string) {
             OR u.email ILIKE ${p}
             OR q.statement ILIKE ${p}
             OR COALESCE(a.answer_text,'') ILIKE ${p}
+            OR COALESCE(a.feedback,'') ILIKE ${p}
             OR CAST(a.id AS TEXT) ILIKE ${p}
           )`);
         }
@@ -790,6 +792,7 @@ export function submissoesRouter(jwtSecret: string) {
           answer_text: string | null;
           selected_option: number | null;
           is_correct: boolean | null;
+          feedback: string | null;
           answered_at: string | null;
         }>(
           `SELECT
@@ -822,6 +825,7 @@ export function submissoesRouter(jwtSecret: string) {
              a.answer_text,
              a.selected_option,
              a.is_correct,
+             a.feedback,
              a.answered_at
            FROM answer a
            JOIN "user" u ON u.id = a.user_id
@@ -867,6 +871,7 @@ export function submissoesRouter(jwtSecret: string) {
             answerText: string | null;
             selectedOption: number | null;
             isCorrect: boolean | null;
+            feedback: string | null;
             answeredAt: string | null;
           }>;
         }>();
@@ -888,6 +893,7 @@ export function submissoesRouter(jwtSecret: string) {
             answerText: r.answer_text,
             selectedOption: r.selected_option,
             isCorrect: r.is_correct,
+            feedback: r.feedback,
             answeredAt: r.answered_at,
           });
         }
@@ -944,6 +950,10 @@ export function submissoesRouter(jwtSecret: string) {
       params.push(data.is_correct ?? null);
       sets.push(`is_correct = $${params.length}`);
     }
+    if (Object.prototype.hasOwnProperty.call(data, "feedback")) {
+      params.push(data.feedback ?? null);
+      sets.push(`feedback = $${params.length}`);
+    }
     if (sets.length === 0) return null;
 
     const oldRow = await pool.query<{
@@ -954,9 +964,10 @@ export function submissoesRouter(jwtSecret: string) {
       answer_text: string | null;
       selected_option: number | null;
       is_correct: boolean | null;
+      feedback: string | null;
       answered_at: string | null;
     }>(
-      `SELECT id, user_id, question_id, exercise_id, answer_text, selected_option, is_correct, answered_at
+      `SELECT id, user_id, question_id, exercise_id, answer_text, selected_option, is_correct, feedback, answered_at
        FROM answer WHERE id = $1`,
       [answerId]
     );
@@ -971,12 +982,13 @@ export function submissoesRouter(jwtSecret: string) {
       answer_text: string | null;
       selected_option: number | null;
       is_correct: boolean | null;
+      feedback: string | null;
       answered_at: string | null;
     }>(
       `UPDATE answer
        SET ${sets.join(", ")}
        WHERE id = $${params.length}
-       RETURNING id, user_id, question_id, exercise_id, answer_text, selected_option, is_correct, answered_at`,
+       RETURNING id, user_id, question_id, exercise_id, answer_text, selected_option, is_correct, feedback, answered_at`,
       params
     );
 
@@ -1014,7 +1026,8 @@ export function submissoesRouter(jwtSecret: string) {
       if (
         !Object.prototype.hasOwnProperty.call(patch, "answer_text") &&
         !Object.prototype.hasOwnProperty.call(patch, "selected_option") &&
-        !Object.prototype.hasOwnProperty.call(patch, "is_correct")
+        !Object.prototype.hasOwnProperty.call(patch, "is_correct") &&
+        !Object.prototype.hasOwnProperty.call(patch, "feedback")
       ) {
         return res.status(400).json({ message: "Nada para atualizar no patch" });
       }
@@ -1068,7 +1081,8 @@ export function submissoesRouter(jwtSecret: string) {
       if (
         !Object.prototype.hasOwnProperty.call(data, "answer_text") &&
         !Object.prototype.hasOwnProperty.call(data, "selected_option") &&
-        !Object.prototype.hasOwnProperty.call(data, "is_correct")
+        !Object.prototype.hasOwnProperty.call(data, "is_correct") &&
+        !Object.prototype.hasOwnProperty.call(data, "feedback")
       ) {
         return res.status(400).json({ message: "Nada para atualizar" });
       }
@@ -1090,6 +1104,7 @@ export function submissoesRouter(jwtSecret: string) {
             answerText: row.answer_text,
             selectedOption: row.selected_option,
             isCorrect: row.is_correct,
+            feedback: row.feedback,
             answeredAt: row.answered_at,
           },
         });

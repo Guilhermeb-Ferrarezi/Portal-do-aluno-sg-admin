@@ -40,23 +40,16 @@ import {
   criarModulo,
   criarFase,
   listarFasesDoModulo,
-  apiFetch,
+  listarExercicios,
   type Turma,
   type User,
   type Curso,
   type Modulo,
   type Fase,
+  type Exercicio,
 } from "../services/api";
 import ConfirmModal from "../components/ConfirmModal";
 import "./Turmas.css";
-
-type Template = {
-  id: string;
-  titulo: string;
-  modulo: string;
-  tema?: string | null;
-  categoria?: string;
-};
 
 export default function TurmasPage() {
   const navigate = useNavigate();
@@ -102,10 +95,10 @@ export default function TurmasPage() {
   const [criandoFase, setCriandoFase] = React.useState(false);
 
   // Cronograma
-  const [templatesDisponiveis, setTemplatesDisponiveis] = React.useState<Template[]>([]);
-  const [templatesSelecionados, setTemplatesSelecionados] = React.useState<string[]>([]);
-  const [semanaTemplates, setSemanaTemplates] = React.useState(1);
-  const [carregandoTemplates, setCarregandoTemplates] = React.useState(false);
+  const [exerciciosDisponiveis, setExerciciosDisponiveis] = React.useState<Exercicio[]>([]);
+  const [exerciciosSelecionados, setExerciciosSelecionados] = React.useState<string[]>([]);
+  const [semanaExercicios, setSemanaExercicios] = React.useState(1);
+  const [carregandoExercicios, setCarregandoExercicios] = React.useState(false);
 
   const [dataInicio, setDataInicio] = React.useState("");
   const [duracaoSemanas, setDuracaoSemanas] = React.useState(12);
@@ -172,11 +165,11 @@ export default function TurmasPage() {
 
   React.useEffect(() => {
     if (role !== "admin") return;
-    setCarregandoTemplates(true);
-    apiFetch<{ templates: Template[] }>("/templates")
-      .then((data) => setTemplatesDisponiveis(data.templates || []))
-      .catch((e) => console.error("Erro ao carregar templates:", e))
-      .finally(() => setCarregandoTemplates(false));
+    setCarregandoExercicios(true);
+    listarExercicios()
+      .then((data) => setExerciciosDisponiveis(data || []))
+      .catch((e) => console.error("Erro ao carregar exercicios:", e))
+      .finally(() => setCarregandoExercicios(false));
   }, [role]);
 
   React.useEffect(() => {
@@ -204,10 +197,10 @@ export default function TurmasPage() {
       .catch(() => setFasesModuloAtual([]));
   }, [novaFaseModuloId, role]);
 
-  async function adicionarTemplatesNoCronograma(turmaId: string) {
-    if (templatesSelecionados.length === 0) return;
+  async function adicionarExerciciosNoCronograma(turmaId: string) {
+    if (exerciciosSelecionados.length === 0) return;
 
-    const semanaFinal = Math.max(1, Math.min(semanaTemplates, duracaoSemanas || 1));
+    const semanaFinal = Math.max(1, Math.min(semanaExercicios, duracaoSemanas || 1));
 
     let cronogramaExistente: Record<number, Array<{ id: string }>> = {};
 
@@ -225,7 +218,7 @@ export default function TurmasPage() {
     });
 
     const atuais = mapa[semanaFinal] ?? [];
-    const novos = templatesSelecionados.filter((id) => !atuais.includes(id));
+    const novos = exerciciosSelecionados.filter((id) => !atuais.includes(id));
     mapa[semanaFinal] = [...atuais, ...novos];
 
     const semanas = Object.entries(mapa)
@@ -262,14 +255,14 @@ export default function TurmasPage() {
 
         await atualizarTurma(editandoId, atualizarDados);
 
-        if (templatesSelecionados.length > 0) {
+        if (exerciciosSelecionados.length > 0) {
           try {
-            await adicionarTemplatesNoCronograma(editandoId);
-            setToastMsg({ type: 'success', msg: "Turma atualizada e templates adicionados!" });
+            await adicionarExerciciosNoCronograma(editandoId);
+            setToastMsg({ type: 'success', msg: "Turma atualizada e exercicios adicionados!" });
           } catch (err) {
-            console.error("Erro ao adicionar templates no cronograma:", err);
+            console.error("Erro ao adicionar exercícios no cronograma:", err);
             setToastMsg({ type: 'success', msg: "Turma atualizada!" });
-            setToastMsg({ type: 'error', msg: "Falha ao adicionar templates ao cronograma." });
+            setToastMsg({ type: 'error', msg: "Falha ao Adicionar exercícios ao cronograma." });
           }
         } else {
           setToastMsg({ type: 'success', msg: "Turma atualizada!" });
@@ -289,14 +282,14 @@ export default function TurmasPage() {
         const created = await criarTurma(criarDados);
         const turmaCriada = created.turma;
 
-        if (templatesSelecionados.length > 0 && turmaCriada) {
+        if (exerciciosSelecionados.length > 0 && turmaCriada) {
           try {
-            await adicionarTemplatesNoCronograma(turmaCriada.id);
-            setToastMsg({ type: 'success', msg: "Turma criada e templates adicionados! Agora adicione alunos." });
+            await adicionarExerciciosNoCronograma(turmaCriada.id);
+            setToastMsg({ type: 'success', msg: "Turma criada e exercicios adicionados! Agora adicione alunos." });
           } catch (err) {
-            console.error("Erro ao adicionar templates no cronograma:", err);
+            console.error("Erro ao adicionar exercícios no cronograma:", err);
             setToastMsg({ type: 'success', msg: "Turma criada! Agora adicione alunos." });
-            setToastMsg({ type: 'error', msg: "Falha ao adicionar templates ao cronograma." });
+            setToastMsg({ type: 'error', msg: "Falha ao Adicionar exercícios ao cronograma." });
           }
         } else {
           setToastMsg({ type: 'success', msg: "Turma criada! Agora adicione alunos." });
@@ -317,8 +310,8 @@ export default function TurmasPage() {
       setDataInicio("");
       setDuracaoSemanas(12);
       setCronogramaAtivo(false);
-      setTemplatesSelecionados([]);
-      setSemanaTemplates(1);
+      setExerciciosSelecionados([]);
+      setSemanaExercicios(1);
 
       if (editandoId) {
         await load();
@@ -641,7 +634,7 @@ export default function TurmasPage() {
 
                 <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
                   <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
-                    Adicionar templates ao cronograma
+                    Adicionar exercícios ao cronograma
                   </h3>
 
                   <div className="turmaInputGroup">
@@ -651,44 +644,44 @@ export default function TurmasPage() {
                       min="1"
                       max={duracaoSemanas}
                       className="turmaInput"
-                      value={semanaTemplates}
-                      onChange={(e) => setSemanaTemplates(parseInt(e.target.value) || 1)}
+                      value={semanaExercicios}
+                      onChange={(e) => setSemanaExercicios(parseInt(e.target.value) || 1)}
                     />
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Escolha a semana do cronograma para esses templates
+                      Escolha a semana do cronograma para esses exercícios
                     </small>
                   </div>
 
-                  {carregandoTemplates ? (
-                    <div style={{ color: "var(--muted)", fontSize: 13 }}>Carregando templates...</div>
+                  {carregandoExercicios ? (
+                    <div style={{ color: "var(--muted)", fontSize: 13 }}>Carregando exercícios...</div>
                   ) : (() => {
-                    const filtrados = templatesDisponiveis.filter((template) => (template.categoria || "programacao") === categoria);
+                    const filtrados = exerciciosDisponiveis.filter((exercicio) => (exercicio.categoria || "programacao") === categoria);
                     return filtrados.length === 0 ? (
                       <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                        {templatesDisponiveis.length === 0
-                          ? "Nenhum template cadastrado."
-                          : `Nenhum template de ${categoria === "informatica" ? "Informática" : "Programação"} encontrado.`}
+                        {exerciciosDisponiveis.length === 0
+                          ? "Nenhum exercício cadastrado."
+                          : `Nenhum exercício de ${categoria === "informatica" ? "Informática" : "Programação"} encontrado.`}
                       </div>
                     ) : (
-                      <div className="templatesSelectorList">
-                        {filtrados.map((template) => (
-                          <label key={template.id} className="templateCheckboxItem">
+                      <div className="exerciciosSelectorList">
+                        {filtrados.map((exercicio) => (
+                          <label key={exercicio.id} className="exercicioCheckboxItem">
                             <input
                               type="checkbox"
-                              checked={templatesSelecionados.includes(template.id)}
+                              checked={exerciciosSelecionados.includes(exercicio.id)}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setTemplatesSelecionados([...templatesSelecionados, template.id]);
+                                  setExerciciosSelecionados([...exerciciosSelecionados, exercicio.id]);
                                 } else {
-                                  setTemplatesSelecionados(
-                                    templatesSelecionados.filter((id) => id !== template.id)
+                                  setExerciciosSelecionados(
+                                    exerciciosSelecionados.filter((id) => id !== exercicio.id)
                                   );
                                 }
                               }}
                             />
-                            <div className="templateCheckboxInfo">
-                              <div className="templateCheckboxTitle">{template.titulo}</div>
-                              <div className="templateCheckboxMeta">{template.modulo || "Sem modulo"}</div>
+                            <div className="exercicioCheckboxInfo">
+                              <div className="exercicioCheckboxTitle">{exercicio.titulo}</div>
+                              <div className="exercicioCheckboxMeta">{exercicio.modulo || "Sem modulo"}</div>
                             </div>
                           </label>
                         ))}
@@ -698,7 +691,7 @@ export default function TurmasPage() {
 
                   {!cronogramaAtivo && (
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, display: "block" }}>
-                      O cronograma está desativado. Os templates serão salvos, mas não serão liberados automaticamente.
+                      O cronograma está desativado. Os exercícios serão salvos, mas não serão liberados automaticamente.
                     </small>
                   )}
                 </div>
@@ -1015,3 +1008,9 @@ export default function TurmasPage() {
     </DashboardLayout>
   );
 }
+
+
+
+
+
+

@@ -28,7 +28,7 @@ import {
   removerAlunoDaTurma,
   adicionarAlunosNaTurma,
   listarAlunos,
-  apiFetch,
+  listarExercicios,
   getRole,
   obterCronograma,
   configurarCronograma,
@@ -61,11 +61,11 @@ export default function TurmaDetailPage() {
   const [adicionando, setAdicionando] = React.useState(false);
 
   // Estado para cronograma
-  const [templates, setTemplates] = React.useState<Exercicio[]>([]);
+  const [exerciciosDisponiveis, setExerciciosDisponiveis] = React.useState<Exercicio[]>([]);
   const [cronograma, setCronograma] = React.useState<Record<number, Array<{ id: string; titulo: string; modulo: string }>>>({});
   const [carregandoCronograma, setCarregandoCronograma] = React.useState(false);
   const [salvandoCronograma, setSalvandoCronograma] = React.useState(false);
-  const [templateSelecionado, setTemplateSelecionado] = React.useState<string>("");
+  const [exercicioSelecionado, setExercicioSelecionado] = React.useState<string>("");
   const [semanaSelecionada, setSemanaSelecionada] = React.useState<number>(1);
   const [abaSelecionada, setAbaSelecionada] = React.useState<"info" | "alunos" | "exercicios" | "cronograma">("info");
   const iconLabel = (icon: React.ReactNode, label: string) => (
@@ -168,28 +168,28 @@ export default function TurmaDetailPage() {
     }
   }
 
-  async function carregarTemplates() {
-    // Apenas admins podem carregar templates
+  async function carregarExerciciosDisponiveis() {
+    // Apenas admins podem carregar exercícios
     if (role !== "admin") return;
 
     try {
-      const data = await apiFetch<{ templates: Exercicio[] }>("/templates");
-      setTemplates(data.templates);
+      const data = await listarExercicios();
+      setExerciciosDisponiveis(data);
     } catch (e) {
-      console.error("Erro ao carregar templates:", e);
+      console.error("Erro ao carregar exercícios:", e);
     }
   }
 
   React.useEffect(() => {
     if (abaSelecionada === "cronograma" && id) {
       carregarCronograma();
-      carregarTemplates();
+      carregarExerciciosDisponiveis();
     }
   }, [abaSelecionada, id, role]);
 
-  async function handleAdicionarTemplateSemana(semana: number) {
-    if (!id || !templateSelecionado) {
-      setErro("Por favor, selecione um template");
+  async function handleAdicionarExercicioSemana(semana: number) {
+    if (!id || !exercicioSelecionado) {
+      setErro("Por favor, selecione um exercício");
       return;
     }
 
@@ -206,13 +206,13 @@ export default function TurmaDetailPage() {
       }
 
       // Evitar duplicatas
-      if (!cronogramaAtualizado[semana].find((ex) => ex.id === templateSelecionado)) {
-        const template = templates.find((t) => t.id === templateSelecionado);
-        if (template) {
+      if (!cronogramaAtualizado[semana].find((ex) => ex.id === exercicioSelecionado)) {
+        const exercicio = exerciciosDisponiveis.find((t) => t.id === exercicioSelecionado);
+        if (exercicio) {
           cronogramaAtualizado[semana].push({
-            id: template.id,
-            titulo: template.titulo,
-            modulo: template.modulo || "",
+            id: exercicio.id,
+            titulo: exercicio.titulo,
+            modulo: exercicio.modulo || "",
           });
         }
       }
@@ -225,7 +225,7 @@ export default function TurmaDetailPage() {
 
       await configurarCronograma(id, semanas);
       setCronograma(cronogramaAtualizado);
-      setTemplateSelecionado("");
+      setExercicioSelecionado("");
       setOkMsg("Exercício adicionado à semana!");
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao adicionar exercício");
@@ -292,7 +292,7 @@ export default function TurmaDetailPage() {
   return (
     <DashboardLayout
       title={turma.nome}
-      subtitle={`${turma.tipo === "turma" ? "Turma" : "Turma Particular"} • ${turma.alunos.length} ${turma.alunos.length === 1 ? "aluno" : "alunos"}`}
+      subtitle={`${turma.tipo === "turma" ? "Turma" : "Turma Particular"} - ${turma.alunos.length} ${turma.alunos.length === 1 ? "aluno" : "alunos"}`}
     >
       <FadeInUp duration={0.28}>
         <div className="turmaDetailContainer">
@@ -390,11 +390,11 @@ export default function TurmaDetailPage() {
                   ? iconLabel(<Users size={14} />, "Turma (Grupo)")
                   : iconLabel(<Lock size={14} />, "Turma Particular")}
                 {turma.categoria && (
-                  <> • {turma.categoria === "programacao"
+                  <> - {turma.categoria === "programacao"
                     ? iconLabel(<Laptop size={14} />, "Programação")
                     : iconLabel(<Monitor size={14} />, "Informática")}</>
                 )}
-                {turma.descricao && <> • {turma.descricao}</>}
+                {turma.descricao && <> - {turma.descricao}</>}
               </p>
             </div>
 
@@ -525,22 +525,22 @@ export default function TurmaDetailPage() {
                   </div>
                 ) : (
                   <>
-                    {/* Seletor para adicionar template - apenas para admins */}
+                    {/* Seletor para adicionar exercício - apenas para admins */}
                     {role === "admin" ? (
-                    <div className="addTemplateBox">
-                      <h3 className="templateBoxTitle">
-                        {iconLabel(<Plus size={16} />, "Adicionar Template a uma Semana")}
+                    <div className="addExercicioBox">
+                      <h3 className="exercicioBoxTitle">
+                        {iconLabel(<Plus size={16} />, "Adicionar Exercício a uma Semana")}
                       </h3>
 
-                      <div className="templateBoxControls">
-                        <div className="templateBoxField">
-                          <label className="templateBoxLabel">
+                      <div className="exercicioBoxControls">
+                        <div className="exercicioBoxField">
+                          <label className="exercicioBoxLabel">
                             Semana
                           </label>
                           <select
                             value={semanaSelecionada}
                             onChange={(e) => setSemanaSelecionada(Number(e.target.value))}
-                            className="templateBoxSelect"
+                            className="exercicioBoxSelect"
                           >
                             {Array.from({ length: turma.duracaoSemanas || 12 }, (_, i) => i + 1).map((semana: number) => (
                               <option key={semana} value={semana}>
@@ -550,28 +550,28 @@ export default function TurmaDetailPage() {
                           </select>
                         </div>
 
-                        <div className="templateBoxFieldLarge">
-                          <label className="templateBoxLabel">
-                            Template
+                        <div className="exercicioBoxFieldLarge">
+                          <label className="exercicioBoxLabel">
+                            Exercício
                           </label>
                           <select
-                            value={templateSelecionado}
-                            onChange={(e) => setTemplateSelecionado(e.target.value)}
-                            className="templateBoxSelect"
+                            value={exercicioSelecionado}
+                            onChange={(e) => setExercicioSelecionado(e.target.value)}
+                            className="exercicioBoxSelect"
                           >
-                            <option value="">Selecione um template...</option>
-                            {templates.map((template) => (
-                              <option key={template.id} value={template.id}>
-                                {template.titulo} ({template.modulo || "Sem módulo"})
+                            <option value="">Selecione um exercício...</option>
+                            {exerciciosDisponiveis.map((exercicio) => (
+                              <option key={exercicio.id} value={exercicio.id}>
+                                {exercicio.titulo} ({exercicio.modulo || "Sem módulo"})
                               </option>
                             ))}
                           </select>
                         </div>
 
                         <AnimatedButton
-                          onClick={() => handleAdicionarTemplateSemana(semanaSelecionada)}
-                          disabled={salvandoCronograma || !templateSelecionado}
-                          className="btnAdicionarTemplate"
+                          onClick={() => handleAdicionarExercicioSemana(semanaSelecionada)}
+                          disabled={salvandoCronograma || !exercicioSelecionado}
+                          className="btnAdicionarExercicio"
                         >
                           {salvandoCronograma ? "Adicionando..." : "Adicionar"}
                         </AnimatedButton>
@@ -580,7 +580,7 @@ export default function TurmaDetailPage() {
                     ) : (
                     <div className="cronogramaAdminOnly">
                       <p className="cronogramaAdminOnlyText">
-                        {iconLabel(<Info size={16} />, "Apenas administradores podem adicionar templates ao cronograma.")}
+                        {iconLabel(<Info size={16} />, "Apenas administradores podem adicionar exercícios ao cronograma.")}
                       </p>
                     </div>
                     )}
@@ -710,3 +710,6 @@ export default function TurmaDetailPage() {
     </DashboardLayout>
   );
 }
+
+
+
