@@ -235,7 +235,7 @@ export default function ActivityLogsPage() {
   const [filters, setFilters] = React.useState<Filters>(defaultFilters);
   const [draft, setDraft] = React.useState<Filters>(defaultFilters);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(20);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
   const [totalItems, setTotalItems] = React.useState(0);
   const [expandedRow, setExpandedRow] = React.useState<string | null>(null);
   const [showFilters, setShowFilters] = React.useState(false);

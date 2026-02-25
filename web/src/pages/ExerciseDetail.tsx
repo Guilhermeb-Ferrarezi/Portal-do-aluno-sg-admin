@@ -41,7 +41,7 @@ export default function ExerciseDetail() {
   const [dateFrom, setDateFrom] = React.useState("");
   const [dateTo, setDateTo] = React.useState("");
   const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(20);
+  const [limit, setLimit] = React.useState(5);
 
   const [stats, setStats] = React.useState({
     totalAlunos: 0,

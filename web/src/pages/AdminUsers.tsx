@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
 
   // Carregar usuários ao montar
   React.useEffect(() => {

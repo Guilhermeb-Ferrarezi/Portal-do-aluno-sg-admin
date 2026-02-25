@@ -208,7 +208,7 @@ export default function MateriaisPage() {
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
 
   // Carregar turmas e modulos quando puder fazer upload
 

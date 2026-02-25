@@ -134,7 +134,7 @@ export default function VideoaulaBonusPage() {
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
 
   const [formData, setFormData] = React.useState({
     titulo: "",

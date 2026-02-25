@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import "./Pagination.css";
 
 interface PaginationProps {
@@ -16,6 +17,34 @@ export default function Pagination({
   onItemsPerPageChange,
 }: PaginationProps) {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const [jumpPage, setJumpPage] = useState(String(currentPage));
+
+  useEffect(() => {
+    setJumpPage(String(currentPage));
+  }, [currentPage]);
+
+  useEffect(() => {
+    const value = jumpPage.trim();
+    if (!value) return;
+
+    const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed)) return;
+
+    const nextPage = Math.min(Math.max(parsed, 1), totalPages);
+    if (nextPage === currentPage) return;
+
+    const timer = window.setTimeout(() => {
+      onPageChange(nextPage);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [jumpPage, currentPage, totalPages, onPageChange]);
+
+  const visiblePages = useMemo(() => {
+    if (totalPages <= 3) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const start = Math.min(currentPage, totalPages - 2);
+    return [start, start + 1, start + 2];
+  }, [currentPage, totalPages]);
 
   if (totalItems === 0) return null;
 
@@ -58,7 +87,7 @@ export default function Pagination({
           </button>
 
           <div className="pageIndicator">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {visiblePages.map((page) => (
               <button
                 key={page}
                 onClick={() => onPageChange(page)}
@@ -68,6 +97,19 @@ export default function Pagination({
                 {page}
               </button>
             ))}
+          </div>
+
+          <div className="pageJump">
+            <label htmlFor="jumpToPage">Página:</label>
+            <input
+              id="jumpToPage"
+              type="number"
+              min={1}
+              max={totalPages}
+              value={jumpPage}
+              onChange={(e) => setJumpPage(e.target.value)}
+              className="pageJumpInput"
+            />
           </div>
 
           <button

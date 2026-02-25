@@ -64,7 +64,7 @@ export default function ExerciseTemplates() {
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
 
   // Carregar templates
   React.useEffect(() => {

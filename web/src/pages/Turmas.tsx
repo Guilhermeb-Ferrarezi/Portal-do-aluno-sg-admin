@@ -75,7 +75,7 @@ export default function TurmasPage() {
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
 
   // Form
   const [nome, setNome] = React.useState("");

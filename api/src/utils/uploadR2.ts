@@ -16,6 +16,54 @@ const s3Client = new S3Client({
 
 const bucketName = process.env.CLOUDFLARE_BUCKET_NAME || "";
 
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
+function extractKeyFromUrl(fileUrl: string): string | null {
+  try {
+    const parsed = new URL(fileUrl);
+    const keyFromPath = parsed.pathname.replace(/^\/+/, "");
+    if (!keyFromPath) return null;
+
+    const publicUrl = (process.env.CLOUDFLARE_PUBLIC_URL || "").trim();
+    if (publicUrl) {
+      const normalizedPublicUrl = normalizeBaseUrl(publicUrl);
+      const normalizedFileUrl = normalizeBaseUrl(fileUrl);
+      if (normalizedFileUrl.startsWith(normalizedPublicUrl + "/")) {
+        return normalizedFileUrl.slice(normalizedPublicUrl.length + 1);
+      }
+    }
+
+    if (parsed.hostname.endsWith(".r2.cloudflarestorage.com")) {
+      return keyFromPath;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function isR2ManagedUrl(fileUrl: string): boolean {
+  const publicUrl = (process.env.CLOUDFLARE_PUBLIC_URL || "").trim();
+  const normalizedFileUrl = normalizeBaseUrl(fileUrl);
+
+  if (publicUrl) {
+    const normalizedPublicUrl = normalizeBaseUrl(publicUrl);
+    if (normalizedFileUrl.startsWith(normalizedPublicUrl + "/")) {
+      return true;
+    }
+  }
+
+  try {
+    const parsed = new URL(fileUrl);
+    return parsed.hostname.endsWith(".r2.cloudflarestorage.com");
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Upload de arquivo para CloudFlare R2
  * Retorna a URL pública do arquivo
@@ -60,13 +108,10 @@ export async function uploadToR2(
  */
 export async function deleteFromR2(fileUrl: string): Promise<void> {
   try {
-    // Extrai o caminho do arquivo da URL
-    const urlParts = fileUrl.split(`.r2.cloudflarestorage.com/`);
-    if (urlParts.length !== 2) {
+    const fileKey = extractKeyFromUrl(fileUrl);
+    if (!fileKey) {
       throw new Error("URL inválida");
     }
-
-    const fileKey = urlParts[1];
 
     const deleteParams = {
       Bucket: bucketName,

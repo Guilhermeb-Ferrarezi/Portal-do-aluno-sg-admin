@@ -60,9 +60,9 @@ export default function MedalhasPage() {
   const [openHolderGroups, setOpenHolderGroups] = React.useState<Record<string, boolean>>({});
   const [buscaHolder, setBuscaHolder] = React.useState("");
   const [medalhasPage, setMedalhasPage] = React.useState(1);
-  const [medalhasPerPage, setMedalhasPerPage] = React.useState(10);
+  const [medalhasPerPage, setMedalhasPerPage] = React.useState(5);
   const [holdersPage, setHoldersPage] = React.useState(1);
-  const [holdersPerPage, setHoldersPerPage] = React.useState(10);
+  const [holdersPerPage, setHoldersPerPage] = React.useState(5);
   const [usuarios, setUsuarios] = React.useState<User[]>([]);
   const [assignUserId, setAssignUserId] = React.useState("");
   const [assignUserIds, setAssignUserIds] = React.useState<string[]>([]);
@@ -75,7 +75,7 @@ export default function MedalhasPage() {
   const [imagemBibliotecaLoadError, setImagemBibliotecaLoadError] = React.useState<Record<string, boolean>>({});
   const [buscaImagemBiblioteca, setBuscaImagemBiblioteca] = React.useState("");
   const [imagensPage, setImagensPage] = React.useState(1);
-  const [imagensPerPage, setImagensPerPage] = React.useState(10);
+  const [imagensPerPage, setImagensPerPage] = React.useState(5);
   const [imagemModalAberto, setImagemModalAberto] = React.useState(false);
   const role = getRole();
 
@@ -302,11 +302,11 @@ export default function MedalhasPage() {
       setErro("A descrição deve ter no mínimo 10 caracteres.");
       return;
     }
-    if (!icone.trim()) {
+    if (!icone.trim() && !editingBadgeId) {
       setErro("Selecione um ícone para a medalha.");
       return;
     }
-    if (iconePreviewError) {
+    if (icone.trim() && iconePreviewError) {
       setErro("O ícone selecionado não carregou corretamente.");
       return;
     }
@@ -378,6 +378,13 @@ export default function MedalhasPage() {
     setDescricao("");
     setIcone("");
     setIconePreviewError(false);
+  };
+
+  const removerImagemBadge = () => {
+    setIcone("");
+    setIconeArquivoNome("");
+    setIconePreviewError(false);
+    setErro(null);
   };
 
   const excluirMedalha = async (badge: Badge) => {
@@ -1110,6 +1117,14 @@ export default function MedalhasPage() {
                 <div className="medalhaFileField">
                   <label htmlFor="icone-medalha-file" className="medalhaFileBtn">Selecionar imagem</label>
                   <span className="medalhaFileName">{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
+                  <button
+                    type="button"
+                    className="medalhaFileBtn medalhaFileBtnDanger"
+                    onClick={removerImagemBadge}
+                    disabled={!icone.trim() && !iconeArquivoNome}
+                  >
+                    Remover imagem
+                  </button>
                   <input
                     id="icone-medalha-file"
                     className="medalhaFileInput"
@@ -1228,6 +1243,14 @@ export default function MedalhasPage() {
             <div className="medalhaFileField">
               <label htmlFor="icone-medalha-file-modal" className="medalhaFileBtn">Selecionar imagem</label>
               <span className="medalhaFileName">{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
+              <button
+                type="button"
+                className="medalhaFileBtn medalhaFileBtnDanger"
+                onClick={removerImagemBadge}
+                disabled={!icone.trim() && !iconeArquivoNome}
+              >
+                Remover imagem
+              </button>
               <input
                 id="icone-medalha-file-modal"
                 className="medalhaFileInput"
@@ -1281,7 +1304,6 @@ export default function MedalhasPage() {
     </DashboardLayout>
   );
 }
-
 
 
 

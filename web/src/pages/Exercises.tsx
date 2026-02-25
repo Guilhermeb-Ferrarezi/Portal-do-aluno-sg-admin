@@ -155,7 +155,7 @@ export default function ExerciciosPage() {
 
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
 
   const alunoNameById = React.useMemo(() => {
     const map = new Map<string, string>();

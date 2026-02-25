@@ -5,6 +5,7 @@ import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
+import { uploadToR2, deleteFromR2, isR2ManagedUrl } from "../utils/uploadR2";
 
 type DbBadgeRow = {
   id: number;
@@ -35,7 +36,7 @@ const updateBadgeSchema = z
   .object({
     name: z.string().min(2, "Nome obrigatório").optional(),
     description: z.string().min(2, "Descrição obrigatória").optional(),
-    iconUrl: z.string().min(1, "Ícone obrigatório").optional(),
+    iconUrl: z.string().optional(),
   })
   .refine((data) => data.name !== undefined || data.description !== undefined || data.iconUrl !== undefined, {
     message: "Informe ao menos um campo para atualização",
@@ -49,6 +50,50 @@ const assignBadgeSchema = z.object({
   userId: z.coerce.number().int().positive("userId inválido"),
   badgeId: z.coerce.number().int().positive("badgeId inválido"),
 });
+
+const IMAGE_MIME_EXT: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+};
+
+function parseDataUrlImage(value: string): { mimetype: string; buffer: Buffer; ext: string } | null {
+  const trimmed = value.trim();
+  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(trimmed);
+  if (!match) return null;
+
+  const mimetype = match[1].toLowerCase();
+  const ext = IMAGE_MIME_EXT[mimetype];
+  if (!ext) {
+    throw new Error("Formato de imagem não suportado para ícone");
+  }
+
+  const base64Payload = match[2].replace(/\s+/g, "");
+  const buffer = Buffer.from(base64Payload, "base64");
+  if (!buffer.length) {
+    throw new Error("Ícone inválido");
+  }
+
+  return { mimetype, buffer, ext };
+}
+
+async function resolveBadgeIconUrl(inputIconUrl: string): Promise<string> {
+  const parsedImage = parseDataUrlImage(inputIconUrl);
+  if (!parsedImage) return inputIconUrl.trim();
+
+  const uploadedUrl = await uploadToR2(
+    {
+      originalname: `badge-icon.${parsedImage.ext}`,
+      buffer: parsedImage.buffer,
+      mimetype: parsedImage.mimetype,
+    },
+    "badges"
+  );
+  return uploadedUrl;
+}
 
 export function badgesRouter(jwtSecret: string) {
   const router = Router();
@@ -280,11 +325,19 @@ export function badgesRouter(jwtSecret: string) {
       }
 
       const { name, description, iconUrl } = parsed.data;
+      let persistedIconUrl: string;
+      try {
+        persistedIconUrl = await resolveBadgeIconUrl(iconUrl);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Erro ao processar ícone";
+        return res.status(400).json({ message });
+      }
+
       const created = await pool.query<DbBadgeRow>(
         `INSERT INTO badge (name, description, icon_url, created_at)
          VALUES ($1, $2, $3, NOW())
          RETURNING id, name, description, icon_url, created_at`,
-        [name.trim(), description.trim(), iconUrl.trim()]
+        [name.trim(), description.trim(), persistedIconUrl]
       );
 
       const b = created.rows[0];
@@ -346,7 +399,15 @@ export function badgesRouter(jwtSecret: string) {
       const nextName = payload.name !== undefined ? payload.name.trim() : base.name;
       const nextDescription =
         payload.description !== undefined ? payload.description.trim() : base.description;
-      const nextIconUrl = payload.iconUrl !== undefined ? payload.iconUrl.trim() : base.icon_url;
+      let nextIconUrl = base.icon_url;
+      if (payload.iconUrl !== undefined) {
+        try {
+          nextIconUrl = await resolveBadgeIconUrl(payload.iconUrl);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Erro ao processar ícone";
+          return res.status(400).json({ message });
+        }
+      }
 
       const updated = await pool.query<DbBadgeRow>(
         `UPDATE badge
@@ -359,6 +420,10 @@ export function badgesRouter(jwtSecret: string) {
       );
 
       const row = updated.rows[0];
+      if (payload.iconUrl !== undefined && base.icon_url !== row.icon_url && isR2ManagedUrl(base.icon_url)) {
+        deleteFromR2(base.icon_url).catch(() => undefined);
+      }
+
       logActivity({
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
@@ -396,8 +461,8 @@ export function badgesRouter(jwtSecret: string) {
       try {
         await client.query("BEGIN");
 
-        const exists = await client.query<{ id: number; name: string }>(
-          `SELECT id, name
+        const exists = await client.query<{ id: number; name: string; icon_url: string | null }>(
+          `SELECT id, name, icon_url
            FROM badge
            WHERE id = $1
            FOR UPDATE`,
@@ -416,6 +481,11 @@ export function badgesRouter(jwtSecret: string) {
 
         await client.query(`DELETE FROM badge WHERE id = $1`, [badgeId]);
         await client.query("COMMIT");
+
+        const oldBadgeIconUrl = exists.rows[0]?.icon_url;
+        if (oldBadgeIconUrl && isR2ManagedUrl(oldBadgeIconUrl)) {
+          deleteFromR2(oldBadgeIconUrl).catch(() => undefined);
+        }
 
         logActivity({
           actorId: req.user?.sub ?? null,

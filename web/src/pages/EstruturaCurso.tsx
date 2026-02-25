@@ -58,15 +58,15 @@ export default function EstruturaCursoPage() {
 
   const [filtroCursoId, setFiltroCursoId] = React.useState("");
   const [paginaCursos, setPaginaCursos] = React.useState(1);
-  const [itensCursos, setItensCursos] = React.useState(10);
+  const [itensCursos, setItensCursos] = React.useState(5);
 
   const [filtroModuloId, setFiltroModuloId] = React.useState("");
   const [paginaModulos, setPaginaModulos] = React.useState(1);
-  const [itensModulos, setItensModulos] = React.useState(10);
+  const [itensModulos, setItensModulos] = React.useState(5);
 
   const [filtroFaseId, setFiltroFaseId] = React.useState("");
   const [paginaFases, setPaginaFases] = React.useState(1);
-  const [itensFases, setItensFases] = React.useState(10);
+  const [itensFases, setItensFases] = React.useState(5);
   const [detalheModal, setDetalheModal] = React.useState<DetalheModalState>(null);
   const [deletandoDetalhe, setDeletandoDetalhe] = React.useState(false);
 

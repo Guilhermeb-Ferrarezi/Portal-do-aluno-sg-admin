@@ -63,6 +63,45 @@ const updateMaterialSchema = z.object({
   url: z.string().optional(),
 });
 
+const MIME_TO_SIMPLE_TYPE: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "text/plain": "txt",
+  "text/csv": "csv",
+  "application/zip": "zip",
+  "application/x-rar-compressed": "rar",
+  "application/vnd.rar": "rar",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/webp": "webp",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/x-matroska": "mkv",
+};
+
+function normalizeMaterialFileType(file: Express.Multer.File): string {
+  const mime = (file.mimetype || "").toLowerCase().trim();
+  if (mime && MIME_TO_SIMPLE_TYPE[mime]) {
+    return MIME_TO_SIMPLE_TYPE[mime];
+  }
+
+  const extension = (file.originalname.split(".").pop() || "").toLowerCase().trim();
+  if (extension) return extension.slice(0, 20);
+
+  if (mime.includes("/")) {
+    const subtype = mime.split("/")[1]?.split(";")[0]?.trim();
+    if (subtype) return subtype.slice(0, 20);
+  }
+
+  return "arquivo";
+}
+
 function parseDescriptionMetadata(description: string | null): ParsedDescription {
   const raw = description ?? "";
   const match = raw.match(MODULE_META_REGEX);
@@ -273,7 +312,7 @@ export function materiaisRouter(jwtSecret: string) {
           }
 
           fileUrl = await uploadToR2(req.file);
-          fileType = (req.file.mimetype || "arquivo").slice(0, 100);
+          fileType = normalizeMaterialFileType(req.file);
         } else {
           if (!data.url) {
             res.status(400).json({ message: "URL é obrigatória para tipo 'link'" });
@@ -373,7 +412,7 @@ export function materiaisRouter(jwtSecret: string) {
             await deleteFromR2(current.file_url).catch(() => null);
           }
           nextFileUrl = await uploadToR2(req.file);
-          nextFileType = (req.file.mimetype || "arquivo").slice(0, 100);
+          nextFileType = normalizeMaterialFileType(req.file);
         } else if (data.tipo === "link" || typeof data.url === "string") {
           if (!data.url) {
             res.status(400).json({ message: "URL é obrigatória para tipo 'link'" });
