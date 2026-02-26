@@ -204,7 +204,7 @@ export default function Login() {
           <div className="login-logo" aria-hidden>
             <img
               className="login-logo-img"
-              src="/logoPreta.png"
+              src="/faviconPreto.png"
               alt="Santos Tech"
             />
           </div>
