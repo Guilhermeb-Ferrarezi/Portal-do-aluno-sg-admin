@@ -204,7 +204,7 @@ export default function ExerciciosPage() {
       setLoading(true);
       setErro(null);
       const data = await listarExercicios();
-      setItems(data);
+      setItems(data.filter((ex) => ex.isDailyTask !== true));
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao carregar exercícios");
     } finally {
@@ -217,7 +217,7 @@ export default function ExerciciosPage() {
       setLoading(true);
       setErro(null);
       const data = await listarTarefasDiarias();
-      setDailyItems(data);
+      setDailyItems(data.filter((ex) => ex.isDailyTask !== false));
       setDailyLoaded(true);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao carregar tarefas diÃ¡rias");

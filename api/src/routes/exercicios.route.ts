@@ -20,6 +20,7 @@ type ExercicioRow = {
   prazo: DBDate | null;
   publicado: boolean;
   published_at: DBDate | null;
+  is_daily_task?: boolean | null;
   created_by: string | null;
   tipo_exercicio: TipoExercicio | null;
   gabarito: string | null;
@@ -92,6 +93,7 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
 async function listFromNewExerciseSchema(userId: string | undefined, isAluno: boolean) {
   const params: any[] = [];
   const where: string[] = [];
+  where.push("COALESCE(e.is_daily_task, false) = false");
   if (isAluno) {
     params.push(userId);
     where.push(`EXISTS (
@@ -115,7 +117,8 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
       e.term_at AS prazo,
       e.created_at,
       e.updated_at,
-      e.type_exercise
+      e.type_exercise,
+      e.is_daily_task
     FROM exercise e
     JOIN phase p ON p.id = e.phase_id
     JOIN module m ON m.id = p.module_id
@@ -133,6 +136,7 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
     prazo: row.prazo ?? null,
     publicado: true,
     publishedAt: null,
+    isDailyTask: !!row.is_daily_task,
     tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
     categoria: "programacao",
     mouse_regras: null,
@@ -150,6 +154,7 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
 async function listDailyTasksFromNewExerciseSchema(userId: string | undefined, isAluno: boolean) {
   const params: any[] = [];
   const where: string[] = [];
+  where.push("COALESCE(e.is_daily_task, false) = true");
 
   if (isAluno) {
     params.push(userId);
@@ -176,7 +181,8 @@ async function listDailyTasksFromNewExerciseSchema(userId: string | undefined, i
       e.term_at AS prazo,
       e.created_at,
       e.updated_at,
-      e.type_exercise
+      e.type_exercise,
+      e.is_daily_task
     FROM daily_tasks dt
     JOIN exercise e ON e.id = dt.exercise_id
     LEFT JOIN phase p ON p.id = COALESCE(dt.phase_id, e.phase_id)
@@ -206,7 +212,7 @@ async function listDailyTasksFromNewExerciseSchema(userId: string | undefined, i
     intervaloReenvio: null,
     dailyTaskId: row.daily_task_id != null ? String(row.daily_task_id) : null,
     dailyTaskName: row.daily_task_name ?? null,
-    isDailyTask: true,
+    isDailyTask: !!row.is_daily_task,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
@@ -484,9 +490,14 @@ export function exerciciosRouter(jwtSecret: string) {
       )`);
     }
 
+    if (schema.hasExerciciosIsDailyTask) {
+      conditions.push("COALESCE(e.is_daily_task, false) = false");
+    }
+
     const query = `
       SELECT
         e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
+        ${schema.hasExerciciosIsDailyTask ? "COALESCE(e.is_daily_task, false)" : "false"} AS is_daily_task,
         e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.categoria, e.mouse_regras,
         e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
         e.intervalo_reenvio, e.anexo_url, e.anexo_nome, e.created_at, e.updated_at,
@@ -523,6 +534,7 @@ export function exerciciosRouter(jwtSecret: string) {
         prazo: row.prazo,
         publicado: row.publicado,
         publishedAt: row.published_at,
+        isDailyTask: !!row.is_daily_task,
         tipoExercicio: row.tipo_exercicio,
         categoria: row.categoria,
         mouse_regras: row.mouse_regras,
@@ -595,6 +607,7 @@ export function exerciciosRouter(jwtSecret: string) {
         `(LOWER(COALESCE(e.tema, '')) LIKE '%tarefa diária%' OR LOWER(COALESCE(e.tema, '')) LIKE '%tarefa diaria%' OR e.titulo ~* '^dia\\s+[0-9]+\\s*[:\\-]')`
       );
     }
+
 
     const query = `
       SELECT
