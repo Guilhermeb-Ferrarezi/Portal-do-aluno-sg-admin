@@ -7,6 +7,7 @@ import {
   atualizarAnswer,
   atualizarAnswersEmLote,
   listarAnswersExercicio,
+  listarSubmissoesExercicio,
   obterExercicio,
   type Exercicio,
   type ExerciseAnswersByStudent,
@@ -60,6 +61,79 @@ export default function ExerciseDetail() {
   const [batchIsCorrect, setBatchIsCorrect] = React.useState<"null" | "true" | "false">("null");
   const [openStudentIds, setOpenStudentIds] = React.useState<Set<number>>(new Set());
   const [openAnswerIds, setOpenAnswerIds] = React.useState<Set<number>>(new Set());
+  const [legacyMode, setLegacyMode] = React.useState(false);
+
+  function mapLegacySubmissoesToAnswers(
+    submissoes: Array<{
+      id: string;
+      alunoId: string;
+      alunoNome: string;
+      alunoUsuario: string;
+      resposta: string;
+      corrigida: boolean;
+      feedbackProfessor: string | null;
+      createdAt: string;
+    }>
+  ): {
+    alunos: ExerciseAnswersByStudent[];
+    stats: {
+      totalAlunos: number;
+      totalAnswers: number;
+      corrigidas: number;
+      pendentes: number;
+      corretas: number;
+      incorretas: number;
+    };
+  } {
+    const byAluno = new Map<
+      string,
+      {
+        alunoId: number;
+        alunoNome: string;
+        alunoEmail: string;
+        answers: ExerciseAnswersByStudent["answers"];
+      }
+    >();
+    let nextAlunoId = -1;
+    let nextAnswerId = -1;
+
+    for (const s of submissoes) {
+      if (!byAluno.has(s.alunoId)) {
+        byAluno.set(s.alunoId, {
+          alunoId: nextAlunoId--,
+          alunoNome: s.alunoNome || s.alunoUsuario || s.alunoId,
+          alunoEmail: s.alunoUsuario || "",
+          answers: [],
+        });
+      }
+
+      byAluno.get(s.alunoId)!.answers.push({
+        id: nextAnswerId--,
+        questionId: 1,
+        question: "Submissão (fluxo legado)",
+        options: [],
+        answerText: s.resposta ?? "",
+        selectedOption: null,
+        isCorrect: null,
+        feedback: s.feedbackProfessor ?? null,
+        answeredAt: s.createdAt ?? null,
+      });
+    }
+
+    const totalAnswers = submissoes.length;
+    const corrigidas = submissoes.filter((s) => s.corrigida).length;
+    return {
+      alunos: Array.from(byAluno.values()),
+      stats: {
+        totalAlunos: byAluno.size,
+        totalAnswers,
+        corrigidas,
+        pendentes: totalAnswers - corrigidas,
+        corretas: 0,
+        incorretas: 0,
+      },
+    };
+  }
 
   const load = React.useCallback(async () => {
     if (!id || !canReview) return;
@@ -67,9 +141,23 @@ export default function ExerciseDetail() {
       setLoading(true);
       setErro(null);
 
-      const [ex, ans] = await Promise.all([
-        obterExercicio(id),
-        listarAnswersExercicio(id, {
+      const ex = await obterExercicio(id);
+      let ans: Awaited<ReturnType<typeof listarAnswersExercicio>> | null = null;
+      let resolvedAlunos: ExerciseAnswersByStudent[] = [];
+      let resolvedStats = {
+        totalAlunos: 0,
+        totalAnswers: 0,
+        corrigidas: 0,
+        pendentes: 0,
+        corretas: 0,
+        incorretas: 0,
+      };
+      let resolvedPagination = { page: 1, limit, total: 0, totalPages: 1 };
+      let resolvedLegacyMode = false;
+      let answersError: unknown = null;
+
+      try {
+        ans = await listarAnswersExercicio(id, {
           page,
           limit,
           q: query,
@@ -78,16 +166,48 @@ export default function ExerciseDetail() {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
           sort,
-        }),
-      ]);
+        });
+      } catch (err) {
+        answersError = err;
+      }
 
+      // Fallback para schema legado (submissoes) quando answers falha
+      // ou quando não retornou itens no endpoint novo.
+      if (!ans || ans.totalAnswers === 0) {
+        try {
+          const submissoes = await listarSubmissoesExercicio(id);
+          if (submissoes.length > 0 || !ans) {
+            const mapped = mapLegacySubmissoesToAnswers(submissoes);
+            resolvedAlunos = mapped.alunos;
+            resolvedStats = mapped.stats;
+            resolvedPagination = {
+              page: 1,
+              limit: mapped.stats.totalAnswers || 1,
+              total: mapped.stats.totalAnswers,
+              totalPages: 1,
+            };
+            resolvedLegacyMode = true;
+          }
+        } catch {
+          // Sem fallback disponível; mantém fluxo normal abaixo
+        }
+      }
+
+      if (!resolvedLegacyMode) {
+        if (!ans) throw (answersError instanceof Error ? answersError : new Error("Erro ao carregar respostas"));
+        resolvedAlunos = ans.alunos;
+        if (ans.stats) resolvedStats = ans.stats;
+        if (ans.pagination) resolvedPagination = ans.pagination;
+      }
+
+      setLegacyMode(resolvedLegacyMode);
+      setAlunos(resolvedAlunos);
+      setStats(resolvedStats);
+      setPagination(resolvedPagination);
       setExercicio(ex);
-      setAlunos(ans.alunos);
-      if (ans.stats) setStats(ans.stats);
-      if (ans.pagination) setPagination(ans.pagination);
 
       const next: Record<number, EditingAnswer> = {};
-      ans.alunos.forEach((aluno) => {
+      resolvedAlunos.forEach((aluno) => {
         aluno.answers.forEach((a) => {
           next[a.id] = {
             answerText: a.answerText ?? "",
@@ -114,6 +234,7 @@ export default function ExerciseDetail() {
   }, [load, canReview]);
 
   async function salvarAnswer(answerId: number) {
+    if (legacyMode) return;
     const data = editing[answerId];
     if (!data) return;
     const answer = alunos.flatMap((aluno) => aluno.answers).find((a) => a.id === answerId);
@@ -145,6 +266,7 @@ export default function ExerciseDetail() {
   }
 
   async function salvarBatch() {
+    if (legacyMode) return;
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     try {
@@ -295,6 +417,11 @@ export default function ExerciseDetail() {
 
         {erro && <div className="exMessage error">{erro}</div>}
         {okMsg && <div className="exMessage success">{okMsg}</div>}
+        {legacyMode && (
+          <div className="exMessage">
+            Exibindo respostas do fluxo legado (submissões). Edição em lote/por questão indisponível nesta origem.
+          </div>
+        )}
 
         {!canReview ? (
           <div className="emptyState">Esta tela é exclusiva de administração.</div>
@@ -390,20 +517,22 @@ export default function ExerciseDetail() {
               </div>
             </div>
 
-            <div className="rvBatchBar">
-              <label className="rvCheckLabel">
-                <input type="checkbox" checked={allVisibleIds.length > 0 && allVisibleIds.every((x) => selectedIds.has(x))} onChange={toggleSelectAllVisible} />
-                Selecionar visíveis ({selectedIds.size})
-              </label>
-              <select className="rvSelect small" value={batchIsCorrect} onChange={(e) => setBatchIsCorrect(e.target.value as any)}>
-                <option value="null">Sem correção</option>
-                <option value="true">Marcar como correta</option>
-                <option value="false">Marcar como incorreta</option>
-              </select>
-              <button className="edPrimaryBtn" disabled={savingBatch || selectedIds.size === 0} onClick={() => void salvarBatch()}>
-                {savingBatch ? <Loader2 size={14} /> : <Save size={14} />} Salvar em lote
-              </button>
-            </div>
+            {!legacyMode && (
+              <div className="rvBatchBar">
+                <label className="rvCheckLabel">
+                  <input type="checkbox" checked={allVisibleIds.length > 0 && allVisibleIds.every((x) => selectedIds.has(x))} onChange={toggleSelectAllVisible} />
+                  Selecionar visíveis ({selectedIds.size})
+                </label>
+                <select className="rvSelect small" value={batchIsCorrect} onChange={(e) => setBatchIsCorrect(e.target.value as any)}>
+                  <option value="null">Sem correção</option>
+                  <option value="true">Marcar como correta</option>
+                  <option value="false">Marcar como incorreta</option>
+                </select>
+                <button className="edPrimaryBtn" disabled={savingBatch || selectedIds.size === 0} onClick={() => void salvarBatch()}>
+                  {savingBatch ? <Loader2 size={14} /> : <Save size={14} />} Salvar em lote
+                </button>
+              </div>
+            )}
 
             {visibleAnswersByStudent.length === 0 ? (
               <div className="emptyState">Nenhuma resposta encontrada para este exercício.</div>
@@ -443,9 +572,11 @@ export default function ExerciseDetail() {
                             return (
                               <div key={a.id} className="rvAnswerCard">
                                 <div className="rvAnswerToggleRow">
-                                  <label className="rvCheckLabel rvCheckCompact">
-                                    <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} />
-                                  </label>
+                                  {!legacyMode && (
+                                    <label className="rvCheckLabel rvCheckCompact">
+                                      <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} />
+                                    </label>
+                                  )}
                                   <button
                                     type="button"
                                     className="rvAnswerToggle"
@@ -488,15 +619,19 @@ export default function ExerciseDetail() {
                                     <textarea
                                       className="rvTextarea"
                                       value={editing[a.id]?.answerText ?? ""}
-                                      onChange={(e) =>
-                                        setEditing((prev) => ({
-                                          ...prev,
-                                          [a.id]: {
-                                            ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
-                                            answerText: e.target.value,
-                                          },
-                                        }))
+                                      onChange={
+                                        legacyMode
+                                          ? undefined
+                                          : (e) =>
+                                            setEditing((prev) => ({
+                                              ...prev,
+                                              [a.id]: {
+                                                ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                                answerText: e.target.value,
+                                              },
+                                            }))
                                       }
+                                      readOnly={legacyMode}
                                       placeholder="Resposta (dissertativa)"
                                     />
 
@@ -506,70 +641,76 @@ export default function ExerciseDetail() {
                                         <textarea
                                           className="rvTextarea rvFeedbackTextarea"
                                           value={editing[a.id]?.feedback ?? ""}
-                                          onChange={(e) =>
-                                            setEditing((prev) => ({
-                                              ...prev,
-                                              [a.id]: {
-                                                ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
-                                                feedback: e.target.value,
-                                              },
-                                            }))
+                                          onChange={
+                                            legacyMode
+                                              ? undefined
+                                              : (e) =>
+                                                setEditing((prev) => ({
+                                                  ...prev,
+                                                  [a.id]: {
+                                                    ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                                    feedback: e.target.value,
+                                                  },
+                                                }))
                                           }
+                                          readOnly={legacyMode}
                                           placeholder="Digite aqui o feedback da resposta..."
                                         />
                                       </>
                                     )}
 
-                                    <div className="rvControls">
-                                      <select
-                                        className="rvSelect small"
-                                        value={editing[a.id]?.selectedOption ?? ""}
-                                        onChange={(e) =>
-                                          setEditing((prev) => ({
-                                            ...prev,
-                                            [a.id]: {
-                                              ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
-                                              selectedOption: e.target.value,
-                                            },
-                                          }))
-                                        }
-                                      >
-                                        <option value="">Sem opção</option>
-                                        {options.map((opt) => (
-                                          <option key={opt.id} value={String(opt.position)}>
-                                            {opt.position}. {opt.text}
-                                          </option>
-                                        ))}
-                                      </select>
+                                    {!legacyMode ? (
+                                      <div className="rvControls">
+                                        <select
+                                          className="rvSelect small"
+                                          value={editing[a.id]?.selectedOption ?? ""}
+                                          onChange={(e) =>
+                                            setEditing((prev) => ({
+                                              ...prev,
+                                              [a.id]: {
+                                                ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                                selectedOption: e.target.value,
+                                              },
+                                            }))
+                                          }
+                                        >
+                                          <option value="">Sem opção</option>
+                                          {options.map((opt) => (
+                                            <option key={opt.id} value={String(opt.position)}>
+                                              {opt.position}. {opt.text}
+                                            </option>
+                                          ))}
+                                        </select>
 
-                                      <select
-                                        className="rvSelect small"
-                                        value={editing[a.id]?.isCorrect ?? "null"}
-                                        onChange={(e) =>
-                                          setEditing((prev) => ({
-                                            ...prev,
-                                            [a.id]: {
-                                              ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
-                                              isCorrect: e.target.value as "true" | "false" | "null",
-                                            },
-                                          }))
-                                        }
-                                      >
-                                        <option value="null">Sem correção</option>
-                                        <option value="true">Correta</option>
-                                        <option value="false">Incorreta</option>
-                                      </select>
+                                        <select
+                                          className="rvSelect small"
+                                          value={editing[a.id]?.isCorrect ?? "null"}
+                                          onChange={(e) =>
+                                            setEditing((prev) => ({
+                                              ...prev,
+                                              [a.id]: {
+                                                ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                                isCorrect: e.target.value as "true" | "false" | "null",
+                                              },
+                                            }))
+                                          }
+                                        >
+                                          <option value="null">Sem correção</option>
+                                          <option value="true">Correta</option>
+                                          <option value="false">Incorreta</option>
+                                        </select>
 
-                                      <button className="edPrimaryBtn" onClick={() => void salvarAnswer(a.id)} disabled={savingId === a.id}>
-                                        {savingId === a.id ? <Loader2 size={14} /> : <Save size={14} />} Salvar
-                                      </button>
+                                        <button className="edPrimaryBtn" onClick={() => void salvarAnswer(a.id)} disabled={savingId === a.id}>
+                                          {savingId === a.id ? <Loader2 size={14} /> : <Save size={14} />} Salvar
+                                        </button>
 
-                                      {(editing[a.id]?.isCorrect === "true" || a.isCorrect === true) && (
-                                        <span className="rvOk">
-                                          <CheckCircle2 size={14} /> Correta
-                                        </span>
-                                      )}
-                                    </div>
+                                        {(editing[a.id]?.isCorrect === "true" || a.isCorrect === true) && (
+                                          <span className="rvOk">
+                                            <CheckCircle2 size={14} /> Correta
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : null}
                                   </>
                                 )}
                               </div>
