@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { getUserId } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import ConfirmModal from "../components/ConfirmModal";
@@ -38,12 +38,13 @@ import {
   Pencil,
   Calendar,
 } from "lucide-react";
-import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTurmas, listarAlunos, anexarExercicioArquivo, removerExercicioArquivo, getRole, type Exercicio, type Turma, type User } from "../services/api";
+import { criarExercicio, atualizarExercicio, deletarExercicio, listarExercicios, listarTarefasDiarias, listarTurmas, listarAlunos, anexarExercicioArquivo, removerExercicioArquivo, getRole, type Exercicio, type Turma, type User } from "../services/api";
 import "./Exercises.css";
 
 
 export default function ExerciciosPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const role = getRole() ?? "aluno";
   const userId = getUserId();
   const isStaff = role === "admin" || role === "professor";
@@ -73,6 +74,8 @@ export default function ExerciciosPage() {
   }
 
   const [items, setItems] = React.useState<Exercicio[]>([]);
+  const [dailyItems, setDailyItems] = React.useState<Exercicio[]>([]);
+  const [dailyLoaded, setDailyLoaded] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
 
@@ -126,7 +129,7 @@ export default function ExerciciosPage() {
   const [saving, setSaving] = React.useState(false);
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
   const [editandoId, setEditandoId] = React.useState<string | null>(null);
-  const [activeSection, setActiveSection] = React.useState<"criar" | "lista">("lista");
+  const [activeSection, setActiveSection] = React.useState<"criar" | "lista" | "tarefa-diaria">("lista");
 
   // Filtros
   const [moduloFiltro, setModuloFiltro] = React.useState("");
@@ -209,6 +212,20 @@ export default function ExerciciosPage() {
     }
   }
 
+  async function loadDailyTasks() {
+    try {
+      setLoading(true);
+      setErro(null);
+      const data = await listarTarefasDiarias();
+      setDailyItems(data);
+      setDailyLoaded(true);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao carregar tarefas diÃ¡rias");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   React.useEffect(() => {
     load();
 
@@ -223,6 +240,25 @@ export default function ExerciciosPage() {
         .catch((e) => console.error("Erro ao carregar alunos:", e));
     }
   }, []);
+
+  React.useEffect(() => {
+    if (activeSection === "tarefa-diaria") {
+      void loadDailyTasks();
+    }
+  }, [activeSection]);
+
+  React.useEffect(() => {
+    const state = location.state as { restoreSection?: "criar" | "lista" | "tarefa-diaria" } | null;
+    const restoreSection = state?.restoreSection;
+    if (!restoreSection) return;
+
+    setActiveSection(restoreSection);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [activeSection]);
 
   React.useEffect(() => {
     if (!anexoArquivo) {
@@ -366,6 +402,9 @@ export default function ExerciciosPage() {
       setTurmasSelecionadas([]);
 
       await load();
+      if (dailyLoaded) {
+        await loadDailyTasks();
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao salvar exercício");
     } finally {
@@ -560,6 +599,9 @@ export default function ExerciciosPage() {
 
       fecharModalDeletar();
       await load();
+      if (dailyLoaded) {
+        await loadDailyTasks();
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao deletar exercício");
     } finally {
@@ -569,7 +611,7 @@ export default function ExerciciosPage() {
 
   async function handleDelete(id: string) {
     // Função mantida para compatibilidade, mas agora abre o modal
-    const exercicio = items.find((ex) => ex.id === id);
+    const exercicio = sourceItems.find((ex) => ex.id === id);
     abrirModalDeletar(id, exercicio?.titulo || "Exercício");
   }
 
@@ -583,23 +625,33 @@ export default function ExerciciosPage() {
     (!isInteractiveComponentInformatica && descricao.trim().length < 2) ||
     (componenteInterativo === "multipla" && multiplaQuestoes.some(q => !q.pergunta || !q.respostaCorreta || q.opcoes.some(o => !o.text)));
 
+  const sourceItems = activeSection === "tarefa-diaria" ? dailyItems : items;
+
+  function handleRefresh() {
+    if (activeSection === "tarefa-diaria") {
+      void loadDailyTasks();
+      return;
+    }
+    void load();
+  }
+
   return (
     <DashboardLayout title="Exercícios" subtitle="Veja e pratique os exercícios disponíveis">
       <div className="exercisesContainer">
         {/* HEADER COM BOTÃO */}
         <div className="exercisesHeader">
           <div className="headerActions" />
-          <button className="refreshBtn" onClick={load} disabled={loading}>
+          <button className="refreshBtn" onClick={handleRefresh} disabled={loading}>
             {loading
               ? iconLabel(<Loader2 size={16} />, "Carregando...")
               : iconLabel(<RefreshCcw size={16} />, "Atualizar")}
           </button>
         </div>
 
-        {canCreate && (
-          <div className="exercisesTabs">
-            <span className="exercisesTabsLabel">Exibir:</span>
-            <div className="exercisesTabsGroup">
+        <div className="exercisesTabs">
+          <span className="exercisesTabsLabel">Exibir:</span>
+          <div className="exercisesTabsGroup">
+            {canCreate && (
               <button
                 type="button"
                 className={`exercisesTab ${activeSection === "criar" ? "active" : ""}`}
@@ -607,16 +659,23 @@ export default function ExerciciosPage() {
               >
                 Criar exercícios
               </button>
-              <button
-                type="button"
-                className={`exercisesTab ${activeSection === "lista" ? "active" : ""}`}
-                onClick={() => setActiveSection("lista")}
-              >
-                Exercícios
-              </button>
-            </div>
+            )}
+            <button
+              type="button"
+              className={`exercisesTab ${activeSection === "lista" ? "active" : ""}`}
+              onClick={() => setActiveSection("lista")}
+            >
+              Exercícios
+            </button>
+            <button
+              type="button"
+              className={`exercisesTab ${activeSection === "tarefa-diaria" ? "active" : ""}`}
+              onClick={() => setActiveSection("tarefa-diaria")}
+            >
+              {iconLabel(<Calendar size={14} />, "Tarefa diária")}
+            </button>
           </div>
-        )}
+        </div>
 
         {/* MENSAGENS */}
         {erro && (
@@ -1672,7 +1731,7 @@ export default function ExerciciosPage() {
         )}
 
         {/* FILTROS DE EXERCÍCIOS */}
-        {activeSection === "lista" && (
+        {(activeSection === "lista" || activeSection === "tarefa-diaria") && (
           <>
             <div className="filtersSection">
               {/* Linha 1: Busca por título */}
@@ -1681,7 +1740,7 @@ export default function ExerciciosPage() {
                   <input
                     className="exInput"
                     type="text"
-                    placeholder="Buscar por título..."
+                    placeholder={activeSection === "tarefa-diaria" ? "Buscar tarefa diária..." : "Buscar por título..."}
                     value={buscaFiltro}
                     onChange={(e) => setBuscaFiltro(e.target.value)}
                     style={{ width: "100%" }}
@@ -1700,7 +1759,7 @@ export default function ExerciciosPage() {
                     style={{ minWidth: 160 }}
                   >
                     <option value="">Todos os Módulos</option>
-                    {Array.from(new Set(items.map((ex) => ex.modulo)))
+                    {Array.from(new Set(sourceItems.map((ex) => ex.modulo)))
                       .sort()
                       .map((mod) => (
                         <option key={mod} value={mod}>
@@ -1764,12 +1823,12 @@ export default function ExerciciosPage() {
 
             {/* LISTA DE EXERCÍCIOS */}
             <div>
-              {loading && items.length === 0 ? (
+              {loading && sourceItems.length === 0 ? (
                 <div className="loadingState">
                   <div className="spinner" />
                   Carregando exercícios...
                 </div>
-              ) : !loading && items.length === 0 ? (
+              ) : !loading && sourceItems.length === 0 ? (
                 <div className="emptyState">
                   <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
                   <div className="emptyTitle">Nenhum exercício disponível</div>
@@ -1782,7 +1841,7 @@ export default function ExerciciosPage() {
                   {/* Filtros e Paginação */}
                   <div style={{ marginBottom: "16px" }}>
                     {(() => {
-                      const filteredExercises = items.filter((ex) => {
+                      const filteredExercises = sourceItems.filter((ex) => {
                         const alunoIds = getAlunoIds(ex);
                         const hasAlunoAssignment = alunoIds.length > 0;
                         if (!isStaff && hasAlunoAssignment) {
@@ -1827,6 +1886,24 @@ export default function ExerciciosPage() {
                         return ex.turmas?.some((t) => t.id === turmaFiltro);
                       });
 
+                      if (filteredExercises.length === 0) {
+                        return (
+                          <div className="emptyState">
+                            <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
+                            <div className="emptyTitle">
+                              {activeSection === "tarefa-diaria"
+                                ? "Nenhuma tarefa diária encontrada"
+                                : "Nenhum exercício encontrado"}
+                            </div>
+                            <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
+                              {activeSection === "tarefa-diaria"
+                                ? "Nenhuma tarefa diária foi retornada do banco para os filtros selecionados."
+                                : "Ajuste os filtros e tente novamente."}
+                            </p>
+                          </div>
+                        );
+                      }
+
                       const startIndex = (currentPage - 1) * itemsPerPage;
                       const endIndex = startIndex + itemsPerPage;
                       const paginatedExercises = filteredExercises.slice(startIndex, endIndex);
@@ -1854,12 +1931,24 @@ export default function ExerciciosPage() {
                                 <div
                                   key={ex.id}
                                   className={`exerciseCard ${canCreate ? "canEdit" : ""}`}
-                                  onClick={() => navigate(`/dashboard/exercicios/${ex.id}`)}
+                                  onClick={() =>
+                                    navigate(`/dashboard/exercicios/${ex.id}`, {
+                                      state: {
+                                        from: location.pathname,
+                                        fromSection: activeSection,
+                                      },
+                                    })
+                                  }
                                   role="button"
                                   tabIndex={0}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter" || e.key === " ") {
-                                      navigate(`/dashboard/exercicios/${ex.id}`);
+                                      navigate(`/dashboard/exercicios/${ex.id}`, {
+                                        state: {
+                                          from: location.pathname,
+                                          fromSection: activeSection,
+                                        },
+                                      });
                                     }
                                   }}
                                 >
@@ -2023,5 +2112,3 @@ export default function ExerciciosPage() {
     </DashboardLayout >
   );
 }
-
-

@@ -4,6 +4,7 @@ import {
   isTokenExpired,
   logout,
   getRefreshToken,
+  getRole as getAuthRole,
   setToken,
   setRefreshToken,
 } from "../auth/auth";
@@ -159,6 +160,9 @@ export type Exercicio = {
   tema: string | null;
   prazo: string | null;
   publishedAt: string | null;
+  isDailyTask?: boolean;
+  dailyTaskId?: string | null;
+  dailyTaskName?: string | null;
   tipoExercicio?: "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho" | null;
   categoria?: "programacao" | "informatica";
   mouse_regras?: string | null;
@@ -253,6 +257,10 @@ export type ActivityLog = {
 
 export async function listarExercicios() {
   return apiFetch<Exercicio[]>("/exercicios");
+}
+
+export async function listarTarefasDiarias() {
+  return apiFetch<Exercicio[]>("/exercicios/daily-tasks");
 }
 
 export async function obterExercicio(id: string) {
@@ -742,11 +750,7 @@ export async function deletarUsuario(id: string) {
 }
 
 export function getRole(): Role | null {
-  const r = localStorage.getItem("role");
-  if (r === "3") return "admin";
-  if (r === "2") return "professor";
-  if (r === "1") return "aluno";
-  return r === "admin" || r === "professor" || r === "aluno" ? r : null;
+  return getAuthRole();
 }
 
 export type Material = {

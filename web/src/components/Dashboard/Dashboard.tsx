@@ -202,13 +202,25 @@ export default function Dashboard() {
   }
 
   // Calcular estatísticas
+  const isManagementView = role === "admin" || role === "professor";
+  const now = new Date();
   const totalExercicios = exercicios.length;
   const exerciciosPendentes = exercicios.filter(
-    (e) => e.prazo && new Date(e.prazo) > new Date()
+    (e) => e.prazo && new Date(e.prazo) > now
   ).length;
+  const exerciciosProgramados = exercicios.filter(
+    (e) => !!e.publishedAt && new Date(e.publishedAt) > now
+  ).length;
+  const exerciciosAtivos = Math.max(totalExercicios - exerciciosProgramados, 0);
 
   // Exercícios recentes (últimos 5)
-  const exerciciosRecentes = exercicios.slice(0, 5);
+  const exerciciosRecentes = [...exercicios]
+    .sort((a, b) => {
+      const da = new Date(a.publishedAt ?? a.prazo ?? 0).getTime();
+      const db = new Date(b.publishedAt ?? b.prazo ?? 0).getTime();
+      return db - da;
+    })
+    .slice(0, 6);
 
   // Simular estatísticas (em produção, viriam da API)
   const progresso = {
@@ -224,10 +236,10 @@ export default function Dashboard() {
   return (
     <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
       <FadeInUp>
-        <div className="dashboardSections">
+        <div className={`dashboardSections ${isManagementView ? "adminBoard" : ""}`}>
           {/* SEÇÃO 1: ESTATÍSTICAS */}
-          <section className="grid3">
-            {(role !== "aluno" || turmas.length > 0) && (
+          <section className={isManagementView ? "grid4" : "grid3"}>
+            {(isManagementView || turmas.length > 0) && (
               <motion.div
                 className="card"
                 initial={false}
@@ -236,13 +248,13 @@ export default function Dashboard() {
               >
                 <div className="cardHead">
                   <div>
-                    <div className="kicker">Turmas</div>
+                    <div className="kicker">{isManagementView ? "Turmas geridas" : "Turmas"}</div>
                     <div className="big">{role === "aluno" ? turmas.length : turmasResponsavel}</div>
                   </div>
                 </div>
                 <div className="kv">
                   <div className="kvRow">
-                    <span>{role === "aluno" ? "Turmas registradas" : "Turmas sob responsabilidade"}</span>
+                    <span>{isManagementView ? "Sob responsabilidade" : "Turmas registradas"}</span>
                     <strong>{role === "aluno" ? turmas.length : turmasResponsavel}</strong>
                   </div>
                   {isAdmin && (
@@ -262,7 +274,7 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {(role !== "aluno" ? totalAlunos > 0 : turmas.length > 0) && (
+            {(isManagementView || turmas.length > 0) && (
               <motion.div
                 className="card"
                 initial={false}
@@ -271,13 +283,13 @@ export default function Dashboard() {
               >
                 <div className="cardHead">
                   <div>
-                    <div className="kicker">ALUNOS</div>
+                    <div className="kicker">{isManagementView ? "Cobertura de alunos" : "ALUNOS"}</div>
                     <div className="big">{totalAlunos}</div>
                   </div>
                 </div>
                 <div className="kv">
                   <div className="kvRow">
-                    <span>Alunos nas {isAdmin ? "minhas turmas" : "turmas"}</span>
+                    <span>{isManagementView ? "Alunos vinculados" : `Alunos nas ${isAdmin ? "minhas turmas" : "turmas"}`}</span>
                     <strong>{totalAlunos}</strong>
                   </div>
                   {isAdmin && (
@@ -298,15 +310,28 @@ export default function Dashboard() {
             >
               <div className="cardHead">
                 <div>
-                  <div className="kicker">EXERCÍCIOS</div>
-                  <div className="big">{totalExercicios}</div>
+                  <div className="kicker">{isManagementView ? "Operacao de exercicios" : "EXERCICIOS"}</div>
+                  <div className="big">{isManagementView ? exerciciosAtivos : totalExercicios}</div>
                 </div>
               </div>
               <div className="kv">
-                <div className="kvRow">
-                  <span>Pendentes</span>
-                  <strong style={{ color: "var(--red)" }}>{exerciciosPendentes}</strong>
-                </div>
+                {isManagementView ? (
+                  <>
+                    <div className="kvRow">
+                      <span>Publicados</span>
+                      <strong>{totalExercicios}</strong>
+                    </div>
+                    <div className="kvRow">
+                      <span>Programados</span>
+                      <strong>{exerciciosProgramados}</strong>
+                    </div>
+                  </>
+                ) : (
+                  <div className="kvRow">
+                    <span>Pendentes</span>
+                    <strong style={{ color: "var(--red)" }}>{exerciciosPendentes}</strong>
+                  </div>
+                )}
               </div>
             </motion.div>
           </section>

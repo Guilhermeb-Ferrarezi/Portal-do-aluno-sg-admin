@@ -47,6 +47,9 @@ type ExerciseSchemaInfo = {
   hasExercicios: boolean;
   hasTurmas: boolean;
   hasAlunoTurma: boolean;
+  hasDailyTasks: boolean;
+  hasExercise: boolean;
+  hasExerciciosIsDailyTask: boolean;
 };
 
 let exerciseSchemaInfoCache: ExerciseSchemaInfo | null = null;
@@ -57,16 +60,31 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
     has_exercicios: boolean;
     has_turmas: boolean;
     has_aluno_turma: boolean;
+    has_daily_tasks: boolean;
+    has_exercise: boolean;
+    has_exercicios_is_daily_task: boolean;
   }>(
     `SELECT
        to_regclass('public.exercicios') IS NOT NULL AS has_exercicios,
        to_regclass('public.turmas') IS NOT NULL AS has_turmas,
-       to_regclass('public.aluno_turma') IS NOT NULL AS has_aluno_turma`
+       to_regclass('public.aluno_turma') IS NOT NULL AS has_aluno_turma,
+       to_regclass('public.daily_tasks') IS NOT NULL AS has_daily_tasks,
+       to_regclass('public.exercise') IS NOT NULL AS has_exercise,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercicios'
+           AND column_name = 'is_daily_task'
+       ) AS has_exercicios_is_daily_task`
   );
   exerciseSchemaInfoCache = {
     hasExercicios: !!r.rows[0]?.has_exercicios,
     hasTurmas: !!r.rows[0]?.has_turmas,
     hasAlunoTurma: !!r.rows[0]?.has_aluno_turma,
+    hasDailyTasks: !!r.rows[0]?.has_daily_tasks,
+    hasExercise: !!r.rows[0]?.has_exercise,
+    hasExerciciosIsDailyTask: !!r.rows[0]?.has_exercicios_is_daily_task,
   };
   return exerciseSchemaInfoCache;
 }
@@ -124,6 +142,71 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
     maxTentativas: null,
     penalidadePorTentativa: null,
     intervaloReenvio: null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+async function listDailyTasksFromNewExerciseSchema(userId: string | undefined, isAluno: boolean) {
+  const params: any[] = [];
+  const where: string[] = [];
+
+  if (isAluno) {
+    params.push(userId);
+    where.push(`EXISTS (
+      SELECT 1
+      FROM enrollment en
+      JOIN class c ON c.id = en.class_id
+      JOIN module m2 ON m2.course_id = c.course_id
+      JOIN phase p2 ON p2.module_id = m2.id
+      WHERE en.user_id = $1
+        AND p2.id = e.phase_id
+    )`);
+  }
+
+  const q = `
+    SELECT
+      dt.id AS daily_task_id,
+      dt.name AS daily_task_name,
+      e.id,
+      e.title,
+      e.description,
+      m.name AS modulo,
+      p.name AS tema,
+      e.term_at AS prazo,
+      e.created_at,
+      e.updated_at,
+      e.type_exercise
+    FROM daily_tasks dt
+    JOIN exercise e ON e.id = dt.exercise_id
+    LEFT JOIN phase p ON p.id = COALESCE(dt.phase_id, e.phase_id)
+    LEFT JOIN module m ON m.id = p.module_id
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    ORDER BY e.term_at ASC NULLS LAST, dt.id DESC
+  `;
+
+  const r = await pool.query(q, params);
+  return r.rows.map((row: any) => ({
+    id: String(row.id),
+    titulo: row.title,
+    descricao: row.description ?? "",
+    modulo: row.modulo ?? "Sem mÃ³dulo",
+    tema: row.tema ?? row.daily_task_name ?? null,
+    prazo: row.prazo ?? null,
+    publicado: true,
+    publishedAt: null,
+    tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
+    categoria: "programacao",
+    mouse_regras: null,
+    multipla_regras: null,
+    atalho_tipo: null,
+    permitir_repeticao: false,
+    maxTentativas: null,
+    penalidadePorTentativa: null,
+    intervaloReenvio: null,
+    dailyTaskId: row.daily_task_id != null ? String(row.daily_task_id) : null,
+    dailyTaskName: row.daily_task_name ?? null,
+    isDailyTask: true,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
@@ -452,6 +535,122 @@ export function exerciciosRouter(jwtSecret: string) {
         createdAt: row.created_at,
         turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
         alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
+      }))
+    );
+  });
+
+  // GET /exercicios/daily-tasks - Lista somente tarefas diárias do banco
+  router.get("/exercicios/daily-tasks", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+    const schema = await getExerciseSchemaInfo();
+    const isAluno = req.user?.role === "aluno";
+    const userId = req.user?.sub;
+
+    if (!schema.hasExercicios) {
+      if (!schema.hasExercise || !schema.hasDailyTasks) {
+        return res.json([]);
+      }
+      const mapped = await listDailyTasksFromNewExerciseSchema(userId, isAluno);
+      return res.json(mapped);
+    }
+
+    const conditions: string[] = ["1=1"];
+    const params: any[] = [];
+
+    if (isAluno) {
+      conditions.push("e.publicado = true");
+      conditions.push("(e.published_at IS NULL OR e.published_at <= NOW())");
+    }
+
+    if (isAluno) {
+      const alunoParam = `$${params.length + 1}`;
+      params.push(userId);
+      conditions.push(`(
+        EXISTS (
+          SELECT 1 FROM exercicio_aluno ea
+          WHERE ea.exercicio_id = e.id AND ea.aluno_id = ${alunoParam}
+        )
+        OR (
+          NOT EXISTS (SELECT 1 FROM exercicio_aluno ea2 WHERE ea2.exercicio_id = e.id)
+          AND (
+            EXISTS (
+              SELECT 1 FROM exercicio_turma et
+              WHERE et.exercicio_id = e.id
+                AND et.turma_id IN (
+                  SELECT ${
+                    schema.hasAlunoTurma ? "turma_id" : "class_id"
+                  } FROM ${schema.hasAlunoTurma ? "aluno_turma" : "enrollment"}
+                  WHERE ${schema.hasAlunoTurma ? "aluno_id" : "user_id"} = ${alunoParam}
+                )
+            )
+            OR NOT EXISTS (SELECT 1 FROM exercicio_turma et2 WHERE et2.exercicio_id = e.id)
+          )
+        )
+      )`);
+    }
+
+    if (schema.hasExerciciosIsDailyTask) {
+      conditions.push("COALESCE(e.is_daily_task, false) = true");
+    } else {
+      conditions.push(
+        `(LOWER(COALESCE(e.tema, '')) LIKE '%tarefa diária%' OR LOWER(COALESCE(e.tema, '')) LIKE '%tarefa diaria%' OR e.titulo ~* '^dia\\s+[0-9]+\\s*[:\\-]')`
+      );
+    }
+
+    const query = `
+      SELECT
+        e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
+        e.tipo_exercicio, e.gabarito, e.linguagem_esperada, e.categoria, e.mouse_regras,
+        e.multipla_regras, e.atalho_tipo, e.permitir_repeticao, e.max_tentativas, e.penalidade_por_tentativa,
+        e.intervalo_reenvio, e.anexo_url, e.anexo_nome, e.created_at, e.updated_at,
+        COALESCE(turmas.turmas, '[]'::jsonb) as turmas,
+        COALESCE(alunos.alunos, '[]'::jsonb) as alunos
+      FROM exercicios e
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.${
+          schema.hasTurmas ? "nome" : "name"
+        }, 'tipo', ${schema.hasTurmas ? "t.tipo" : "'turma'"})) as turmas
+        FROM exercicio_turma et
+        JOIN ${schema.hasTurmas ? "turmas" : "class"} t ON et.turma_id = t.id
+        WHERE et.exercicio_id = e.id
+      ) turmas ON true
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(DISTINCT jsonb_build_object('id', u.id, 'nome', u.nome, 'usuario', u.usuario)) as alunos
+        FROM exercicio_aluno ea
+        JOIN users u ON ea.aluno_id = u.id
+        WHERE ea.exercicio_id = e.id
+      ) alunos ON true
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY e.prazo ASC NULLS LAST, e.created_at DESC
+    `;
+
+    const r = await pool.query<ExercicioAccessRow>(query, params);
+
+    return res.json(
+      r.rows.map((row) => ({
+        id: row.id,
+        titulo: row.titulo,
+        descricao: row.descricao,
+        modulo: row.modulo,
+        tema: row.tema,
+        prazo: row.prazo,
+        publicado: row.publicado,
+        publishedAt: row.published_at,
+        tipoExercicio: row.tipo_exercicio,
+        categoria: row.categoria,
+        mouse_regras: row.mouse_regras,
+        multipla_regras: row.multipla_regras,
+        atalho_tipo: row.atalho_tipo,
+        permitir_repeticao: row.permitir_repeticao ?? false,
+        maxTentativas: row.max_tentativas ?? null,
+        penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
+        intervaloReenvio: row.intervalo_reenvio ?? null,
+        anexoUrl: row.anexo_url,
+        anexoNome: row.anexo_nome,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
+        alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
+        isDailyTask: true,
       }))
     );
   });

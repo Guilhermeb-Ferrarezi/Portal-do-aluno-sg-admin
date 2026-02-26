@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCcw, Save, Search } from "lucide-react";
 import { getRole } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
@@ -23,6 +23,7 @@ type EditingAnswer = {
 export default function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const role = getRole();
   const canReview = role === "admin" || role === "professor";
 
@@ -249,6 +250,26 @@ export default function ExerciseDetail() {
     });
   }
 
+  function handleBack() {
+    const navState = location.state as
+      | { from?: string; fromSection?: "criar" | "lista" | "tarefa-diaria" }
+      | null;
+
+    if (navState?.from === "/dashboard/exercicios") {
+      navigate("/dashboard/exercicios", {
+        state: navState.fromSection ? { restoreSection: navState.fromSection } : null,
+      });
+      return;
+    }
+
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/dashboard/exercicios");
+  }
+
   return (
     <DashboardLayout
       title="Painel de Respostas"
@@ -256,7 +277,7 @@ export default function ExerciseDetail() {
     >
       <div className="exerciseDetailContainer">
         <div className="rvTopBar">
-          <button className="edBackBtn" onClick={() => navigate("/dashboard/exercicios")}>
+          <button className="edBackBtn" onClick={handleBack}>
             <ArrowLeft size={16} /> Voltar
           </button>
           <button className="refreshBtn" onClick={() => void load()} disabled={loading}>
