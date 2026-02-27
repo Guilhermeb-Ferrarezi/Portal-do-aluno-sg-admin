@@ -5,8 +5,6 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
 import PaginatedSelect from "../components/PaginatedSelect";
-import MonacoEditor from "../components/MonacoEditor";
-import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
 import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, ConditionalFieldAnimation, AnimatedSelect, FadeInUp, AnimatedToggle } from "../components/animate-ui";
 import {
@@ -14,14 +12,10 @@ import {
   Loader2,
   Laptop,
   Monitor,
-  ClipboardList,
   PenLine,
   ListChecks,
-  Image,
   Trash2,
   Eye,
-  Settings,
-  AlertTriangle,
   Save,
   Sparkles,
   XCircle,
@@ -106,6 +100,16 @@ export default function ExerciciosPage() {
     isCorrect: boolean | null;
   };
 
+  type CategoriaExercicio = "programacao" | "informatica";
+
+  function inferCategoriaFromCourseName(courseName: string | null | undefined): CategoriaExercicio {
+    const normalized = (courseName ?? "").toLowerCase();
+    if (normalized.includes("inform") || normalized.includes("excel") || normalized.includes("office")) {
+      return "informatica";
+    }
+    return "programacao";
+  }
+
   function getTipoInfo(ex: Exercicio): { label: string; className: string } {
     switch (ex.tipoExercicio) {
       case "codigo":
@@ -133,7 +137,6 @@ export default function ExerciciosPage() {
   const [titulo, setTitulo] = React.useState("");
   const [descricao, setDescricao] = React.useState("");
   const [gabarito, setGabarito] = React.useState("");
-  const gabaritoLang = "javascript"; // Linguagem padrao, nao editavel
   const [cursosDisponiveis, setCursosDisponiveis] = React.useState<Curso[]>([]);
   const [cursoIdSelecionado, setCursoIdSelecionado] = React.useState("");
   const [todosModulosDisponiveis, setTodosModulosDisponiveis] = React.useState<Modulo[]>([]);
@@ -151,32 +154,14 @@ export default function ExerciciosPage() {
   const [isDailyTask, setIsDailyTask] = React.useState(false);
   const [publishnaow, setPublishnaow] = React.useState(true); // Publicar agora ou agendar
   const [publishedAt, setPublishedAt] = React.useState(""); // datetime-local
-  const [categoria, setCategoria] = React.useState("programacao"); // programacao ou informatica
+  const [categoria, setCategoria] = React.useState<CategoriaExercicio>("programacao");
   const [componenteInterativo, setComponenteInterativo] = React.useState("escrita"); // temporario: apenas escrita e multipla
-  const [diaNumero, setDiaNumero] = React.useState(1); // Numero do dia para componentes interativos
-  // Regras para Mouse Interativo
-  const [mouseRegras, setMouseRegras] = React.useState({
-    clicksSimples: 0,
-    duplosClicks: 0,
-    clicksDireitos: 0,
-  });
   // Regras para Multipla Escolha
   const [multiplaQuestoes, setMultiplaQuestoes] = React.useState<Array<{
     pergunta: string;
     opcoes: Array<{ letter: string; text: string }>;
     respostaCorreta: string;
-  }>>([{
-    pergunta: "",
-    opcoes: [
-      { letter: "A", text: "" },
-      { letter: "B", text: "" },
-      { letter: "C", text: "" },
-      { letter: "D", text: "" }
-    ],
-    respostaCorreta: ""
-  }]);
-  // Tipos de atalho para Exercicios de atalho
-  const [atalhoTipo, setAtalhoTipo] = React.useState<"copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar">("copiar-colar");
+  }>>(() => getDefaultMultiplaQuestoes());
   const [permitirRepeticao, setPermitirRepeticao] = React.useState(false);
   const [maxTentativas, setMaxTentativas] = React.useState<string>("");
   const [penalidadeTentativa, setPenalidadeTentativa] = React.useState<string>("");
@@ -216,10 +201,13 @@ export default function ExerciciosPage() {
   const [loadingRespostasDiretas, setLoadingRespostasDiretas] = React.useState<Record<string, boolean>>({});
   const [seletorRespostaDireta, setSeletorRespostaDireta] = React.useState<Record<string, string>>({});
   const [respostaExercicioAbertoKey, setRespostaExercicioAbertoKey] = React.useState<string | null>(null);
+  const [cursoCardsFiltro, setCursoCardsFiltro] = React.useState("");
+  const [cursoCardsPagina, setCursoCardsPagina] = React.useState(1);
+  const [cursoCardsItensPorPagina, setCursoCardsItensPorPagina] = React.useState(5);
+  const [mostrarDetalhesCurso, setMostrarDetalhesCurso] = React.useState(false);
 
   // Filtros
   const [moduloFiltro, setModuloFiltro] = React.useState("");
-  const [tipoFiltro, setTipoFiltro] = React.useState(""); // codigo, texto, todas
   const [buscaFiltro, setBuscaFiltro] = React.useState("");
 
   // Turmas
@@ -255,6 +243,51 @@ export default function ExerciciosPage() {
     [fasesDisponiveis, faseIdSelecionada]
   );
 
+  const cursoSelecionado = React.useMemo(
+    () => cursosDisponiveis.find((curso) => curso.id === cursoIdSelecionado) ?? null,
+    [cursosDisponiveis, cursoIdSelecionado]
+  );
+
+  const modulosDoCursoSelecionado = React.useMemo(
+    () => todosModulosDisponiveis.filter((modulo) => modulo.courseId === cursoIdSelecionado),
+    [todosModulosDisponiveis, cursoIdSelecionado]
+  );
+
+  const cursosToggleOrdenados = cursosDisponiveis;
+  const cursosToggleFiltrados = React.useMemo(() => {
+    const termo = cursoCardsFiltro.trim().toLowerCase();
+    if (!termo) return cursosToggleOrdenados;
+    return cursosToggleOrdenados.filter((curso) => {
+      const nome = curso.nome?.toLowerCase() ?? "";
+      const descricao = curso.descricao?.toLowerCase() ?? "";
+      return nome.includes(termo) || descricao.includes(termo);
+    });
+  }, [cursosToggleOrdenados, cursoCardsFiltro]);
+  const cursosCardsTotalPaginas = Math.max(1, Math.ceil(cursosToggleFiltrados.length / cursoCardsItensPorPagina));
+  const cursosTogglePaginados = React.useMemo(() => {
+    const inicio = (cursoCardsPagina - 1) * cursoCardsItensPorPagina;
+    return cursosToggleFiltrados.slice(inicio, inicio + cursoCardsItensPorPagina);
+  }, [cursosToggleFiltrados, cursoCardsPagina, cursoCardsItensPorPagina]);
+
+  function handleSelecionarCurso(courseId: string) {
+    const trocouCurso = courseId !== cursoIdSelecionado;
+    if (trocouCurso) {
+      setModuloIdSelecionado("");
+      setModulosDisponiveis([]);
+      setFaseIdSelecionada("");
+      setFasesDisponiveis([]);
+      setMostrarDetalhesCurso(false);
+    }
+    setCursoIdSelecionado(courseId);
+    const curso = cursosDisponiveis.find((item) => item.id === courseId);
+    if (!curso) return;
+    const categoriaInferida = inferCategoriaFromCourseName(curso.nome);
+    if (categoriaInferida !== categoria) {
+      setCategoria(categoriaInferida);
+      setComponenteInterativo("escrita");
+    }
+  }
+
   function toDatetimeLocal(value: string | null | undefined) {
     if (!value) return "";
     const date = new Date(value);
@@ -265,6 +298,71 @@ export default function ExerciciosPage() {
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
     return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function getDefaultMultiplaQuestoes() {
+    return [{
+      pergunta: "",
+      opcoes: [
+        { letter: "A", text: "" },
+        { letter: "B", text: "" },
+        { letter: "C", text: "" },
+        { letter: "D", text: "" }
+      ],
+      respostaCorreta: ""
+    }];
+  }
+
+  function applyPublicationStateFromExercise(exercicio: Exercicio) {
+    const publicationDateLocal = toDatetimeLocal(exercicio.publishedAt);
+    if (!publicationDateLocal) {
+      setPublishnaow(exercicio.publicado !== false);
+      setPublishedAt("");
+      return;
+    }
+
+    const publicationDate = new Date(exercicio.publishedAt as string);
+    if (!Number.isNaN(publicationDate.getTime()) && publicationDate > new Date()) {
+      setPublishnaow(false);
+      setPublishedAt(publicationDateLocal);
+      return;
+    }
+
+    setPublishnaow(exercicio.publicado !== false);
+    setPublishedAt("");
+  }
+
+  function resetExerciseFormState(params?: { clearAttachments?: boolean }) {
+    setTitulo("");
+    setDescricao("");
+    setGabarito("");
+    setCursoIdSelecionado("");
+    setModuloIdSelecionado("");
+    setFaseIdSelecionada("");
+    setMostrarDetalhesCurso(false);
+    setPrazo("");
+    setVideoUrl("");
+    setDifficulty("");
+    setIndexOrder("");
+    setPointsRedeem("");
+    setExercisePeriod("");
+    setIsFinalExercise(false);
+    setIsDailyTask(false);
+    setPublishnaow(true);
+    setPublishedAt("");
+    setCategoria("programacao");
+    setComponenteInterativo("escrita");
+    setPermitirRepeticao(false);
+    setMaxTentativas("");
+    setPenalidadeTentativa("");
+    setIntervaloReenvio("");
+    setMultiplaQuestoes(getDefaultMultiplaQuestoes());
+
+    if (params?.clearAttachments) {
+      setAnexosAtivo(false);
+      setAnexoArquivo(null);
+      setAnexoAtual(null);
+    }
   }
 
   function getAlunoIds(exercicio: Exercicio): string[] {
@@ -571,6 +669,25 @@ export default function ExerciciosPage() {
   }, [cursoIdSelecionado]);
 
   React.useEffect(() => {
+    if (!cursoSelecionado) return;
+    const categoriaInferida = inferCategoriaFromCourseName(cursoSelecionado.nome);
+    if (categoriaInferida !== categoria) {
+      setCategoria(categoriaInferida);
+      setComponenteInterativo("escrita");
+    }
+  }, [cursoSelecionado, categoria]);
+
+  React.useEffect(() => {
+    setCursoCardsPagina(1);
+  }, [cursoCardsFiltro]);
+
+  React.useEffect(() => {
+    if (cursoCardsPagina > cursosCardsTotalPaginas) {
+      setCursoCardsPagina(cursosCardsTotalPaginas);
+    }
+  }, [cursoCardsPagina, cursosCardsTotalPaginas]);
+
+  React.useEffect(() => {
     if (!moduloIdSelecionado) {
       setFasesDisponiveis([]);
       setFaseIdSelecionada("");
@@ -628,26 +745,11 @@ export default function ExerciciosPage() {
 
       const gabaritoLimpo = gabarito.trim();
 
-      // Auto-gerar descricao se for componente interativo em Informatica
       let descricaoFinal = descricao.trim();
       let tituloFinal = titulo.trim();
 
-      // Determinar o `tipoExercicio` explicitamente a partir das selecoes do formulario
-      let tipoSelecionado: string | undefined = undefined;
-      if (categoria === "programacao") {
-        if (componenteInterativo === "") tipoSelecionado = "codigo"; // Monaco
-        else tipoSelecionado = componenteInterativo || undefined;
-      } else {
-        // Para informatica, o valor vazio representa 'nenhum'
-        if (componenteInterativo === "") tipoSelecionado = "nenhum";
-        else tipoSelecionado = componenteInterativo || undefined;
-      }
-
-      if (tipoSelecionado === "nenhum") {
-        setErro("Selecione um tipo de Exercicio valido (nao - permitido 'Nenhum').");
-        setSaving(false);
-        return;
-      }
+      const tipoSelecionado: "escrita" | "multipla" =
+        componenteInterativo === "multipla" ? "multipla" : "escrita";
 
       const maxTentativasNum = maxTentativas.trim() ? Number(maxTentativas) : null;
       const penalidadeNum = penalidadeTentativa.trim() ? Number(penalidadeTentativa) : 0;
@@ -723,19 +825,9 @@ export default function ExerciciosPage() {
         published_at: publishnaow ? null : (publishedAt ? new Date(publishedAt).toISOString() : null),
         categoria: categoria,
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
-        // Incluir o tipo de Exercicio determinado explicitamente
         ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
-        // Adicionar regras do mouse se for componente interativo
-        ...(componenteInterativo === "mouse" ? {
-          mouse_regras: JSON.stringify(mouseRegras)
-        } : {}),
-        // Adicionar regras de Multipla escolha se for componente interativo
         ...(componenteInterativo === "multipla" ? {
           multipla_regras: JSON.stringify({ Questoes: multiplaQuestoes })
-        } : {}),
-        // Adicionar tipo de atalho se for componente de atalho
-        ...(componenteInterativo === "atalho" ? {
-          atalho_tipo: atalhoTipo
         } : {}),
         permitir_repeticao: permitirRepeticao,
         max_tentativas: permitirRepeticao ? maxTentativasNum : null,
@@ -768,44 +860,7 @@ export default function ExerciciosPage() {
         }
       }
 
-      setTitulo("");
-      setDescricao("");
-      setGabarito("");
-      setCursoIdSelecionado("");
-      setModuloIdSelecionado("");
-      setFaseIdSelecionada("");
-      setPrazo("");
-      setVideoUrl("");
-      setDifficulty("");
-      setIndexOrder("");
-      setPointsRedeem("");
-      setExercisePeriod("");
-      setIsFinalExercise(false);
-      setIsDailyTask(false);
-      setPublishnaow(true);
-      setPublishedAt("");
-      setCategoria("programacao");
-      setComponenteInterativo("escrita");
-      setDiaNumero(1);
-      setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
-      setAtalhoTipo("copiar-colar");
-      setPermitirRepeticao(false);
-      setMaxTentativas("");
-      setPenalidadeTentativa("");
-      setIntervaloReenvio("");
-      setAnexosAtivo(false);
-      setAnexoArquivo(null);
-      setAnexoAtual(null);
-      setMultiplaQuestoes([{
-        pergunta: "",
-        opcoes: [
-          { letter: "A", text: "" },
-          { letter: "B", text: "" },
-          { letter: "C", text: "" },
-          { letter: "D", text: "" }
-        ],
-        respostaCorreta: ""
-      }]);
+      resetExerciseFormState({ clearAttachments: true });
 
       await load();
       if (dailyLoaded) {
@@ -852,53 +907,25 @@ export default function ExerciciosPage() {
     // Converter data de ISO para formato datetime-local
     setPrazo(toDatetimeLocal(exercicio.prazo));
 
-    // Publicacao imediata vs agendada vs rascunho
-    if (exercicio.publishedAt) {
-      const pubDate = new Date(exercicio.publishedAt);
-      if (pubDate > new Date()) {
-        const year = pubDate.getFullYear();
-        const month = String(pubDate.getMonth() + 1).padStart(2, "0");
-        const day = String(pubDate.getDate()).padStart(2, "0");
-        const hours = String(pubDate.getHours()).padStart(2, "0");
-        const minutes = String(pubDate.getMinutes()).padStart(2, "0");
-        setPublishnaow(false);
-        setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
-      } else {
-        setPublishnaow(exercicio.publicado !== false);
-        setPublishedAt("");
-      }
-    } else {
-      setPublishnaow(exercicio.publicado !== false);
-      setPublishedAt("");
-    }
+    applyPublicationStateFromExercise(exercicio);
 
     // Restaurar categoria
     setCategoria(exercicio.categoria || "programacao");
 
-    // Restaurar componente interativo baseado em regras
-    if (exercicio.mouse_regras) {
-      setComponenteInterativo("escrita");
+    if (exercicio.multipla_regras) {
+      setComponenteInterativo("multipla");
       try {
-        const regras = JSON.parse(exercicio.mouse_regras);
-        setMouseRegras(regras);
+        const regras = JSON.parse(exercicio.multipla_regras);
+        const questoes = Array.isArray(regras?.Questoes) ? regras.Questoes : [];
+        setMultiplaQuestoes(questoes.length > 0 ? questoes : getDefaultMultiplaQuestoes());
       } catch (e) {
-        console.error("Erro ao parsear mouse_regras:", e);
+        console.error("Erro ao parsear multipla_regras:", e);
         setComponenteInterativo("escrita");
+        setMultiplaQuestoes(getDefaultMultiplaQuestoes());
       }
-      } else if (exercicio.multipla_regras) {
-        setComponenteInterativo("multipla");
-        try {
-          const regras = JSON.parse(exercicio.multipla_regras);
-          setMultiplaQuestoes(regras.Questoes || []);
-        } catch (e) {
-          console.error("Erro ao parsear multipla_regras:", e);
-          setComponenteInterativo("escrita");
-        }
-    } else if (exercicio.atalho_tipo) {
-      setComponenteInterativo("escrita");
-      setAtalhoTipo(exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar");
     } else {
       setComponenteInterativo("escrita");
+      setMultiplaQuestoes(getDefaultMultiplaQuestoes());
     }
 
     setPermitirRepeticao(exercicio.permitir_repeticao ?? false);
@@ -909,28 +936,6 @@ export default function ExerciciosPage() {
         : ""
     );
     setIntervaloReenvio(exercicio.intervaloReenvio ? String(exercicio.intervaloReenvio) : "");
-
-    // Restaurar estado de Publicacao
-    setPublishnaow(exercicio.publicado !== false);
-    if (exercicio.publishedAt) {
-      const date = new Date(exercicio.publishedAt);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
-    } else {
-      setPublishedAt("");
-    }
-
-    // Restaurar diaNumero do Titulo (se aplicavel)
-    const diaMatch = exercicio.titulo.match(/^Dia (\d+):/);
-    if (diaMatch) {
-      setDiaNumero(parseInt(diaMatch[1], 10));
-    } else {
-      setDiaNumero(1);
-    }
 
     setEditandoId(exercicio.id);
     setOkMsg(null);
@@ -945,41 +950,7 @@ export default function ExerciciosPage() {
 
   function handleCancel() {
     setActiveSection("lista");
-    setTitulo("");
-    setDescricao("");
-    setGabarito("");
-    setCursoIdSelecionado("");
-    setModuloIdSelecionado("");
-    setFaseIdSelecionada("");
-    setPrazo("");
-    setVideoUrl("");
-    setDifficulty("");
-    setIndexOrder("");
-    setPointsRedeem("");
-    setExercisePeriod("");
-    setIsFinalExercise(false);
-    setIsDailyTask(false);
-    setPublishnaow(true);
-    setPublishedAt("");
-    setCategoria("programacao");
-    setComponenteInterativo("escrita");
-    setDiaNumero(1);
-    setAtalhoTipo("copiar-colar");
-    setPermitirRepeticao(false);
-    setMaxTentativas("");
-    setPenalidadeTentativa("");
-    setIntervaloReenvio("");
-    setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
-    setMultiplaQuestoes([{
-      pergunta: "",
-      opcoes: [
-        { letter: "A", text: "" },
-        { letter: "B", text: "" },
-        { letter: "C", text: "" },
-        { letter: "D", text: "" }
-      ],
-      respostaCorreta: ""
-    }]);
+    resetExerciseFormState();
     setEditandoId(null);
     setOkMsg(null);
   }
@@ -1015,7 +986,7 @@ export default function ExerciciosPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
     // Funao mantida para compatibilidade, mas agora abre o modal
     const exercicio = sourceItems.find((ex) => ex.id === id);
     abrirModalDeletar(id, exercicio?.titulo || "Exercicio");
@@ -1025,7 +996,6 @@ export default function ExerciciosPage() {
   const isInteractiveComponentInformatica = categoria === "informatica" && componenteInterativo !== "";
   const disabled =
     saving ||
-    componenteInterativo === "nenhum" || // Tipo "Nenhum" nao pode ser publicado
     !cursoIdSelecionado ||
     !moduloIdSelecionado ||
     !faseIdSelecionada ||
@@ -1152,43 +1122,108 @@ export default function ExerciciosPage() {
                 {/* CATEGORIA - PROGRAMACAO vs INFORMATICA */}
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <div className="exToggleGroup">
-                      <label className={`exToggleOption ${categoria === "programacao" ? "active" : ""}`}>
-                        <input
-                          className="exToggleInput"
-                          type="radio"
-                          name="categoria"
-                          value="programacao"
-                          checked={categoria === "programacao"}
-                          onChange={(e) => {
-                            setCategoria(e.target.value as any);
-                            setComponenteInterativo("escrita");
-                          }}
-                        />
-                        <span className="exToggleDot" aria-hidden="true" />
-                        <span className="exToggleLabel">
-                          {iconLabel(<Laptop size={14} />, "Programacao")}
-                        </span>
-                      </label>
-
-                      <label className={`exToggleOption ${categoria === "informatica" ? "active" : ""}`}>
-                        <input
-                          className="exToggleInput"
-                          type="radio"
-                          name="categoria"
-                          value="informatica"
-                          checked={categoria === "informatica"}
-                          onChange={(e) => {
-                            setCategoria(e.target.value as any);
-                            setComponenteInterativo("escrita");
-                          }}
-                        />
-                        <span className="exToggleDot" aria-hidden="true" />
-                        <span className="exToggleLabel">
-                          {iconLabel(<Monitor size={14} />, "Informatica")}
-                        </span>
-                      </label>
+                    <div className="exCoursesFilterRow">
+                      <input
+                        className="exInput"
+                        value={cursoCardsFiltro}
+                        onChange={(e) => setCursoCardsFiltro(e.target.value)}
+                        placeholder="Filtrar cursos por nome ou descrição"
+                      />
+                      {cursoCardsFiltro.trim() && (
+                        <button
+                          type="button"
+                          className="exCoursesFilterClearBtn"
+                          onClick={() => setCursoCardsFiltro("")}
+                        >
+                          Limpar
+                        </button>
+                      )}
                     </div>
+                    <div className="exToggleGroup">
+                      {cursosTogglePaginados.map((curso) => {
+                        const cursoCategoria = inferCategoriaFromCourseName(curso.nome);
+                        const isAtivo = curso.id === cursoIdSelecionado;
+                        return (
+                          <label key={curso.id} className={`exToggleOption ${isAtivo ? "active" : ""}`}>
+                            <input
+                              className="exToggleInput"
+                              type="radio"
+                              name="course_id"
+                              value={curso.id}
+                              checked={isAtivo}
+                              onChange={() => handleSelecionarCurso(curso.id)}
+                            />
+                            <span className="exToggleDot" aria-hidden="true" />
+                            <span className="exToggleLabel">
+                              {iconLabel(cursoCategoria === "informatica" ? <Monitor size={14} /> : <Laptop size={14} />, curso.nome)}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div className="exCourseCardsActions">
+                      <div className={`exCourseCardsSelected ${cursoSelecionado ? "" : "isEmpty"}`}>
+                        {cursoSelecionado
+                          ? `Selecionado: ${cursoSelecionado.nome}`
+                          : "Selecione um curso para ver detalhes"}
+                      </div>
+                      <button
+                        type="button"
+                        className="exCourseDetailsBtn"
+                        onClick={() => setMostrarDetalhesCurso((prev) => !prev)}
+                        disabled={!cursoSelecionado}
+                      >
+                        {mostrarDetalhesCurso ? "Ocultar detalhes" : "Ver detalhes"}
+                      </button>
+                    </div>
+                    <ConditionalFieldAnimation isVisible={Boolean(cursoSelecionado && mostrarDetalhesCurso)}>
+                      <div className="exCourseDetailsPanel">
+                        <div className="exCourseDetailsGrid">
+                          <div className="exCourseDetailItem">
+                            <small>Categoria</small>
+                            <strong>
+                              {inferCategoriaFromCourseName(cursoSelecionado?.nome) === "informatica" ? "Informática" : "Programação"}
+                            </strong>
+                          </div>
+                          <div className="exCourseDetailItem">
+                            <small>Modelo</small>
+                            <strong>{cursoSelecionado?.isPaid ? "Pago" : "Gratuito"}</strong>
+                          </div>
+                          <div className="exCourseDetailItem">
+                            <small>Módulos cadastrados</small>
+                            <strong>{modulosDoCursoSelecionado.length}</strong>
+                          </div>
+                          <div className="exCourseDetailItem">
+                            <small>ID do curso</small>
+                            <strong>{cursoSelecionado?.id}</strong>
+                          </div>
+                        </div>
+                        {cursoSelecionado?.descricao && (
+                          <p className="exCourseDescription">{cursoSelecionado.descricao}</p>
+                        )}
+                        {modulosDoCursoSelecionado.length > 0 && (
+                          <p className="exCourseModulesPreview">
+                            {modulosDoCursoSelecionado
+                              .slice(0, 5)
+                              .map((modulo) => modulo.nome)
+                              .join(" • ")}
+                            {modulosDoCursoSelecionado.length > 5 ? " • ..." : ""}
+                          </p>
+                        )}
+                      </div>
+                    </ConditionalFieldAnimation>
+                    {cursosToggleFiltrados.length === 0 && (
+                      <small style={{ color: "#94a3b8", marginTop: "6px" }}>
+                        Nenhum curso encontrado no banco.
+                      </small>
+                    )}
+                    <Pagination
+                      currentPage={cursoCardsPagina}
+                      itemsPerPage={cursoCardsItensPorPagina}
+                      totalItems={cursosToggleFiltrados.length}
+                      onPageChange={setCursoCardsPagina}
+                      onItemsPerPageChange={setCursoCardsItensPorPagina}
+                    />
                   </div>
                 </div>
 
@@ -1219,25 +1254,6 @@ export default function ExerciciosPage() {
                         Selecione o tipo de exercicio para Programacao
                       </small>
                     </div>
-
-                    {/* GABARITO / Codigo ESPERADO - Apenas para tipo Codigo */}
-                    {componenteInterativo === "" && (
-                      <ScaleIn>
-                        <div className="exInputGroup">
-                          <label className="exLabel">Gabarito / Codigo esperado</label>
-                          <MonacoEditor
-                            value={gabarito}
-                            onChange={(v) => setGabarito(v || "")}
-                            language={gabaritoLang}
-                            height="240px"
-                            theme="dark"
-                          />
-                          <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                            Esse texto sera usado para comparar se a resposta do aluno esta parecida com o esperado.
-                          </small>
-                        </div>
-                      </ScaleIn>
-                    )}
 
                     {/* EXERCICIO DE ESCRITA - Para Programacao */}
                     {componenteInterativo === "escrita" && (
@@ -1419,95 +1435,6 @@ export default function ExerciciosPage() {
                       </ScaleIn>
                     )}
 
-                    {/* Campo "Dia #" quando um componente ? selecionado */}
-                    <ConditionalFieldAnimation isVisible={componenteInterativo !== ""}>
-                      <div className="exInputGroup">
-                        <label className="exLabel">Dia #</label>
-                        <input
-                          className="exInput"
-                          type="number"
-                          min="1"
-                          value={diaNumero}
-                          onChange={(e) => setDiaNumero(parseInt(e.target.value) || 1)}
-                          placeholder="Digite o Numero do dia"
-                        />
-                        <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                          Usado apenas para organizacao interna (nao altera o Titulo automaticamente).
-                        </small>
-                      </div>
-                    </ConditionalFieldAnimation>
-
-                    {/* REGRAS DO MOUSE - Apenas para componente Mouse */}
-                    <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
-                      <>
-                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "#1e40af", margin: "0 0 12px 0" }}>
-                            {iconLabel(<Settings size={14} />, "Definir Regras de Sucesso:")}
-                          </p>
-
-                          <div className="exInputRow">
-                            <div className="exInputGroup">
-                              <label className="exLabel">Cliques Esquerdos</label>
-                              <input
-                                className="exInput"
-                                type="number"
-                                min="0"
-                                value={mouseRegras.clicksSimples}
-                                onChange={(e) => setMouseRegras({ ...mouseRegras, clicksSimples: parseInt(e.target.value) || 0 })}
-                                placeholder="Ex: 5"
-                              />
-                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques simples sao necessarios?</small>
-                            </div>
-
-                            <div className="exInputGroup">
-                              <label className="exLabel">Duplos Cliques</label>
-                              <input
-                                className="exInput"
-                                type="number"
-                                min="0"
-                                value={mouseRegras.duplosClicks}
-                                onChange={(e) => setMouseRegras({ ...mouseRegras, duplosClicks: parseInt(e.target.value) || 0 })}
-                                placeholder="Ex: 3"
-                              />
-                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos duplos cliques sao necessarios?</small>
-                            </div>
-
-                            <div className="exInputGroup">
-                              <label className="exLabel">Cliques Direitos</label>
-                              <input
-                                className="exInput"
-                                type="number"
-                                min="0"
-                                value={mouseRegras.clicksDireitos}
-                                onChange={(e) => setMouseRegras({ ...mouseRegras, clicksDireitos: parseInt(e.target.value) || 0 })}
-                                placeholder="Ex: 2"
-                              />
-                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques direitos sao necessarios?</small>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    </ConditionalFieldAnimation>
-
-                    {/* PREVIEW DO COMPONENTE MOUSE */}
-                    <ConditionalFieldAnimation isVisible={componenteInterativo === "mouse"}>
-                      <div style={{
-                        background: "#f9fafb",
-                        border: "2px dashed #e5e7eb",
-                        borderRadius: "12px",
-                        padding: "20px",
-                        marginTop: "16px",
-                      }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "12px" }}>
-                          {iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}
-                        </p>
-                        <MouseInteractiveBox
-                          title="Interacao com Mouse"
-                          instruction="Clique, duplo-clique ou clique direito para registrar suas acoes"
-                        />
-                      </div>
-                    </ConditionalFieldAnimation>
-
                     {/* FORMULARIO DINAMICO PARA MULTIPLA ESCOLHA */}
                     <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
                       <div style={{
@@ -1665,44 +1592,6 @@ export default function ExerciciosPage() {
                   </>
                 )}
 
-                {/* TIPO DE ATALHO - Para componente de atalho em Informatica */}
-                {categoria === "informatica" && componenteInterativo === "atalho" && (
-                  <ScaleIn>
-                    <div className="exInputGroup">
-                      <label className="exLabel">Selecione o Tipo de Atalho</label>
-                      <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                        <AnimatedRadioLabel
-                          name="atalhoTipo"
-                          value="copiar-colar"
-                          checked={atalhoTipo === "copiar-colar"}
-                          onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                          label="Copiar e Colar Texto"
-                          icon={<ClipboardList size={14} />} 
-                        />
-                        <AnimatedRadioLabel
-                          name="atalhoTipo"
-                          value="copiar-colar-imagens"
-                          checked={atalhoTipo === "copiar-colar-imagens"}
-                          onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                          label="Copiar e Colar Imagem"
-                          icon={<Image size={14} />} 
-                        />
-                        <AnimatedRadioLabel
-                          name="atalhoTipo"
-                          value="selecionar-deletar"
-                          checked={atalhoTipo === "selecionar-deletar"}
-                          onChange={(e) => setAtalhoTipo(e.target.value as any)}
-                          label="Selecionar Tudo e Deletar"
-                          icon={<Trash2 size={14} />} 
-                        />
-                      </div>
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-                        Escolha qual atalho o aluno ira treinar
-                      </small>
-                    </div>
-                  </ScaleIn>
-                )}
-
                 {/* PERMITIR repeticao */}
                 <div className="exInputRow">
                   <div className="exInputGroup">
@@ -1760,23 +1649,26 @@ export default function ExerciciosPage() {
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Curso *</label>
-                    <PaginatedSelect
-                      value={cursoIdSelecionado}
-                      onChange={(value) => {
-                        setCursoIdSelecionado(value);
-                      }}
-                      options={cursosDisponiveis.map((curso) => ({
-                        value: curso.id,
-                        label: curso.nome,
-                        meta: curso.descricao || undefined,
-                      }))}
-                      placeholder="Selecione um curso"
-                      pageSize={8}
-                      emptyText="Nenhum curso encontrado"
-                    />
+                    <label className="exLabel">Curso selecionado *</label>
+                    <div className={`exCourseSummary ${cursoSelecionado ? "" : "isEmpty"}`}>
+                      {cursoSelecionado ? (
+                        <>
+                          <strong>
+                            {iconLabel(
+                              inferCategoriaFromCourseName(cursoSelecionado.nome) === "informatica"
+                                ? <Monitor size={14} />
+                                : <Laptop size={14} />,
+                              cursoSelecionado.nome
+                            )}
+                          </strong>
+                          {cursoSelecionado.descricao && <span>{cursoSelecionado.descricao}</span>}
+                        </>
+                      ) : (
+                        <span>Selecione um curso acima para liberar os módulos e fases.</span>
+                      )}
+                    </div>
                     <small style={{ color: "#666", marginTop: "4px" }}>
-                      O modulo e a fase serao carregados de acordo com o curso escolhido.
+                      Os módulos abaixo são filtrados automaticamente pelo curso selecionado.
                     </small>
                   </div>
                 </div>
@@ -1970,24 +1862,6 @@ export default function ExerciciosPage() {
                     Acesso definido por fase no novo schema. Atribuicao por aluno/turma sera adicionada depois.
                   </small>
                 </div>
-
-                {/* AVISO: Tipo "Nenhum" nao pode ser publicado */}
-                {componenteInterativo === "nenhum" && (
-                  <ConditionalFieldAnimation isVisible={true} duration={0.3}>
-                    <div style={{
-                      padding: "12px",
-                      marginBottom: "12px",
-                      backgroundColor: "rgba(239, 68, 68, 0.1)",
-                      border: "1px solid rgba(239, 68, 68, 0.3)",
-                      borderRadius: "6px",
-                      color: "#dc2626",
-                      fontSize: "13px",
-                      fontWeight: "500",
-                    }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} /> <strong>Tipo "Nenhum"</strong></span> - apenas um seletor para alunos. Nao e possivel publicar um Exercicio com este tipo. Escolha um tipo valido: Codigo, Escrita ou Digitacao.
-                    </div>
-                  </ConditionalFieldAnimation>
-                )}
 
                 <div style={{ display: "flex", gap: "12px" }}>
                   <AnimatedButton
@@ -2318,7 +2192,7 @@ export default function ExerciciosPage() {
                 </div>
               </div>
 
-              {/* Linha 2: Modulo, Tipo, Turmas, Aluno */}
+              {/* Linha 2: Modulo, Turmas, Status */}
               <div className="filterRow" style={{ gap: "12px" }}>
                 {/* Filtro de modulo */}
                 <div className="filterGroup">
@@ -2336,20 +2210,6 @@ export default function ExerciciosPage() {
                           {mod}
                         </option>
                       ))}
-                  </select>
-                </div>
-
-                {/* Filtro de tipo */}
-                <div className="filterGroup">
-                  <select
-                    className="exSelect"
-                    value={tipoFiltro}
-                    onChange={(e) => setTipoFiltro(e.target.value)}
-                    style={{ minWidth: 160 }}
-                  >
-                    <option value="">Todos os Tipos</option>
-                    <option value="codigo">Codigo</option>
-                    <option value="texto">Texto</option>
                   </select>
                 </div>
 
@@ -2433,11 +2293,6 @@ export default function ExerciciosPage() {
 
                         // Filtro de modulo
                         if (moduloFiltro && ex.modulo !== moduloFiltro) {
-                          return false;
-                        }
-
-                        // Filtro de tipo
-                        if (tipoFiltro && ex.tipoExercicio !== tipoFiltro) {
                           return false;
                         }
 
@@ -2682,6 +2537,3 @@ export default function ExerciciosPage() {
     </DashboardLayout >
   );
 }
-
-
-

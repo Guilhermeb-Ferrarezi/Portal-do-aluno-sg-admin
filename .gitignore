@@ -30,3 +30,4 @@ docker-compose.*
 *.bat
 *.sh
 *.md
+*.MD

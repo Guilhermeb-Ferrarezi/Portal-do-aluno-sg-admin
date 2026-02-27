@@ -916,6 +916,182 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   gap: 14px;
 }
 
+.exCoursesFilterRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.exCoursesFilterClearBtn {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.exCoursesFilterClearBtn:hover {
+  border-color: var(--focus-color);
+}
+
+.exCourseSummary {
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 16px;
+  border: 1px solid var(--input-border);
+  border-radius: 14px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.exCourseSummary strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.exCourseSummary span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.exCourseSummary.isEmpty {
+  color: var(--input-placeholder);
+}
+
+.exCourseSummaryRow {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.exCourseCardsActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.exCourseCardsSelected {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--input-bg);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.exCourseCardsSelected.isEmpty {
+  color: var(--input-placeholder);
+}
+
+.exCourseDetailsBtn {
+  min-width: 140px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.exCourseDetailsBtn:hover:not(:disabled) {
+  border-color: var(--focus-color);
+  transform: translateY(-1px);
+}
+
+.exCourseDetailsBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.exCourseDetailsPanel {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card) 88%, #0f172a 12%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exCourseDetailsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.exCourseDetailItem {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--input-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exCourseDetailItem small {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.exCourseDetailItem strong {
+  color: var(--text);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.exCourseDescription {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.exCourseModulesPreview {
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .exCourseCardsActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .exCourseSummaryRow {
+    flex-direction: column;
+  }
+
+  .exCourseDetailsBtn {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+.exInputGroup .paginationContainer {
+  margin-top: 12px;
+}
+
 .exSubmitBtn {
   background: linear-gradient(135deg, var(--red) 0%, var(--primary-dark) 100%);
   color: white;

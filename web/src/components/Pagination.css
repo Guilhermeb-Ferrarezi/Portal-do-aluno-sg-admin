@@ -57,7 +57,7 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--card);
-  color: #111827;
+  color: rgb(201, 201, 201);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
@@ -132,7 +132,7 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--card);
-  color: #111827;
+  color: rgb(201, 201, 201);
   font-size: 13px;
   font-weight: 500;
 }
