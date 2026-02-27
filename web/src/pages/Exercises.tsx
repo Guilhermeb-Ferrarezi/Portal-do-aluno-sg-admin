@@ -43,7 +43,9 @@ import {
   deletarExercicio,
   listarExercicios,
   listarTarefasDiarias,
+  listarCursos,
   listarModulos,
+  listarModulosPorCurso,
   listarFasesDoModulo,
   listarTurmas,
   listarAlunos,
@@ -56,6 +58,7 @@ import {
   type AnsweredExerciseByStudent,
   type Exercicio,
   type ExerciseAnswerStudent,
+  type Curso,
   type Fase,
   type Modulo,
   type Turma,
@@ -131,6 +134,9 @@ export default function ExerciciosPage() {
   const [descricao, setDescricao] = React.useState("");
   const [gabarito, setGabarito] = React.useState("");
   const gabaritoLang = "javascript"; // Linguagem padrao, nao editavel
+  const [cursosDisponiveis, setCursosDisponiveis] = React.useState<Curso[]>([]);
+  const [cursoIdSelecionado, setCursoIdSelecionado] = React.useState("");
+  const [todosModulosDisponiveis, setTodosModulosDisponiveis] = React.useState<Modulo[]>([]);
   const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
   const [fasesDisponiveis, setFasesDisponiveis] = React.useState<Fase[]>([]);
   const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
@@ -237,8 +243,11 @@ export default function ExerciciosPage() {
   }, [alunosDisponiveis]);
 
   const moduloSelecionado = React.useMemo(
-    () => modulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? null,
-    [modulosDisponiveis, moduloIdSelecionado]
+    () =>
+      modulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ??
+      todosModulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ??
+      null,
+    [modulosDisponiveis, todosModulosDisponiveis, moduloIdSelecionado]
   );
 
   const faseSelecionada = React.useMemo(
@@ -507,8 +516,14 @@ export default function ExerciciosPage() {
 
     // Carregar turmas e alunos disponiveis se for professor/admin
     if (canCreate) {
+      listarCursos()
+        .then(setCursosDisponiveis)
+        .catch((e) => console.error("Erro ao carregar cursos:", e));
+
       listarModulos()
-        .then(setModulosDisponiveis)
+        .then((modulos) => {
+          setTodosModulosDisponiveis(modulos);
+        })
         .catch((e) => console.error("Erro ao carregar modulos:", e));
 
       listarTurmas()
@@ -520,6 +535,40 @@ export default function ExerciciosPage() {
         .catch((e) => console.error("Erro ao carregar alunos:", e));
     }
   }, []);
+
+  React.useEffect(() => {
+    if (!cursoIdSelecionado) {
+      setModulosDisponiveis([]);
+      setModuloIdSelecionado("");
+      setFasesDisponiveis([]);
+      setFaseIdSelecionada("");
+      return;
+    }
+
+    listarModulosPorCurso(cursoIdSelecionado)
+      .then((modulos) => {
+        setModulosDisponiveis(modulos);
+        setModuloIdSelecionado((prev) =>
+          prev && modulos.some((modulo) => modulo.id === prev) ? prev : ""
+        );
+        if (modulos.length > 0) {
+          setTodosModulosDisponiveis((prev) => {
+            const map = new Map<string, Modulo>();
+            prev.forEach((modulo) => map.set(modulo.id, modulo));
+            modulos.forEach((modulo) => map.set(modulo.id, modulo));
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch((e) => {
+        console.error("Erro ao carregar modulos do curso:", e);
+        const fallback = todosModulosDisponiveis.filter((m) => m.courseId === cursoIdSelecionado);
+        setModulosDisponiveis(fallback);
+        setModuloIdSelecionado((prev) =>
+          prev && fallback.some((modulo) => modulo.id === prev) ? prev : ""
+        );
+      });
+  }, [cursoIdSelecionado]);
 
   React.useEffect(() => {
     if (!moduloIdSelecionado) {
@@ -607,6 +656,7 @@ export default function ExerciciosPage() {
       const ordemNum = indexOrder.trim() ? Number(indexOrder) : null;
       const pontosNum = pointsRedeem.trim() ? Number(pointsRedeem) : null;
       const videoUrlLimpa = videoUrl.trim();
+      const courseIdNum = Number(cursoIdSelecionado);
       const phaseIdNum = Number(faseIdSelecionada);
 
       if (difficulty.trim() && (!Number.isInteger(dificuldadeNum) || Number(dificuldadeNum) < 0)) {
@@ -640,6 +690,11 @@ export default function ExerciciosPage() {
         setSaving(false);
         return;
       }
+      if (!Number.isFinite(courseIdNum) || courseIdNum <= 0) {
+        setErro("Selecione um curso valido antes de salvar.");
+        setSaving(false);
+        return;
+      }
 
       const moduloNome = moduloSelecionado?.nome?.trim() ?? "";
       const faseNome = faseSelecionada?.nome?.trim() ?? null;
@@ -653,6 +708,7 @@ export default function ExerciciosPage() {
         titulo: tituloFinal,
         descricao: descricaoFinal,
         phase_id: phaseIdNum,
+        course_id: courseIdNum,
         modulo: moduloNome,
         tema: faseNome,
         prazo: prazo ? new Date(prazo).toISOString() : null,
@@ -715,6 +771,7 @@ export default function ExerciciosPage() {
       setTitulo("");
       setDescricao("");
       setGabarito("");
+      setCursoIdSelecionado("");
       setModuloIdSelecionado("");
       setFaseIdSelecionada("");
       setPrazo("");
@@ -772,9 +829,12 @@ export default function ExerciciosPage() {
       exercicio.anexoUrl ? { url: exercicio.anexoUrl, nome: exercicio.anexoNome || "Anexo" } : null
     );
     const moduloNormalizado = (exercicio.modulo || "").trim().toLowerCase();
+    const origemModulos =
+      todosModulosDisponiveis.length > 0 ? todosModulosDisponiveis : modulosDisponiveis;
     const moduloEncontrado =
-      modulosDisponiveis.find((m) => m.nome.trim().toLowerCase() === moduloNormalizado) ??
-      modulosDisponiveis.find((m) => m.nome.trim().toLowerCase().includes(moduloNormalizado));
+      origemModulos.find((m) => m.nome.trim().toLowerCase() === moduloNormalizado) ??
+      origemModulos.find((m) => m.nome.trim().toLowerCase().includes(moduloNormalizado));
+    setCursoIdSelecionado(moduloEncontrado?.courseId ?? "");
     setModuloIdSelecionado(moduloEncontrado?.id ?? "");
     setFaseIdSelecionada(exercicio.phaseId ? String(exercicio.phaseId) : "");
     setVideoUrl(exercicio.videoUrl ?? "");
@@ -888,6 +948,7 @@ export default function ExerciciosPage() {
     setTitulo("");
     setDescricao("");
     setGabarito("");
+    setCursoIdSelecionado("");
     setModuloIdSelecionado("");
     setFaseIdSelecionada("");
     setPrazo("");
@@ -965,6 +1026,7 @@ export default function ExerciciosPage() {
   const disabled =
     saving ||
     componenteInterativo === "nenhum" || // Tipo "Nenhum" nao pode ser publicado
+    !cursoIdSelecionado ||
     !moduloIdSelecionado ||
     !faseIdSelecionada ||
     (!isInteractiveComponentInformatica && titulo.trim().length < 2) ||
@@ -1698,6 +1760,29 @@ export default function ExerciciosPage() {
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
+                    <label className="exLabel">Curso *</label>
+                    <PaginatedSelect
+                      value={cursoIdSelecionado}
+                      onChange={(value) => {
+                        setCursoIdSelecionado(value);
+                      }}
+                      options={cursosDisponiveis.map((curso) => ({
+                        value: curso.id,
+                        label: curso.nome,
+                        meta: curso.descricao || undefined,
+                      }))}
+                      placeholder="Selecione um curso"
+                      pageSize={8}
+                      emptyText="Nenhum curso encontrado"
+                    />
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      O modulo e a fase serao carregados de acordo com o curso escolhido.
+                    </small>
+                  </div>
+                </div>
+
+                <div className="exInputRow">
+                  <div className="exInputGroup">
                     <label className="exLabel">Modulo *</label>
                     <PaginatedSelect
                       value={moduloIdSelecionado}
@@ -1710,7 +1795,8 @@ export default function ExerciciosPage() {
                         label: moduloOption.nome,
                         meta: moduloOption.indexOrder ? `Ordem #${moduloOption.indexOrder}` : undefined,
                       }))}
-                      placeholder="Selecione um modulo"
+                      placeholder={cursoIdSelecionado ? "Selecione um modulo" : "Selecione um curso primeiro"}
+                      disabled={!cursoIdSelecionado}
                       pageSize={8}
                       emptyText="Nenhum modulo encontrado"
                     />

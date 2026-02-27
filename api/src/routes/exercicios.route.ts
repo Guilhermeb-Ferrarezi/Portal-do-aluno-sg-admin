@@ -545,6 +545,7 @@ const createNewSchema = z.object({
   titulo: z.string().min(2, "Titulo obrigatorio"),
   descricao: z.string().min(2, "Descricao obrigatoria"),
   phase_id: z.coerce.number().int().positive("Fase obrigatoria"),
+  course_id: z.coerce.number().int().positive().optional().nullable(),
   prazo: z.coerce.date().optional().nullable(),
   tipo_exercicio: z.string().optional().nullable(),
   video_url: z.string().trim().optional().nullable(),
@@ -561,6 +562,7 @@ function normalizeNewSchemaBody(body: unknown) {
   return {
     ...raw,
     phase_id: raw.phase_id ?? raw.fase_id ?? null,
+    course_id: raw.course_id ?? raw.courseId ?? null,
     video_url: raw.video_url ?? raw.videoUrl ?? null,
     index_order: raw.index_order ?? raw.indexOrder ?? null,
     is_final_exercise: raw.is_final_exercise ?? raw.isFinalExercise ?? null,
@@ -584,11 +586,13 @@ async function getPhaseWithModuleById(phaseId: number) {
     phase_id: number;
     phase_name: string | null;
     module_name: string | null;
+    course_id: number;
   }>(
     `SELECT
        p.id AS phase_id,
        p.name AS phase_name,
-       m.name AS module_name
+       m.name AS module_name,
+       m.course_id
      FROM phase p
      JOIN module m ON m.id = p.module_id
      WHERE p.id = $1
@@ -983,6 +987,7 @@ export function exerciciosRouter(jwtSecret: string) {
           titulo,
           descricao,
           phase_id,
+          course_id,
           prazo,
           tipo_exercicio,
           video_url,
@@ -996,6 +1001,9 @@ export function exerciciosRouter(jwtSecret: string) {
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
+        }
+        if (course_id && phaseRow.course_id !== Number(course_id)) {
+          return res.status(400).json({ message: "A fase selecionada nao pertence ao curso informado" });
         }
 
         const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
@@ -1067,6 +1075,7 @@ export function exerciciosRouter(jwtSecret: string) {
           entityId: String(row.id),
           metadata: {
             titulo: row.title,
+            courseId: phaseRow.course_id,
             modulo: phaseRow.module_name,
             tema: phaseRow.phase_name,
             phaseId: row.phase_id,
@@ -1233,6 +1242,7 @@ export function exerciciosRouter(jwtSecret: string) {
           titulo,
           descricao,
           phase_id,
+          course_id,
           prazo,
           tipo_exercicio,
           video_url,
@@ -1246,6 +1256,9 @@ export function exerciciosRouter(jwtSecret: string) {
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
+        }
+        if (course_id && phaseRow.course_id !== Number(course_id)) {
+          return res.status(400).json({ message: "A fase selecionada nao pertence ao curso informado" });
         }
 
         const checkExercicioNovo = await pool.query<{ id: number }>(
@@ -1326,6 +1339,7 @@ export function exerciciosRouter(jwtSecret: string) {
           entityId: String(rowNew.id),
           metadata: {
             titulo: rowNew.title,
+            courseId: phaseRow.course_id,
             modulo: phaseRow.module_name,
             tema: phaseRow.phase_name,
             phaseId: rowNew.phase_id,

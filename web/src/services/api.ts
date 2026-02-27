@@ -296,6 +296,7 @@ export async function criarExercicio(dados: {
   titulo: string;
   descricao: string;
   phase_id: number;
+  course_id?: number;
   modulo: string;
   tema?: string | null;
   prazo?: string | null;
@@ -330,6 +331,7 @@ export async function atualizarExercicio(id: string, dados: {
   titulo: string;
   descricao: string;
   phase_id: number;
+  course_id?: number;
   modulo: string;
   tema?: string | null;
   prazo?: string | null;
