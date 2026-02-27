@@ -240,6 +240,24 @@ export type ExerciseAnswersResponse = {
   alunos: ExerciseAnswersByStudent[];
 };
 
+export type ExerciseAnswerStudent = {
+  alunoId: number;
+  alunoNome: string;
+  alunoEmail: string;
+  totalAnswers: number;
+  totalExercicios?: number;
+  lastAnsweredAt: string | null;
+};
+
+export type AnsweredExerciseByStudent = {
+  exercicioId: number;
+  exercicioTitulo: string;
+  exercicioModulo: string | null;
+  exercicioTema: string | null;
+  totalAnswers: number;
+  lastAnsweredAt: string | null;
+};
+
 export type ActivityLog = {
   id: string;
   actorId: string | null;
@@ -433,6 +451,71 @@ export async function listarAnswersExercicio(
   if (params?.sort) search.set("sort", params.sort);
   const query = search.toString();
   return apiFetch<ExerciseAnswersResponse>(`/exercicios/${exercicioId}/answers${query ? `?${query}` : ""}`);
+}
+
+export async function listarAlunosQueResponderam(exercicioId?: string) {
+  if (!exercicioId) {
+    return apiFetch<{
+      totalAlunos: number;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+      alunos: ExerciseAnswerStudent[];
+    }>("/answers/students");
+  }
+
+  return apiFetch<{
+    exercicioId: number;
+    totalAlunos: number;
+    alunos: ExerciseAnswerStudent[];
+  }>(`/exercicios/${exercicioId}/answer-students`);
+}
+
+export async function listarAlunosQueResponderamPaginado(params?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.q) search.set("q", params.q);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<{
+    totalAlunos: number;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    alunos: ExerciseAnswerStudent[];
+  }>(`/answers/students${query ? `?${query}` : ""}`);
+}
+
+export async function listarExerciciosRespondidosPorAluno(
+  alunoId: string | number,
+  params?: { q?: string; page?: number; limit?: number }
+) {
+  const search = new URLSearchParams();
+  if (params?.q) search.set("q", params.q);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<{
+    alunoId: number;
+    totalExercicios: number;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    exercicios: AnsweredExerciseByStudent[];
+  }>(`/answers/students/${alunoId}/exercises${query ? `?${query}` : ""}`);
 }
 
 export async function atualizarAnswer(

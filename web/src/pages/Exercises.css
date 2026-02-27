@@ -89,6 +89,243 @@
     0 6px 14px rgba(var(--primary-rgb), 0.28);
 }
 
+.responsesHub {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.responsesToolbar,
+.responsesExercisesToolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.responsesLimitSelect {
+  min-width: 140px;
+}
+
+.responsesFilters {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.responsesField {
+  display: grid;
+  gap: 8px;
+}
+
+.responsesFieldAction {
+  display: flex;
+  align-items: flex-end;
+}
+
+.responsesOpenBtn {
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--info-rgb), 0.35);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+}
+
+.responsesOpenBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.34);
+}
+
+.responsesOpenBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.responsesSummary {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--background-secondary);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.responsesSummaryTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--text);
+}
+
+.responsesSummaryTop span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.responsesStudentsList {
+  display: grid;
+  gap: 8px;
+}
+
+.responsesStudentItem {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.45);
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.responsesStudentItem.isOpen {
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.responsesStudentToggle {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.responsesStudentToggle:hover {
+  background: rgba(15, 23, 42, 0.18);
+}
+
+.responsesStudentChevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.responsesStudentName {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.responsesStudentEmail {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.responsesStudentMeta {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.responsesExercisesWrap {
+  border-top: 1px solid var(--line);
+  padding: 10px 12px 12px;
+}
+
+.responsesExercisesList {
+  display: grid;
+  gap: 8px;
+}
+
+.responsesExerciseItem {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.35);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.responsesExerciseTitle {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.responsesExerciseMeta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.responsesInnerLoading {
+  padding: 16px 10px;
+}
+
+.responsesOpenBtn.small {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  min-width: 130px;
+}
+
+.responsesExerciseActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.responsesDirectSelect {
+  min-width: 260px;
+  height: 40px;
+  padding: 0 10px;
+}
+
+.responsesPagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.responsesPagination span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.responsesPageBtn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(15, 23, 42, 0.75);
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.responsesPageBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .refreshBtn {
   background: linear-gradient(135deg, var(--red), var(--primary-dark));
   color: white;
@@ -1363,6 +1600,61 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
   .filterGroup input {
     height: 48px;
     min-height: 48px;
+  }
+
+  .responsesFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .responsesToolbar,
+  .responsesExercisesToolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .responsesFieldAction {
+    width: 100%;
+  }
+
+  .responsesOpenBtn {
+    width: 100%;
+  }
+
+  .responsesPagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .responsesPageBtn {
+    width: 100%;
+  }
+
+  .responsesStudentToggle {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .responsesStudentMeta {
+    text-align: left;
+  }
+
+  .responsesExerciseItem {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .responsesExerciseActions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .responsesDirectSelect {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .responsesOpenBtn.small {
+    width: 100%;
   }
 }
 

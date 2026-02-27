@@ -21,10 +21,35 @@ type EditingAnswer = {
   isCorrect: "true" | "false" | "null";
 };
 
+type ExerciseDetailNavState = {
+  from?: string;
+  fromSection?: "criar" | "lista" | "tarefa-diaria" | "respostas";
+  prefilterAlunoId?: string | number | null;
+  prefilterAnswerId?: string | number | null;
+  prefilterQuestionId?: string | number | null;
+};
+
 export default function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const navState = location.state as ExerciseDetailNavState | null;
+  const prefilterAlunoId = React.useMemo(() => {
+    if (navState?.prefilterAlunoId == null) return null;
+    const parsed = String(navState.prefilterAlunoId).trim();
+    if (!parsed || parsed === "todos") return null;
+    return parsed;
+  }, [navState?.prefilterAlunoId]);
+  const prefilterAnswerId = React.useMemo(() => {
+    if (navState?.prefilterAnswerId == null) return null;
+    const parsed = Number(navState.prefilterAnswerId);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [navState?.prefilterAnswerId]);
+  const prefilterQuestionId = React.useMemo(() => {
+    if (navState?.prefilterQuestionId == null) return null;
+    const parsed = Number(navState.prefilterQuestionId);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [navState?.prefilterQuestionId]);
   const role = getRole();
   const canReview = role === "admin" || role === "professor";
 
@@ -37,15 +62,15 @@ export default function ExerciseDetail() {
   const [savingBatch, setSavingBatch] = React.useState(false);
   const [editing, setEditing] = React.useState<Record<number, EditingAnswer>>({});
 
-  const [studentFilter, setStudentFilter] = React.useState<string>("todos");
-  const [questionFilter, setQuestionFilter] = React.useState<string>("todas");
+  const [studentFilter, setStudentFilter] = React.useState<string>(() => prefilterAlunoId ?? "todos");
+  const [questionFilter, setQuestionFilter] = React.useState<string>(() => (prefilterQuestionId == null ? "todas" : String(prefilterQuestionId)));
   const [statusFilter, setStatusFilter] = React.useState<"todos" | "corrigida" | "pendente">("todos");
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<"recent" | "oldest" | "student">("recent");
   const [dateFrom, setDateFrom] = React.useState("");
   const [dateTo, setDateTo] = React.useState("");
   const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(5);
+  const [limit, setLimit] = React.useState(() => (prefilterAnswerId == null ? 5 : 100));
 
   const [stats, setStats] = React.useState({
     totalAlunos: 0,
@@ -233,6 +258,44 @@ export default function ExerciseDetail() {
     void load();
   }, [load, canReview]);
 
+  React.useEffect(() => {
+    if (!prefilterAlunoId) return;
+    setStudentFilter((prev) => (prev === prefilterAlunoId ? prev : prefilterAlunoId));
+    setPage(1);
+  }, [prefilterAlunoId, id]);
+
+  React.useEffect(() => {
+    if (prefilterQuestionId == null) return;
+    setQuestionFilter(String(prefilterQuestionId));
+  }, [prefilterQuestionId, id]);
+
+  React.useEffect(() => {
+    if (studentFilter === "todos") return;
+    const alunoId = Number(studentFilter);
+    if (!Number.isFinite(alunoId)) return;
+    if (!alunos.some((aluno) => aluno.alunoId === alunoId)) return;
+    setOpenStudentIds((prev) => {
+      if (prev.size === 1 && prev.has(alunoId)) return prev;
+      return new Set([alunoId]);
+    });
+  }, [alunos, studentFilter]);
+
+  React.useEffect(() => {
+    if (prefilterAnswerId == null) return;
+    const alunoComResposta = alunos.find((aluno) =>
+      aluno.answers.some((resposta) => resposta.id === prefilterAnswerId)
+    );
+    if (!alunoComResposta) return;
+    setOpenStudentIds((prev) => {
+      if (prev.size === 1 && prev.has(alunoComResposta.alunoId)) return prev;
+      return new Set([alunoComResposta.alunoId]);
+    });
+    setOpenAnswerIds((prev) => {
+      if (prev.size === 1 && prev.has(prefilterAnswerId)) return prev;
+      return new Set([prefilterAnswerId]);
+    });
+  }, [alunos, prefilterAnswerId]);
+
   async function salvarAnswer(answerId: number) {
     if (legacyMode) return;
     const data = editing[answerId];
@@ -373,10 +436,6 @@ export default function ExerciseDetail() {
   }
 
   function handleBack() {
-    const navState = location.state as
-      | { from?: string; fromSection?: "criar" | "lista" | "tarefa-diaria" }
-      | null;
-
     if (navState?.from === "/dashboard/exercicios") {
       navigate("/dashboard/exercicios", {
         state: navState.fromSection ? { restoreSection: navState.fromSection } : null,

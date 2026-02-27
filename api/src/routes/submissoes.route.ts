@@ -712,6 +712,242 @@ export function submissoesRouter(jwtSecret: string) {
     }
   );
 
+  // GET /exercicios/:exercicioId/answer-students - Lista alunos que já responderam
+  router.get(
+    "/exercicios/:exercicioId/answer-students",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const exercicioId = Number(req.params.exercicioId);
+      if (!Number.isFinite(exercicioId)) {
+        return res.status(400).json({ message: "ID de exercício inválido" });
+      }
+
+      try {
+        const result = await pool.query<{
+          aluno_id: number;
+          aluno_nome: string;
+          aluno_email: string;
+          total_answers: number;
+          last_answered_at: string | null;
+        }>(
+          `SELECT
+             u.id AS aluno_id,
+             u.name AS aluno_nome,
+             u.email AS aluno_email,
+             COUNT(*)::int AS total_answers,
+             MAX(a.answered_at) AS last_answered_at
+           FROM answer a
+           JOIN "user" u ON u.id = a.user_id
+           WHERE a.exercise_id = $1
+           GROUP BY u.id, u.name, u.email
+           ORDER BY u.name ASC`,
+          [exercicioId]
+        );
+
+        return res.json({
+          exercicioId,
+          totalAlunos: result.rows.length,
+          alunos: result.rows.map((row) => ({
+            alunoId: row.aluno_id,
+            alunoNome: row.aluno_nome,
+            alunoEmail: row.aluno_email,
+            totalAnswers: row.total_answers,
+            lastAnsweredAt: row.last_answered_at,
+          })),
+        });
+      } catch (error) {
+        console.error("Erro ao buscar alunos com respostas:", error);
+        return res.status(500).json({ message: "Erro ao buscar alunos com respostas" });
+      }
+    }
+  );
+
+  // GET /answers/students - Lista todos os alunos que já responderam (tabela answer)
+  router.get(
+    "/answers/students",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      try {
+        const page = Math.max(1, Number(req.query.page ?? 1) || 1);
+        const limitRaw = Math.max(1, Number(req.query.limit ?? 12) || 12);
+        const limit = Math.min(100, limitRaw);
+        const offset = (page - 1) * limit;
+        const q = String(req.query.q ?? "").trim();
+
+        const params: any[] = [];
+        const where: string[] = ["1=1"];
+        if (q) {
+          params.push(`%${q}%`);
+          const p = `$${params.length}`;
+          where.push(`(u.name ILIKE ${p} OR u.email ILIKE ${p})`);
+        }
+
+        const countResult = await pool.query<{ total: number }>(
+          `SELECT COUNT(*)::int AS total
+           FROM (
+             SELECT u.id
+             FROM answer a
+             JOIN "user" u ON u.id = a.user_id
+             WHERE ${where.join(" AND ")}
+             GROUP BY u.id
+           ) x`,
+          params
+        );
+
+        const listParams = [...params, limit, offset];
+        const result = await pool.query<{
+          aluno_id: number;
+          aluno_nome: string;
+          aluno_email: string;
+          total_answers: number;
+          total_exercicios: number;
+          last_answered_at: string | null;
+        }>(
+          `SELECT
+             u.id AS aluno_id,
+             u.name AS aluno_nome,
+             u.email AS aluno_email,
+             COUNT(*)::int AS total_answers,
+             COUNT(DISTINCT a.exercise_id)::int AS total_exercicios,
+             MAX(a.answered_at) AS last_answered_at
+           FROM answer a
+           JOIN "user" u ON u.id = a.user_id
+           WHERE ${where.join(" AND ")}
+           GROUP BY u.id, u.name, u.email
+           ORDER BY u.name ASC
+           LIMIT $${listParams.length - 1}
+           OFFSET $${listParams.length}`,
+          listParams
+        );
+
+        const total = countResult.rows[0]?.total ?? 0;
+
+        return res.json({
+          totalAlunos: total,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+          },
+          alunos: result.rows.map((row) => ({
+            alunoId: row.aluno_id,
+            alunoNome: row.aluno_nome,
+            alunoEmail: row.aluno_email,
+            totalAnswers: row.total_answers,
+            totalExercicios: row.total_exercicios,
+            lastAnsweredAt: row.last_answered_at,
+          })),
+        });
+      } catch (error) {
+        console.error("Erro ao buscar todos os alunos com respostas:", error);
+        return res.status(500).json({ message: "Erro ao buscar todos os alunos com respostas" });
+      }
+    }
+  );
+
+  // GET /answers/students/:alunoId/exercises - Lista exercícios já respondidos por um aluno (tabela answer)
+  router.get(
+    "/answers/students/:alunoId/exercises",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const alunoId = Number(req.params.alunoId);
+      if (!Number.isFinite(alunoId)) {
+        return res.status(400).json({ message: "ID de aluno inválido" });
+      }
+
+      try {
+        const page = Math.max(1, Number(req.query.page ?? 1) || 1);
+        const limitRaw = Math.max(1, Number(req.query.limit ?? 8) || 8);
+        const limit = Math.min(100, limitRaw);
+        const offset = (page - 1) * limit;
+        const q = String(req.query.q ?? "").trim();
+
+        const params: any[] = [alunoId];
+        const where: string[] = ["a.user_id = $1"];
+        if (q) {
+          params.push(`%${q}%`);
+          const p = `$${params.length}`;
+          where.push(`(
+            COALESCE(e.title, '') ILIKE ${p}
+            OR COALESCE(m.name, '') ILIKE ${p}
+            OR COALESCE(p.name, '') ILIKE ${p}
+            OR CAST(a.exercise_id AS TEXT) ILIKE ${p}
+          )`);
+        }
+
+        const countResult = await pool.query<{ total: number }>(
+          `SELECT COUNT(*)::int AS total
+           FROM (
+             SELECT a.exercise_id
+             FROM answer a
+             LEFT JOIN exercise e ON e.id = a.exercise_id
+             LEFT JOIN phase p ON p.id = e.phase_id
+             LEFT JOIN module m ON m.id = p.module_id
+             WHERE ${where.join(" AND ")}
+             GROUP BY a.exercise_id
+           ) x`,
+          params
+        );
+
+        const listParams = [...params, limit, offset];
+        const result = await pool.query<{
+          exercicio_id: number;
+          exercicio_titulo: string | null;
+          exercicio_modulo: string | null;
+          exercicio_tema: string | null;
+          total_answers: number;
+          last_answered_at: string | null;
+        }>(
+          `SELECT
+             a.exercise_id AS exercicio_id,
+             e.title AS exercicio_titulo,
+             m.name AS exercicio_modulo,
+             p.name AS exercicio_tema,
+             COUNT(*)::int AS total_answers,
+             MAX(a.answered_at) AS last_answered_at
+           FROM answer a
+           LEFT JOIN exercise e ON e.id = a.exercise_id
+           LEFT JOIN phase p ON p.id = e.phase_id
+           LEFT JOIN module m ON m.id = p.module_id
+           WHERE ${where.join(" AND ")}
+           GROUP BY a.exercise_id, e.title, m.name, p.name
+           ORDER BY MAX(a.answered_at) DESC NULLS LAST, a.exercise_id DESC
+           LIMIT $${listParams.length - 1}
+           OFFSET $${listParams.length}`,
+          listParams
+        );
+
+        const total = countResult.rows[0]?.total ?? 0;
+
+        return res.json({
+          alunoId,
+          totalExercicios: total,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+          },
+          exercicios: result.rows.map((row) => ({
+            exercicioId: row.exercicio_id,
+            exercicioTitulo: row.exercicio_titulo ?? `Exercício #${row.exercicio_id}`,
+            exercicioModulo: row.exercicio_modulo,
+            exercicioTema: row.exercicio_tema,
+            totalAnswers: row.total_answers,
+            lastAnsweredAt: row.last_answered_at,
+          })),
+        });
+      } catch (error) {
+        console.error("Erro ao buscar exercícios respondidos por aluno:", error);
+        return res.status(500).json({ message: "Erro ao buscar exercícios respondidos por aluno" });
+      }
+    }
+  );
+
   // GET /exercicios/:exercicioId/answers - Lista respostas agrupadas por aluno (schema novo)
   router.get(
     "/exercicios/:exercicioId/answers",
