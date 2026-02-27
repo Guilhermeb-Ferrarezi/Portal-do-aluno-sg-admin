@@ -410,7 +410,7 @@ export function usersRouter(jwtSecret: string) {
       try {
         const userId = Number(req.user!.sub);
         if (!req.file) {
-          return res.status(400).json({ message: "Arquivo de imagem Ã© obrigatÃ³rio" });
+          return res.status(400).json({ message: "Arquivo de imagem é obrigatório" });
         }
 
         const current = await pool.query<{ cover_photo_url: string | null }>(
@@ -419,7 +419,7 @@ export function usersRouter(jwtSecret: string) {
         );
 
         if (!current.rowCount) {
-          return res.status(404).json({ message: "UsuÃ¡rio nÃ£o encontrado" });
+          return res.status(404).json({ message: "Usuário não encontrado" });
         }
 
         const now = new Date();

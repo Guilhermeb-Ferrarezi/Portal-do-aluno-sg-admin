@@ -44,6 +44,28 @@ type ExercicioAccessRow = ExercicioRow & {
   alunos?: Array<{ id: string; nome: string; usuario: string }>;
 };
 
+type NewExerciseRow = {
+  id: number;
+  title: string;
+  description: string | null;
+  phase_id: number;
+  term_at: DBDate | null;
+  type_exercise: number | null;
+  is_daily_task: boolean;
+  video_url: string | null;
+  difficulty: number | null;
+  index_order: number | null;
+  is_final_exercise: boolean;
+  points_redeem: number | null;
+  exercise_period: DBDate | null;
+  created_at: DBDate;
+  updated_at: DBDate;
+  modulo?: string | null;
+  tema?: string | null;
+  daily_task_id?: number | null;
+  daily_task_name?: string | null;
+};
+
 type ExerciseSchemaInfo = {
   hasExercicios: boolean;
   hasTurmas: boolean;
@@ -51,6 +73,13 @@ type ExerciseSchemaInfo = {
   hasDailyTasks: boolean;
   hasExercise: boolean;
   hasExerciciosIsDailyTask: boolean;
+  hasExerciseIsDailyTask: boolean;
+  hasExerciseVideoUrl: boolean;
+  hasExerciseDifficulty: boolean;
+  hasExerciseIndexOrder: boolean;
+  hasExerciseIsFinalExercise: boolean;
+  hasExercisePointsRedeem: boolean;
+  hasExerciseExercisePeriod: boolean;
 };
 
 let exerciseSchemaInfoCache: ExerciseSchemaInfo | null = null;
@@ -64,6 +93,13 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
     has_daily_tasks: boolean;
     has_exercise: boolean;
     has_exercicios_is_daily_task: boolean;
+    has_exercise_is_daily_task: boolean;
+    has_exercise_video_url: boolean;
+    has_exercise_difficulty: boolean;
+    has_exercise_index_order: boolean;
+    has_exercise_is_final_exercise: boolean;
+    has_exercise_points_redeem: boolean;
+    has_exercise_exercise_period: boolean;
   }>(
     `SELECT
        to_regclass('public.exercicios') IS NOT NULL AS has_exercicios,
@@ -77,7 +113,56 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
          WHERE table_schema = 'public'
            AND table_name = 'exercicios'
            AND column_name = 'is_daily_task'
-       ) AS has_exercicios_is_daily_task`
+       ) AS has_exercicios_is_daily_task,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name = 'is_daily_task'
+       ) AS has_exercise_is_daily_task,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name = 'video_url'
+       ) AS has_exercise_video_url,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name = 'difficulty'
+       ) AS has_exercise_difficulty,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name = 'index_order'
+       ) AS has_exercise_index_order,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name = 'is_final_exercise'
+       ) AS has_exercise_is_final_exercise,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name = 'points_redeem'
+       ) AS has_exercise_points_redeem,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name = 'exercise_period'
+       ) AS has_exercise_exercise_period`
   );
   exerciseSchemaInfoCache = {
     hasExercicios: !!r.rows[0]?.has_exercicios,
@@ -86,14 +171,114 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
     hasDailyTasks: !!r.rows[0]?.has_daily_tasks,
     hasExercise: !!r.rows[0]?.has_exercise,
     hasExerciciosIsDailyTask: !!r.rows[0]?.has_exercicios_is_daily_task,
+    hasExerciseIsDailyTask: !!r.rows[0]?.has_exercise_is_daily_task,
+    hasExerciseVideoUrl: !!r.rows[0]?.has_exercise_video_url,
+    hasExerciseDifficulty: !!r.rows[0]?.has_exercise_difficulty,
+    hasExerciseIndexOrder: !!r.rows[0]?.has_exercise_index_order,
+    hasExerciseIsFinalExercise: !!r.rows[0]?.has_exercise_is_final_exercise,
+    hasExercisePointsRedeem: !!r.rows[0]?.has_exercise_points_redeem,
+    hasExerciseExercisePeriod: !!r.rows[0]?.has_exercise_exercise_period,
   };
   return exerciseSchemaInfoCache;
 }
 
-async function listFromNewExerciseSchema(userId: string | undefined, isAluno: boolean) {
+function getNewExerciseSelectFields(
+  schema: ExerciseSchemaInfo,
+  options: { includeDailyTaskMeta?: boolean; tableAlias?: string } = {}
+) {
+  const alias = options.tableAlias ?? "e";
+  const fields = [
+    `${alias}.id`,
+    `${alias}.title`,
+    `${alias}.description`,
+    `${alias}.phase_id`,
+    "m.name AS modulo",
+    "p.name AS tema",
+    `${alias}.term_at AS prazo`,
+    `${alias}.created_at`,
+    `${alias}.updated_at`,
+    `${alias}.type_exercise`,
+    `${schema.hasExerciseIsDailyTask ? `COALESCE(${alias}.is_daily_task, false)` : "false"} AS is_daily_task`,
+    `${schema.hasExerciseVideoUrl ? `${alias}.video_url` : "NULL::text AS video_url"}`,
+    `${schema.hasExerciseDifficulty ? `${alias}.difficulty` : "NULL::int AS difficulty"}`,
+    `${schema.hasExerciseIndexOrder ? `${alias}.index_order` : "NULL::int AS index_order"}`,
+    `${schema.hasExerciseIsFinalExercise ? `COALESCE(${alias}.is_final_exercise, false)` : "false"} AS is_final_exercise`,
+    `${schema.hasExercisePointsRedeem ? `${alias}.points_redeem` : "NULL::int AS points_redeem"}`,
+    `${schema.hasExerciseExercisePeriod ? `${alias}.exercise_period` : "NULL::timestamptz AS exercise_period"}`,
+  ];
+
+  if (options.includeDailyTaskMeta) {
+    fields.unshift(
+      schema.hasDailyTasks ? "dt.name AS daily_task_name" : "NULL::text AS daily_task_name"
+    );
+    fields.unshift(
+      schema.hasDailyTasks ? "dt.id AS daily_task_id" : "NULL::bigint AS daily_task_id"
+    );
+  }
+
+  return fields;
+}
+
+function getNewExerciseReturningFields(schema: ExerciseSchemaInfo) {
+  return [
+    "id",
+    "title",
+    "description",
+    "phase_id",
+    "term_at",
+    "type_exercise",
+    "created_at",
+    "updated_at",
+    `${schema.hasExerciseIsDailyTask ? "COALESCE(is_daily_task, false)" : "false"} AS is_daily_task`,
+    `${schema.hasExerciseVideoUrl ? "video_url" : "NULL::text AS video_url"}`,
+    `${schema.hasExerciseDifficulty ? "difficulty" : "NULL::int AS difficulty"}`,
+    `${schema.hasExerciseIndexOrder ? "index_order" : "NULL::int AS index_order"}`,
+    `${schema.hasExerciseIsFinalExercise ? "COALESCE(is_final_exercise, false)" : "false"} AS is_final_exercise`,
+    `${schema.hasExercisePointsRedeem ? "points_redeem" : "NULL::int AS points_redeem"}`,
+    `${schema.hasExerciseExercisePeriod ? "exercise_period" : "NULL::timestamptz AS exercise_period"}`,
+  ];
+}
+
+function mapNewExerciseRow(row: NewExerciseRow) {
+  return {
+    id: String(row.id),
+    titulo: row.title,
+    descricao: row.description ?? "",
+    phaseId: row.phase_id != null ? String(row.phase_id) : null,
+    modulo: row.modulo ?? "Sem modulo",
+    tema: row.tema ?? null,
+    prazo: row.term_at ?? null,
+    publishedAt: null,
+    publicado: true,
+    isDailyTask: !!row.is_daily_task,
+    tipoExercicio: mapTypeExerciseToTipoExercicio(row.type_exercise),
+    categoria: "programacao",
+    mouse_regras: null,
+    multipla_regras: null,
+    atalho_tipo: null,
+    permitir_repeticao: false,
+    maxTentativas: null,
+    penalidadePorTentativa: null,
+    intervaloReenvio: null,
+    anexoUrl: null,
+    anexoNome: null,
+    videoUrl: row.video_url ?? null,
+    difficulty: row.difficulty ?? null,
+    indexOrder: row.index_order ?? null,
+    isFinalExercise: !!row.is_final_exercise,
+    pointsRedeem: row.points_redeem ?? null,
+    exercisePeriod: row.exercise_period ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function listFromNewExerciseSchema(userId: string | undefined, isAluno: boolean, schema: ExerciseSchemaInfo) {
   const params: any[] = [];
   const where: string[] = [];
-  where.push("COALESCE(e.is_daily_task, false) = false");
+  if (schema.hasExerciseIsDailyTask) {
+    where.push("COALESCE(e.is_daily_task, false) = false");
+  }
   if (isAluno) {
     params.push(userId);
     where.push(`EXISTS (
@@ -109,16 +294,7 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
 
   const q = `
     SELECT
-      e.id,
-      e.title,
-      e.description,
-      m.name AS modulo,
-      p.name AS tema,
-      e.term_at AS prazo,
-      e.created_at,
-      e.updated_at,
-      e.type_exercise,
-      e.is_daily_task
+      ${getNewExerciseSelectFields(schema).join(",\n      ")}
     FROM exercise e
     JOIN phase p ON p.id = e.phase_id
     JOIN module m ON m.id = p.module_id
@@ -126,35 +302,30 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
     ORDER BY e.created_at DESC
   `;
 
-  const r = await pool.query(q, params);
-  return r.rows.map((row: any) => ({
-    id: String(row.id),
-    titulo: row.title,
-    descricao: row.description ?? "",
-    modulo: row.modulo ?? "Sem módulo",
-    tema: row.tema ?? null,
-    prazo: row.prazo ?? null,
-    publicado: true,
-    publishedAt: null,
-    isDailyTask: !!row.is_daily_task,
-    tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
-    categoria: "programacao",
-    mouse_regras: null,
-    multipla_regras: null,
-    atalho_tipo: null,
-    permitir_repeticao: false,
-    maxTentativas: null,
-    penalidadePorTentativa: null,
-    intervaloReenvio: null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+  const r = await pool.query<NewExerciseRow>(q, params);
+  return r.rows.map((row) => ({
+    ...mapNewExerciseRow(row),
+    tema: row.tema ?? row.daily_task_name ?? null,
+    dailyTaskId: row.daily_task_id != null ? String(row.daily_task_id) : null,
+    dailyTaskName: row.daily_task_name ?? null,
+    isDailyTask: schema.hasExerciseIsDailyTask ? !!row.is_daily_task : true,
   }));
 }
 
-async function listDailyTasksFromNewExerciseSchema(userId: string | undefined, isAluno: boolean) {
+async function listDailyTasksFromNewExerciseSchema(
+  userId: string | undefined,
+  isAluno: boolean,
+  schema: ExerciseSchemaInfo
+) {
   const params: any[] = [];
   const where: string[] = [];
-  where.push("COALESCE(e.is_daily_task, false) = true");
+  if (schema.hasExerciseIsDailyTask) {
+    where.push("COALESCE(e.is_daily_task, false) = true");
+  } else {
+    where.push(
+      "(LOWER(COALESCE(e.title, '')) LIKE 'dia %' OR LOWER(COALESCE(p.name, '')) LIKE '%tarefa diaria%')"
+    );
+  }
 
   if (isAluno) {
     params.push(userId);
@@ -171,54 +342,30 @@ async function listDailyTasksFromNewExerciseSchema(userId: string | undefined, i
 
   const q = `
     SELECT
-      dt.id AS daily_task_id,
-      dt.name AS daily_task_name,
-      e.id,
-      e.title,
-      e.description,
-      m.name AS modulo,
-      p.name AS tema,
-      e.term_at AS prazo,
-      e.created_at,
-      e.updated_at,
-      e.type_exercise,
-      e.is_daily_task
-    FROM daily_tasks dt
-    JOIN exercise e ON e.id = dt.exercise_id
-    LEFT JOIN phase p ON p.id = COALESCE(dt.phase_id, e.phase_id)
-    LEFT JOIN module m ON m.id = p.module_id
+      ${getNewExerciseSelectFields(schema, { includeDailyTaskMeta: true }).join(",\n      ")}
+    FROM exercise e
+    ${schema.hasDailyTasks ? "LEFT JOIN daily_tasks dt ON dt.exercise_id = e.id" : ""}
+    JOIN phase p ON p.id = ${schema.hasDailyTasks ? "COALESCE(dt.phase_id, e.phase_id)" : "e.phase_id"}
+    JOIN module m ON m.id = p.module_id
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-    ORDER BY e.term_at ASC NULLS LAST, dt.id DESC
+    ORDER BY e.term_at ASC NULLS LAST, e.created_at DESC
   `;
 
-  const r = await pool.query(q, params);
-  return r.rows.map((row: any) => ({
-    id: String(row.id),
-    titulo: row.title,
-    descricao: row.description ?? "",
-    modulo: row.modulo ?? "Sem mÃ³dulo",
+  const r = await pool.query<NewExerciseRow>(q, params);
+  return r.rows.map((row) => ({
+    ...mapNewExerciseRow(row),
     tema: row.tema ?? row.daily_task_name ?? null,
-    prazo: row.prazo ?? null,
-    publicado: true,
-    publishedAt: null,
-    tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
-    categoria: "programacao",
-    mouse_regras: null,
-    multipla_regras: null,
-    atalho_tipo: null,
-    permitir_repeticao: false,
-    maxTentativas: null,
-    penalidadePorTentativa: null,
-    intervaloReenvio: null,
     dailyTaskId: row.daily_task_id != null ? String(row.daily_task_id) : null,
     dailyTaskName: row.daily_task_name ?? null,
-    isDailyTask: !!row.is_daily_task,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
   }));
 }
 
-async function getFromNewExerciseSchema(id: string, userId: string | undefined, isAluno: boolean) {
+async function getFromNewExerciseSchema(
+  id: string,
+  userId: string | undefined,
+  isAluno: boolean,
+  schema: ExerciseSchemaInfo
+) {
   const params: any[] = [id];
   const where: string[] = ["e.id = $1"];
   if (isAluno) {
@@ -236,15 +383,7 @@ async function getFromNewExerciseSchema(id: string, userId: string | undefined, 
 
   const q = `
     SELECT
-      e.id,
-      e.title,
-      e.description,
-      m.name AS modulo,
-      p.name AS tema,
-      e.term_at AS prazo,
-      e.created_at,
-      e.updated_at,
-      e.type_exercise
+      ${getNewExerciseSelectFields(schema).join(",\n      ")}
     FROM exercise e
     JOIN phase p ON p.id = e.phase_id
     JOIN module m ON m.id = p.module_id
@@ -252,34 +391,9 @@ async function getFromNewExerciseSchema(id: string, userId: string | undefined, 
     LIMIT 1
   `;
 
-  const r = await pool.query(q, params);
+  const r = await pool.query<NewExerciseRow>(q, params);
   if (!r.rows[0]) return null;
-  const row: any = r.rows[0];
-  return {
-    id: String(row.id),
-    titulo: row.title,
-    descricao: row.description ?? "",
-    modulo: row.modulo ?? "Sem módulo",
-    tema: row.tema ?? null,
-    prazo: row.prazo ?? null,
-    publishedAt: null,
-    publicado: true,
-    tipoExercicio: row.type_exercise === 1 ? "texto" : "codigo",
-    gabarito: null,
-    linguagemEsperada: null,
-    categoria: "programacao",
-    mouse_regras: null,
-    multipla_regras: null,
-    atalho_tipo: null,
-    permitir_repeticao: false,
-    maxTentativas: null,
-    penalidadePorTentativa: null,
-    intervaloReenvio: null,
-    anexoUrl: null,
-    anexoNome: null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
+  return mapNewExerciseRow(r.rows[0]);
 }
 
 const allowedMimeTypes = new Set([
@@ -416,6 +530,74 @@ const createSchema = z.object({
   intervalo_reenvio: z.coerce.number().int().optional().nullable(),
 });
 
+const booleanFromInput = z.preprocess((value) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "0" || normalized === "") return false;
+  }
+  return value;
+}, z.boolean());
+
+const createNewSchema = z.object({
+  titulo: z.string().min(2, "Titulo obrigatorio"),
+  descricao: z.string().min(2, "Descricao obrigatoria"),
+  phase_id: z.coerce.number().int().positive("Fase obrigatoria"),
+  prazo: z.coerce.date().optional().nullable(),
+  tipo_exercicio: z.string().optional().nullable(),
+  video_url: z.string().trim().optional().nullable(),
+  difficulty: z.coerce.number().int().min(0).optional().nullable(),
+  index_order: z.coerce.number().int().min(0).optional().nullable(),
+  is_final_exercise: booleanFromInput.optional().nullable(),
+  is_daily_task: booleanFromInput.optional().nullable(),
+  points_redeem: z.coerce.number().int().min(0).optional().nullable(),
+  exercise_period: z.coerce.date().optional().nullable(),
+});
+
+function normalizeNewSchemaBody(body: unknown) {
+  const raw = (body ?? {}) as Record<string, unknown>;
+  return {
+    ...raw,
+    phase_id: raw.phase_id ?? raw.fase_id ?? null,
+    video_url: raw.video_url ?? raw.videoUrl ?? null,
+    index_order: raw.index_order ?? raw.indexOrder ?? null,
+    is_final_exercise: raw.is_final_exercise ?? raw.isFinalExercise ?? null,
+    is_daily_task: raw.is_daily_task ?? raw.isDailyTask ?? null,
+    points_redeem: raw.points_redeem ?? raw.pointsRedeem ?? null,
+    exercise_period: raw.exercise_period ?? raw.exercisePeriod ?? null,
+  };
+}
+
+function mapTipoExercicioToTypeExercise(tipo: string | null | undefined): number {
+  if ((tipo ?? "").toLowerCase() === "codigo") return 0;
+  return 1;
+}
+
+function mapTypeExerciseToTipoExercicio(value: unknown): TipoExercicio {
+  return Number(value) === 1 ? "texto" : "codigo";
+}
+
+async function getPhaseWithModuleById(phaseId: number) {
+  const result = await pool.query<{
+    phase_id: number;
+    phase_name: string | null;
+    module_name: string | null;
+  }>(
+    `SELECT
+       p.id AS phase_id,
+       p.name AS phase_name,
+       m.name AS module_name
+     FROM phase p
+     JOIN module m ON m.id = p.module_id
+     WHERE p.id = $1
+     LIMIT 1`,
+    [phaseId]
+  );
+  return result.rows[0] ?? null;
+}
+
 function parseIdArray(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) {
@@ -450,7 +632,7 @@ export function exerciciosRouter(jwtSecret: string) {
     const userId = req.user?.sub;
 
     if (!schema.hasExercicios) {
-      const mapped = await listFromNewExerciseSchema(userId, isAluno);
+      const mapped = await listFromNewExerciseSchema(userId, isAluno, schema);
       return res.json(mapped);
     }
 
@@ -558,10 +740,10 @@ export function exerciciosRouter(jwtSecret: string) {
     const userId = req.user?.sub;
 
     if (!schema.hasExercicios) {
-      if (!schema.hasExercise || !schema.hasDailyTasks) {
+      if (!schema.hasExercise) {
         return res.json([]);
       }
-      const mapped = await listDailyTasksFromNewExerciseSchema(userId, isAluno);
+      const mapped = await listDailyTasksFromNewExerciseSchema(userId, isAluno, schema);
       return res.json(mapped);
     }
 
@@ -675,7 +857,7 @@ export function exerciciosRouter(jwtSecret: string) {
     const { id } = req.params;
 
     if (!schema.hasExercicios) {
-      const mapped = await getFromNewExerciseSchema(String(id), req.user?.sub, isAluno);
+      const mapped = await getFromNewExerciseSchema(String(id), req.user?.sub, isAluno, schema);
       if (!mapped) return res.status(404).json({ message: "Exercício não encontrado" });
       return res.json(mapped);
     }
@@ -783,6 +965,128 @@ export function exerciciosRouter(jwtSecret: string) {
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
+      const schema = await getExerciseSchemaInfo();
+      if (!schema.hasExercicios) {
+        if (!schema.hasExercise) {
+          return res.status(500).json({ message: "Tabela exercise nao encontrada no banco" });
+        }
+
+        const parsedNew = createNewSchema.safeParse(normalizeNewSchemaBody(req.body));
+        if (!parsedNew.success) {
+          return res.status(400).json({
+            message: "Dados invalidos",
+            issues: parsedNew.error.flatten().fieldErrors,
+          });
+        }
+
+        const {
+          titulo,
+          descricao,
+          phase_id,
+          prazo,
+          tipo_exercicio,
+          video_url,
+          difficulty,
+          index_order,
+          is_final_exercise,
+          is_daily_task,
+          points_redeem,
+          exercise_period,
+        } = parsedNew.data;
+        const phaseRow = await getPhaseWithModuleById(phase_id);
+        if (!phaseRow) {
+          return res.status(404).json({ message: "Fase nao encontrada" });
+        }
+
+        const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
+        const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
+
+        const dailyTask = !!is_daily_task;
+        const finalExercise = !!is_final_exercise;
+
+        const insertColumns = ["title", "description", "phase_id", "term_at", "type_exercise"];
+        const insertValues = ["$1", "$2", "$3", "$4", "$5"];
+        const insertParams: unknown[] = [
+          titulo,
+          descricao,
+          phase_id,
+          prazo ?? null,
+          mapTipoExercicioToTypeExercise(tipoExercicio),
+        ];
+
+        if (schema.hasExerciseIsDailyTask) {
+          insertColumns.push("is_daily_task");
+          insertParams.push(dailyTask);
+          insertValues.push(`$${insertParams.length}`);
+        }
+        if (schema.hasExerciseVideoUrl) {
+          insertColumns.push("video_url");
+          insertParams.push(video_url?.trim() || null);
+          insertValues.push(`$${insertParams.length}`);
+        }
+        if (schema.hasExerciseDifficulty) {
+          insertColumns.push("difficulty");
+          insertParams.push(difficulty ?? null);
+          insertValues.push(`$${insertParams.length}`);
+        }
+        if (schema.hasExerciseIndexOrder) {
+          insertColumns.push("index_order");
+          insertParams.push(index_order ?? null);
+          insertValues.push(`$${insertParams.length}`);
+        }
+        if (schema.hasExerciseIsFinalExercise) {
+          insertColumns.push("is_final_exercise");
+          insertParams.push(finalExercise);
+          insertValues.push(`$${insertParams.length}`);
+        }
+        if (schema.hasExercisePointsRedeem) {
+          insertColumns.push("points_redeem");
+          insertParams.push(points_redeem ?? null);
+          insertValues.push(`$${insertParams.length}`);
+        }
+        if (schema.hasExerciseExercisePeriod) {
+          insertColumns.push("exercise_period");
+          insertParams.push(exercise_period ?? null);
+          insertValues.push(`$${insertParams.length}`);
+        }
+
+        const created = await pool.query<NewExerciseRow>(
+          `INSERT INTO exercise (${insertColumns.join(", ")}, created_at, updated_at)
+           VALUES (${insertValues.join(", ")}, NOW(), NOW())
+           RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`,
+          insertParams
+        );
+
+        const row = created.rows[0];
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "create",
+          entityType: "exercicio",
+          entityId: String(row.id),
+          metadata: {
+            titulo: row.title,
+            modulo: phaseRow.module_name,
+            tema: phaseRow.phase_name,
+            phaseId: row.phase_id,
+            categoria: "programacao",
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        const exercicio = mapNewExerciseRow({
+          ...row,
+          modulo: phaseRow.module_name ?? null,
+          tema: phaseRow.phase_name ?? null,
+        });
+
+        return res.status(201).json({
+          message: "Exercicio criado!",
+          exercicio,
+        });
+      }
+
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
@@ -905,6 +1209,142 @@ export function exerciciosRouter(jwtSecret: string) {
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
       const { id } = req.params;
+      const schema = await getExerciseSchemaInfo();
+
+      if (!schema.hasExercicios) {
+        if (!schema.hasExercise) {
+          return res.status(500).json({ message: "Tabela exercise nao encontrada no banco" });
+        }
+
+        const exerciseId = Number(id);
+        if (!Number.isFinite(exerciseId)) {
+          return res.status(400).json({ message: "ID de exercicio invalido" });
+        }
+
+        const parsedNew = createNewSchema.safeParse(normalizeNewSchemaBody(req.body));
+        if (!parsedNew.success) {
+          return res.status(400).json({
+            message: "Dados invalidos",
+            issues: parsedNew.error.flatten().fieldErrors,
+          });
+        }
+
+        const {
+          titulo,
+          descricao,
+          phase_id,
+          prazo,
+          tipo_exercicio,
+          video_url,
+          difficulty,
+          index_order,
+          is_final_exercise,
+          is_daily_task,
+          points_redeem,
+          exercise_period,
+        } = parsedNew.data;
+        const phaseRow = await getPhaseWithModuleById(phase_id);
+        if (!phaseRow) {
+          return res.status(404).json({ message: "Fase nao encontrada" });
+        }
+
+        const checkExercicioNovo = await pool.query<{ id: number }>(
+          `SELECT id FROM exercise WHERE id = $1 LIMIT 1`,
+          [exerciseId]
+        );
+        if (checkExercicioNovo.rows.length === 0) {
+          return res.status(404).json({ message: "Exercicio nao encontrado" });
+        }
+
+        const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
+        const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
+        const dailyTask = !!is_daily_task;
+        const finalExercise = !!is_final_exercise;
+
+        const updateSet: string[] = [
+          "title = $1",
+          "description = $2",
+          "phase_id = $3",
+          "term_at = $4",
+          "type_exercise = $5",
+        ];
+        const updateParams: unknown[] = [
+          titulo,
+          descricao,
+          phase_id,
+          prazo ?? null,
+          mapTipoExercicioToTypeExercise(tipoExercicio),
+        ];
+
+        if (schema.hasExerciseIsDailyTask) {
+          updateSet.push(`is_daily_task = $${updateParams.length + 1}`);
+          updateParams.push(dailyTask);
+        }
+        if (schema.hasExerciseVideoUrl) {
+          updateSet.push(`video_url = $${updateParams.length + 1}`);
+          updateParams.push(video_url?.trim() || null);
+        }
+        if (schema.hasExerciseDifficulty) {
+          updateSet.push(`difficulty = $${updateParams.length + 1}`);
+          updateParams.push(difficulty ?? null);
+        }
+        if (schema.hasExerciseIndexOrder) {
+          updateSet.push(`index_order = $${updateParams.length + 1}`);
+          updateParams.push(index_order ?? null);
+        }
+        if (schema.hasExerciseIsFinalExercise) {
+          updateSet.push(`is_final_exercise = $${updateParams.length + 1}`);
+          updateParams.push(finalExercise);
+        }
+        if (schema.hasExercisePointsRedeem) {
+          updateSet.push(`points_redeem = $${updateParams.length + 1}`);
+          updateParams.push(points_redeem ?? null);
+        }
+        if (schema.hasExerciseExercisePeriod) {
+          updateSet.push(`exercise_period = $${updateParams.length + 1}`);
+          updateParams.push(exercise_period ?? null);
+        }
+
+        updateSet.push("updated_at = NOW()");
+        updateParams.push(exerciseId);
+
+        const updatedNew = await pool.query<NewExerciseRow>(
+          `UPDATE exercise
+           SET ${updateSet.join(", ")}
+           WHERE id = $${updateParams.length}
+           RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`,
+          updateParams
+        );
+
+        const rowNew = updatedNew.rows[0];
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "update",
+          entityType: "exercicio",
+          entityId: String(rowNew.id),
+          metadata: {
+            titulo: rowNew.title,
+            modulo: phaseRow.module_name,
+            tema: phaseRow.phase_name,
+            phaseId: rowNew.phase_id,
+            categoria: "programacao",
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        const exercicio = mapNewExerciseRow({
+          ...rowNew,
+          modulo: phaseRow.module_name ?? null,
+          tema: phaseRow.phase_name ?? null,
+        });
+
+        return res.json({
+          message: "Exercicio atualizado!",
+          exercicio,
+        });
+      }
 
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) {

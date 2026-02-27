@@ -3,6 +3,11 @@
 .paginatedSelect {
   position: relative;
   width: 100%;
+  z-index: 2;
+}
+
+.paginatedSelect:has(.paginatedSelectPanel) {
+  z-index: 120;
 }
 
 .paginatedSelectTrigger {
@@ -46,12 +51,15 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  overflow: hidden;
+  flex: 1;
 }
 
 .paginatedSelectValue {
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .paginatedSelectValueMeta {
@@ -95,6 +103,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: min(420px, 65vh);
+  overflow: hidden;
 }
 
 .paginatedSelectSearch {
@@ -205,6 +215,42 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.paginatedPageSize {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.paginatedPageSize label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.paginatedPageSize select {
+  min-width: 72px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.paginatedPageSize select:focus {
+  border-color: var(--input-border-hover);
+}
+
+.paginatedPager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .paginatedNavBtn {

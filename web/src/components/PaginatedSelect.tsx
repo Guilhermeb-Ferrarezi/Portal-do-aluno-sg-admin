@@ -15,6 +15,8 @@ type PaginatedSelectProps = {
   placeholder?: string;
   disabled?: boolean;
   pageSize?: number;
+  pageSizeOptions?: number[];
+  allowPageSizeChange?: boolean;
   emptyText?: string;
 };
 
@@ -25,12 +27,16 @@ export default function PaginatedSelect({
   placeholder = "Selecionar",
   disabled = false,
   pageSize = 6,
+  pageSizeOptions = [5, 10, 20, 30],
+  allowPageSizeChange = true,
   emptyText = "Nenhuma opcao encontrada",
 }: PaginatedSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const [currentPageSize, setCurrentPageSize] = React.useState(pageSize);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const pageSizeId = React.useId();
 
   React.useEffect(() => {
     const handleDocClick = (event: MouseEvent) => {
@@ -48,6 +54,13 @@ export default function PaginatedSelect({
     [options, value]
   );
 
+  function cleanDisplayText(text: string | undefined) {
+    if (!text) return "";
+    // Remove replacement-char artifacts from malformed source text.
+    const replacementChar = String.fromCharCode(65533);
+    return text.split(replacementChar).join("").trim();
+  }
+
   const filtered = React.useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return options;
@@ -57,13 +70,25 @@ export default function PaginatedSelect({
     });
   }, [options, query]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  React.useEffect(() => {
+    setCurrentPageSize(pageSize);
+  }, [pageSize]);
+
+  const safePageSize = Math.max(1, currentPageSize || 1);
+  const sizeOptions = React.useMemo(() => {
+    const merged = [pageSize, ...pageSizeOptions]
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return Array.from(new Set(merged)).sort((a, b) => a - b);
+  }, [pageSize, pageSizeOptions]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / safePageSize));
   const safePage = Math.min(page, totalPages);
-  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const paged = filtered.slice((safePage - 1) * safePageSize, safePage * safePageSize);
 
   React.useEffect(() => {
     setPage(1);
-  }, [query, options.length, pageSize]);
+  }, [query, options.length, safePageSize]);
 
   return (
     <div className={`paginatedSelect ${disabled ? "isDisabled" : ""} ${!selected ? "isPlaceholder" : ""}`} ref={rootRef}>
@@ -75,9 +100,9 @@ export default function PaginatedSelect({
       >
         <span className="paginatedSelectValueWrap">
           <span className="paginatedSelectValue">
-            {selected ? selected.label : placeholder}
+            {selected ? cleanDisplayText(selected.label) : cleanDisplayText(placeholder)}
           </span>
-          {selected?.meta ? <small className="paginatedSelectValueMeta">{selected.meta}</small> : null}
+          {selected?.meta ? <small className="paginatedSelectValueMeta">{cleanDisplayText(selected.meta)}</small> : null}
         </span>
         <ChevronDown size={16} className={`paginatedSelectChevron ${open ? "isOpen" : ""}`} />
       </button>
@@ -113,33 +138,56 @@ export default function PaginatedSelect({
                   }}
                 >
                   <span className="paginatedSelectOptionMain">
-                    <span>{opt.label}</span>
+                    <span>{cleanDisplayText(opt.label)}</span>
                     {value === opt.value ? <Check size={14} className="paginatedSelectOptionCheck" /> : null}
                   </span>
-                  {opt.meta ? <small>{opt.meta}</small> : null}
+                  {opt.meta ? <small>{cleanDisplayText(opt.meta)}</small> : null}
                 </button>
               ))
             )}
           </div>
 
           <div className="paginatedSelectFooter">
-            <button
-              type="button"
-              className="paginatedNavBtn"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
-            >
-              <ChevronLeft size={14} /> Ant
-            </button>
-            <span className="pageInfo">{safePage}/{totalPages}</span>
-            <button
-              type="button"
-              className="paginatedNavBtn"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage >= totalPages}
-            >
-              Prox <ChevronRight size={14} />
-            </button>
+            {allowPageSizeChange ? (
+              <div className="paginatedPageSize">
+                <label htmlFor={pageSizeId}>Qtd</label>
+                <select
+                  id={pageSizeId}
+                  value={String(safePageSize)}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setCurrentPageSize(Number.isFinite(next) && next > 0 ? next : pageSize);
+                    setPage(1);
+                  }}
+                >
+                  {sizeOptions.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            <div className="paginatedPager">
+              <button
+                type="button"
+                className="paginatedNavBtn"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+              >
+                <ChevronLeft size={14} /> Ant
+              </button>
+              <span className="pageInfo">{safePage}/{totalPages}</span>
+              <button
+                type="button"
+                className="paginatedNavBtn"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+              >
+                Prox <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         </div>
       )}

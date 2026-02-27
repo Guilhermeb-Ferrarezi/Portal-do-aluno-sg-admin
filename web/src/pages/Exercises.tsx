@@ -1,9 +1,10 @@
-﻿import React from "react";
+import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getUserId } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
+import PaginatedSelect from "../components/PaginatedSelect";
 import MonacoEditor from "../components/MonacoEditor";
 import MouseInteractiveBox from "../components/Exercise/MouseInteractiveBox";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
@@ -14,14 +15,10 @@ import {
   Laptop,
   Monitor,
   ClipboardList,
-  Code,
   PenLine,
   ListChecks,
-  MousePointer,
-  Keyboard,
   Image,
   Trash2,
-  Plus,
   Eye,
   Settings,
   AlertTriangle,
@@ -30,7 +27,6 @@ import {
   XCircle,
   X,
   Lightbulb,
-  Users,
   User as UserIcon,
   Globe,
   Landmark,
@@ -47,6 +43,8 @@ import {
   deletarExercicio,
   listarExercicios,
   listarTarefasDiarias,
+  listarModulos,
+  listarFasesDoModulo,
   listarTurmas,
   listarAlunos,
   anexarExercicioArquivo,
@@ -58,6 +56,8 @@ import {
   type AnsweredExerciseByStudent,
   type Exercicio,
   type ExerciseAnswerStudent,
+  type Fase,
+  type Modulo,
   type Turma,
   type User,
 } from "../services/api";
@@ -130,22 +130,31 @@ export default function ExerciciosPage() {
   const [titulo, setTitulo] = React.useState("");
   const [descricao, setDescricao] = React.useState("");
   const [gabarito, setGabarito] = React.useState("");
-  const gabaritoLang = "javascript"; // Linguagem padrÃ£o, nÃ£o editÃ¡vel
-  const [modulo, setModulo] = React.useState("");
-  const [tema, setTema] = React.useState("");
+  const gabaritoLang = "javascript"; // Linguagem padrao, nao editavel
+  const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
+  const [fasesDisponiveis, setFasesDisponiveis] = React.useState<Fase[]>([]);
+  const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
+  const [faseIdSelecionada, setFaseIdSelecionada] = React.useState("");
   const [prazo, setPrazo] = React.useState(""); // datetime-local
-  const [publishNow, setPublishNow] = React.useState(true); // Publicar agora ou agendar
+  const [videoUrl, setVideoUrl] = React.useState("");
+  const [difficulty, setDifficulty] = React.useState("");
+  const [indexOrder, setIndexOrder] = React.useState("");
+  const [pointsRedeem, setPointsRedeem] = React.useState("");
+  const [exercisePeriod, setExercisePeriod] = React.useState(""); // datetime-local
+  const [isFinalExercise, setIsFinalExercise] = React.useState(false);
+  const [isDailyTask, setIsDailyTask] = React.useState(false);
+  const [publishnaow, setPublishnaow] = React.useState(true); // Publicar agora ou agendar
   const [publishedAt, setPublishedAt] = React.useState(""); // datetime-local
   const [categoria, setCategoria] = React.useState("programacao"); // programacao ou informatica
-  const [componenteInterativo, setComponenteInterativo] = React.useState("nenhum"); // nenhum, mouse, multipla, escrita, ou cÃ³digo
-  const [diaNumero, setDiaNumero] = React.useState(1); // NÃºmero do dia para componentes interativos
+  const [componenteInterativo, setComponenteInterativo] = React.useState("escrita"); // temporario: apenas escrita e multipla
+  const [diaNumero, setDiaNumero] = React.useState(1); // Numero do dia para componentes interativos
   // Regras para Mouse Interativo
   const [mouseRegras, setMouseRegras] = React.useState({
     clicksSimples: 0,
     duplosClicks: 0,
     clicksDireitos: 0,
   });
-  // Regras para MÃºltipla Escolha
+  // Regras para Multipla Escolha
   const [multiplaQuestoes, setMultiplaQuestoes] = React.useState<Array<{
     pergunta: string;
     opcoes: Array<{ letter: string; text: string }>;
@@ -160,7 +169,7 @@ export default function ExerciciosPage() {
     ],
     respostaCorreta: ""
   }]);
-  // Tipos de atalho para exercÃ­cios de atalho
+  // Tipos de atalho para Exercicios de atalho
   const [atalhoTipo, setAtalhoTipo] = React.useState<"copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar">("copiar-colar");
   const [permitirRepeticao, setPermitirRepeticao] = React.useState(false);
   const [maxTentativas, setMaxTentativas] = React.useState<string>("");
@@ -169,10 +178,6 @@ export default function ExerciciosPage() {
   const [anexosAtivo, setAnexosAtivo] = React.useState(false);
   const [anexoArquivo, setAnexoArquivo] = React.useState<File | null>(null);
   const [anexoAtual, setAnexoAtual] = React.useState<{ url: string; nome: string } | null>(null);
-  const [anexoPreviewUrl, setAnexoPreviewUrl] = React.useState<string | null>(null);
-  const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
-  const [modoAtribuicao, setModoAtribuicao] = React.useState<"turma" | "aluno">("turma");
-  const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
   const [editandoId, setEditandoId] = React.useState<string | null>(null);
@@ -204,6 +209,7 @@ export default function ExerciciosPage() {
   const [respostasDiretasPorExercicio, setRespostasDiretasPorExercicio] = React.useState<Record<string, RespostaDiretaOption[]>>({});
   const [loadingRespostasDiretas, setLoadingRespostasDiretas] = React.useState<Record<string, boolean>>({});
   const [seletorRespostaDireta, setSeletorRespostaDireta] = React.useState<Record<string, string>>({});
+  const [respostaExercicioAbertoKey, setRespostaExercicioAbertoKey] = React.useState<string | null>(null);
 
   // Filtros
   const [moduloFiltro, setModuloFiltro] = React.useState("");
@@ -217,9 +223,8 @@ export default function ExerciciosPage() {
 
   // Alunos
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
-  const [alunoFiltro, setAlunoFiltro] = React.useState("");
 
-  // PaginaÃ§Ã£o
+  // Paginacao
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
 
@@ -230,6 +235,28 @@ export default function ExerciciosPage() {
     });
     return map;
   }, [alunosDisponiveis]);
+
+  const moduloSelecionado = React.useMemo(
+    () => modulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? null,
+    [modulosDisponiveis, moduloIdSelecionado]
+  );
+
+  const faseSelecionada = React.useMemo(
+    () => fasesDisponiveis.find((f) => f.id === faseIdSelecionada) ?? null,
+    [fasesDisponiveis, faseIdSelecionada]
+  );
+
+  function toDatetimeLocal(value: string | null | undefined) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
 
   function getAlunoIds(exercicio: Exercicio): string[] {
     const alunos = Array.isArray((exercicio as any).alunos)
@@ -259,7 +286,7 @@ export default function ExerciciosPage() {
   }
 
   function formatAlunoLabel(names: string[]) {
-    if (names.length === 0) return "Aluno especÃ­fico";
+    if (names.length === 0) return "Aluno especifico";
     if (names.length === 1) return `Para: ${names[0]}`;
     if (names.length === 2) return `Para: ${names.join(", ")}`;
     return `Para: ${names[0]} +${names.length - 1}`;
@@ -269,8 +296,32 @@ export default function ExerciciosPage() {
     return `${alunoId}:${exercicioId}`;
   }
 
+  function getRespostaDiretaValue(resposta: RespostaDiretaOption) {
+    return `${resposta.answerId}:${resposta.questionId}`;
+  }
 
-  // Modal de confirmaÃ§Ã£o
+  function getRespostaDiretaLabel(resposta: RespostaDiretaOption) {
+    return `Resposta #${resposta.answerId} - Pergunta ${resposta.questionId} - ${resposta.answeredAt ? new Date(resposta.answeredAt).toLocaleDateString("pt-BR") : "Sem data"}`;
+  }
+
+  function navegarParaRespostaDireta(exercicioId: string, alunoId: string, value: string) {
+    if (!value) return;
+    const [answerIdRaw, questionIdRaw] = value.split(":");
+    const answerId = Number(answerIdRaw);
+    const questionId = Number(questionIdRaw);
+    navigate(`/dashboard/exercicios/${exercicioId}`, {
+      state: {
+        from: location.pathname,
+        fromSection: "respostas",
+        prefilterAlunoId: alunoId,
+        prefilterAnswerId: Number.isFinite(answerId) ? answerId : null,
+        prefilterQuestionId: Number.isFinite(questionId) ? questionId : null,
+      },
+    });
+  }
+
+
+  // Modal de confirmacao
   const [modalDeletar, setModalDeletar] = React.useState<{
     isOpen: boolean;
     exercicioId: string | null;
@@ -284,7 +335,7 @@ export default function ExerciciosPage() {
       const data = await listarExercicios();
       setItems(data.filter((ex) => ex.isDailyTask !== true));
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao carregar exercÃ­cios");
+      setErro(e instanceof Error ? e.message : "Erro ao carregar Exercicios");
     } finally {
       setLoading(false);
     }
@@ -298,7 +349,7 @@ export default function ExerciciosPage() {
       setDailyItems(data.filter((ex) => ex.isDailyTask !== false));
       setDailyLoaded(true);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao carregar tarefas diÃƒÂ¡rias");
+      setErro(e instanceof Error ? e.message : "Erro ao carregar tarefas diarias");
     } finally {
       setLoading(false);
     }
@@ -365,6 +416,7 @@ export default function ExerciciosPage() {
       setRespostasDiretasPorExercicio({});
       setLoadingRespostasDiretas({});
       setSeletorRespostaDireta({});
+      setRespostaExercicioAbertoKey(null);
       return;
     }
 
@@ -381,6 +433,7 @@ export default function ExerciciosPage() {
       setRespostasDiretasPorExercicio({});
       setLoadingRespostasDiretas({});
       setSeletorRespostaDireta({});
+      setRespostaExercicioAbertoKey(null);
 
       for (const exercicio of options) {
         const key = getRespostasDiretasKey(alunoId, exercicio.id);
@@ -419,13 +472,14 @@ export default function ExerciciosPage() {
       setRespostasDiretasPorExercicio({});
       setLoadingRespostasDiretas({});
       setSeletorRespostaDireta({});
+      setRespostaExercicioAbertoKey(null);
       setRespostasExercicioPagination({
         page: respostasExercicioPage,
         limit: respostasExercicioLimit,
         total: 0,
         totalPages: 1,
       });
-      setErro(e instanceof Error ? e.message : "Erro ao carregar exercÃ­cios respondidos do aluno");
+      setErro(e instanceof Error ? e.message : "Erro ao carregar Exercicios respondidos do aluno");
     } finally {
       setLoadingRespostasExercicios(false);
     }
@@ -439,6 +493,7 @@ export default function ExerciciosPage() {
       setRespostasDiretasPorExercicio({});
       setLoadingRespostasDiretas({});
       setSeletorRespostaDireta({});
+      setRespostaExercicioAbertoKey(null);
       return;
     }
     setRespostasAlunoAbertoId(alunoId);
@@ -450,8 +505,12 @@ export default function ExerciciosPage() {
   React.useEffect(() => {
     load();
 
-    // Carregar turmas e alunos disponÃ­veis se for professor/admin
+    // Carregar turmas e alunos disponiveis se for professor/admin
     if (canCreate) {
+      listarModulos()
+        .then(setModulosDisponiveis)
+        .catch((e) => console.error("Erro ao carregar modulos:", e));
+
       listarTurmas()
         .then(setTurmasDisponiveis)
         .catch((e) => console.error("Erro ao carregar turmas:", e));
@@ -461,6 +520,27 @@ export default function ExerciciosPage() {
         .catch((e) => console.error("Erro ao carregar alunos:", e));
     }
   }, []);
+
+  React.useEffect(() => {
+    if (!moduloIdSelecionado) {
+      setFasesDisponiveis([]);
+      setFaseIdSelecionada("");
+      return;
+    }
+
+    listarFasesDoModulo(moduloIdSelecionado)
+      .then((fases) => {
+        setFasesDisponiveis(fases);
+        setFaseIdSelecionada((prev) =>
+          prev && fases.some((fase) => fase.id === prev) ? prev : ""
+        );
+      })
+      .catch((e) => {
+        console.error("Erro ao carregar fases do modulo:", e);
+        setFasesDisponiveis([]);
+        setFaseIdSelecionada("");
+      });
+  }, [moduloIdSelecionado]);
 
   React.useEffect(() => {
     if (activeSection === "tarefa-diaria") {
@@ -491,18 +571,6 @@ export default function ExerciciosPage() {
     void loadExerciciosRespondidosDoAluno(respostasAlunoId);
   }, [activeSection, isStaff, respostasAlunoId, respostasExercicioFiltro, respostasExercicioPage, respostasExercicioLimit]);
 
-  React.useEffect(() => {
-    if (!anexoArquivo) {
-      setAnexoPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(anexoArquivo);
-    setAnexoPreviewUrl(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, [anexoArquivo]);
-
   async function handleSubmit() {
     try {
       setSaving(true);
@@ -511,23 +579,23 @@ export default function ExerciciosPage() {
 
       const gabaritoLimpo = gabarito.trim();
 
-      // Auto-gerar descriÃ§Ã£o se for componente interativo em InformÃ¡tica
+      // Auto-gerar descricao se for componente interativo em Informatica
       let descricaoFinal = descricao.trim();
       let tituloFinal = titulo.trim();
 
-      // Determinar o `tipoExercicio` explicitamente a partir das seleÃ§Ãµes do formulÃ¡rio
+      // Determinar o `tipoExercicio` explicitamente a partir das selecoes do formulario
       let tipoSelecionado: string | undefined = undefined;
       if (categoria === "programacao") {
         if (componenteInterativo === "") tipoSelecionado = "codigo"; // Monaco
         else tipoSelecionado = componenteInterativo || undefined;
       } else {
-        // Para informÃ¡tica, o valor vazio representa 'nenhum'
+        // Para informatica, o valor vazio representa 'nenhum'
         if (componenteInterativo === "") tipoSelecionado = "nenhum";
         else tipoSelecionado = componenteInterativo || undefined;
       }
 
       if (tipoSelecionado === "nenhum") {
-        setErro("Selecione um tipo de exercÃ­cio vÃ¡lido (nÃ£o Ã© permitido 'Nenhum').");
+        setErro("Selecione um tipo de Exercicio valido (nao - permitido 'Nenhum').");
         setSaving(false);
         return;
       }
@@ -535,26 +603,79 @@ export default function ExerciciosPage() {
       const maxTentativasNum = maxTentativas.trim() ? Number(maxTentativas) : null;
       const penalidadeNum = penalidadeTentativa.trim() ? Number(penalidadeTentativa) : 0;
       const intervaloNum = intervaloReenvio.trim() ? Number(intervaloReenvio) : null;
+      const dificuldadeNum = difficulty.trim() ? Number(difficulty) : null;
+      const ordemNum = indexOrder.trim() ? Number(indexOrder) : null;
+      const pontosNum = pointsRedeem.trim() ? Number(pointsRedeem) : null;
+      const videoUrlLimpa = videoUrl.trim();
+      const phaseIdNum = Number(faseIdSelecionada);
+
+      if (difficulty.trim() && (!Number.isInteger(dificuldadeNum) || Number(dificuldadeNum) < 0)) {
+        setErro("Dificuldade deve ser um numero inteiro maior ou igual a 0.");
+        setSaving(false);
+        return;
+      }
+      if (indexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 0)) {
+        setErro("Ordem deve ser um numero inteiro maior ou igual a 0.");
+        setSaving(false);
+        return;
+      }
+      if (pointsRedeem.trim() && (!Number.isInteger(pontosNum) || Number(pontosNum) < 0)) {
+        setErro("Pontos deve ser um numero inteiro maior ou igual a 0.");
+        setSaving(false);
+        return;
+      }
+      if (videoUrlLimpa) {
+        try {
+          // eslint-disable-next-line no-new
+          new URL(videoUrlLimpa);
+        } catch {
+          setErro("Video URL invalida.");
+          setSaving(false);
+          return;
+        }
+      }
+
+      if (!Number.isFinite(phaseIdNum) || phaseIdNum <= 0) {
+        setErro("Selecione uma fase valida antes de salvar.");
+        setSaving(false);
+        return;
+      }
+
+      const moduloNome = moduloSelecionado?.nome?.trim() ?? "";
+      const faseNome = faseSelecionada?.nome?.trim() ?? null;
+      if (!moduloNome) {
+        setErro("Selecione um modulo valido antes de salvar.");
+        setSaving(false);
+        return;
+      }
 
       const dados: any = {
         titulo: tituloFinal,
         descricao: descricaoFinal,
-        modulo: modulo.trim(),
-        tema: tema.trim() ? tema.trim() : null,
+        phase_id: phaseIdNum,
+        modulo: moduloNome,
+        tema: faseNome,
         prazo: prazo ? new Date(prazo).toISOString() : null,
-        publicado: publishNow,
-        published_at: publishNow ? null : (publishedAt ? new Date(publishedAt).toISOString() : null),
+        video_url: videoUrlLimpa || null,
+        difficulty: dificuldadeNum,
+        index_order: ordemNum,
+        is_final_exercise: isFinalExercise,
+        is_daily_task: isDailyTask,
+        points_redeem: pontosNum,
+        exercise_period: exercisePeriod ? new Date(exercisePeriod).toISOString() : null,
+        publicado: publishnaow,
+        published_at: publishnaow ? null : (publishedAt ? new Date(publishedAt).toISOString() : null),
         categoria: categoria,
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
-        // Incluir o tipo de exercÃ­cio determinado explicitamente
+        // Incluir o tipo de Exercicio determinado explicitamente
         ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
         // Adicionar regras do mouse se for componente interativo
         ...(componenteInterativo === "mouse" ? {
           mouse_regras: JSON.stringify(mouseRegras)
         } : {}),
-        // Adicionar regras de mÃºltipla escolha se for componente interativo
+        // Adicionar regras de Multipla escolha se for componente interativo
         ...(componenteInterativo === "multipla" ? {
-          multipla_regras: JSON.stringify({ questoes: multiplaQuestoes })
+          multipla_regras: JSON.stringify({ Questoes: multiplaQuestoes })
         } : {}),
         // Adicionar tipo de atalho se for componente de atalho
         ...(componenteInterativo === "atalho" ? {
@@ -566,23 +687,17 @@ export default function ExerciciosPage() {
         intervalo_reenvio: permitirRepeticao ? intervaloNum : null,
       };
 
-      if (modoAtribuicao === "turma" && turmasSelecionadas.length > 0) {
-        dados.turma_ids = turmasSelecionadas;
-      } else if (modoAtribuicao === "aluno" && alunosSelecionados.length > 0) {
-        dados.aluno_ids = alunosSelecionados;
-      }
-
       let exercicioId = editandoId;
       if (editandoId) {
-        // Atualizar exercÃ­cio existente
+        // Atualizar Exercicio existente
         await atualizarExercicio(editandoId, dados);
-        setOkMsg("ExercÃ­cio atualizado!");
+        setOkMsg("Exercicio atualizado!");
         setEditandoId(null);
       } else {
-        // Criar novo exercÃ­cio
+        // Criar novo Exercicio
         const created = await criarExercicio(dados);
         exercicioId = (created as any)?.exercicio?.id ?? null;
-        setOkMsg("ExercÃ­cio criado!");
+        setOkMsg("Exercicio criado!");
       }
 
       if (exercicioId) {
@@ -600,13 +715,20 @@ export default function ExerciciosPage() {
       setTitulo("");
       setDescricao("");
       setGabarito("");
-      setModulo("");
-      setTema("");
+      setModuloIdSelecionado("");
+      setFaseIdSelecionada("");
       setPrazo("");
-      setPublishNow(true);
+      setVideoUrl("");
+      setDifficulty("");
+      setIndexOrder("");
+      setPointsRedeem("");
+      setExercisePeriod("");
+      setIsFinalExercise(false);
+      setIsDailyTask(false);
+      setPublishnaow(true);
       setPublishedAt("");
       setCategoria("programacao");
-      setComponenteInterativo("");
+      setComponenteInterativo("escrita");
       setDiaNumero(1);
       setMouseRegras({ clicksSimples: 0, duplosClicks: 0, clicksDireitos: 0 });
       setAtalhoTipo("copiar-colar");
@@ -617,9 +739,6 @@ export default function ExerciciosPage() {
       setAnexosAtivo(false);
       setAnexoArquivo(null);
       setAnexoAtual(null);
-      setTurmasSelecionadas([]);
-      setAlunosSelecionados([]);
-      setModoAtribuicao("turma");
       setMultiplaQuestoes([{
         pergunta: "",
         opcoes: [
@@ -630,14 +749,13 @@ export default function ExerciciosPage() {
         ],
         respostaCorreta: ""
       }]);
-      setTurmasSelecionadas([]);
 
       await load();
       if (dailyLoaded) {
         await loadDailyTasks();
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao salvar exercÃ­cio");
+      setErro(e instanceof Error ? e.message : "Erro ao salvar Exercicio");
     } finally {
       setSaving(false);
     }
@@ -653,21 +771,28 @@ export default function ExerciciosPage() {
     setAnexoAtual(
       exercicio.anexoUrl ? { url: exercicio.anexoUrl, nome: exercicio.anexoNome || "Anexo" } : null
     );
-    setModulo(exercicio.modulo);
-    setTema(exercicio.tema || "");
+    const moduloNormalizado = (exercicio.modulo || "").trim().toLowerCase();
+    const moduloEncontrado =
+      modulosDisponiveis.find((m) => m.nome.trim().toLowerCase() === moduloNormalizado) ??
+      modulosDisponiveis.find((m) => m.nome.trim().toLowerCase().includes(moduloNormalizado));
+    setModuloIdSelecionado(moduloEncontrado?.id ?? "");
+    setFaseIdSelecionada(exercicio.phaseId ? String(exercicio.phaseId) : "");
+    setVideoUrl(exercicio.videoUrl ?? "");
+    setDifficulty(exercicio.difficulty !== null && exercicio.difficulty !== undefined ? String(exercicio.difficulty) : "");
+    setIndexOrder(exercicio.indexOrder !== null && exercicio.indexOrder !== undefined ? String(exercicio.indexOrder) : "");
+    setPointsRedeem(
+      exercicio.pointsRedeem !== null && exercicio.pointsRedeem !== undefined
+        ? String(exercicio.pointsRedeem)
+        : ""
+    );
+    setExercisePeriod(toDatetimeLocal(exercicio.exercisePeriod));
+    setIsFinalExercise(exercicio.isFinalExercise === true);
+    setIsDailyTask(exercicio.isDailyTask === true);
 
     // Converter data de ISO para formato datetime-local
-    if (exercicio.prazo) {
-      const date = new Date(exercicio.prazo);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      setPrazo(`${year}-${month}-${day}T${hours}:${minutes}`);
-    }
+    setPrazo(toDatetimeLocal(exercicio.prazo));
 
-    // PublicaÃ§Ã£o imediata vs agendada vs rascunho
+    // Publicacao imediata vs agendada vs rascunho
     if (exercicio.publishedAt) {
       const pubDate = new Date(exercicio.publishedAt);
       if (pubDate > new Date()) {
@@ -676,32 +801,15 @@ export default function ExerciciosPage() {
         const day = String(pubDate.getDate()).padStart(2, "0");
         const hours = String(pubDate.getHours()).padStart(2, "0");
         const minutes = String(pubDate.getMinutes()).padStart(2, "0");
-        setPublishNow(false);
+        setPublishnaow(false);
         setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
       } else {
-        setPublishNow(exercicio.publicado !== false);
+        setPublishnaow(exercicio.publicado !== false);
         setPublishedAt("");
       }
     } else {
-      setPublishNow(exercicio.publicado !== false);
+      setPublishnaow(exercicio.publicado !== false);
       setPublishedAt("");
-    }
-
-    // Carregar turmas do exercÃ­cio se existirem
-    if (exercicio.turmas) {
-      setTurmasSelecionadas(exercicio.turmas.map((t) => t.id));
-    } else {
-      setTurmasSelecionadas([]);
-    }
-
-    const alunoIds = getAlunoIds(exercicio);
-    if (alunoIds.length > 0) {
-      setModoAtribuicao("aluno");
-      setAlunosSelecionados(alunoIds);
-      setTurmasSelecionadas([]);
-    } else {
-      setModoAtribuicao("turma");
-      setAlunosSelecionados([]);
     }
 
     // Restaurar categoria
@@ -709,28 +817,28 @@ export default function ExerciciosPage() {
 
     // Restaurar componente interativo baseado em regras
     if (exercicio.mouse_regras) {
-      setComponenteInterativo("mouse");
+      setComponenteInterativo("escrita");
       try {
         const regras = JSON.parse(exercicio.mouse_regras);
         setMouseRegras(regras);
       } catch (e) {
         console.error("Erro ao parsear mouse_regras:", e);
-        setComponenteInterativo("");
+        setComponenteInterativo("escrita");
       }
-    } else if (exercicio.multipla_regras) {
-      setComponenteInterativo("multipla");
-      try {
-        const regras = JSON.parse(exercicio.multipla_regras);
-        setMultiplaQuestoes(regras.questoes || []);
-      } catch (e) {
-        console.error("Erro ao parsear multipla_regras:", e);
-        setComponenteInterativo("");
-      }
+      } else if (exercicio.multipla_regras) {
+        setComponenteInterativo("multipla");
+        try {
+          const regras = JSON.parse(exercicio.multipla_regras);
+          setMultiplaQuestoes(regras.Questoes || []);
+        } catch (e) {
+          console.error("Erro ao parsear multipla_regras:", e);
+          setComponenteInterativo("escrita");
+        }
     } else if (exercicio.atalho_tipo) {
-      setComponenteInterativo("atalho");
+      setComponenteInterativo("escrita");
       setAtalhoTipo(exercicio.atalho_tipo as "copiar-colar" | "copiar-colar-imagens" | "selecionar-deletar");
     } else {
-      setComponenteInterativo("");
+      setComponenteInterativo("escrita");
     }
 
     setPermitirRepeticao(exercicio.permitir_repeticao ?? false);
@@ -742,8 +850,8 @@ export default function ExerciciosPage() {
     );
     setIntervaloReenvio(exercicio.intervaloReenvio ? String(exercicio.intervaloReenvio) : "");
 
-    // Restaurar estado de publicaÃ§Ã£o
-    setPublishNow(exercicio.publicado !== false);
+    // Restaurar estado de Publicacao
+    setPublishnaow(exercicio.publicado !== false);
     if (exercicio.publishedAt) {
       const date = new Date(exercicio.publishedAt);
       const year = date.getFullYear();
@@ -756,7 +864,7 @@ export default function ExerciciosPage() {
       setPublishedAt("");
     }
 
-    // Restaurar diaNumero do tÃ­tulo (se aplicÃ¡vel)
+    // Restaurar diaNumero do Titulo (se aplicavel)
     const diaMatch = exercicio.titulo.match(/^Dia (\d+):/);
     if (diaMatch) {
       setDiaNumero(parseInt(diaMatch[1], 10));
@@ -768,7 +876,7 @@ export default function ExerciciosPage() {
     setOkMsg(null);
     setErro(null);
 
-    // Scroll atÃ© o formulÃ¡rio
+    // Scroll ate o formulario
     setTimeout(() => {
       const formElement = document.querySelector(".createExerciseCard");
       formElement?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -780,13 +888,20 @@ export default function ExerciciosPage() {
     setTitulo("");
     setDescricao("");
     setGabarito("");
-    setModulo("");
-    setTema("");
+    setModuloIdSelecionado("");
+    setFaseIdSelecionada("");
     setPrazo("");
-    setPublishNow(true);
+    setVideoUrl("");
+    setDifficulty("");
+    setIndexOrder("");
+    setPointsRedeem("");
+    setExercisePeriod("");
+    setIsFinalExercise(false);
+    setIsDailyTask(false);
+    setPublishnaow(true);
     setPublishedAt("");
     setCategoria("programacao");
-    setComponenteInterativo("");
+    setComponenteInterativo("escrita");
     setDiaNumero(1);
     setAtalhoTipo("copiar-colar");
     setPermitirRepeticao(false);
@@ -804,7 +919,6 @@ export default function ExerciciosPage() {
       ],
       respostaCorreta: ""
     }]);
-    setTurmasSelecionadas([]);
     setEditandoId(null);
     setOkMsg(null);
   }
@@ -826,7 +940,7 @@ export default function ExerciciosPage() {
       setOkMsg(null);
 
       await deletarExercicio(modalDeletar.exercicioId);
-      setOkMsg("ExercÃ­cio deletado com sucesso!");
+      setOkMsg("Exercicio deletado com sucesso!");
 
       fecharModalDeletar();
       await load();
@@ -834,24 +948,25 @@ export default function ExerciciosPage() {
         await loadDailyTasks();
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao deletar exercÃ­cio");
+      setErro(e instanceof Error ? e.message : "Erro ao deletar Exercicio");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id: string) {
-    // FunÃ§Ã£o mantida para compatibilidade, mas agora abre o modal
+    // Funao mantida para compatibilidade, mas agora abre o modal
     const exercicio = sourceItems.find((ex) => ex.id === id);
-    abrirModalDeletar(id, exercicio?.titulo || "ExercÃ­cio");
+    abrirModalDeletar(id, exercicio?.titulo || "Exercicio");
   }
 
-  // ValidaÃ§Ã£o especial para componentes interativos
+  // Validacao especial para componentes interativos
   const isInteractiveComponentInformatica = categoria === "informatica" && componenteInterativo !== "";
   const disabled =
     saving ||
-    componenteInterativo === "nenhum" || // Tipo "Nenhum" nÃ£o pode ser publicado
-    modulo.trim().length < 1 ||
+    componenteInterativo === "nenhum" || // Tipo "Nenhum" nao pode ser publicado
+    !moduloIdSelecionado ||
+    !faseIdSelecionada ||
     (!isInteractiveComponentInformatica && titulo.trim().length < 2) ||
     (!isInteractiveComponentInformatica && descricao.trim().length < 2) ||
     (componenteInterativo === "multipla" && multiplaQuestoes.some(q => !q.pergunta || !q.respostaCorreta || q.opcoes.some(o => !o.text)));
@@ -875,9 +990,9 @@ export default function ExerciciosPage() {
   }
 
   return (
-    <DashboardLayout title="ExercÃ­cios" subtitle="Veja e pratique os exercÃ­cios disponÃ­veis">
+    <DashboardLayout title="Exercicios" subtitle="Veja e pratique os exercicios disponiveis">
       <div className="exercisesContainer">
-        {/* HEADER COM BOTÃƒO */}
+        {/* HEADER COM BOTAO */}
         <div className="exercisesHeader">
           <div className="headerActions" />
           <button className="refreshBtn" onClick={handleRefresh} disabled={loading}>
@@ -896,7 +1011,7 @@ export default function ExerciciosPage() {
                 className={`exercisesTab ${activeSection === "criar" ? "active" : ""}`}
                 onClick={() => setActiveSection("criar")}
               >
-                Criar exercÃ­cios
+                Criar exercicios
               </button>
             )}
             <button
@@ -904,14 +1019,14 @@ export default function ExerciciosPage() {
               className={`exercisesTab ${activeSection === "lista" ? "active" : ""}`}
               onClick={() => setActiveSection("lista")}
             >
-              ExercÃ­cios
+              Exercicios
             </button>
             <button
               type="button"
               className={`exercisesTab ${activeSection === "tarefa-diaria" ? "active" : ""}`}
               onClick={() => setActiveSection("tarefa-diaria")}
             >
-              {iconLabel(<Calendar size={14} />, "Tarefa diÃ¡ria")}
+              {iconLabel(<Calendar size={14} />, "Tarefa diaria")}
             </button>
             {isStaff && (
               <button
@@ -944,105 +1059,34 @@ export default function ExerciciosPage() {
 
 
 
-        {/* SEÃ‡ÃƒO DE CRIAR */}
+        {/* SECAO DE CRIAR */}
         {canCreate && activeSection === "criar" && (
           <FadeInUp duration={0.28}>
             <div className="createExerciseCard">
-              <h2 className="exFormTitle">Criar novo exercÃ­cio</h2>
+              <h2 className="exFormTitle">Criar novo exercicio</h2>
 
               <div className="exFormGrid">
                 <div className="exInputGroup">
-                  <label className="exLabel">TÃ­tulo *</label>
+                  <label className="exLabel">Titulo *</label>
                   <input
                     className="exInput"
-                    placeholder="ex: ExercÃ­cio 15.3: Layout Responsivo"
+                    placeholder="ex: Exercicio 15.3: Layout Responsivo"
                     value={titulo}
                     onChange={(e) => setTitulo(e.target.value)}
                   />
                 </div>
 
                 <div className="exInputGroup">
-                  <label className="exLabel">DescriÃ§Ã£o *</label>
+                  <label className="exLabel">Descricao *</label>
                   <textarea
                     className="exTextarea"
-                    placeholder="Descreva o exercÃ­cio em detalhes..."
+                    placeholder="Descreva o exercicio em detalhes..."
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
                   />
                 </div>
 
-                <div className="exInputGroup">
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                    <label className="exLabel" style={{ marginBottom: 0 }}>Anexos * </label>
-                    <AnimatedToggle
-                      checked={anexosAtivo}
-                      onChange={(checked) => {
-                        setAnexosAtivo(checked);
-                        if (!checked) setAnexoArquivo(null);
-                      }}
-                    />
-                  </div>
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 6, display: "block" }}>
-                    Se ativado, vocÃª pode anexar um arquivo ao exercÃ­cio.
-                  </small>
-
-                  {anexosAtivo && (
-                    <div style={{ marginTop: 12 }}>
-                      <label className="exLabel">Arquivo do exercÃ­cio</label>
-                      <label className="filePicker">
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.zip"
-                          onChange={(e) => setAnexoArquivo(e.target.files?.[0] ?? null)}
-                        />
-                        <span className="filePickerIcon">ðŸ“Ž</span>
-                        <span className="filePickerText">
-                          {anexoArquivo?.name || "Selecionar arquivo"}
-                        </span>
-                      </label>
-                      {anexoPreviewUrl && anexoArquivo && (
-                        <div className="filePreview">
-                          {anexoArquivo.type.startsWith("image/") ? (
-                            <img src={anexoPreviewUrl} alt={anexoArquivo.name} />
-                          ) : anexoArquivo.type === "application/pdf" ? (
-                            <embed src={anexoPreviewUrl} type="application/pdf" />
-                          ) : (
-                            <div className="filePreviewMeta">
-                              <div className="filePreviewName">{anexoArquivo.name}</div>
-                              <div className="filePreviewInfo">
-                                {(anexoArquivo.size / 1024).toFixed(1)} KB
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {anexoAtual?.url && !anexoArquivo && (
-                        <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
-                          <a href={anexoAtual.url} target="_blank" rel="noreferrer">
-                            {anexoAtual.nome || "Baixar anexo atual"}
-                          </a>
-                          <button
-                            type="button"
-                            style={{ marginLeft: 10, color: "var(--red)", background: "transparent", border: "none", cursor: "pointer" }}
-                            onClick={async () => {
-                              if (!editandoId) return;
-                              await removerExercicioArquivo(editandoId);
-                              setAnexoAtual(null);
-                            }}
-                          >
-                            Remover anexo
-                          </button>
-                        </div>
-                      )}
-                      {anexoArquivo && (
-                        <div style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
-                          {anexoArquivo.name} â€¢ {(anexoArquivo.size / 1024).toFixed(1)} KB
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
+                {/* Temporariamente desativado: anexos */}
                 {/* CATEGORIA - PROGRAMACAO vs INFORMATICA */}
                 <div className="exInputRow">
                   <div className="exInputGroup">
@@ -1056,7 +1100,7 @@ export default function ExerciciosPage() {
                           checked={categoria === "programacao"}
                           onChange={(e) => {
                             setCategoria(e.target.value as any);
-                            setComponenteInterativo("");
+                            setComponenteInterativo("escrita");
                           }}
                         />
                         <span className="exToggleDot" aria-hidden="true" />
@@ -1074,7 +1118,7 @@ export default function ExerciciosPage() {
                           checked={categoria === "informatica"}
                           onChange={(e) => {
                             setCategoria(e.target.value as any);
-                            setComponenteInterativo("");
+                            setComponenteInterativo("escrita");
                           }}
                         />
                         <span className="exToggleDot" aria-hidden="true" />
@@ -1090,24 +1134,8 @@ export default function ExerciciosPage() {
                 {categoria === "programacao" && (
                   <>
                     <div className="exInputGroup">
-                      <label className="exLabel">Tipo de ExercÃ­cio</label>
+                      <label className="exLabel">Tipo de Exercicio</label>
                       <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                        <AnimatedRadioLabel
-                          name="tipoExercicio"
-                          value="nenhum"
-                          checked={componenteInterativo === "nenhum"}
-                          onChange={(e) => setComponenteInterativo(e.target.value)}
-                          label="Nenhum (Normal)"
-                          icon={<ClipboardList size={14} />} 
-                        />
-                        <AnimatedRadioLabel
-                          name="tipoExercicio"
-                          value=""
-                          checked={componenteInterativo === ""}
-                          onChange={(e) => setComponenteInterativo(e.target.value)}
-                          label="CÃ³digo (Monaco)"
-                          icon={<Code size={14} />} 
-                        />
                         <AnimatedRadioLabel
                           name="tipoExercicio"
                           value="escrita"
@@ -1121,20 +1149,20 @@ export default function ExerciciosPage() {
                           value="multipla"
                           checked={componenteInterativo === "multipla"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
-                          label="MÃºltipla Escolha"
+                          label="Multipla Escolha"
                           icon={<ListChecks size={14} />} 
                         />
                       </div>
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-                        Selecione o tipo de exercÃ­cio para ProgramaÃ§Ã£o
+                        Selecione o tipo de exercicio para Programacao
                       </small>
                     </div>
 
-                    {/* GABARITO / CÃ“DIGO ESPERADO - Apenas para tipo CÃ³digo */}
+                    {/* GABARITO / Codigo ESPERADO - Apenas para tipo Codigo */}
                     {componenteInterativo === "" && (
                       <ScaleIn>
                         <div className="exInputGroup">
-                          <label className="exLabel">Gabarito / CÃ³digo esperado</label>
+                          <label className="exLabel">Gabarito / Codigo esperado</label>
                           <MonacoEditor
                             value={gabarito}
                             onChange={(v) => setGabarito(v || "")}
@@ -1143,13 +1171,13 @@ export default function ExerciciosPage() {
                             theme="dark"
                           />
                           <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                            Esse texto serÃ¡ usado para comparar se a resposta do aluno estÃ¡ parecida com o esperado.
+                            Esse texto sera usado para comparar se a resposta do aluno esta parecida com o esperado.
                           </small>
                         </div>
                       </ScaleIn>
                     )}
 
-                    {/* EXERCÃCIO DE ESCRITA - Para ProgramaÃ§Ã£o */}
+                    {/* EXERCICIO DE ESCRITA - Para Programacao */}
                     {componenteInterativo === "escrita" && (
                       <ScaleIn>
                         <div className="exInputGroup">
@@ -1158,28 +1186,28 @@ export default function ExerciciosPage() {
                             className="exInput"
                             value={gabarito}
                             onChange={(e) => setGabarito(e.target.value)}
-                            placeholder="Digite o gabarito ou resposta esperada para o exercÃ­cio de escrita..."
+                            placeholder="Digite o gabarito ou resposta esperada para o exercicio de escrita..."
                             style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
                           />
                           <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                            Este texto serÃ¡ usado como referÃªncia para avaliar a resposta do aluno.
+                            Este texto sera usado como referencia para avaliar a resposta do aluno.
                           </small>
                         </div>
                       </ScaleIn>
                     )}
 
-                    {/* QUESTÃ•ES DE MÃšLTIPLA ESCOLHA - Para ProgramaÃ§Ã£o */}
+                    {/* QUESTOES DE MULTIPLA ESCOLHA - Para Programacao */}
                     {componenteInterativo === "multipla" && (
                       <ScaleIn>
                         <>
                           <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", margin: "0 0 12px 0" }}>
-                              {iconLabel(<ListChecks size={14} />, "Configurar QuestÃµes de MÃºltipla Escolha:")}
+                              {iconLabel(<ListChecks size={14} />, "Configurar Questoes de Multipla Escolha:")}
                             </p>
 
                             {multiplaQuestoes.map((questao, qIndex) => (
                               <div key={qIndex} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
-                                <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>QuestÃ£o {qIndex + 1}</h4>
+                                <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questao {qIndex + 1}</h4>
 
                                 <div style={{ marginBottom: "8px" }}>
                                   <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Pergunta:</label>
@@ -1188,16 +1216,16 @@ export default function ExerciciosPage() {
                                     type="text"
                                     value={questao.pergunta}
                                     onChange={(e) => {
-                                      const novas = [...multiplaQuestoes];
-                                      novas[qIndex].pergunta = e.target.value;
-                                      setMultiplaQuestoes(novas);
+                                      const naovas = [...multiplaQuestoes];
+                                      naovas[qIndex].pergunta = e.target.value;
+                                      setMultiplaQuestoes(naovas);
                                     }}
                                     placeholder="Digite a pergunta"
                                   />
                                 </div>
 
                                 <div style={{ marginBottom: "8px" }}>
-                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>OpÃ§Ãµes:</label>
+                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opcoes:</label>
                                   {questao.opcoes.map((opcao, oIndex) => (
                                     <input
                                       key={oIndex}
@@ -1205,11 +1233,11 @@ export default function ExerciciosPage() {
                                       type="text"
                                       value={opcao.text}
                                       onChange={(e) => {
-                                        const novas = [...multiplaQuestoes];
-                                        novas[qIndex].opcoes[oIndex].text = e.target.value;
-                                        setMultiplaQuestoes(novas);
+                                        const naovas = [...multiplaQuestoes];
+                                        naovas[qIndex].opcoes[oIndex].text = e.target.value;
+                                        setMultiplaQuestoes(naovas);
                                       }}
-                                      placeholder={`OpÃ§Ã£o ${opcao.letter}`}
+                                      placeholder={`Opcao ${opcao.letter}`}
                                       style={{ marginBottom: "6px" }}
                                     />
                                   ))}
@@ -1221,9 +1249,9 @@ export default function ExerciciosPage() {
                                     className="exSelect"
                                     value={questao.respostaCorreta}
                                     onChange={(e) => {
-                                      const novas = [...multiplaQuestoes];
-                                      novas[qIndex].respostaCorreta = e.target.value;
-                                      setMultiplaQuestoes(novas);
+                                      const naovas = [...multiplaQuestoes];
+                                      naovas[qIndex].respostaCorreta = e.target.value;
+                                      setMultiplaQuestoes(naovas);
                                     }}
                                   >
                                     <option value="">-- Selecione --</option>
@@ -1245,54 +1273,25 @@ export default function ExerciciosPage() {
                                       padding: "6px 12px",
                                       background: "#fee2e2",
                                       color: "#991b1b",
-                                      border: "none",
+                                      border: "naone",
                                       borderRadius: "4px",
                                       cursor: "pointer",
                                       fontSize: 12,
                                       fontWeight: 600,
                                     }}
                                   >
-                                    {iconLabel(<Trash2 size={14} />, "Remover QuestÃ£o")}
+                                    {iconLabel(<Trash2 size={14} />, "Remover Questao")}
                                   </button>
                                 )}
                               </div>
                             ))}
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMultiplaQuestoes([
-                                  ...multiplaQuestoes,
-                                  {
-                                    pergunta: "",
-                                    opcoes: [
-                                      { letter: "A", text: "" },
-                                      { letter: "B", text: "" },
-                                      { letter: "C", text: "" },
-                                      { letter: "D", text: "" }
-                                    ],
-                                    respostaCorreta: ""
-                                  }
-                                ]);
-                              }}
-                              style={{
-                                padding: "8px 16px",
-                                background: "#dcfce7",
-                                color: "#166534",
-                                border: "1px solid #86efac",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                                marginTop: "8px",
-                              }}
-                            >
-                              {iconLabel(<Plus size={14} />, "Adicionar Outra QuestÃ£o")}
-                            </button>
+                            {/* Temporariamente desativado: adicionar outra questao */}
                           </div>
 
                           <div style={{ background: "var(--background-secondary)", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
                             <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>
-                              {iconLabel(<Eye size={14} />, "PrÃ©-visualizaÃ§Ã£o:")}
+                              {iconLabel(<Eye size={14} />, "Pre-visualizacao:")}
                             </p>
                             {multiplaQuestoes.map((questao, idx) => (
                               <div key={idx} style={{ marginBottom: "16px" }}>
@@ -1311,20 +1310,12 @@ export default function ExerciciosPage() {
                   </>
                 )}
 
-                {/* COMPONENTES INTERATIVOS - Apenas para InformÃ¡tica */}
+                {/* COMPONENTES INTERATIVOS - Apenas para Informatica */}
                 {categoria === "informatica" && (
                   <>
                     <div className="exInputGroup">
                       <label className="exLabel">Componente Interativo</label>
                       <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
-                        <AnimatedRadioLabel
-                          name="componenteInterativoInformatica"
-                          value=""
-                          checked={componenteInterativo === ""}
-                          onChange={(e) => setComponenteInterativo(e.target.value)}
-                          label="Nenhum (Normal)"
-                          icon={<ClipboardList size={14} />} 
-                        />
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
                           value="escrita"
@@ -1335,35 +1326,19 @@ export default function ExerciciosPage() {
                         />
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
-                          value="mouse"
-                          checked={componenteInterativo === "mouse"}
-                          onChange={(e) => setComponenteInterativo(e.target.value)}
-                          label="Mouse"
-                          icon={<MousePointer size={14} />} 
-                        />
-                        <AnimatedRadioLabel
-                          name="componenteInterativoInformatica"
                           value="multipla"
                           checked={componenteInterativo === "multipla"}
                           onChange={(e) => setComponenteInterativo(e.target.value)}
-                          label="MÃºltipla Escolha"
+                          label="Multipla Escolha"
                           icon={<ListChecks size={14} />} 
-                        />
-                        <AnimatedRadioLabel
-                          name="componenteInterativoInformatica"
-                          value="atalho"
-                          checked={componenteInterativo === "atalho"}
-                          onChange={(e) => setComponenteInterativo(e.target.value)}
-                          label="Atalho"
-                          icon={<Keyboard size={14} />} 
                         />
                       </div>
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-                        Selecione o tipo de componente para InformÃ¡tica
+                        Selecione o tipo de componente para Informatica
                       </small>
                     </div>
 
-                    {/* EXERCÃCIO DE ESCRITA - Para InformÃ¡tica */}
+                    {/* EXERCICIO DE ESCRITA - Para Informatica */}
                     {componenteInterativo === "escrita" && (
                       <ScaleIn>
                         <div className="exInputGroup">
@@ -1372,17 +1347,17 @@ export default function ExerciciosPage() {
                             className="exInput"
                             value={gabarito}
                             onChange={(e) => setGabarito(e.target.value)}
-                            placeholder="Digite o gabarito ou resposta esperada para o exercÃ­cio de escrita..."
+                            placeholder="Digite o gabarito ou resposta esperada para o Exercicio de escrita..."
                             style={{ minHeight: "200px", fontFamily: "inherit", resize: "vertical" }}
                           />
                           <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                            Este texto serÃ¡ usado como referÃªncia para avaliar a resposta do aluno.
+                            Este texto sera usado como referencia para avaliar a resposta do aluno.
                           </small>
                         </div>
                       </ScaleIn>
                     )}
 
-                    {/* Campo "Dia #" quando um componente Ã© selecionado */}
+                    {/* Campo "Dia #" quando um componente ? selecionado */}
                     <ConditionalFieldAnimation isVisible={componenteInterativo !== ""}>
                       <div className="exInputGroup">
                         <label className="exLabel">Dia #</label>
@@ -1392,10 +1367,10 @@ export default function ExerciciosPage() {
                           min="1"
                           value={diaNumero}
                           onChange={(e) => setDiaNumero(parseInt(e.target.value) || 1)}
-                          placeholder="Digite o nÃºmero do dia"
+                          placeholder="Digite o Numero do dia"
                         />
                         <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                          Usado apenas para organizaÃ§Ã£o interna (nÃ£o altera o tÃ­tulo automaticamente).
+                          Usado apenas para organizacao interna (nao altera o Titulo automaticamente).
                         </small>
                       </div>
                     </ConditionalFieldAnimation>
@@ -1419,7 +1394,7 @@ export default function ExerciciosPage() {
                                 onChange={(e) => setMouseRegras({ ...mouseRegras, clicksSimples: parseInt(e.target.value) || 0 })}
                                 placeholder="Ex: 5"
                               />
-                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques simples sÃ£o necessÃ¡rios?</small>
+                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques simples sao necessarios?</small>
                             </div>
 
                             <div className="exInputGroup">
@@ -1432,7 +1407,7 @@ export default function ExerciciosPage() {
                                 onChange={(e) => setMouseRegras({ ...mouseRegras, duplosClicks: parseInt(e.target.value) || 0 })}
                                 placeholder="Ex: 3"
                               />
-                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos duplos cliques sÃ£o necessÃ¡rios?</small>
+                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos duplos cliques sao necessarios?</small>
                             </div>
 
                             <div className="exInputGroup">
@@ -1445,7 +1420,7 @@ export default function ExerciciosPage() {
                                 onChange={(e) => setMouseRegras({ ...mouseRegras, clicksDireitos: parseInt(e.target.value) || 0 })}
                                 placeholder="Ex: 2"
                               />
-                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques direitos sÃ£o necessÃ¡rios?</small>
+                              <small style={{ fontSize: 11, color: "var(--muted)" }}>Quantos cliques direitos sao necessarios?</small>
                             </div>
                           </div>
                         </div>
@@ -1465,13 +1440,13 @@ export default function ExerciciosPage() {
                           {iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}
                         </p>
                         <MouseInteractiveBox
-                          title="InteraÃ§Ã£o com Mouse"
-                          instruction="Clique, duplo-clique ou clique direito para registrar suas aÃ§Ãµes"
+                          title="Interacao com Mouse"
+                          instruction="Clique, duplo-clique ou clique direito para registrar suas acoes"
                         />
                       </div>
                     </ConditionalFieldAnimation>
 
-                    {/* FORMULÃRIO DINÃ‚MICO PARA MÃšLTIPLA ESCOLHA */}
+                    {/* FORMULARIO DINAMICO PARA MULTIPLA ESCOLHA */}
                     <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
                       <div style={{
                         background: "#f9fafb",
@@ -1481,10 +1456,10 @@ export default function ExerciciosPage() {
                         marginTop: "16px",
                       }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "16px" }}>
-                          {iconLabel(<ListChecks size={14} />, "Criar QuestÃµes")} ({multiplaQuestoes.length})
+                          {iconLabel(<ListChecks size={14} />, "Criar Questoes")} ({multiplaQuestoes.length})
                         </p>
 
-                        {/* Loop atravÃ©s de cada questÃ£o */}
+                        {/* Loop atraves de cada Questao */}
                         {multiplaQuestoes.map((questao, qIndex) => (
                           <div key={qIndex} style={{
                             background: "var(--card)",
@@ -1494,7 +1469,7 @@ export default function ExerciciosPage() {
                             marginBottom: "16px",
                           }}>
                             <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937" }}>
-                              QuestÃ£o {qIndex + 1}
+                              Questao {qIndex + 1}
                             </h4>
 
                             {/* Campo de pergunta */}
@@ -1507,9 +1482,9 @@ export default function ExerciciosPage() {
                                 placeholder="Digite a pergunta..."
                                 value={questao.pergunta}
                                 onChange={(e) => {
-                                  const novaQuestoes = [...multiplaQuestoes];
-                                  novaQuestoes[qIndex].pergunta = e.target.value;
-                                  setMultiplaQuestoes(novaQuestoes);
+                                  const naovaQuestoes = [...multiplaQuestoes];
+                                  naovaQuestoes[qIndex].pergunta = e.target.value;
+                                  setMultiplaQuestoes(naovaQuestoes);
                                 }}
                                 style={{
                                   width: "100%",
@@ -1523,20 +1498,20 @@ export default function ExerciciosPage() {
                               />
                             </div>
 
-                            {/* Campos de opÃ§Ãµes */}
+                            {/* Campos de opcoes */}
                             {questao.opcoes.map((opcao, oIndex) => (
                               <div key={oIndex} style={{ marginBottom: "12px" }}>
                                 <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
-                                  OpÃ§Ã£o {opcao.letter}
+                                  Opcao {opcao.letter}
                                 </label>
                                 <input
                                   type="text"
-                                  placeholder={`Digite a opÃ§Ã£o ${opcao.letter}...`}
+                                  placeholder={`Digite a Opcao ${opcao.letter}...`}
                                   value={opcao.text}
                                   onChange={(e) => {
-                                    const novaQuestoes = [...multiplaQuestoes];
-                                    novaQuestoes[qIndex].opcoes[oIndex].text = e.target.value;
-                                    setMultiplaQuestoes(novaQuestoes);
+                                    const naovaQuestoes = [...multiplaQuestoes];
+                                    naovaQuestoes[qIndex].opcoes[oIndex].text = e.target.value;
+                                    setMultiplaQuestoes(naovaQuestoes);
                                   }}
                                   style={{
                                     width: "100%",
@@ -1565,9 +1540,9 @@ export default function ExerciciosPage() {
                                       value={opcao.letter}
                                       checked={questao.respostaCorreta === opcao.letter}
                                       onChange={(e) => {
-                                        const novaQuestoes = [...multiplaQuestoes];
-                                        novaQuestoes[qIndex].respostaCorreta = e.target.value;
-                                        setMultiplaQuestoes(novaQuestoes);
+                                        const naovaQuestoes = [...multiplaQuestoes];
+                                        naovaQuestoes[qIndex].respostaCorreta = e.target.value;
+                                        setMultiplaQuestoes(naovaQuestoes);
                                       }}
                                       style={{ marginRight: "6px", cursor: "pointer" }}
                                     />
@@ -1577,7 +1552,7 @@ export default function ExerciciosPage() {
                               </div>
                             </div>
 
-                            {/* BotÃ£o remover questÃ£o */}
+                            {/* Botao remover Questao */}
                             {multiplaQuestoes.length > 1 && (
                               <button
                                 type="button"
@@ -1595,43 +1570,16 @@ export default function ExerciciosPage() {
                                   fontWeight: 500,
                                 }}
                               >
-                                {iconLabel(<Trash2 size={14} />, "Remover QuestÃ£o")}
+                                {iconLabel(<Trash2 size={14} />, "Remover Questao")}
                               </button>
                             )}
                           </div>
                         ))}
 
-                        {/* BotÃ£o adicionar questÃ£o */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMultiplaQuestoes([...multiplaQuestoes, {
-                              pergunta: "",
-                              opcoes: [
-                                { letter: "A", text: "" },
-                                { letter: "B", text: "" },
-                                { letter: "C", text: "" },
-                                { letter: "D", text: "" }
-                              ],
-                              respostaCorreta: ""
-                            }]);
-                          }}
-                          style={{
-                            padding: "8px 16px",
-                            background: "#dbeafe",
-                            color: "#0c4a6e",
-                            border: "1px solid #93c5fd",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: 500,
-                            marginBottom: "16px",
-                          }}
-                        >
-                          {iconLabel(<Plus size={14} />, "Adicionar Outra QuestÃ£o")}
-                        </button>
+                        {/* Botao adicionar Questao */}
+                        {/* Temporariamente desativado: adicionar outra questao */}
 
-                        {/* PREVIEW DINÃ‚MICO DA PRIMEIRA QUESTÃƒO */}
+                        {/* PREVIEW DINAMICO DA PRIMEIRA QUESTAO */}
                         {multiplaQuestoes.length > 0 && multiplaQuestoes[0].pergunta && (
                           <div style={{
                             background: "var(--card)",
@@ -1655,7 +1603,7 @@ export default function ExerciciosPage() {
                   </>
                 )}
 
-                {/* TIPO DE ATALHO - Para componente de atalho em InformÃ¡tica */}
+                {/* TIPO DE ATALHO - Para componente de atalho em Informatica */}
                 {categoria === "informatica" && componenteInterativo === "atalho" && (
                   <ScaleIn>
                     <div className="exInputGroup">
@@ -1687,13 +1635,13 @@ export default function ExerciciosPage() {
                         />
                       </div>
                       <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-                        Escolha qual atalho o aluno irÃ¡ treinar
+                        Escolha qual atalho o aluno ira treinar
                       </small>
                     </div>
                   </ScaleIn>
                 )}
 
-                {/* PERMITIR REPETIÃ‡ÃƒO */}
+                {/* PERMITIR repeticao */}
                 <div className="exInputRow">
                   <div className="exInputGroup">
                     <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
@@ -1701,10 +1649,10 @@ export default function ExerciciosPage() {
                         checked={permitirRepeticao}
                         onChange={setPermitirRepeticao}
                       />
-                      Permitir repetiÃ§Ã£o
+                      Permitir repeticao
                     </label>
                     <small style={{ color: "#666", marginTop: "4px" }}>
-                      Se ativado, alunos podem enviar mÃºltiplas respostas
+                      Se ativado, alunos podem enviar multiplas respostas
                     </small>
                   </div>
                 </div>
@@ -1750,22 +1698,38 @@ export default function ExerciciosPage() {
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">MÃ³dulo *</label>
-                    <input
-                      className="exInput"
-                      placeholder="ex: MÃ“DULO 4"
-                      value={modulo}
-                      onChange={(e) => setModulo(e.target.value)}
+                    <label className="exLabel">Modulo *</label>
+                    <PaginatedSelect
+                      value={moduloIdSelecionado}
+                      onChange={(value) => {
+                        setModuloIdSelecionado(value);
+                        setFaseIdSelecionada("");
+                      }}
+                      options={modulosDisponiveis.map((moduloOption) => ({
+                        value: moduloOption.id,
+                        label: moduloOption.nome,
+                        meta: moduloOption.indexOrder ? `Ordem #${moduloOption.indexOrder}` : undefined,
+                      }))}
+                      placeholder="Selecione um modulo"
+                      pageSize={8}
+                      emptyText="Nenhum modulo encontrado"
                     />
                   </div>
 
                   <div className="exInputGroup">
-                    <label className="exLabel">Tema</label>
-                    <input
-                      className="exInput"
-                      placeholder="ex: HTML5 e CSS3 AvanÃ§ado"
-                      value={tema}
-                      onChange={(e) => setTema(e.target.value)}
+                    <label className="exLabel">Fase *</label>
+                    <PaginatedSelect
+                      value={faseIdSelecionada}
+                      onChange={setFaseIdSelecionada}
+                      options={fasesDisponiveis.map((fase) => ({
+                        value: fase.id,
+                        label: fase.nome,
+                        meta: `Semana ${fase.weekNumber}`,
+                      }))}
+                      placeholder={moduloIdSelecionado ? "Selecione uma fase" : "Selecione um modulo primeiro"}
+                      disabled={!moduloIdSelecionado}
+                      pageSize={8}
+                      emptyText="Nenhuma fase encontrada"
                     />
                   </div>
 
@@ -1780,152 +1744,148 @@ export default function ExerciciosPage() {
                   </div>
                 </div>
 
-                {/* AGENDAMENTO DE PUBLICAÃ‡ÃƒO */}
+                <div className="exInputRow">
+                  <div className="exInputGroup">
+                    <label className="exLabel">Video URL</label>
+                    <input
+                      className="exInput"
+                      type="url"
+                      placeholder="https://..."
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                    />
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Link opcional de apoio para este exercicio.
+                    </small>
+                  </div>
+
+                  <div className="exInputGroup">
+                    <label className="exLabel">Dificuldade</label>
+                    <input
+                      className="exInput"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={difficulty}
+                      onChange={(e) => setDifficulty(e.target.value)}
+                    />
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Nivel numerico para classificar dificuldade.
+                    </small>
+                  </div>
+
+                  <div className="exInputGroup">
+                    <label className="exLabel">Ordem</label>
+                    <input
+                      className="exInput"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={indexOrder}
+                      onChange={(e) => setIndexOrder(e.target.value)}
+                    />
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Posicao manual na lista da fase (menor vem primeiro).
+                    </small>
+                  </div>
+                </div>
+
+                <div className="exInputRow">
+                  <div className="exInputGroup">
+                    <label className="exLabel">Pontos de resgate</label>
+                    <input
+                      className="exInput"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={pointsRedeem}
+                      onChange={(e) => setPointsRedeem(e.target.value)}
+                    />
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Pontos que o aluno recebe ao concluir o exercicio.
+                    </small>
+                  </div>
+
+                  <div className="exInputGroup">
+                    <label className="exLabel">Periodo do exercicio</label>
+                    <input
+                      className="exInput"
+                      type="datetime-local"
+                      value={exercisePeriod}
+                      onChange={(e) => setExercisePeriod(e.target.value)}
+                    />
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Data/hora de referencia do periodo (opcional).
+                    </small>
+                  </div>
+                </div>
+
                 <div className="exInputRow">
                   <div className="exInputGroup">
                     <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
                       <AnimatedToggle
-                        checked={publishNow}
-                        onChange={setPublishNow}
+                        checked={isFinalExercise}
+                        onChange={setIsFinalExercise}
+                      />
+                      Exercicio final
+                    </label>
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Marque se este for o exercicio de fechamento da fase.
+                    </small>
+                  </div>
+                  <div className="exInputGroup">
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                      <AnimatedToggle
+                        checked={isDailyTask}
+                        onChange={setIsDailyTask}
+                      />
+                      Tarefa diaria
+                    </label>
+                    <small style={{ color: "#666", marginTop: "4px" }}>
+                      Mostra este exercicio na aba de tarefa diaria.
+                    </small>
+                  </div>
+                </div>
+
+                {/* AGENDAMENTO DE Publicacao */}
+                <div className="exInputRow">
+                  <div className="exInputGroup">
+                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                      <AnimatedToggle
+                        checked={publishnaow}
+                        onChange={setPublishnaow}
                       />
                       Publicar agora
                     </label>
                   </div>
                 </div>
 
-                <ConditionalFieldAnimation isVisible={!publishNow}>
+                <ConditionalFieldAnimation isVisible={!publishnaow}>
                   <div className="exInputRow">
                     <div className="exInputGroup" style={{ cursor: "pointer" }}>
-                      <label className="exLabel" style={{ cursor: "pointer" }}>{iconLabel(<Calendar size={14} />, "Agendar PublicaÃ§Ã£o")}</label>
+                      <label className="exLabel" style={{ cursor: "pointer" }}>{iconLabel(<Calendar size={14} />, "Agendar Publicacao")}</label>
                       <input
                         className="exInput"
                         type="datetime-local"
                         value={publishedAt}
                         onChange={(e) => setPublishedAt(e.target.value)}
-                        required={!publishNow}
+                        required={!publishnaow}
                         style={{ cursor: "pointer" }}
                       />
                       <small style={{ color: "#666", marginTop: "4px" }}>
-                        O exercÃ­cio serÃ¡ visÃ­vel a partir dessa data e hora
+                        O Exercicio sera visivel a partir dessa data e hora
                       </small>
                     </div>
                   </div>
                 </ConditionalFieldAnimation>
 
-                {canCreate && (turmasDisponiveis.length > 0 || alunosDisponiveis.length > 0) && (
-                  <>
-                    <div className="exInputGroup">
-                      <label className="exLabel">AtribuiÃ§Ã£o</label>
-                      <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
-                          <input
-                            type="radio"
-                            name="modoAtribuicao"
-                            value="turma"
-                            checked={modoAtribuicao === "turma"}
-                            onChange={() => {
-                              setModoAtribuicao("turma");
-                              setAlunosSelecionados([]);
-                            }}
-                            style={{ marginRight: "6px", cursor: "pointer" }}
-                          />
-                          {iconLabel(<Users size={14} />, "Turma EspecÃ­fica")}
-                        </label>
-                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontSize: "14px" }}>
-                          <input
-                            type="radio"
-                            name="modoAtribuicao"
-                            value="aluno"
-                            checked={modoAtribuicao === "aluno"}
-                            onChange={() => {
-                              setModoAtribuicao("aluno");
-                              setTurmasSelecionadas([]);
-                            }}
-                            style={{ marginRight: "6px", cursor: "pointer" }}
-                          />
-                          {iconLabel(<UserIcon size={14} />, "Aluno EspecÃ­fico")}
-                        </label>
-                      </div>
-                    </div>
+                <div className="exInputGroup">
+                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                    Acesso definido por fase no novo schema. Atribuicao por aluno/turma sera adicionada depois.
+                  </small>
+                </div>
 
-                    {modoAtribuicao === "turma" && turmasDisponiveis.length > 0 && (
-                      <div className="exInputGroup">
-                        <label className="exLabel">Turmas</label>
-                        <AnimatedSelect
-                          className="exSelect"
-                          multiple
-                          value={turmasSelecionadas}
-                          onChange={(e) =>
-                            setTurmasSelecionadas(
-                              Array.from(e.target.selectedOptions, (opt) => opt.value)
-                            )
-                          }
-                          size={3}
-                        >
-                          {turmasDisponiveis.map((turma) => (
-                            <option key={turma.id} value={turma.id}>
-                              {turma.nome}
-                            </option>
-                          ))}
-                        </AnimatedSelect>
-                        <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                          Segure Ctrl/Cmd para selecionar mÃºltiplas turmas. Deixe vazio para "Todos".
-                        </small>
-                      </div>
-                    )}
-
-                    {modoAtribuicao === "aluno" && alunosDisponiveis.length > 0 && (
-                      <>
-                        <div className="exInputGroup">
-                          <label className="exLabel">Pesquisar Alunos</label>
-                          <input
-                            type="text"
-                            className="exInput"
-                            placeholder="Digite nome ou usuÃ¡rio..."
-                            value={alunoFiltro}
-                            onChange={(e) => setAlunoFiltro(e.target.value)}
-                            style={{ width: "100%" }}
-                          />
-                        </div>
-
-                        <div className="exInputGroup">
-                          <label className="exLabel">Alunos</label>
-                          <AnimatedSelect
-                            className="exSelect"
-                            multiple
-                            value={alunosSelecionados}
-                            onChange={(e) =>
-                              setAlunosSelecionados(
-                                Array.from(e.target.selectedOptions, (opt) => opt.value)
-                              )
-                            }
-                            size={3}
-                          >
-                            {alunosDisponiveis
-                              .filter(
-                                (aluno) =>
-                                  alunoFiltro === "" ||
-                                  aluno.nome.toLowerCase().includes(alunoFiltro.toLowerCase()) ||
-                                  (aluno.email ?? aluno.usuario ?? "")
-                                    .toLowerCase()
-                                    .includes(alunoFiltro.toLowerCase())
-                              )
-                              .map((aluno) => (
-                                <option key={aluno.id} value={aluno.id}>
-                                  {aluno.nome} ({aluno.email ?? aluno.usuario ?? "-"})
-                                </option>
-                              ))}
-                          </AnimatedSelect>
-                          <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                            Segure Ctrl/Cmd para selecionar mÃºltiplos alunos
-                          </small>
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-
-                {/* AVISO: Tipo "Nenhum" nÃ£o pode ser publicado */}
+                {/* AVISO: Tipo "Nenhum" nao pode ser publicado */}
                 {componenteInterativo === "nenhum" && (
                   <ConditionalFieldAnimation isVisible={true} duration={0.3}>
                     <div style={{
@@ -1938,7 +1898,7 @@ export default function ExerciciosPage() {
                       fontSize: "13px",
                       fontWeight: "500",
                     }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} /> <strong>Tipo "Nenhum"</strong></span> Ã© apenas um seletor para alunos. NÃ£o Ã© possÃ­vel publicar um exercÃ­cio com este tipo. Escolha um tipo vÃ¡lido: CÃ³digo, Escrita ou DigitaÃ§Ã£o.
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} /> <strong>Tipo "Nenhum"</strong></span> - apenas um seletor para alunos. Nao e possivel publicar um Exercicio com este tipo. Escolha um tipo valido: Codigo, Escrita ou Digitacao.
                     </div>
                   </ConditionalFieldAnimation>
                 )}
@@ -1952,8 +1912,8 @@ export default function ExerciciosPage() {
                     style={{ flex: 1 }}
                   >
                     {editandoId
-                      ? iconLabel(<Save size={16} />, "Atualizar ExercÃ­cio")
-                      : iconLabel(<Sparkles size={16} />, "Publicar ExercÃ­cio")}
+                      ? iconLabel(<Save size={16} />, "Atualizar Exercicio")
+                      : iconLabel(<Sparkles size={16} />, "Publicar Exercicio")}
                   </AnimatedButton>
                   {editandoId && (
                     <AnimatedButton
@@ -1970,8 +1930,8 @@ export default function ExerciciosPage() {
                   )}
                 </div>
 
-                <div className="exFormNote">
-                  {iconLabel(<Lightbulb size={16} />, "ExercÃ­cios podem ser publicados para turmas, alunos especÃ­ficos ou para todos.")}
+                <div className="exFormnaote">
+                  {iconLabel(<Lightbulb size={16} />, "Exercicios podem ser publicados para turmas, alunos especificos ou para todos.")}
                 </div>
               </div>
             </div>
@@ -1984,7 +1944,7 @@ export default function ExerciciosPage() {
               <input
                 className="exInput"
                 type="text"
-                placeholder="Filtrar usuários por nome ou e-mail"
+                placeholder="Filtrar usuarios por nome ou e-mail"
                 value={respostasAlunoFiltro}
                 onChange={(e) => {
                   setRespostasAlunoFiltro(e.target.value);
@@ -2003,31 +1963,38 @@ export default function ExerciciosPage() {
                   setRespostasAlunoId("");
                 }}
               >
-                <option value="5">5 por página</option>
-                <option value="10">10 por página</option>
-                <option value="20">20 por página</option>
+                                <option value="5">5 por pagina</option>
+                                <option value="10">10 por pagina</option>
+                                <option value="20">20 por pagina</option>
               </select>
             </div>
 
             {loadingRespostasAlunos ? (
               <div className="loadingState">
                 <div className="spinner" />
-                Carregando usuários...
+                Carregando usuarios...
               </div>
             ) : respostasAlunos.length === 0 ? (
-              <div className="emptyState">Nenhum usuário respondeu ainda (tabela answer).</div>
+              <div className="emptyState">Nenhum usuario respondeu ainda (tabela answer).</div>
             ) : (
               <>
                 <div className="responsesSummaryTop">
-                  <strong>{respostasAlunoPagination.total} usuário(s) com respostas</strong>
+                    {respostasAlunoPagination.total} usuario(s)
                   <span>
-                    Página {respostasAlunoPagination.page} de {respostasAlunoPagination.totalPages}
+                    Pagina {respostasAlunoPagination.page} de {respostasAlunoPagination.totalPages}
                   </span>
                 </div>
 
                 <div className="responsesStudentsList">
                   {respostasAlunos.map((aluno) => {
                     const aberto = respostasAlunoAbertoId === aluno.id;
+                    const initials = (aluno.nome || "Aluno")
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((parte) => parte.charAt(0))
+                      .join("")
+                      .toUpperCase();
                     return (
                       <div key={aluno.id} className={`responsesStudentItem ${aberto ? "isOpen" : ""}`}>
                         <button
@@ -2035,16 +2002,23 @@ export default function ExerciciosPage() {
                           className="responsesStudentToggle"
                           onClick={() => toggleRespostasAluno(aluno.id)}
                         >
-                          <div>
-                            <div className="responsesStudentName">{aluno.nome}</div>
-                            <div className="responsesStudentEmail">{aluno.email || "Sem e-mail/usuário"}</div>
+                          <div className="responsesStudentIdentity">
+                            <span className="responsesStudentAvatar" aria-hidden="true">
+                              {initials || "A"}
+                            </span>
+                            <div>
+                              <div className="responsesStudentName">{aluno.nome}</div>
+                              <div className="responsesStudentEmail">{aluno.email || "Sem e-mail/usuario"}</div>
+                            </div>
                           </div>
                           <div className="responsesStudentMeta">
-                            <span>{aluno.totalRespostas} resposta(s)</span>
-                            <span>{aluno.totalExercicios} exercício(s)</span>
-                            <span>
+                            <div className="responsesStudentMetaCounts">
+                              <span className="responsesStudentMetaBadge">{aluno.totalRespostas} resposta(s)</span>
+                              <span className="responsesStudentMetaBadge">{aluno.totalExercicios} exercicio(s)</span>
+                            </div>
+                            <span className="responsesStudentLast">
                               {aluno.lastAnsweredAt
-                                ? `Última: ${new Date(aluno.lastAnsweredAt).toLocaleDateString("pt-BR")}`
+                                ? `Ultima: ${new Date(aluno.lastAnsweredAt).toLocaleDateString("pt-BR")}`
                                 : "Sem data"}
                             </span>
                           </div>
@@ -2059,7 +2033,7 @@ export default function ExerciciosPage() {
                               <input
                                 className="exInput"
                                 type="text"
-                                placeholder="Filtrar exercícios deste usuário"
+                                placeholder="Filtrar exercicios deste usuario"
                                 value={respostasExercicioFiltro}
                                 onChange={(e) => {
                                   setRespostasExercicioFiltro(e.target.value);
@@ -2074,19 +2048,19 @@ export default function ExerciciosPage() {
                                   setRespostasExercicioPage(1);
                                 }}
                               >
-                                <option value="5">5 por página</option>
-                                <option value="10">10 por página</option>
-                                <option value="20">20 por página</option>
+                                <option value="5">5 por pagina</option>
+                                <option value="10">10 por pagina</option>
+                                <option value="20">20 por pagina</option>
                               </select>
                             </div>
 
                             {loadingRespostasExercicios ? (
                               <div className="loadingState responsesInnerLoading">
                                 <div className="spinner" />
-                                Carregando exercícios...
+                                Carregando exercicios...
                               </div>
                             ) : respostasExerciciosAluno.length === 0 ? (
-                              <div className="emptyState">Este usuário ainda não possui exercícios respondidos.</div>
+                              <div className="emptyState">Este usuario ainda nao possui exercicios respondidos.</div>
                             ) : (
                               <div className="responsesExercisesList">
                                 {respostasExerciciosAluno.map((exercicio) => {
@@ -2094,77 +2068,89 @@ export default function ExerciciosPage() {
                                   const respostasDiretas = respostasDiretasPorExercicio[directKey] ?? [];
                                   const carregandoRespostasDiretas = loadingRespostasDiretas[directKey] ?? false;
                                   const seletorValue = seletorRespostaDireta[directKey] ?? "";
+                                  const abertoExercicio = respostaExercicioAbertoKey === directKey;
 
                                   return (
-                                    <div key={exercicio.id} className="responsesExerciseItem">
-                                      <div>
-                                        <div className="responsesExerciseTitle">{exercicio.titulo}</div>
-                                        <div className="responsesExerciseMeta">
-                                          {[exercicio.modulo, exercicio.tema].filter(Boolean).join(" • ") || "Sem módulo/fase"}
+                                    <div key={exercicio.id} className={`responsesExerciseItem ${abertoExercicio ? "isOpen" : ""}`}>
+                                      <button
+                                        type="button"
+                                        className="responsesExerciseToggle"
+                                        onClick={() => setRespostaExercicioAbertoKey((prev) => (prev === directKey ? null : directKey))}
+                                        aria-expanded={abertoExercicio}
+                                      >
+                                        <div className="responsesExerciseInfo">
+                                          <div className="responsesExerciseTitle">{exercicio.titulo}</div>
+                                          <div className="responsesExerciseMeta">
+                                            {[exercicio.modulo, exercicio.tema].filter(Boolean).join(" - ") || "Sem modulo/fase"}
+                                          </div>
+                                          <div className="responsesExerciseMeta">
+                                            {exercicio.lastAnsweredAt
+                                              ? `Ultima resposta: ${new Date(exercicio.lastAnsweredAt).toLocaleString("pt-BR")}`
+                                              : "Sem data"}
+                                          </div>
                                         </div>
-                                        <div className="responsesExerciseMeta">
-                                          {exercicio.lastAnsweredAt
-                                            ? `Última resposta: ${new Date(exercicio.lastAnsweredAt).toLocaleString("pt-BR")}`
-                                            : "Sem data"}
-                                        </div>
-                                      </div>
 
-                                      <div className="responsesExerciseActions">
-                                        <select
-                                          className="exSelect responsesDirectSelect"
-                                          value={seletorValue}
-                                          onChange={(e) => {
-                                            const value = e.target.value;
-                                            setSeletorRespostaDireta((prev) => ({ ...prev, [directKey]: value }));
-                                            if (!value) return;
-                                            const [answerIdRaw, questionIdRaw] = value.split(":");
-                                            const answerId = Number(answerIdRaw);
-                                            const questionId = Number(questionIdRaw);
-                                            navigate(`/dashboard/exercicios/${exercicio.id}`, {
-                                              state: {
-                                                from: location.pathname,
-                                                fromSection: "respostas",
-                                                prefilterAlunoId: aluno.id,
-                                                prefilterAnswerId: Number.isFinite(answerId) ? answerId : null,
-                                                prefilterQuestionId: Number.isFinite(questionId) ? questionId : null,
-                                              },
-                                            });
-                                          }}
-                                          disabled={carregandoRespostasDiretas || respostasDiretas.length === 0}
-                                        >
-                                          <option value="">
-                                            {carregandoRespostasDiretas
-                                              ? "Carregando respostas..."
-                                              : respostasDiretas.length > 0
-                                                ? "Ir direto para resposta"
-                                                : "Sem respostas listadas"}
-                                          </option>
-                                          {respostasDiretas.map((resposta) => (
-                                            <option
-                                              key={resposta.answerId}
-                                              value={`${resposta.answerId}:${resposta.questionId}`}
+                                        <div className="responsesExerciseToggleMeta">
+                                          <span className="responsesStudentMetaBadge">{exercicio.totalRespostas} resposta(s)</span>
+                                          <span className="responsesStudentMetaBadge">{respostasDiretas.length} listada(s)</span>
+                                          <span className="responsesStudentChevron">
+                                            {abertoExercicio ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                          </span>
+                                        </div>
+                                      </button>
+
+                                      {abertoExercicio && (
+                                        <div className="responsesExercisePanel">
+                                          {carregandoRespostasDiretas ? (
+                                            <div className="loadingState responsesInnerLoading">
+                                              <div className="spinner" />
+                                              Carregando respostas...
+                                            </div>
+                                          ) : respostasDiretas.length === 0 ? (
+                                            <div className="emptyState">Nenhuma resposta listada para este exercicio.</div>
+                                          ) : (
+                                            <div className="responsesDirectList" role="listbox" aria-label="Respostas do exercicio">
+                                              {respostasDiretas.map((resposta) => {
+                                                const value = getRespostaDiretaValue(resposta);
+                                                const selecionada = seletorValue === value;
+
+                                                return (
+                                                  <button
+                                                    key={`${resposta.answerId}-${resposta.questionId}`}
+                                                    type="button"
+                                                    className={`responsesDirectRow ${selecionada ? "isSelected" : ""}`}
+                                                    onClick={() => {
+                                                      setSeletorRespostaDireta((prev) => ({ ...prev, [directKey]: value }));
+                                                      navegarParaRespostaDireta(exercicio.id, aluno.id, value);
+                                                    }}
+                                                  >
+                                                    <span className="responsesDirectRowLabel">{getRespostaDiretaLabel(resposta)}</span>
+                                                    {selecionada ? <span className="responsesDirectRowBadge">Selecionada</span> : null}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+
+                                          <div className="responsesExerciseActions">
+                                            <button
+                                              type="button"
+                                              className="responsesOpenBtn small"
+                                              onClick={() =>
+                                                navigate(`/dashboard/exercicios/${exercicio.id}`, {
+                                                  state: {
+                                                    from: location.pathname,
+                                                    fromSection: "respostas",
+                                                    prefilterAlunoId: aluno.id,
+                                                  },
+                                                })
+                                              }
                                             >
-                                              {`Resposta #${resposta.answerId} • Pergunta ${resposta.questionId} • ${resposta.answeredAt ? new Date(resposta.answeredAt).toLocaleDateString("pt-BR") : "Sem data"}`}
-                                            </option>
-                                          ))}
-                                        </select>
-
-                                        <button
-                                          type="button"
-                                          className="responsesOpenBtn small"
-                                          onClick={() =>
-                                            navigate(`/dashboard/exercicios/${exercicio.id}`, {
-                                              state: {
-                                                from: location.pathname,
-                                                fromSection: "respostas",
-                                                prefilterAlunoId: aluno.id,
-                                              },
-                                            })
-                                          }
-                                        >
-                                          Ver respostas
-                                        </button>
-                                      </div>
+                                              Ver respostas
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   );
                                 })}
@@ -2182,7 +2168,7 @@ export default function ExerciciosPage() {
                                   Anterior
                                 </button>
                                 <span>
-                                  Página {respostasExercicioPagination.page} de {respostasExercicioPagination.totalPages} ({respostasExercicioPagination.total} exercícios)
+                                  Pagina {respostasExercicioPagination.page} de {respostasExercicioPagination.totalPages} ({respostasExercicioPagination.total} exercicios)
                                 </span>
                                 <button
                                   type="button"
@@ -2192,7 +2178,7 @@ export default function ExerciciosPage() {
                                     setRespostasExercicioPage((p) => Math.min(respostasExercicioPagination.totalPages, p + 1))
                                   }
                                 >
-                                  Próxima
+                                  Proxima
                                 </button>
                               </div>
                             )}
@@ -2213,7 +2199,7 @@ export default function ExerciciosPage() {
                     Anterior
                   </button>
                   <span>
-                    {respostasAlunoPagination.total} usuário(s)
+                    {respostasAlunoPagination.total} usuario(s)
                   </span>
                   <button
                     type="button"
@@ -2221,24 +2207,24 @@ export default function ExerciciosPage() {
                     disabled={respostasAlunoPage >= respostasAlunoPagination.totalPages}
                     onClick={() => setRespostasAlunoPage((p) => Math.min(respostasAlunoPagination.totalPages, p + 1))}
                   >
-                    Próxima
+                                  Proxima
                   </button>
                 </div>
               </>
             )}
           </div>
         )}
-        {/* FILTROS DE EXERCÃCIOS */}
+        {/* FILTROS DE ExercicioS */}
         {(activeSection === "lista" || activeSection === "tarefa-diaria") && (
           <>
             <div className="filtersSection">
-              {/* Linha 1: Busca por tÃ­tulo */}
+              {/* Linha 1: Busca por Titulo */}
               <div className="filterRow">
                 <div className="filterGroup" style={{ flex: 1 }}>
                   <input
                     className="exInput"
                     type="text"
-                    placeholder={activeSection === "tarefa-diaria" ? "Buscar tarefa diÃ¡ria..." : "Buscar por tÃ­tulo..."}
+                    placeholder={activeSection === "tarefa-diaria" ? "Buscar tarefa diaria..." : "Buscar por Titulo..."}
                     value={buscaFiltro}
                     onChange={(e) => setBuscaFiltro(e.target.value)}
                     style={{ width: "100%" }}
@@ -2246,7 +2232,7 @@ export default function ExerciciosPage() {
                 </div>
               </div>
 
-              {/* Linha 2: MÃ³dulo, Tipo, Turmas, Aluno */}
+              {/* Linha 2: Modulo, Tipo, Turmas, Aluno */}
               <div className="filterRow" style={{ gap: "12px" }}>
                 {/* Filtro de modulo */}
                 <div className="filterGroup">
@@ -2256,7 +2242,7 @@ export default function ExerciciosPage() {
                     onChange={(e) => setModuloFiltro(e.target.value)}
                     style={{ minWidth: 160 }}
                   >
-                    <option value="">Todos os MÃ³dulos</option>
+                    <option value="">Todos os Modulos</option>
                     {Array.from(new Set(sourceItems.map((ex) => ex.modulo)))
                       .sort()
                       .map((mod) => (
@@ -2276,7 +2262,7 @@ export default function ExerciciosPage() {
                     style={{ minWidth: 160 }}
                   >
                     <option value="">Todos os Tipos</option>
-                    <option value="codigo">CÃ³digo</option>
+                    <option value="codigo">Codigo</option>
                     <option value="texto">Texto</option>
                   </select>
                 </div>
@@ -2319,24 +2305,24 @@ export default function ExerciciosPage() {
               </div>
             </div>
 
-            {/* LISTA DE EXERCÃCIOS */}
+            {/* LISTA DE ExercicioS */}
             <div>
               {loading && sourceItems.length === 0 ? (
                 <div className="loadingState">
                   <div className="spinner" />
-                  Carregando exercÃ­cios...
+                                Carregando exercicios...
                 </div>
               ) : !loading && sourceItems.length === 0 ? (
                 <div className="emptyState">
                   <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
-                  <div className="emptyTitle">Nenhum exercÃ­cio disponÃ­vel</div>
+                  <div className="emptyTitle">Nenhum Exercicio Disponivel</div>
                   <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
-                    Volte mais tarde para novos exercÃ­cios!
+                    Volte mais tarde para novos Exercicios!
                   </p>
                 </div>
               ) : (
                 <>
-                  {/* Filtros e PaginaÃ§Ã£o */}
+                  {/* Filtros e Paginacao */}
                   <div style={{ marginBottom: "16px" }}>
                     {(() => {
                       const filteredExercises = sourceItems.filter((ex) => {
@@ -2390,13 +2376,13 @@ export default function ExerciciosPage() {
                             <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
                             <div className="emptyTitle">
                               {activeSection === "tarefa-diaria"
-                                ? "Nenhuma tarefa diÃ¡ria encontrada"
-                                : "Nenhum exercÃ­cio encontrado"}
+                                ? "Nenhuma tarefa diaria encontrada"
+                                : "Nenhum Exercicio encontrado"}
                             </div>
                             <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
                               {activeSection === "tarefa-diaria"
-                                ? "Nenhuma tarefa diÃ¡ria foi retornada do banco para os filtros selecionados."
-                                : "Ajuste os filtros e tente novamente."}
+                                ? "Nenhuma tarefa diaria foi retornada do banco para os filtros selecionados."
+                                : "Ajuste os filtros e tente naovamente."}
                             </p>
                           </div>
                         );
@@ -2419,10 +2405,10 @@ export default function ExerciciosPage() {
                                 ? "Para mim"
                                 : formatAlunoLabel(alunoNames);
                               const alunoTitle = showParaMim
-                                ? "DisponÃ­vel apenas para vocÃª"
+                                ? "Disponivel apenas para vocee"
                                 : alunoNames.length > 0
-                                  ? `DisponÃ­vel apenas para: ${alunoNames.join(", ")}`
-                                  : "DisponÃ­vel para aluno(s) especÃ­fico(s)";
+                                  ? `Disponivel apenas para: ${alunoNames.join(", ")}`
+                                  : "Disponivel para aluno(s) especifico(s)";
                               const tipoInfo = getTipoInfo(ex);
 
                               return (
@@ -2467,7 +2453,7 @@ export default function ExerciciosPage() {
                                                   color: "#6b7280",
                                                   borderColor: "rgba(156, 163, 175, 0.3)"
                                                 }}
-                                                title="Rascunho - nÃ£o visÃ­vel para alunos"
+                                                title="Rascunho - nao visivel para alunos"
                                               >
                                                 Rascunho
                                               </span>
@@ -2482,7 +2468,7 @@ export default function ExerciciosPage() {
                                                   color: "#3b82f6",
                                                   borderColor: "rgba(59, 130, 246, 0.2)"
                                                 }}
-                                                title="ExercÃ­cio programado para publicaÃ§Ã£o"
+                                                title="Exercicio programado para Publicacao"
                                               >
                                                 Programado
                                               </span>
@@ -2520,7 +2506,7 @@ export default function ExerciciosPage() {
                                               e.stopPropagation();
                                               handleEdit(ex);
                                             }}
-                                            title="Editar exercÃ­cio"
+                                            title="Editar Exercicio"
                                           >
                                             <Pencil size={14} />
                                           </button>
@@ -2530,7 +2516,7 @@ export default function ExerciciosPage() {
                                               e.stopPropagation();
                                               handleDelete(ex.id);
                                             }}
-                                            title="Deletar exercÃ­cio"
+                                            title="Deletar Exercicio"
                                           >
                                             <Trash2 size={14} />
                                           </button>
@@ -2566,7 +2552,7 @@ export default function ExerciciosPage() {
                                         ))}
                                       </>
                                     ) : (
-                                      <span className="exerciseAccessBadge isAll" title="DisponÃ­vel para todos os alunos">
+                                      <span className="exerciseAccessBadge isAll" title="Disponivel para todos os alunos">
                                         {iconLabel(<Globe size={12} />, "Para Todos")}
                                       </span>
                                     )}
@@ -2594,11 +2580,11 @@ export default function ExerciciosPage() {
         )
         }
 
-        {/* MODAL DE CONFIRMAÃ‡ÃƒO PARA DELETAR */}
+        {/* MODAL DE CONFIRMACAO PARA DELETAR */}
         <ConfirmModal
           isOpen={modalDeletar.isOpen}
-          title="Deletar ExercÃ­cio"
-          message={`Tem certeza que deseja deletar "${modalDeletar.exercicioTitulo}"? Esta aÃ§Ã£o nÃ£o pode ser desfeita e todas as submissÃµes serÃ£o perdidas.`}
+          title="Deletar Exercicio"
+          message={`Tem certeza que deseja deletar "${modalDeletar.exercicioTitulo}"? Esta acao nao pode ser desfeita e todas as submissoes serao perdidas.`}
           confirmText="Deletar"
           cancelText="Cancelar"
           onConfirm={confirmarDeletar}
@@ -2610,4 +2596,6 @@ export default function ExerciciosPage() {
     </DashboardLayout >
   );
 }
+
+
 

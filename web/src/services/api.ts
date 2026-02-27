@@ -158,7 +158,14 @@ export type Exercicio = {
   descricao: string;
   modulo: string;
   tema: string | null;
+  phaseId?: string | null;
   prazo: string | null;
+  videoUrl?: string | null;
+  difficulty?: number | null;
+  indexOrder?: number | null;
+  isFinalExercise?: boolean;
+  pointsRedeem?: number | null;
+  exercisePeriod?: string | null;
   publishedAt: string | null;
   isDailyTask?: boolean;
   dailyTaskId?: string | null;
@@ -288,9 +295,17 @@ export async function obterExercicio(id: string) {
 export async function criarExercicio(dados: {
   titulo: string;
   descricao: string;
+  phase_id: number;
   modulo: string;
   tema?: string | null;
   prazo?: string | null;
+  video_url?: string | null;
+  difficulty?: number | null;
+  index_order?: number | null;
+  is_final_exercise?: boolean;
+  is_daily_task?: boolean;
+  points_redeem?: number | null;
+  exercise_period?: string | null;
   publicado?: boolean;
   published_at?: string | null;
   gabarito?: string | null;
@@ -314,9 +329,17 @@ export async function criarExercicio(dados: {
 export async function atualizarExercicio(id: string, dados: {
   titulo: string;
   descricao: string;
+  phase_id: number;
   modulo: string;
   tema?: string | null;
   prazo?: string | null;
+  video_url?: string | null;
+  difficulty?: number | null;
+  index_order?: number | null;
+  is_final_exercise?: boolean;
+  is_daily_task?: boolean;
+  points_redeem?: number | null;
+  exercise_period?: string | null;
   publicado?: boolean;
   published_at?: string | null;
   gabarito?: string | null;
