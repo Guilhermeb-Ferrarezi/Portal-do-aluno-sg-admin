@@ -133,31 +133,31 @@ export default function DashboardLayout({
             <span className="sbIcon" aria-hidden="true">
               <Home size={18} />
             </span>
-            Dashboard
+            <span className="sbLabel">Dashboard</span>
           </Link>
           <Link className={`sbItem ${isExercicios ? "active" : ""}`} to="/dashboard/exercicios">
             <span className="sbIcon" aria-hidden="true">
               <PenLine size={18} />
             </span>
-            Exercícios
+            <span className="sbLabel">Exercícios</span>
           </Link>
           <Link className={`sbItem ${isMateriais ? "active" : ""}`} to="/dashboard/materiais">
             <span className="sbIcon" aria-hidden="true">
               <FileText size={18} />
             </span>
-            Materiais
+            <span className="sbLabel">Materiais</span>
           </Link>
           <Link className={`sbItem ${isVideoaulas ? "active" : ""}`} to="/dashboard/videoaulas">
             <span className="sbIcon" aria-hidden="true">
               <Play size={18} />
             </span>
-            Videoaulas Bônus
+            <span className="sbLabel">Videoaulas Bônus</span>
           </Link>
           <Link className={`sbItem ${isMedalhas ? "active" : ""}`} to="/dashboard/medalhas">
             <span className="sbIcon" aria-hidden="true">
               <Medal size={18} />
             </span>
-            Medalhas
+            <span className="sbLabel">Medalhas</span>
           </Link>
           {/* Turmas */}
           {(role === "admin" || role === "professor" || turmas.length > 0) ? (
@@ -169,7 +169,7 @@ export default function DashboardLayout({
               <span className="sbIcon" aria-hidden="true">
                 <School size={18} />
               </span>
-              <span>Turmas</span>
+              <span className="sbLabel">Turmas</span>
             </button>
           ) : null}
 
@@ -179,21 +179,21 @@ export default function DashboardLayout({
                 <span className="sbIcon" aria-hidden="true">
                   <KeyRound size={18} />
                 </span>
-                Gerenciar Usuários
+                <span className="sbLabel">Gerenciar Usuários</span>
               </Link>
 
               <Link className={`sbItem ${isEstruturaCurso ? "active" : ""}`} to="/dashboard/estrutura-curso/cursos">
                 <span className="sbIcon" aria-hidden="true">
                   <Blocks size={18} />
                 </span>
-                Estrutura do Curso
+                <span className="sbLabel">Estrutura do Curso</span>
               </Link>
 
               <Link className={`sbItem ${isActivityLogs ? "active" : ""}`} to="/dashboard/logs">
                 <span className="sbIcon" aria-hidden="true">
                   <BarChart3 size={18} />
                 </span>
-                Logs de Atividade
+                <span className="sbLabel">Logs de Atividade</span>
               </Link>
 
               <Link
@@ -203,7 +203,7 @@ export default function DashboardLayout({
                 <span className="sbIcon" aria-hidden="true">
                   <Plus size={18} />
                 </span>
-                Criar usuário
+                <span className="sbLabel">Criar usuário</span>
               </Link>
             </>
           )}
@@ -304,8 +304,23 @@ export default function DashboardLayout({
 
       {/* MODAL SELEÇÃO DE TURMA */}
       {modalSelecionarTurmaAberto && createPortal(
-        <div className="modalOverlay" onClick={() => setModalSelecionarTurmaAberto(false)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modalOverlay"
+          role="button"
+          tabIndex={0}
+          aria-label="Fechar selecao de turma"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setModalSelecionarTurmaAberto(false);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+              setModalSelecionarTurmaAberto(false);
+            }
+          }}
+        >
+          <div className="modalContent">
             <h3>Selecione sua turma</h3>
             <p style={{ color: "var(--muted)", marginBottom: "20px" }}>
               Você está inscrito em {turmas.length} turmas

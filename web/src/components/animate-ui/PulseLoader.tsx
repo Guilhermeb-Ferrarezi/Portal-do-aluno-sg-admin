@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 interface PulseLoaderProps {
   size?: 'small' | 'medium' | 'large';
@@ -17,7 +17,7 @@ export function PulseLoader({ size = 'medium', color = '#e11d2e', text }: PulseL
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-      <motion.div
+      <m.div
         animate={{ rotate: 360 }}
         transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
         style={{

@@ -9,7 +9,7 @@ import { logActivity } from "../utils/activityLog";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 
 type DBDate = string | Date;
-type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho";
+type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "multipla"
 
 type ExercicioRow = {
   id: string;
@@ -194,7 +194,7 @@ function getNewExerciseSelectFields(
     `${alias}.phase_id`,
     "m.name AS modulo",
     "p.name AS tema",
-    `${alias}.term_at AS prazo`,
+    `${alias}.term_at`,
     `${alias}.created_at`,
     `${alias}.updated_at`,
     `${alias}.type_exercise`,
@@ -415,7 +415,7 @@ const upload = multer({
       cb(null, true);
       return;
     }
-    cb(new Error("Tipo de arquivo não permitido"));
+    cb(new Error("Tipo de arquivo nÃ£o permitido"));
   },
 });
 
@@ -423,11 +423,11 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
   const texto = `${titulo} ${descricao}`.toLowerCase();
 
   const palavrasCodigo = [
-    "código",
+    "cÃ³digo",
     "codigo",
     "programar",
     "implementar",
-    "função",
+    "funÃ§Ã£o",
     "funcao",
     "algoritmo",
     "script",
@@ -439,7 +439,7 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
     "let",
     "var",
     "criar um programa",
-    "escrever um código",
+    "escrever um cÃ³digo",
     "escrever codigo",
     "looping",
     "mostra",
@@ -448,11 +448,11 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
     "repetindo",
     "lista",
     "percorrendo",
-    "número",
+    "nÃºmero",
     "numero",
     "programa",
-    "ação",
-    "açao",
+    "aÃ§Ã£o",
+    "aÃ§ao",
     "acao",
     "log",
     "()" ,
@@ -465,36 +465,36 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
   ];
 
   const palavrasTexto = [
-    "dissertação",
+    "dissertaÃ§Ã£o",
     "dissertacao",
-    "redação",
+    "redaÃ§Ã£o",
     "redacao",
     "escrever sobre",
     "descrever",
     "explicar",
     "argumento",
-    "opinião",
+    "opiniÃ£o",
     "opiniao",
-    "análise",
+    "anÃ¡lise",
     "analise",
     "resumo",
     "resenha",
     "texto",
-    "redação",
+    "redaÃ§Ã£o",
   ];
 
-  // Verificar se contém tipos especiais (mouse ou múltipla escolha)
+  // Verificar se contÃ©m tipos especiais (mouse ou mÃºltipla escolha)
   if (titulo.includes("Mouse") || descricao.includes("mouse") || titulo.includes("mouse")) {
     return "texto"; // Mouse exercises armazenam regras em mouse_regras
   }
   if (
-    titulo.includes("Múltipla Escolha") ||
+    titulo.includes("MÃºltipla Escolha") ||
     titulo.includes("multipla escolha") ||
-    titulo.includes("pergunta múltipla") ||
-    descricao.includes("múltipla escolha") ||
+    titulo.includes("pergunta mÃºltipla") ||
+    descricao.includes("mÃºltipla escolha") ||
     descricao.includes("multipla escolha")
   ) {
-    return "texto"; // Múltipla escolha exercises armazenam regras em multipla_regras
+    return "texto"; // MÃºltipla escolha exercises armazenam regras em multipla_regras
   }
 
   const scoreCodigo = palavrasCodigo.filter((p) => texto.includes(p)).length;
@@ -503,16 +503,16 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
   if (scoreCodigo > scoreTexto) return "codigo";
   if (scoreTexto > scoreCodigo) return "texto";
 
-  // Default: se tem símbolos de código, considera código
+  // Default: se tem sÃ­mbolos de cÃ³digo, considera cÃ³digo
   if (/[{}<>=;()\[\]]/.test(texto)) return "codigo";
 
-  return "texto"; // fallback padrão
+  return "texto"; // fallback padrÃ£o
 }
 
 const createSchema = z.object({
-  titulo: z.string().min(2, "Título obrigatório"),
-  descricao: z.string().min(2, "Descrição obrigatória"),
-  modulo: z.string().min(1, "Módulo obrigatório"),
+  titulo: z.string().min(2, "TÃ­tulo obrigatÃ³rio"),
+  descricao: z.string().min(2, "DescriÃ§Ã£o obrigatÃ³ria"),
+  modulo: z.string().min(1, "MÃ³dulo obrigatÃ³rio"),
   tema: z.string().optional().nullable(),
   prazo: z.coerce.date().optional().nullable(),
   publicado: z.boolean().optional(),
@@ -549,8 +549,11 @@ const createNewSchema = z.object({
   prazo: z.coerce.date().optional().nullable(),
   tipo_exercicio: z.string().optional().nullable(),
   video_url: z.string().trim().optional().nullable(),
-  difficulty: z.coerce.number().int().min(0).optional().nullable(),
-  index_order: z.coerce.number().int().min(0).optional().nullable(),
+  difficulty: z.preprocess(
+    (value) => (value === null || value === undefined || value === "" ? undefined : value),
+    z.coerce.number().int().min(1)
+  ).optional().nullable(),
+  index_order: z.coerce.number().int().min(1).optional().nullable(),
   is_final_exercise: booleanFromInput.optional().nullable(),
   is_daily_task: booleanFromInput.optional().nullable(),
   points_redeem: z.coerce.number().int().min(0).optional().nullable(),
@@ -602,6 +605,80 @@ async function getPhaseWithModuleById(phaseId: number) {
   return result.rows[0] ?? null;
 }
 
+async function realignExerciseIdSequence() {
+  const seqResult = await pool.query<{ seq_name: string | null }>(
+    `SELECT pg_get_serial_sequence('exercise', 'id') AS seq_name`
+  );
+  const seqName = seqResult.rows[0]?.seq_name;
+  if (!seqName) return;
+
+  await pool.query(
+    `SELECT setval($1::regclass, COALESCE((SELECT MAX(id) FROM exercise), 0) + 1, false)`,
+    [seqName]
+  );
+}
+
+async function findSmallestAvailableIndexOrder(phaseId: number, excludeExerciseId?: number) {
+  const params: unknown[] = [phaseId];
+  let where = "phase_id = $1";
+  if (excludeExerciseId !== undefined) {
+    params.push(excludeExerciseId);
+    where += ` AND id <> $${params.length}`;
+  }
+
+  const usedRows = await pool.query<{ index_order: number | null }>(
+    `SELECT index_order
+     FROM exercise
+     WHERE ${where} AND index_order IS NOT NULL
+     ORDER BY index_order ASC`,
+    params
+  );
+
+  let candidate = 1;
+  for (const row of usedRows.rows) {
+    const idx = Number(row.index_order);
+    if (!Number.isInteger(idx) || idx < 1) continue;
+    if (idx === candidate) {
+      candidate += 1;
+      continue;
+    }
+    if (idx > candidate) break;
+  }
+
+  return candidate;
+}
+
+async function getIndexOrderConflictInfo(
+  phaseId: number,
+  indexOrder: number,
+  excludeExerciseId?: number
+) {
+  const params: unknown[] = [phaseId, indexOrder];
+  let extraFilter = "";
+  if (excludeExerciseId !== undefined) {
+    params.push(excludeExerciseId);
+    extraFilter = `AND id <> $${params.length}`;
+  }
+
+  const existsResult = await pool.query<{ taken: boolean }>(
+    `SELECT EXISTS(
+       SELECT 1
+       FROM exercise
+       WHERE phase_id = $1
+         AND index_order = $2
+         ${extraFilter}
+     ) AS taken`,
+    params
+  );
+
+  if (!existsResult.rows[0]?.taken) {
+    return { taken: false as const, smallestAvailable: indexOrder };
+  }
+
+  const smallestAvailable = await findSmallestAvailableIndexOrder(phaseId, excludeExerciseId);
+  return { taken: true as const, smallestAvailable };
+}
+
 function parseIdArray(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) {
@@ -629,21 +706,72 @@ function parseIdArray(value: unknown): string[] {
 export function exerciciosRouter(jwtSecret: string) {
   const router = Router();
 
-  // GET /exercicios - Listar todos os exercícios públicos
+  // GET /exercicios - Listar todos os exercÃ­cios pÃºblicos
   router.get("/exercicios", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
     const userId = req.user?.sub;
 
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const modulo = typeof req.query.modulo === "string" ? req.query.modulo.trim() : "";
+    const turmaId = typeof req.query.turmaId === "string" ? req.query.turmaId.trim() : "";
+    const status = typeof req.query.status === "string" ? req.query.status.trim() : "todos";
+    const hasPaginationInput =
+      req.query.page !== undefined ||
+      req.query.limit !== undefined ||
+      req.query.q !== undefined ||
+      req.query.modulo !== undefined ||
+      req.query.turmaId !== undefined ||
+      req.query.status !== undefined;
+    const pageRaw = Number(req.query.page ?? 1);
+    const limitRaw = Number(req.query.limit ?? 20);
+    const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+    const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+    const offset = (page - 1) * limit;
+
     if (!schema.hasExercicios) {
       const mapped = await listFromNewExerciseSchema(userId, isAluno, schema);
-      return res.json(mapped);
+      const filtered = mapped.filter((ex) => {
+        if (q) {
+          const term = q.toLowerCase();
+          const hasMatch =
+            ex.titulo.toLowerCase().includes(term) ||
+            (ex.descricao ?? "").toLowerCase().includes(term) ||
+            (ex.tema ?? "").toLowerCase().includes(term);
+          if (!hasMatch) return false;
+        }
+        if (modulo && ex.modulo !== modulo) return false;
+        if (!isAluno && status !== "todos") {
+          const isPublished = ex.publicado !== false;
+          const isScheduled = !!ex.publishedAt && new Date(ex.publishedAt).getTime() > Date.now();
+          if (status === "rascunho" && (isPublished || isScheduled)) return false;
+          if (status === "programado" && !isScheduled) return false;
+          if (status === "publicado" && (!isPublished || isScheduled)) return false;
+        }
+        return true;
+      });
+
+      if (!hasPaginationInput) {
+        return res.json(filtered);
+      }
+
+      const total = filtered.length;
+      const items = filtered.slice(offset, offset + limit);
+      return res.json({
+        items,
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     }
 
     const conditions: string[] = ["1=1"];
     const params: any[] = [];
 
-    // Alunos só veem exercícios publicados e com published_at no passado
     if (isAluno) {
       conditions.push("e.publicado = true");
       conditions.push("(e.published_at IS NULL OR e.published_at <= NOW())");
@@ -680,6 +808,55 @@ export function exerciciosRouter(jwtSecret: string) {
       conditions.push("COALESCE(e.is_daily_task, false) = false");
     }
 
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`(
+        e.titulo ILIKE $${params.length}
+        OR COALESCE(e.descricao, '') ILIKE $${params.length}
+        OR COALESCE(e.tema, '') ILIKE $${params.length}
+      )`);
+    }
+
+    if (modulo) {
+      params.push(modulo);
+      conditions.push(`e.modulo = $${params.length}`);
+    }
+
+    if (!isAluno && status !== "todos") {
+      if (status === "rascunho") {
+        conditions.push(`(COALESCE(e.publicado, true) = false AND NOT (e.published_at IS NOT NULL AND e.published_at > NOW()))`);
+      } else if (status === "programado") {
+        conditions.push(`(e.published_at IS NOT NULL AND e.published_at > NOW())`);
+      } else if (status === "publicado") {
+        conditions.push(`(COALESCE(e.publicado, true) = true AND NOT (e.published_at IS NOT NULL AND e.published_at > NOW()))`);
+      }
+    }
+
+    if (turmaId && turmaId !== "todas") {
+      params.push(turmaId);
+      conditions.push(`NOT EXISTS (SELECT 1 FROM exercicio_aluno ea3 WHERE ea3.exercicio_id = e.id)`);
+      conditions.push(`EXISTS (
+        SELECT 1 FROM exercicio_turma etf
+        WHERE etf.exercicio_id = e.id
+          AND etf.turma_id = $${params.length}
+      )`);
+    }
+
+    const whereClause = conditions.join(" AND ");
+    const countResult = hasPaginationInput
+      ? await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM exercicios e
+         WHERE ${whereClause}`,
+        params
+      )
+      : null;
+
+    const queryParams = hasPaginationInput ? [...params, limit, offset] : params;
+    const limitClause = hasPaginationInput
+      ? `\n      LIMIT $${queryParams.length - 1}\n      OFFSET $${queryParams.length}`
+      : "";
+
     const query = `
       SELECT
         e.id, e.titulo, e.descricao, e.modulo, e.tema, e.prazo, e.publicado, e.published_at, e.created_by,
@@ -704,51 +881,123 @@ export function exerciciosRouter(jwtSecret: string) {
         JOIN users u ON ea.aluno_id = u.id
         WHERE ea.exercicio_id = e.id
       ) alunos ON true
-      WHERE ${conditions.join(" AND ")}
-      ORDER BY e.created_at DESC
+      WHERE ${whereClause}
+      ORDER BY e.created_at DESC${limitClause}
     `;
 
-    const r = await pool.query<ExercicioAccessRow>(query, params);
+    const r = await pool.query<ExercicioAccessRow>(query, queryParams);
 
-    return res.json(
-      r.rows.map((row) => ({
-        id: row.id,
-        titulo: row.titulo,
-        descricao: row.descricao,
-        modulo: row.modulo,
-        tema: row.tema,
-        prazo: row.prazo,
-        publicado: row.publicado,
-        publishedAt: row.published_at,
-        isDailyTask: !!row.is_daily_task,
-        tipoExercicio: row.tipo_exercicio,
-        categoria: row.categoria,
-        mouse_regras: row.mouse_regras,
-        multipla_regras: row.multipla_regras,
-        atalho_tipo: row.atalho_tipo,
-        permitir_repeticao: row.permitir_repeticao ?? false,
-        maxTentativas: row.max_tentativas ?? null,
-        penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
-        intervaloReenvio: row.intervalo_reenvio ?? null,
-        createdAt: row.created_at,
-        turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
-        alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
-      }))
-    );
+    const items = r.rows.map((row) => ({
+      id: row.id,
+      titulo: row.titulo,
+      descricao: row.descricao,
+      modulo: row.modulo,
+      tema: row.tema,
+      prazo: row.prazo,
+      publicado: row.publicado,
+      publishedAt: row.published_at,
+      isDailyTask: !!row.is_daily_task,
+      tipoExercicio: row.tipo_exercicio,
+      categoria: row.categoria,
+      mouse_regras: row.mouse_regras,
+      multipla_regras: row.multipla_regras,
+      atalho_tipo: row.atalho_tipo,
+      permitir_repeticao: row.permitir_repeticao ?? false,
+      maxTentativas: row.max_tentativas ?? null,
+      penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
+      intervaloReenvio: row.intervalo_reenvio ?? null,
+      createdAt: row.created_at,
+      turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
+      alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
+    }));
+
+    if (!hasPaginationInput) {
+      return res.json(items);
+    }
+
+    const total = Number(countResult?.rows[0]?.total ?? "0");
+    return res.json({
+      items,
+      total,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
   });
-
-  // GET /exercicios/daily-tasks - Lista somente tarefas diárias do banco
+// GET /exercicios/daily-tasks - Lista somente tarefas diÃ¡rias do banco
   router.get("/exercicios/daily-tasks", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
     const userId = req.user?.sub;
 
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const modulo = typeof req.query.modulo === "string" ? req.query.modulo.trim() : "";
+    const turmaId = typeof req.query.turmaId === "string" ? req.query.turmaId.trim() : "";
+    const status = typeof req.query.status === "string" ? req.query.status.trim() : "todos";
+    const hasPaginationInput =
+      req.query.page !== undefined ||
+      req.query.limit !== undefined ||
+      req.query.q !== undefined ||
+      req.query.modulo !== undefined ||
+      req.query.turmaId !== undefined ||
+      req.query.status !== undefined;
+    const pageRaw = Number(req.query.page ?? 1);
+    const limitRaw = Number(req.query.limit ?? 20);
+    const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+    const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+    const offset = (page - 1) * limit;
+
     if (!schema.hasExercicios) {
       if (!schema.hasExercise) {
-        return res.json([]);
+        return hasPaginationInput
+          ? res.json({
+            items: [],
+            total: 0,
+            pagination: { page, limit, total: 0, totalPages: 1 },
+          })
+          : res.json([]);
       }
+
       const mapped = await listDailyTasksFromNewExerciseSchema(userId, isAluno, schema);
-      return res.json(mapped);
+      const filtered = mapped.filter((ex) => {
+        if (q) {
+          const term = q.toLowerCase();
+          const hasMatch =
+            ex.titulo.toLowerCase().includes(term) ||
+            (ex.descricao ?? "").toLowerCase().includes(term) ||
+            (ex.tema ?? "").toLowerCase().includes(term);
+          if (!hasMatch) return false;
+        }
+        if (modulo && ex.modulo !== modulo) return false;
+        if (!isAluno && status !== "todos") {
+          const isPublished = ex.publicado !== false;
+          const isScheduled = !!ex.publishedAt && new Date(ex.publishedAt).getTime() > Date.now();
+          if (status === "rascunho" && (isPublished || isScheduled)) return false;
+          if (status === "programado" && !isScheduled) return false;
+          if (status === "publicado" && (!isPublished || isScheduled)) return false;
+        }
+        return true;
+      });
+
+      if (!hasPaginationInput) {
+        return res.json(filtered);
+      }
+
+      const total = filtered.length;
+      const items = filtered.slice(offset, offset + limit);
+      return res.json({
+        items,
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     }
 
     const conditions: string[] = ["1=1"];
@@ -790,10 +1039,58 @@ export function exerciciosRouter(jwtSecret: string) {
       conditions.push("COALESCE(e.is_daily_task, false) = true");
     } else {
       conditions.push(
-        `(LOWER(COALESCE(e.tema, '')) LIKE '%tarefa diária%' OR LOWER(COALESCE(e.tema, '')) LIKE '%tarefa diaria%' OR e.titulo ~* '^dia\\s+[0-9]+\\s*[:\\-]')`
+        `(LOWER(COALESCE(e.tema, '')) LIKE '%tarefa diaria%' OR e.titulo ~* '^dia\\s+[0-9]+\\s*[:\\-]')`
       );
     }
 
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`(
+        e.titulo ILIKE $${params.length}
+        OR COALESCE(e.descricao, '') ILIKE $${params.length}
+        OR COALESCE(e.tema, '') ILIKE $${params.length}
+      )`);
+    }
+
+    if (modulo) {
+      params.push(modulo);
+      conditions.push(`e.modulo = $${params.length}`);
+    }
+
+    if (!isAluno && status !== "todos") {
+      if (status === "rascunho") {
+        conditions.push(`(COALESCE(e.publicado, true) = false AND NOT (e.published_at IS NOT NULL AND e.published_at > NOW()))`);
+      } else if (status === "programado") {
+        conditions.push(`(e.published_at IS NOT NULL AND e.published_at > NOW())`);
+      } else if (status === "publicado") {
+        conditions.push(`(COALESCE(e.publicado, true) = true AND NOT (e.published_at IS NOT NULL AND e.published_at > NOW()))`);
+      }
+    }
+
+    if (turmaId && turmaId !== "todas") {
+      params.push(turmaId);
+      conditions.push(`NOT EXISTS (SELECT 1 FROM exercicio_aluno ea3 WHERE ea3.exercicio_id = e.id)`);
+      conditions.push(`EXISTS (
+        SELECT 1 FROM exercicio_turma etf
+        WHERE etf.exercicio_id = e.id
+          AND etf.turma_id = $${params.length}
+      )`);
+    }
+
+    const whereClause = conditions.join(" AND ");
+    const countResult = hasPaginationInput
+      ? await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM exercicios e
+         WHERE ${whereClause}`,
+        params
+      )
+      : null;
+
+    const queryParams = hasPaginationInput ? [...params, limit, offset] : params;
+    const limitClause = hasPaginationInput
+      ? `\n      LIMIT $${queryParams.length - 1}\n      OFFSET $${queryParams.length}`
+      : "";
 
     const query = `
       SELECT
@@ -818,43 +1115,56 @@ export function exerciciosRouter(jwtSecret: string) {
         JOIN users u ON ea.aluno_id = u.id
         WHERE ea.exercicio_id = e.id
       ) alunos ON true
-      WHERE ${conditions.join(" AND ")}
-      ORDER BY e.prazo ASC NULLS LAST, e.created_at DESC
+      WHERE ${whereClause}
+      ORDER BY e.prazo ASC NULLS LAST, e.created_at DESC${limitClause}
     `;
 
-    const r = await pool.query<ExercicioAccessRow>(query, params);
+    const r = await pool.query<ExercicioAccessRow>(query, queryParams);
 
-    return res.json(
-      r.rows.map((row) => ({
-        id: row.id,
-        titulo: row.titulo,
-        descricao: row.descricao,
-        modulo: row.modulo,
-        tema: row.tema,
-        prazo: row.prazo,
-        publicado: row.publicado,
-        publishedAt: row.published_at,
-        tipoExercicio: row.tipo_exercicio,
-        categoria: row.categoria,
-        mouse_regras: row.mouse_regras,
-        multipla_regras: row.multipla_regras,
-        atalho_tipo: row.atalho_tipo,
-        permitir_repeticao: row.permitir_repeticao ?? false,
-        maxTentativas: row.max_tentativas ?? null,
-        penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
-        intervaloReenvio: row.intervalo_reenvio ?? null,
-        anexoUrl: row.anexo_url,
-        anexoNome: row.anexo_nome,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
-        alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
-        isDailyTask: true,
-      }))
-    );
+    const items = r.rows.map((row) => ({
+      id: row.id,
+      titulo: row.titulo,
+      descricao: row.descricao,
+      modulo: row.modulo,
+      tema: row.tema,
+      prazo: row.prazo,
+      publicado: row.publicado,
+      publishedAt: row.published_at,
+      tipoExercicio: row.tipo_exercicio,
+      categoria: row.categoria,
+      mouse_regras: row.mouse_regras,
+      multipla_regras: row.multipla_regras,
+      atalho_tipo: row.atalho_tipo,
+      permitir_repeticao: row.permitir_repeticao ?? false,
+      maxTentativas: row.max_tentativas ?? null,
+      penalidadePorTentativa: row.penalidade_por_tentativa ?? null,
+      intervaloReenvio: row.intervalo_reenvio ?? null,
+      anexoUrl: row.anexo_url,
+      anexoNome: row.anexo_nome,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      turmas: row.turmas && row.turmas.length > 0 ? row.turmas : undefined,
+      alunos: row.alunos && row.alunos.length > 0 ? row.alunos : undefined,
+      isDailyTask: true,
+    }));
+
+    if (!hasPaginationInput) {
+      return res.json(items);
+    }
+
+    const total = Number(countResult?.rows[0]?.total ?? "0");
+    return res.json({
+      items,
+      total,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
   });
-
-  // GET /exercicios/:id - Pegar detalhes de um exercício específico
+// GET /exercicios/:id - Pegar detalhes de um exercÃ­cio especÃ­fico
   router.get("/exercicios/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
@@ -862,7 +1172,7 @@ export function exerciciosRouter(jwtSecret: string) {
 
     if (!schema.hasExercicios) {
       const mapped = await getFromNewExerciseSchema(String(id), req.user?.sub, isAluno, schema);
-      if (!mapped) return res.status(404).json({ message: "Exercício não encontrado" });
+      if (!mapped) return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
       return res.json(mapped);
     }
 
@@ -870,7 +1180,7 @@ export function exerciciosRouter(jwtSecret: string) {
     const conditions: string[] = [
       "e.id = $1",
     ];
-    // Alunos só veem exercícios publicados e com published_at no passado
+    // Alunos sÃ³ veem exercÃ­cios publicados e com published_at no passado
     if (isAluno) {
       conditions.push("e.publicado = true");
       conditions.push("(e.published_at IS NULL OR e.published_at <= NOW())");
@@ -930,7 +1240,7 @@ export function exerciciosRouter(jwtSecret: string) {
     );
 
     if (r.rows.length === 0) {
-      return res.status(404).json({ message: "Exercício não encontrado" });
+      return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
     }
 
     const row = r.rows[0];
@@ -963,7 +1273,7 @@ export function exerciciosRouter(jwtSecret: string) {
     });
   });
 
-  // Protegido: só admin/professor cria
+  // Protegido: sÃ³ admin/professor cria
   router.post(
     "/exercicios",
     authGuard(jwtSecret),
@@ -998,12 +1308,37 @@ export function exerciciosRouter(jwtSecret: string) {
           points_redeem,
           exercise_period,
         } = parsedNew.data;
+        if (!prazo) {
+          return res.status(400).json({
+            message: "Dados invalidos",
+            issues: {
+              prazo: ["Prazo obrigatorio para criar exercicio"],
+            },
+          });
+        }
+        const difficultyValue = difficulty ?? 1;
+        const indexOrderValue = index_order ?? 1;
+        const pointsRedeemValue = points_redeem ?? 0;
+        const exercisePeriodValue = exercise_period ?? prazo;
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
         }
         if (course_id && phaseRow.course_id !== Number(course_id)) {
           return res.status(400).json({ message: "A fase selecionada nao pertence ao curso informado" });
+        }
+        if (schema.hasExerciseIndexOrder) {
+          const conflict = await getIndexOrderConflictInfo(phase_id, indexOrderValue);
+          if (conflict.taken) {
+            return res.status(400).json({
+              message: `A ordem ${indexOrderValue} ja existe nessa fase/modulo. A menor ordem e ${conflict.smallestAvailable} (index disponivel).`,
+              issues: {
+                index_order: [
+                  `A menor ordem e ${conflict.smallestAvailable} (index disponivel).`,
+                ],
+              },
+            });
+          }
         }
 
         const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
@@ -1034,12 +1369,12 @@ export function exerciciosRouter(jwtSecret: string) {
         }
         if (schema.hasExerciseDifficulty) {
           insertColumns.push("difficulty");
-          insertParams.push(difficulty ?? null);
+          insertParams.push(difficultyValue);
           insertValues.push(`$${insertParams.length}`);
         }
         if (schema.hasExerciseIndexOrder) {
           insertColumns.push("index_order");
-          insertParams.push(index_order ?? null);
+          insertParams.push(indexOrderValue);
           insertValues.push(`$${insertParams.length}`);
         }
         if (schema.hasExerciseIsFinalExercise) {
@@ -1049,21 +1384,32 @@ export function exerciciosRouter(jwtSecret: string) {
         }
         if (schema.hasExercisePointsRedeem) {
           insertColumns.push("points_redeem");
-          insertParams.push(points_redeem ?? null);
+          insertParams.push(pointsRedeemValue);
           insertValues.push(`$${insertParams.length}`);
         }
         if (schema.hasExerciseExercisePeriod) {
           insertColumns.push("exercise_period");
-          insertParams.push(exercise_period ?? null);
+          insertParams.push(exercisePeriodValue);
           insertValues.push(`$${insertParams.length}`);
         }
 
-        const created = await pool.query<NewExerciseRow>(
-          `INSERT INTO exercise (${insertColumns.join(", ")}, created_at, updated_at)
+        const insertSql = `INSERT INTO exercise (${insertColumns.join(", ")}, created_at, updated_at)
            VALUES (${insertValues.join(", ")}, NOW(), NOW())
-           RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`,
-          insertParams
-        );
+           RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`;
+
+        let created: { rows: NewExerciseRow[] };
+        try {
+          created = await pool.query<NewExerciseRow>(insertSql, insertParams);
+        } catch (err: any) {
+          const isDuplicateId =
+            err?.code === "23505" &&
+            typeof err?.detail === "string" &&
+            err.detail.includes("(id)=");
+          if (!isDuplicateId) throw err;
+
+          await realignExerciseIdSequence();
+          created = await pool.query<NewExerciseRow>(insertSql, insertParams);
+        }
 
         const row = created.rows[0];
 
@@ -1099,18 +1445,18 @@ export function exerciciosRouter(jwtSecret: string) {
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados inválidos",
+          message: "Dados invÃ¡lidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
 
       const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio } = parsed.data;
 
-      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
+      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrÃ¡rio detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
       const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
-      // Se tem published_at, publicado deve ser false até que a data chegue
+      // Se tem published_at, publicado deve ser false atÃ© que a data chegue
       const shouldPublish = published_at ? false : (publicado ?? true);
 
       const created = await pool.query<ExercicioRow>(
@@ -1183,7 +1529,7 @@ export function exerciciosRouter(jwtSecret: string) {
       }).catch((err) => console.error("activity log error:", err));
 
         return res.status(201).json({
-        message: "Exercício criado!",
+        message: "ExercÃ­cio criado!",
         exercicio: {
           id: row.id,
           titulo: row.titulo,
@@ -1211,7 +1557,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: só admin/professor pode atualizar
+  // Protegido: sÃ³ admin/professor pode atualizar
   router.put(
     "/exercicios/:id",
     authGuard(jwtSecret),
@@ -1253,12 +1599,37 @@ export function exerciciosRouter(jwtSecret: string) {
           points_redeem,
           exercise_period,
         } = parsedNew.data;
+        if (!prazo) {
+          return res.status(400).json({
+            message: "Dados invalidos",
+            issues: {
+              prazo: ["Prazo obrigatorio para atualizar exercicio"],
+            },
+          });
+        }
+        const difficultyValue = difficulty ?? 1;
+        const indexOrderValue = index_order ?? 1;
+        const pointsRedeemValue = points_redeem ?? 0;
+        const exercisePeriodValue = exercise_period ?? prazo;
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
         }
         if (course_id && phaseRow.course_id !== Number(course_id)) {
           return res.status(400).json({ message: "A fase selecionada nao pertence ao curso informado" });
+        }
+        if (schema.hasExerciseIndexOrder) {
+          const conflict = await getIndexOrderConflictInfo(phase_id, indexOrderValue, exerciseId);
+          if (conflict.taken) {
+            return res.status(400).json({
+              message: `A ordem ${indexOrderValue} ja existe nessa fase/modulo. A menor ordem e ${conflict.smallestAvailable} (index disponivel).`,
+              issues: {
+                index_order: [
+                  `A menor ordem e ${conflict.smallestAvailable} (index disponivel).`,
+                ],
+              },
+            });
+          }
         }
 
         const checkExercicioNovo = await pool.query<{ id: number }>(
@@ -1299,11 +1670,11 @@ export function exerciciosRouter(jwtSecret: string) {
         }
         if (schema.hasExerciseDifficulty) {
           updateSet.push(`difficulty = $${updateParams.length + 1}`);
-          updateParams.push(difficulty ?? null);
+          updateParams.push(difficultyValue);
         }
         if (schema.hasExerciseIndexOrder) {
           updateSet.push(`index_order = $${updateParams.length + 1}`);
-          updateParams.push(index_order ?? null);
+          updateParams.push(indexOrderValue);
         }
         if (schema.hasExerciseIsFinalExercise) {
           updateSet.push(`is_final_exercise = $${updateParams.length + 1}`);
@@ -1311,11 +1682,11 @@ export function exerciciosRouter(jwtSecret: string) {
         }
         if (schema.hasExercisePointsRedeem) {
           updateSet.push(`points_redeem = $${updateParams.length + 1}`);
-          updateParams.push(points_redeem ?? null);
+          updateParams.push(pointsRedeemValue);
         }
         if (schema.hasExerciseExercisePeriod) {
           updateSet.push(`exercise_period = $${updateParams.length + 1}`);
-          updateParams.push(exercise_period ?? null);
+          updateParams.push(exercisePeriodValue);
         }
 
         updateSet.push("updated_at = NOW()");
@@ -1363,24 +1734,24 @@ export function exerciciosRouter(jwtSecret: string) {
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados inválidos",
+          message: "Dados invÃ¡lidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
 
-      // Verificar se exercício existe
+      // Verificar se exercÃ­cio existe
       const checkExercicio = await pool.query<ExercicioRow>(
         `SELECT id, anexo_url FROM exercicios WHERE id = $1`,
         [id]
       );
 
       if (checkExercicio.rows.length === 0) {
-        return res.status(404).json({ message: "Exercício não encontrado" });
+        return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
       }
 
       const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, published_at } = parsed.data;
 
-      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
+      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrÃ¡rio detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
       const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
@@ -1474,7 +1845,7 @@ export function exerciciosRouter(jwtSecret: string) {
       }).catch((err) => console.error("activity log error:", err));
 
       return res.json({
-        message: "Exercício atualizado!",
+        message: "ExercÃ­cio atualizado!",
         exercicio: {
           id: row.id,
           titulo: row.titulo,
@@ -1503,7 +1874,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: anexar arquivo ao exercício
+  // Protegido: anexar arquivo ao exercÃ­cio
   router.post(
     "/exercicios/:id/anexo",
     authGuard(jwtSecret),
@@ -1514,7 +1885,7 @@ export function exerciciosRouter(jwtSecret: string) {
       const file = req.file;
 
       if (!file) {
-        return res.status(400).json({ message: "Arquivo é obrigatório" });
+        return res.status(400).json({ message: "Arquivo Ã© obrigatÃ³rio" });
       }
 
       const check = await pool.query<ExercicioRow>(
@@ -1523,7 +1894,7 @@ export function exerciciosRouter(jwtSecret: string) {
       );
 
       if (check.rows.length === 0) {
-        return res.status(404).json({ message: "Exercício não encontrado" });
+        return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
       }
 
       const existing = check.rows[0];
@@ -1552,7 +1923,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: remover anexo do exercício
+  // Protegido: remover anexo do exercÃ­cio
   router.delete(
     "/exercicios/:id/anexo",
     authGuard(jwtSecret),
@@ -1566,7 +1937,7 @@ export function exerciciosRouter(jwtSecret: string) {
       );
 
       if (check.rows.length === 0) {
-        return res.status(404).json({ message: "Exercício não encontrado" });
+        return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
       }
 
       const existing = check.rows[0];
@@ -1585,29 +1956,60 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: só admin/professor pode deletar
+  // Protegido: sÃ³ admin/professor pode deletar
   router.delete(
     "/exercicios/:id",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
       const { id } = req.params;
+      const schema = await getExerciseSchemaInfo();
 
-      // Verificar se exercício existe
-      const checkExercicio = await pool.query<ExercicioRow>(
-        `SELECT id FROM exercicios WHERE id = $1`,
-        [id]
-      );
+      if (!schema.hasExercicios) {
+        if (!schema.hasExercise) {
+          return res.status(500).json({ message: "Tabela exercise nao encontrada no banco" });
+        }
 
-      if (checkExercicio.rows.length === 0) {
-        return res.status(404).json({ message: "Exercício não encontrado" });
+        const exerciseId = Number(id);
+        if (!Number.isFinite(exerciseId)) {
+          return res.status(400).json({ message: "ID de exercicio invalido" });
+        }
+
+        const checkExercicioNovo = await pool.query<{ id: number }>(
+          `SELECT id FROM exercise WHERE id = $1 LIMIT 1`,
+          [exerciseId]
+        );
+        if (checkExercicioNovo.rows.length === 0) {
+          return res.status(404).json({ message: "Exercicio nao encontrado" });
+        }
+
+        await pool.query(`DELETE FROM exercise WHERE id = $1`, [exerciseId]);
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "delete",
+          entityType: "exercicio",
+          entityId: String(exerciseId),
+          metadata: { id: exerciseId },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        return res.json({ message: "Exercicio deletado com sucesso" });
       }
 
-      // Deletar submissões primeiro (cascade)
+      const checkExercicio = await pool.query<ExercicioRow>(
+        `SELECT id, anexo_url FROM exercicios WHERE id = $1`,
+        [id]
+      );
+      if (checkExercicio.rows.length === 0) {
+        return res.status(404).json({ message: "Exercicio nao encontrado" });
+      }
+
       const exercicio = checkExercicio.rows[0];
       if (exercicio.anexo_url) {
         await deleteFromR2(exercicio.anexo_url).catch((err) =>
-          console.error("Erro ao deletar anexo do exercício:", err)
+          console.error("Erro ao deletar anexo do exercicio:", err)
         );
       }
 
@@ -1618,23 +2020,14 @@ export function exerciciosRouter(jwtSecret: string) {
       for (const row of arquivosSubmissoes.rows) {
         if (row.arquivo_url) {
           await deleteFromR2(row.arquivo_url).catch((err) =>
-            console.error("Erro ao deletar arquivo de submissão:", err)
+            console.error("Erro ao deletar arquivo de submissao:", err)
           );
         }
       }
 
-      await pool.query(
-        `DELETE FROM submissoes WHERE exercicio_id = $1`,
-        [id]
-      );
+      await pool.query(`DELETE FROM submissoes WHERE exercicio_id = $1`, [id]);
+      await pool.query(`DELETE FROM exercicios WHERE id = $1`, [id]);
 
-      // Deletar exercício
-      await pool.query(
-        `DELETE FROM exercicios WHERE id = $1`,
-        [id]
-      );
-
-      
       logActivity({
         actorId: req.user?.sub ?? null,
         actorRole: req.user?.role ?? null,
@@ -1645,9 +2038,11 @@ export function exerciciosRouter(jwtSecret: string) {
         req,
       }).catch((err) => console.error("activity log error:", err));
 
-      return res.json({ message: "Exercício deletado com sucesso" });
+      return res.json({ message: "Exercicio deletado com sucesso" });
     }
   );
 
   return router;
 }
+
+

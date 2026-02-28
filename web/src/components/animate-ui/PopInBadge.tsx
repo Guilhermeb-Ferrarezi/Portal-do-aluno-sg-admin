@@ -7,11 +7,13 @@ interface PopInBadgeProps {
   style?: React.CSSProperties;
 }
 
+const EMPTY_STYLE: React.CSSProperties = {};
+
 export function PopInBadge({
   children,
   delay = 0,
   className = '',
-  style = {},
+  style = EMPTY_STYLE,
 }: PopInBadgeProps) {
   return (
     <span

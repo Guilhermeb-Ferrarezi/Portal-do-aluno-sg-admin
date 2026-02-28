@@ -227,21 +227,65 @@ export function videoaulasRouter(jwtSecret: string) {
   router.get("/videoaulas", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     try {
       const modulo = typeof req.query.modulo === "string" ? req.query.modulo.trim() : "";
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const tipo = typeof req.query.tipo === "string" ? req.query.tipo.trim().toLowerCase() : "todos";
+      const hasPaginationInput =
+        req.query.page !== undefined ||
+        req.query.limit !== undefined ||
+        req.query.q !== undefined ||
+        req.query.modulo !== undefined ||
+        req.query.tipo !== undefined;
+      const pageRaw = Number(req.query.page ?? 1);
+      const limitRaw = Number(req.query.limit ?? 20);
+      const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+      const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+      const offset = (page - 1) * limit;
+
+      const queryParams: unknown[] = [];
+      const whereClauses: string[] = [];
+      if (q) {
+        queryParams.push(`%${q}%`);
+        whereClauses.push(`(title ILIKE $${queryParams.length} OR COALESCE(description, '') ILIKE $${queryParams.length})`);
+      }
+      const where = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
       const result = await pool.query<VideoRow>(
         `SELECT id, title, description, url, thumbnail_url, duration_seconds, visibility, created_at
          FROM video
-         ORDER BY created_at DESC`
+         ${where}
+         ORDER BY created_at DESC`,
+        queryParams
       );
 
-      const mapped = result.rows.map(transformVideoaula);
+      const mapped = result.rows
+        .map(transformVideoaula)
+        .filter((v) => {
+          if (modulo && modulo.toLowerCase() !== "todos" && !v.modulo.toLowerCase().includes(modulo.toLowerCase())) {
+            return false;
+          }
+          if (tipo && tipo !== "todos" && v.tipo !== tipo) {
+            return false;
+          }
+          return true;
+        });
 
-      if (!modulo || modulo.toLowerCase() === "todos") {
+      if (!hasPaginationInput) {
         res.json(mapped);
         return;
       }
 
-      res.json(mapped.filter((v) => v.modulo.toLowerCase() === modulo.toLowerCase()));
+      const total = mapped.length;
+      const items = mapped.slice(offset, offset + limit);
+      res.json({
+        items,
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Erro ao listar videoaulas" });

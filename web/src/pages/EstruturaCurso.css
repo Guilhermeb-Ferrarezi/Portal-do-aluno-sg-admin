@@ -42,9 +42,8 @@
   border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
   background: color-mix(in srgb, var(--background-secondary) 82%, var(--card) 18%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  overflow: hidden;
-  background-clip: padding-box;
-  clip-path: inset(0 round 9999px);
+  overflow: visible;
+  background-clip: border-box;
 }
 
 .estruturaTabs::before {

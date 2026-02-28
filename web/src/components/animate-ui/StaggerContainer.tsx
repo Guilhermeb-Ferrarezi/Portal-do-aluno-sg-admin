@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 interface StaggerContainerProps {
   children: React.ReactNode;
@@ -27,9 +27,10 @@ export function StaggerContainer({
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 },
   };
+  const childrenArray = React.Children.toArray(children);
 
   return (
-    <motion.div
+    <m.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
@@ -39,18 +40,25 @@ export function StaggerContainer({
       }}
       style={{ display: 'contents' }}
     >
-      {React.Children.map(children, (child, index) => (
-        <motion.div
-          key={index}
-          variants={itemVariants}
-          transition={{
-            duration: prefersReducedMotion ? 0 : 0.4,
-            ease: [0.4, 0, 0.2, 1],
-          }}
-        >
-          {child}
-        </motion.div>
-      ))}
-    </motion.div>
+      {childrenArray.map((child, childPosition) => {
+        const itemKey =
+          React.isValidElement(child) && child.key != null
+            ? String(child.key)
+            : `stagger-item-${childPosition}`;
+
+        return (
+          <m.div
+            key={itemKey}
+            variants={itemVariants}
+            transition={{
+              duration: prefersReducedMotion ? 0 : 0.4,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+          >
+            {child}
+          </m.div>
+        );
+      })}
+    </m.div>
   );
 }

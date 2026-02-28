@@ -36,12 +36,15 @@ export default function EstruturaCursoPage() {
   const [toastMsg, setToastMsg] = React.useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const [cursos, setCursos] = React.useState<Curso[]>([]);
+  const [totalCursos, setTotalCursos] = React.useState(0);
   const [courseIdSelecionado, setCourseIdSelecionado] = React.useState("");
 
   const [modulosCurso, setModulosCurso] = React.useState<Modulo[]>([]);
+  const [totalModulos, setTotalModulos] = React.useState(0);
   const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
 
   const [fasesModulo, setFasesModulo] = React.useState<Fase[]>([]);
+  const [totalFases, setTotalFases] = React.useState(0);
 
   const [novoCursoNome, setNovoCursoNome] = React.useState("");
   const [novoCursoDescricao, setNovoCursoDescricao] = React.useState("");
@@ -83,10 +86,18 @@ export default function EstruturaCursoPage() {
   };
 
   const carregarCursos = React.useCallback(async () => {
-    const data = await listarCursos();
-    setCursos(data);
-    setCourseIdSelecionado((prev) => (data.some((c) => c.id === prev) ? prev : data[0]?.id || ""));
-  }, []);
+    const response = await listarCursos({
+      page: paginaCursos,
+      limit: itensCursos,
+    });
+    const items = response.items;
+    setCursos(items);
+    setTotalCursos(response.total);
+    setCourseIdSelecionado((prev) => (items.some((c) => c.id === prev) ? prev : items[0]?.id || ""));
+    if (paginaCursos > response.pagination.totalPages) {
+      setPaginaCursos(response.pagination.totalPages);
+    }
+  }, [itensCursos, paginaCursos]);
 
   React.useEffect(() => {
     carregarCursos().catch((e) =>
@@ -97,28 +108,41 @@ export default function EstruturaCursoPage() {
   React.useEffect(() => {
     if (!courseIdSelecionado) {
       setModulosCurso([]);
+      setTotalModulos(0);
       setModuloIdSelecionado("");
       return;
     }
 
-    listarModulosPorCurso(courseIdSelecionado)
-      .then((mods) => {
+    listarModulosPorCurso(courseIdSelecionado, { page: paginaModulos, limit: itensModulos })
+      .then((response) => {
+        const mods = response.items;
         setModulosCurso(mods);
+        setTotalModulos(response.total);
         setModuloIdSelecionado((prev) => (mods.some((m) => m.id === prev) ? prev : mods[0]?.id || ""));
+        if (paginaModulos > response.pagination.totalPages) {
+          setPaginaModulos(response.pagination.totalPages);
+        }
       })
-      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar módulos" }));
-  }, [courseIdSelecionado]);
+      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar modulos" }));
+  }, [courseIdSelecionado, itensModulos, paginaModulos]);
 
   React.useEffect(() => {
     if (!moduloIdSelecionado) {
       setFasesModulo([]);
+      setTotalFases(0);
       return;
     }
 
-    listarFasesDoModulo(moduloIdSelecionado)
-      .then(setFasesModulo)
+    listarFasesDoModulo(moduloIdSelecionado, { page: paginaFases, limit: itensFases })
+      .then((response) => {
+        setFasesModulo(response.items);
+        setTotalFases(response.total);
+        if (paginaFases > response.pagination.totalPages) {
+          setPaginaFases(response.pagination.totalPages);
+        }
+      })
       .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar fases" }));
-  }, [moduloIdSelecionado]);
+  }, [itensFases, moduloIdSelecionado, paginaFases]);
 
   React.useEffect(() => setPaginaCursos(1), [filtroCursoId, itensCursos]);
   React.useEffect(() => setPaginaModulos(1), [filtroModuloId, courseIdSelecionado, itensModulos]);
@@ -175,8 +199,13 @@ export default function EstruturaCursoPage() {
       setNovoModuloDescricao("");
       setToastMsg({ type: "success", msg: "Módulo criado com sucesso" });
 
-      const mods = await listarModulosPorCurso(courseIdSelecionado);
+      const modsResponse = await listarModulosPorCurso(courseIdSelecionado, {
+        page: paginaModulos,
+        limit: itensModulos,
+      });
+      const mods = modsResponse.items;
       setModulosCurso(mods);
+      setTotalModulos(modsResponse.total);
       const nextId = result.modulo.id || mods[0]?.id || "";
       setModuloIdSelecionado(nextId);
       navigate(rotaAba("fase"));
@@ -205,8 +234,12 @@ export default function EstruturaCursoPage() {
       setNovaFaseWeek((prev) => prev + 1);
       setToastMsg({ type: "success", msg: "Fase criada com sucesso" });
 
-      const fases = await listarFasesDoModulo(moduloIdSelecionado);
-      setFasesModulo(fases);
+      const fasesResponse = await listarFasesDoModulo(moduloIdSelecionado, {
+        page: paginaFases,
+        limit: itensFases,
+      });
+      setFasesModulo(fasesResponse.items);
+      setTotalFases(fasesResponse.total);
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar fase" });
     } finally {
@@ -235,9 +268,12 @@ export default function EstruturaCursoPage() {
     });
   }, [fasesModulo, filtroFaseId]);
 
-  const paginaCursosItens = cursosFiltrados.slice((paginaCursos - 1) * itensCursos, paginaCursos * itensCursos);
-  const paginaModulosItens = modulosFiltrados.slice((paginaModulos - 1) * itensModulos, paginaModulos * itensModulos);
-  const paginaFasesItens = fasesFiltradas.slice((paginaFases - 1) * itensFases, paginaFases * itensFases);
+  const paginaCursosItens = cursosFiltrados;
+  const paginaModulosItens = modulosFiltrados;
+  const paginaFasesItens = fasesFiltradas;
+  const totalCursosPaginacao = filtroCursoId ? cursosFiltrados.length : totalCursos;
+  const totalModulosPaginacao = filtroModuloId ? modulosFiltrados.length : totalModulos;
+  const totalFasesPaginacao = filtroFaseId ? fasesFiltradas.length : totalFases;
 
   const cursoSelecionado = React.useMemo(
     () => cursos.find((curso) => curso.id === courseIdSelecionado) || null,
@@ -273,21 +309,32 @@ export default function EstruturaCursoPage() {
       } else if (detalheModal.tipo === "modulo") {
         await deletarModulo(detalheModal.item.id);
         if (courseIdSelecionado) {
-          const mods = await listarModulosPorCurso(courseIdSelecionado);
+          const modsResponse = await listarModulosPorCurso(courseIdSelecionado, {
+            page: paginaModulos,
+            limit: itensModulos,
+          });
+          const mods = modsResponse.items;
           setModulosCurso(mods);
+          setTotalModulos(modsResponse.total);
           const nextId = mods[0]?.id || "";
           setModuloIdSelecionado(nextId);
         } else {
           setModulosCurso([]);
+          setTotalModulos(0);
           setModuloIdSelecionado("");
         }
       } else {
         await deletarFase(detalheModal.item.id);
         if (moduloIdSelecionado) {
-          const fases = await listarFasesDoModulo(moduloIdSelecionado);
-          setFasesModulo(fases);
+          const fasesResponse = await listarFasesDoModulo(moduloIdSelecionado, {
+            page: paginaFases,
+            limit: itensFases,
+          });
+          setFasesModulo(fasesResponse.items);
+          setTotalFases(fasesResponse.total);
         } else {
           setFasesModulo([]);
+          setTotalFases(0);
         }
       }
 
@@ -325,15 +372,15 @@ export default function EstruturaCursoPage() {
         <div className="estruturaOverview" aria-label="Resumo da estrutura">
           <div className="estruturaOverviewCard">
             <span>Cursos</span>
-            <strong>{cursos.length}</strong>
+            <strong>{totalCursos}</strong>
           </div>
           <div className="estruturaOverviewCard">
             <span>Módulos</span>
-            <strong>{modulosCurso.length}</strong>
+            <strong>{totalModulos}</strong>
           </div>
           <div className="estruturaOverviewCard">
             <span>Fases</span>
-            <strong>{fasesModulo.length}</strong>
+            <strong>{totalFases}</strong>
           </div>
         </div>
 
@@ -345,10 +392,10 @@ export default function EstruturaCursoPage() {
                 <p>Formulário de criação de curso.</p>
               </div>
               <form onSubmit={handleCriarCurso} className="estruturaForm">
-                <label>Nome do curso *</label>
+                <span>Nome do curso *</span>
                 <input value={novoCursoNome} onChange={(e) => setNovoCursoNome(e.target.value)} placeholder="Ex: Programação Full Stack" />
 
-                <label>Descrição</label>
+                <span>Descrição</span>
                 <textarea value={novoCursoDescricao} onChange={(e) => setNovoCursoDescricao(e.target.value)} placeholder="Opcional" />
 
                 <label className="estruturaSwitchRow">
@@ -411,7 +458,7 @@ export default function EstruturaCursoPage() {
               <Pagination
                 currentPage={paginaCursos}
                 itemsPerPage={itensCursos}
-                totalItems={cursosFiltrados.length}
+                totalItems={totalCursosPaginacao}
                 onPageChange={setPaginaCursos}
                 onItemsPerPageChange={setItensCursos}
               />
@@ -427,7 +474,7 @@ export default function EstruturaCursoPage() {
                 <p>Formulário de criação de módulo.</p>
               </div>
               <form onSubmit={handleCriarModulo} className="estruturaForm">
-                <label>Curso *</label>
+                <span>Curso *</span>
                 <PaginatedSelect
                   value={courseIdSelecionado}
                   onChange={setCourseIdSelecionado}
@@ -440,10 +487,10 @@ export default function EstruturaCursoPage() {
                   emptyText="Nenhum curso cadastrado"
                 />
 
-                <label>Nome do módulo *</label>
+                <span>Nome do módulo *</span>
                 <input value={novoModuloNome} onChange={(e) => setNovoModuloNome(e.target.value)} placeholder="Ex: JavaScript + DOM" />
 
-                <label>Descrição</label>
+                <span>Descrição</span>
                 <textarea value={novoModuloDescricao} onChange={(e) => setNovoModuloDescricao(e.target.value)} placeholder="Opcional" />
 
                 <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoModulo}>
@@ -501,7 +548,7 @@ export default function EstruturaCursoPage() {
               <Pagination
                 currentPage={paginaModulos}
                 itemsPerPage={itensModulos}
-                totalItems={modulosFiltrados.length}
+                totalItems={totalModulosPaginacao}
                 onPageChange={setPaginaModulos}
                 onItemsPerPageChange={setItensModulos}
               />
@@ -517,7 +564,7 @@ export default function EstruturaCursoPage() {
                 <p>Formulário de criação de fase.</p>
               </div>
               <form onSubmit={handleCriarFase} className="estruturaForm">
-                <label>Módulo *</label>
+                <span>Módulo *</span>
                 <PaginatedSelect
                   value={moduloIdSelecionado}
                   onChange={setModuloIdSelecionado}
@@ -531,10 +578,10 @@ export default function EstruturaCursoPage() {
                   emptyText="Nenhum módulo cadastrado para este curso"
                 />
 
-                <label>Nome da fase *</label>
+                <span>Nome da fase *</span>
                 <input value={novaFaseNome} onChange={(e) => setNovaFaseNome(e.target.value)} placeholder="Ex: Semana 1 - Introdução" />
 
-                <label>Semana</label>
+                <span>Semana</span>
                 <input type="number" min={1} value={novaFaseWeek} onChange={(e) => setNovaFaseWeek(Math.max(1, Number(e.target.value) || 1))} />
 
                 <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoFase || !moduloIdSelecionado}>
@@ -589,7 +636,7 @@ export default function EstruturaCursoPage() {
               <Pagination
                 currentPage={paginaFases}
                 itemsPerPage={itensFases}
-                totalItems={fasesFiltradas.length}
+                totalItems={totalFasesPaginacao}
                 onPageChange={setPaginaFases}
                 onItemsPerPageChange={setItensFases}
               />

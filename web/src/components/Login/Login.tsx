@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useReducer, useRef, useState, useEffect } from "react";
 import "./Login.css";
 import { login } from "../../services/api";
 import { useNavigate } from "react-router-dom";
@@ -73,16 +73,69 @@ function EyeOffIcon() {
   );
 }
 
+type LoginFormState = {
+  usuario: string;
+  senha: string;
+  mostrarSenha: boolean;
+  loading: boolean;
+  sucesso: string | null;
+  erro: string | null;
+  isDarkMode: boolean;
+};
+
+type LoginFormAction =
+  | { type: "set_usuario"; value: string }
+  | { type: "set_senha"; value: string }
+  | { type: "toggle_mostrar_senha" }
+  | { type: "set_loading"; value: boolean }
+  | { type: "set_sucesso"; value: string | null }
+  | { type: "set_erro"; value: string | null }
+  | { type: "set_dark_mode"; value: boolean };
+
+function createInitialLoginFormState(): LoginFormState {
+  return {
+    usuario: "",
+    senha: "",
+    mostrarSenha: false,
+    loading: false,
+    sucesso: null,
+    erro: null,
+    isDarkMode:
+      typeof document !== "undefined" &&
+      document.documentElement.getAttribute("data-theme") === "dark",
+  };
+}
+
+function loginFormReducer(state: LoginFormState, action: LoginFormAction): LoginFormState {
+  switch (action.type) {
+    case "set_usuario":
+      return { ...state, usuario: action.value };
+    case "set_senha":
+      return { ...state, senha: action.value };
+    case "toggle_mostrar_senha":
+      return { ...state, mostrarSenha: !state.mostrarSenha };
+    case "set_loading":
+      return { ...state, loading: action.value };
+    case "set_sucesso":
+      return { ...state, sucesso: action.value };
+    case "set_erro":
+      return { ...state, erro: action.value };
+    case "set_dark_mode":
+      return { ...state, isDarkMode: action.value };
+    default:
+      return state;
+  }
+}
+
 export default function Login() {
   const navigate = useNavigate();
 
-  const [usuario, setUsuario] = useState("");
-  const [senha, setSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-
-  const [loading, setLoading] = useState(false);
-  const [sucesso, setSucesso] = useState<string | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(
+    loginFormReducer,
+    undefined,
+    createInitialLoginFormState
+  );
+  const { usuario, senha, mostrarSenha, loading, sucesso, erro, isDarkMode } = state;
 
   // countdown
   const [segundos, setSegundos] = useState<number | null>(null);
@@ -90,11 +143,6 @@ export default function Login() {
 
   // evita setState depois do unmount
   const mountedRef = useRef(true);
-
-  // dark mode detection
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return document.documentElement.getAttribute('data-theme') === 'dark';
-  });
 
   const podeEntrar = useMemo(() => {
     return usuario.trim().length > 0 && senha.trim().length > 0 && !loading;
@@ -125,7 +173,7 @@ export default function Login() {
     const observer = new MutationObserver(() => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       if (mountedRef.current) {
-        setIsDarkMode(isDark);
+        dispatch({ type: "set_dark_mode", value: isDark });
       }
     });
 
@@ -143,11 +191,11 @@ export default function Login() {
     if (!podeEntrar) return;
 
     // reseta mensagens/contagem
-    setErro(null);
-    setSucesso(null);
+    dispatch({ type: "set_erro", value: null });
+    dispatch({ type: "set_sucesso", value: null });
     clearCountdown();
 
-    setLoading(true);
+    dispatch({ type: "set_loading", value: true });
 
     try {
       const data = await login({ usuario: usuario.trim(), senha });
@@ -162,8 +210,8 @@ export default function Login() {
       localStorage.removeItem("role");
       notifyAuthChanged();
 
-      setSucesso(data.message ?? "Login realizado!");
-      setErro(null);
+      dispatch({ type: "set_sucesso", value: data.message ?? "Login realizado!" });
+      dispatch({ type: "set_erro", value: null });
 
       // inicia contagem 2s e depois navega
       setSegundos(2);
@@ -190,10 +238,10 @@ export default function Login() {
     } catch (err) {
       if (!mountedRef.current) return;
 
-      setErro(err instanceof Error ? err.message : "Erro desconhecido");
+      dispatch({ type: "set_erro", value: err instanceof Error ? err.message : "Erro desconhecido" });
     } finally {
       if (!mountedRef.current) return;
-      setLoading(false);
+      dispatch({ type: "set_loading", value: false });
     }
   }
 
@@ -218,7 +266,7 @@ export default function Login() {
             <input
               className="login-input"
               value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
+              onChange={(e) => dispatch({ type: "set_usuario", value: e.target.value })}
               type="text"
               autoComplete="username"
               placeholder="Digite seu usuário"
@@ -231,7 +279,7 @@ export default function Login() {
               <input
                 className="login-input login-input--with-toggle"
                 value={senha}
-                onChange={(e) => setSenha(e.target.value)}
+                onChange={(e) => dispatch({ type: "set_senha", value: e.target.value })}
                 type={mostrarSenha ? "text" : "password"}
                 autoComplete="current-password"
                 placeholder="Digite sua senha"
@@ -240,7 +288,7 @@ export default function Login() {
               <button
                 type="button"
                 className="login-toggle"
-                onClick={() => setMostrarSenha((v) => !v)}
+                onClick={() => dispatch({ type: "toggle_mostrar_senha" })}
                 aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
                 title={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
                 aria-pressed={mostrarSenha}

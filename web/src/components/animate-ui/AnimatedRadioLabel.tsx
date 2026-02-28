@@ -29,7 +29,7 @@ export function AnimatedRadioLabel({
         cursor: 'pointer',
         padding: '12px 16px',
         borderRadius: '8px',
-        transition: 'all 0.3s ease',
+        transition: 'border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease',
         border: `2px solid ${checked ? 'var(--red)' : 'var(--line)'}`,
         backgroundColor: checked ? 'rgba(225, 29, 46, 0.05)' : 'transparent',
         color: checked ? 'var(--red)' : 'var(--text)',

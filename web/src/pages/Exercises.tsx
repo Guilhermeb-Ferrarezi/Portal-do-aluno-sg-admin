@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { getUserId } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import ConfirmModal from "../components/ConfirmModal";
+import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import PaginatedSelect from "../components/PaginatedSelect";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
@@ -30,6 +31,7 @@ import {
   MessageSquareText,
   ChevronDown,
   ChevronUp,
+  Info,
 } from "lucide-react";
 import {
   criarExercicio,
@@ -101,6 +103,29 @@ export default function ExerciciosPage() {
   };
 
   type CategoriaExercicio = "programacao" | "informatica";
+  type RequiredFieldKey = "titulo" | "descricao" | "curso" | "modulo" | "fase" | "prazo" | "multipla" | "ordem";
+  type InfoOverlayKey = "dificuldade" | "ordem";
+  type ExerciseListViewItem = {
+    ex: Exercicio;
+    alunoIds: string[];
+    hasAlunoAssignment: boolean;
+    turmaIds: string[];
+    publishedAtMs: number | null;
+    prazoMs: number | null;
+  };
+  type ExercisesVirtualWindow = {
+    visibleItems: ExerciseListViewItem[];
+    topSpacerHeight: number;
+    bottomSpacerHeight: number;
+  };
+
+  function normalizeListPayload<T>(payload: T[] | { items?: T[] } | null | undefined): T[] {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray((payload as { items?: T[] }).items)) {
+      return (payload as { items: T[] }).items;
+    }
+    return [];
+  }
 
   function inferCategoriaFromCourseName(courseName: string | null | undefined): CategoriaExercicio {
     const normalized = (courseName ?? "").toLowerCase();
@@ -132,6 +157,8 @@ export default function ExerciciosPage() {
   const [dailyLoaded, setDailyLoaded] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
+  const [fieldWarnings, setFieldWarnings] = React.useState<Partial<Record<RequiredFieldKey, string>>>({});
+  const [infoOverlay, setInfoOverlay] = React.useState<InfoOverlayKey | null>(null);
 
   // form
   const [titulo, setTitulo] = React.useState("");
@@ -152,8 +179,6 @@ export default function ExerciciosPage() {
   const [exercisePeriod, setExercisePeriod] = React.useState(""); // datetime-local
   const [isFinalExercise, setIsFinalExercise] = React.useState(false);
   const [isDailyTask, setIsDailyTask] = React.useState(false);
-  const [publishnaow, setPublishnaow] = React.useState(true); // Publicar agora ou agendar
-  const [publishedAt, setPublishedAt] = React.useState(""); // datetime-local
   const [categoria, setCategoria] = React.useState<CategoriaExercicio>("programacao");
   const [componenteInterativo, setComponenteInterativo] = React.useState("escrita"); // temporario: apenas escrita e multipla
   // Regras para Multipla Escolha
@@ -213,7 +238,9 @@ export default function ExerciciosPage() {
   // Turmas
   const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
   const [turmaFiltro, setTurmaFiltro] = React.useState("todas");
-  const [statusFiltro, setStatusFiltro] = React.useState("todos");
+  const [statusFiltro, setStatusFiltro] = React.useState<"todos" | "publicado" | "programado" | "rascunho">("todos");
+  const [totalItemsLista, setTotalItemsLista] = React.useState(0);
+  const [totalItemsTarefaDiaria, setTotalItemsTarefaDiaria] = React.useState(0);
 
   // Alunos
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
@@ -221,6 +248,26 @@ export default function ExerciciosPage() {
   // Paginacao
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
+  const deferredBuscaFiltro = React.useDeferredValue(buscaFiltro);
+  const buscaFiltroQuery = deferredBuscaFiltro.trim();
+  const exercisesListVirtualHostRef = React.useRef<HTMLDivElement | null>(null);
+  const exercisesListGridRef = React.useRef<HTMLDivElement | null>(null);
+  const [virtualScrollY, setVirtualScrollY] = React.useState(
+    typeof window !== "undefined" ? window.scrollY : 0
+  );
+  const [virtualViewportHeight, setVirtualViewportHeight] = React.useState(
+    typeof window !== "undefined" ? window.innerHeight : 0
+  );
+  const [virtualContainerTop, setVirtualContainerTop] = React.useState(0);
+  const [virtualColumns, setVirtualColumns] = React.useState(1);
+  const [virtualGap, setVirtualGap] = React.useState(20);
+  const [virtualRowHeight, setVirtualRowHeight] = React.useState(340);
+  const createDepsLoadedRef = React.useRef(false);
+  const createDepsLoadingRef = React.useRef(false);
+  const turmasLoadedRef = React.useRef(false);
+  const turmasLoadingRef = React.useRef(false);
+  const alunosLookupLoadedRef = React.useRef(false);
+  const alunosLookupLoadingRef = React.useRef(false);
 
   const alunoNameById = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -270,6 +317,10 @@ export default function ExerciciosPage() {
   }, [cursosToggleFiltrados, cursoCardsPagina, cursoCardsItensPorPagina]);
 
   function handleSelecionarCurso(courseId: string) {
+    clearFieldWarning("curso");
+    clearFieldWarning("modulo");
+    clearFieldWarning("fase");
+    clearFieldWarning("ordem");
     const trocouCurso = courseId !== cursoIdSelecionado;
     if (trocouCurso) {
       setModuloIdSelecionado("");
@@ -286,6 +337,53 @@ export default function ExerciciosPage() {
       setCategoria(categoriaInferida);
       setComponenteInterativo("escrita");
     }
+  }
+
+  function clearFieldWarning(field: RequiredFieldKey) {
+    setFieldWarnings((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function collectRequiredFieldWarnings(params: {
+    tituloFinal: string;
+    descricaoFinal: string;
+    moduloNome: string;
+    phaseIdNum: number;
+    courseIdNum: number;
+  }) {
+    const warnings: Partial<Record<RequiredFieldKey, string>> = {};
+    const isInteractiveComponentInformatica = categoria === "informatica" && componenteInterativo !== "";
+
+    if (!isInteractiveComponentInformatica && params.tituloFinal.length < 2) {
+      warnings.titulo = "Titulo obrigatorio (minimo 2 caracteres).";
+    }
+    if (!isInteractiveComponentInformatica && params.descricaoFinal.length < 2) {
+      warnings.descricao = "Descricao obrigatoria (minimo 2 caracteres).";
+    }
+    if (!Number.isFinite(params.courseIdNum) || params.courseIdNum <= 0) {
+      warnings.curso = "Selecione um curso.";
+    }
+    if (!params.moduloNome) {
+      warnings.modulo = "Selecione um modulo.";
+    }
+    if (!Number.isFinite(params.phaseIdNum) || params.phaseIdNum <= 0) {
+      warnings.fase = "Selecione uma fase.";
+    }
+    if (!prazo) {
+      warnings.prazo = "Prazo obrigatorio.";
+    }
+    if (
+      componenteInterativo === "multipla" &&
+      multiplaQuestoes.some((q) => !q.pergunta || !q.respostaCorreta || q.opcoes.some((o) => !o.text))
+    ) {
+      warnings.multipla = "Complete todas as perguntas, opcoes e resposta correta.";
+    }
+
+    return warnings;
   }
 
   function toDatetimeLocal(value: string | null | undefined) {
@@ -313,26 +411,8 @@ export default function ExerciciosPage() {
     }];
   }
 
-  function applyPublicationStateFromExercise(exercicio: Exercicio) {
-    const publicationDateLocal = toDatetimeLocal(exercicio.publishedAt);
-    if (!publicationDateLocal) {
-      setPublishnaow(exercicio.publicado !== false);
-      setPublishedAt("");
-      return;
-    }
-
-    const publicationDate = new Date(exercicio.publishedAt as string);
-    if (!Number.isNaN(publicationDate.getTime()) && publicationDate > new Date()) {
-      setPublishnaow(false);
-      setPublishedAt(publicationDateLocal);
-      return;
-    }
-
-    setPublishnaow(exercicio.publicado !== false);
-    setPublishedAt("");
-  }
-
   function resetExerciseFormState(params?: { clearAttachments?: boolean }) {
+    setFieldWarnings({});
     setTitulo("");
     setDescricao("");
     setGabarito("");
@@ -348,8 +428,6 @@ export default function ExerciciosPage() {
     setExercisePeriod("");
     setIsFinalExercise(false);
     setIsDailyTask(false);
-    setPublishnaow(true);
-    setPublishedAt("");
     setCategoria("programacao");
     setComponenteInterativo("escrita");
     setPermitirRepeticao(false);
@@ -399,6 +477,94 @@ export default function ExerciciosPage() {
     return `Para: ${names[0]} +${names.length - 1}`;
   }
 
+  async function ensureCreateDependenciesLoaded(force = false) {
+    if (!canCreate || createDepsLoadingRef.current) return;
+    if (createDepsLoadedRef.current && !force) return;
+    createDepsLoadingRef.current = true;
+    try {
+      const [cursosResult, modulosResult] = await Promise.allSettled([
+        listarCursos(),
+        listarModulos(),
+      ]);
+
+      let cursosCarregados = false;
+
+      if (cursosResult.status === "fulfilled") {
+        const cursos = normalizeListPayload<Curso>(
+          cursosResult.value as Curso[] | { items?: Curso[] }
+        );
+        setCursosDisponiveis(cursos);
+        cursosCarregados = true;
+      } else {
+        console.error("Erro ao carregar cursos:", cursosResult.reason);
+      }
+
+      if (modulosResult.status === "fulfilled") {
+        const modulos = normalizeListPayload<Modulo>(
+          modulosResult.value as Modulo[] | { items?: Modulo[] }
+        );
+        setTodosModulosDisponiveis(modulos);
+      } else {
+        console.error("Erro ao carregar modulos:", modulosResult.reason);
+      }
+
+      createDepsLoadedRef.current = cursosCarregados;
+      if (!cursosCarregados) {
+        setErro("Nao foi possivel carregar cursos para criar exercicio.");
+      }
+    } catch (e) {
+      console.error("Erro ao carregar dependencias de criacao:", e);
+    } finally {
+      createDepsLoadingRef.current = false;
+    }
+  }
+
+  async function ensureTurmasLoaded() {
+    if (!canCreate || turmasLoadedRef.current || turmasLoadingRef.current) return;
+    turmasLoadingRef.current = true;
+    try {
+      const turmas = await listarTurmas();
+      setTurmasDisponiveis(turmas);
+      turmasLoadedRef.current = true;
+    } catch (e) {
+      console.error("Erro ao carregar turmas:", e);
+    } finally {
+      turmasLoadingRef.current = false;
+    }
+  }
+
+  async function ensureAlunosLookupLoaded(exercicios: Exercicio[]) {
+    if (!canCreate || alunosLookupLoadedRef.current || alunosLookupLoadingRef.current) return;
+    if (alunosDisponiveis.length > 0) {
+      alunosLookupLoadedRef.current = true;
+      return;
+    }
+
+    const needsLookup = exercicios.some((exercicio) => {
+      const alunosPayload = Array.isArray((exercicio as any).alunos) ? (exercicio as any).alunos : [];
+      const hasInlineName = alunosPayload.some(
+        (aluno: any) =>
+          (typeof aluno?.nome === "string" && aluno.nome.trim().length > 0) ||
+          (typeof aluno?.usuario === "string" && aluno.usuario.trim().length > 0)
+      );
+      const hasIds = getAlunoIds(exercicio).length > 0;
+      return hasIds && !hasInlineName;
+    });
+
+    if (!needsLookup) return;
+
+    alunosLookupLoadingRef.current = true;
+    try {
+      const alunos = await listarAlunos();
+      setAlunosDisponiveis(alunos);
+      alunosLookupLoadedRef.current = true;
+    } catch (e) {
+      console.error("Erro ao carregar alunos:", e);
+    } finally {
+      alunosLookupLoadingRef.current = false;
+    }
+  }
+
   function getRespostasDiretasKey(alunoId: string, exercicioId: string) {
     return `${alunoId}:${exercicioId}`;
   }
@@ -439,8 +605,23 @@ export default function ExerciciosPage() {
     try {
       setLoading(true);
       setErro(null);
-      const data = await listarExercicios();
-      setItems(data.filter((ex) => ex.isDailyTask !== true));
+
+      const response = await listarExercicios({
+        q: buscaFiltroQuery || undefined,
+        modulo: moduloFiltro || undefined,
+        turmaId: turmaFiltro !== "todas" ? turmaFiltro : undefined,
+        status: isStaff ? statusFiltro : undefined,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+
+      const normalized = response.items.filter((ex) => ex.isDailyTask !== true);
+      setItems(normalized);
+      setTotalItemsLista(response.total);
+      if (currentPage > response.pagination.totalPages) {
+        setCurrentPage(response.pagination.totalPages);
+      }
+      void ensureAlunosLookupLoaded(normalized);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao carregar Exercicios");
     } finally {
@@ -452,8 +633,22 @@ export default function ExerciciosPage() {
     try {
       setLoading(true);
       setErro(null);
-      const data = await listarTarefasDiarias();
-      setDailyItems(data.filter((ex) => ex.isDailyTask !== false));
+
+      const response = await listarTarefasDiarias({
+        q: buscaFiltroQuery || undefined,
+        modulo: moduloFiltro || undefined,
+        turmaId: turmaFiltro !== "todas" ? turmaFiltro : undefined,
+        status: isStaff ? statusFiltro : undefined,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+
+      const normalized = response.items.filter((ex) => ex.isDailyTask !== false);
+      setDailyItems(normalized);
+      setTotalItemsTarefaDiaria(response.total);
+      if (currentPage > response.pagination.totalPages) {
+        setCurrentPage(response.pagination.totalPages);
+      }
       setDailyLoaded(true);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao carregar tarefas diarias");
@@ -610,29 +805,23 @@ export default function ExerciciosPage() {
   }
 
   React.useEffect(() => {
-    load();
-
-    // Carregar turmas e alunos disponiveis se for professor/admin
     if (canCreate) {
-      listarCursos()
-        .then(setCursosDisponiveis)
-        .catch((e) => console.error("Erro ao carregar cursos:", e));
-
-      listarModulos()
-        .then((modulos) => {
-          setTodosModulosDisponiveis(modulos);
-        })
-        .catch((e) => console.error("Erro ao carregar modulos:", e));
-
-      listarTurmas()
-        .then(setTurmasDisponiveis)
-        .catch((e) => console.error("Erro ao carregar turmas:", e));
-
-      listarAlunos()
-        .then(setAlunosDisponiveis)
-        .catch((e) => console.error("Erro ao carregar alunos:", e));
+      void ensureTurmasLoaded();
     }
-  }, []);
+  }, [canCreate]);
+
+  React.useEffect(() => {
+    if (activeSection === "tarefa-diaria") {
+      void loadDailyTasks();
+      return;
+    }
+    void load();
+  }, [activeSection, currentPage, itemsPerPage, buscaFiltroQuery, moduloFiltro, turmaFiltro, statusFiltro, isStaff]);
+
+  React.useEffect(() => {
+    if (!canCreate || activeSection !== "criar") return;
+    void ensureCreateDependenciesLoaded();
+  }, [activeSection, canCreate]);
 
   React.useEffect(() => {
     if (!cursoIdSelecionado) {
@@ -644,7 +833,10 @@ export default function ExerciciosPage() {
     }
 
     listarModulosPorCurso(cursoIdSelecionado)
-      .then((modulos) => {
+      .then((response) => {
+        const modulos = normalizeListPayload<Modulo>(
+          response as Modulo[] | { items?: Modulo[] }
+        );
         setModulosDisponiveis(modulos);
         setModuloIdSelecionado((prev) =>
           prev && modulos.some((modulo) => modulo.id === prev) ? prev : ""
@@ -695,7 +887,10 @@ export default function ExerciciosPage() {
     }
 
     listarFasesDoModulo(moduloIdSelecionado)
-      .then((fases) => {
+      .then((response) => {
+        const fases = normalizeListPayload<Fase>(
+          response as Fase[] | { items?: Fase[] }
+        );
         setFasesDisponiveis(fases);
         setFaseIdSelecionada((prev) =>
           prev && fases.some((fase) => fase.id === prev) ? prev : ""
@@ -707,12 +902,6 @@ export default function ExerciciosPage() {
         setFaseIdSelecionada("");
       });
   }, [moduloIdSelecionado]);
-
-  React.useEffect(() => {
-    if (activeSection === "tarefa-diaria") {
-      void loadDailyTasks();
-    }
-  }, [activeSection]);
 
   React.useEffect(() => {
     const state = location.state as { restoreSection?: "criar" | "lista" | "tarefa-diaria" | "respostas" } | null;
@@ -761,13 +950,13 @@ export default function ExerciciosPage() {
       const courseIdNum = Number(cursoIdSelecionado);
       const phaseIdNum = Number(faseIdSelecionada);
 
-      if (difficulty.trim() && (!Number.isInteger(dificuldadeNum) || Number(dificuldadeNum) < 0)) {
-        setErro("Dificuldade deve ser um numero inteiro maior ou igual a 0.");
+      if (difficulty.trim() && (!Number.isInteger(dificuldadeNum) || Number(dificuldadeNum) < 1)) {
+        setErro("Dificuldade deve ser um numero inteiro maior ou igual a 1.");
         setSaving(false);
         return;
       }
-      if (indexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 0)) {
-        setErro("Ordem deve ser um numero inteiro maior ou igual a 0.");
+      if (indexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 1)) {
+        setErro("Ordem deve ser um numero inteiro maior ou igual a 1.");
         setSaving(false);
         return;
       }
@@ -787,24 +976,24 @@ export default function ExerciciosPage() {
         }
       }
 
-      if (!Number.isFinite(phaseIdNum) || phaseIdNum <= 0) {
-        setErro("Selecione uma fase valida antes de salvar.");
-        setSaving(false);
-        return;
-      }
-      if (!Number.isFinite(courseIdNum) || courseIdNum <= 0) {
-        setErro("Selecione um curso valido antes de salvar.");
-        setSaving(false);
-        return;
-      }
-
       const moduloNome = moduloSelecionado?.nome?.trim() ?? "";
       const faseNome = faseSelecionada?.nome?.trim() ?? null;
-      if (!moduloNome) {
-        setErro("Selecione um modulo valido antes de salvar.");
+
+      const requiredWarnings = collectRequiredFieldWarnings({
+        tituloFinal,
+        descricaoFinal,
+        moduloNome,
+        phaseIdNum,
+        courseIdNum,
+      });
+
+      if (Object.keys(requiredWarnings).length > 0) {
+        setFieldWarnings(requiredWarnings);
+        setErro("Preencha os campos obrigatorios em destaque.");
         setSaving(false);
         return;
       }
+      setFieldWarnings({});
 
       const dados: any = {
         titulo: tituloFinal,
@@ -821,8 +1010,8 @@ export default function ExerciciosPage() {
         is_daily_task: isDailyTask,
         points_redeem: pontosNum,
         exercise_period: exercisePeriod ? new Date(exercisePeriod).toISOString() : null,
-        publicado: publishnaow,
-        published_at: publishnaow ? null : (publishedAt ? new Date(publishedAt).toISOString() : null),
+        publicado: true,
+        published_at: null,
         categoria: categoria,
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
         ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
@@ -867,7 +1056,26 @@ export default function ExerciciosPage() {
         await loadDailyTasks();
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao salvar Exercicio");
+      const message = e instanceof Error ? e.message : "Erro ao salvar Exercicio";
+      if (message.toLowerCase().includes("index disponivel") || message.toLowerCase().includes("menor ordem")) {
+        setFieldWarnings((prev) => ({
+          ...prev,
+          ordem: message,
+        }));
+      }
+      if (message.toLowerCase().includes("dados invalid")) {
+        const warnings = collectRequiredFieldWarnings({
+          tituloFinal: titulo.trim(),
+          descricaoFinal: descricao.trim(),
+          moduloNome: moduloSelecionado?.nome?.trim() ?? "",
+          phaseIdNum: Number(faseIdSelecionada),
+          courseIdNum: Number(cursoIdSelecionado),
+        });
+        if (Object.keys(warnings).length > 0) {
+          setFieldWarnings(warnings);
+        }
+      }
+      setErro(message);
     } finally {
       setSaving(false);
     }
@@ -875,6 +1083,7 @@ export default function ExerciciosPage() {
 
   function handleEdit(exercicio: Exercicio) {
     setActiveSection("criar");
+    setFieldWarnings({});
     setTitulo(exercicio.titulo);
     setDescricao(exercicio.descricao);
     setGabarito("");
@@ -906,8 +1115,6 @@ export default function ExerciciosPage() {
 
     // Converter data de ISO para formato datetime-local
     setPrazo(toDatetimeLocal(exercicio.prazo));
-
-    applyPublicationStateFromExercise(exercicio);
 
     // Restaurar categoria
     setCategoria(exercicio.categoria || "programacao");
@@ -1004,8 +1211,180 @@ export default function ExerciciosPage() {
     (componenteInterativo === "multipla" && multiplaQuestoes.some(q => !q.pergunta || !q.respostaCorreta || q.opcoes.some(o => !o.text)));
 
   const sourceItems = activeSection === "tarefa-diaria" ? dailyItems : items;
+  const totalItemsSection = activeSection === "tarefa-diaria" ? totalItemsTarefaDiaria : totalItemsLista;
+  const prazoDateFormatter = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    []
+  );
+
+  const sourceItemsView = React.useMemo<ExerciseListViewItem[]>(() => {
+    return sourceItems.map((ex) => {
+      const alunoIds = getAlunoIds(ex);
+      const publishedAtTs =
+        typeof ex.publishedAt === "string" ? Date.parse(ex.publishedAt) : Number.NaN;
+      const prazoTs = typeof ex.prazo === "string" ? Date.parse(ex.prazo) : Number.NaN;
+
+      return {
+        ex,
+        alunoIds,
+        hasAlunoAssignment: alunoIds.length > 0,
+        turmaIds: Array.isArray(ex.turmas) ? ex.turmas.map((turma) => turma.id) : [],
+        publishedAtMs: Number.isFinite(publishedAtTs) ? publishedAtTs : null,
+        prazoMs: Number.isFinite(prazoTs) ? prazoTs : null,
+      };
+    });
+  }, [sourceItems]);
+
+  const moduloFilterOptions = React.useMemo(
+    () => Array.from(new Set(sourceItems.map((ex) => ex.modulo))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [sourceItems]
+  );
+
+  const filteredExercises = React.useMemo<ExerciseListViewItem[]>(() => {
+    return sourceItemsView.filter((item) => {
+      const { alunoIds, hasAlunoAssignment } = item;
+      if (!isStaff && hasAlunoAssignment && (!userId || !alunoIds.includes(userId))) {
+        return false;
+      }
+      return true;
+    });
+  }, [sourceItemsView, isStaff, userId]);
+
+  const paginatedExercises = filteredExercises;
+  const renderNowMs = Date.now();
+  const shouldVirtualizeExercises =
+    (activeSection === "lista" || activeSection === "tarefa-diaria") &&
+    paginatedExercises.length > 18;
+
+  const updateExercisesVirtualMetrics = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const hostNode = exercisesListVirtualHostRef.current;
+    const gridNode = exercisesListGridRef.current;
+    if (!hostNode || !gridNode) return;
+
+    const hostRect = hostNode.getBoundingClientRect();
+    const hostTop = hostRect.top + window.scrollY;
+    const styles = window.getComputedStyle(gridNode);
+    const rowGapRaw = styles.rowGap || styles.gap || "20";
+    const parsedRowGap = Number.parseFloat(rowGapRaw);
+    const nextGap = Number.isFinite(parsedRowGap) ? parsedRowGap : 20;
+    const gridColumnsRaw = styles.gridTemplateColumns || "";
+    const nextColumns = Math.max(1, gridColumnsRaw.split(" ").filter(Boolean).length);
+
+    setVirtualContainerTop((prev) => (Math.abs(prev - hostTop) > 0.5 ? hostTop : prev));
+    setVirtualGap((prev) => (Math.abs(prev - nextGap) > 0.5 ? nextGap : prev));
+    setVirtualColumns((prev) => (prev !== nextColumns ? nextColumns : prev));
+  }, []);
+
+  const measureExerciseCardRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) return;
+      const nextHeight = node.getBoundingClientRect().height + virtualGap;
+      if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+      setVirtualRowHeight((prev) => (Math.abs(prev - nextHeight) > 2 ? nextHeight : prev));
+    },
+    [virtualGap]
+  );
+
+  React.useEffect(() => {
+    if (!shouldVirtualizeExercises || typeof window === "undefined") return;
+
+    let rafId = 0;
+    const syncVirtualScrollY = (nextScrollY: number) => {
+      setVirtualScrollY((prev) => (Math.abs(prev - nextScrollY) > 2 ? nextScrollY : prev));
+    };
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        syncVirtualScrollY(window.scrollY);
+      });
+    };
+    const onResize = () => {
+      setVirtualViewportHeight((prev) => (prev !== window.innerHeight ? window.innerHeight : prev));
+      syncVirtualScrollY(window.scrollY);
+      updateExercisesVirtualMetrics();
+    };
+
+    setVirtualViewportHeight((prev) => (prev !== window.innerHeight ? window.innerHeight : prev));
+    syncVirtualScrollY(window.scrollY);
+    updateExercisesVirtualMetrics();
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+
+    const hostNode = exercisesListVirtualHostRef.current;
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined" && hostNode
+        ? new ResizeObserver(() => updateExercisesVirtualMetrics())
+        : null;
+
+    if (hostNode && resizeObserver) {
+      resizeObserver.observe(hostNode);
+    }
+
+    return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [shouldVirtualizeExercises, updateExercisesVirtualMetrics]);
+
+  const exercisesVirtualWindow = React.useMemo<ExercisesVirtualWindow | null>(() => {
+    if (!shouldVirtualizeExercises) return null;
+    const safeColumns = Math.max(1, virtualColumns);
+    const safeRowHeight = Math.max(260, virtualRowHeight);
+    const totalRows = Math.max(1, Math.ceil(paginatedExercises.length / safeColumns));
+    const totalHeight = totalRows * safeRowHeight;
+    const viewportStart = Math.max(0, virtualScrollY - virtualContainerTop);
+    const viewportEnd = viewportStart + virtualViewportHeight;
+    const overscanPx = safeRowHeight * 2;
+    const startRow = Math.max(0, Math.floor((viewportStart - overscanPx) / safeRowHeight));
+    const endRow = Math.min(totalRows - 1, Math.ceil((viewportEnd + overscanPx) / safeRowHeight));
+    const startIndex = startRow * safeColumns;
+    const endIndexExclusive = Math.min(
+      paginatedExercises.length,
+      (endRow + 1) * safeColumns
+    );
+    const visibleItems = paginatedExercises.slice(startIndex, endIndexExclusive);
+    const visibleRows = Math.max(1, Math.ceil(visibleItems.length / safeColumns));
+    const topSpacerHeight = startRow * safeRowHeight;
+    const renderedHeight = visibleRows * safeRowHeight;
+    const bottomSpacerHeight = Math.max(0, totalHeight - topSpacerHeight - renderedHeight);
+
+    return {
+      visibleItems,
+      topSpacerHeight,
+      bottomSpacerHeight,
+    };
+  }, [
+    shouldVirtualizeExercises,
+    virtualColumns,
+    virtualRowHeight,
+    paginatedExercises,
+    virtualScrollY,
+    virtualContainerTop,
+    virtualViewportHeight,
+  ]);
+
+  const visibleExercises = exercisesVirtualWindow?.visibleItems ?? paginatedExercises;
 
   function handleRefresh() {
+    if (activeSection === "criar") {
+      void ensureCreateDependenciesLoaded(true);
+      return;
+    }
     if (activeSection === "respostas") {
       void load();
       void loadRespostasAlunos();
@@ -1035,7 +1414,7 @@ export default function ExerciciosPage() {
         </div>
 
         <div className="exercisesTabs">
-          <span className="exercisesTabsLabel">Exibir:</span>
+          <span className="exercisesTabsLabel">{iconLabel(<Eye size={14} />, "Exibir:")}</span>
           <div className="exercisesTabsGroup">
             {canCreate && (
               <button
@@ -1043,7 +1422,7 @@ export default function ExerciciosPage() {
                 className={`exercisesTab ${activeSection === "criar" ? "active" : ""}`}
                 onClick={() => setActiveSection("criar")}
               >
-                Criar exercicios
+                {iconLabel(<PenLine size={14} />, "Criar exercicios")}
               </button>
             )}
             <button
@@ -1051,7 +1430,7 @@ export default function ExerciciosPage() {
               className={`exercisesTab ${activeSection === "lista" ? "active" : ""}`}
               onClick={() => setActiveSection("lista")}
             >
-              Exercicios
+              {iconLabel(<ListChecks size={14} />, "Exercicios")}
             </button>
             <button
               type="button"
@@ -1099,23 +1478,31 @@ export default function ExerciciosPage() {
 
               <div className="exFormGrid">
                 <div className="exInputGroup">
-                  <label className="exLabel">Titulo *</label>
+                  <span className="exLabel">Titulo *</span>
                   <input
-                    className="exInput"
+                    className={`exInput ${fieldWarnings.titulo ? "isWarning" : ""}`}
                     placeholder="ex: Exercicio 15.3: Layout Responsivo"
                     value={titulo}
-                    onChange={(e) => setTitulo(e.target.value)}
+                    onChange={(e) => {
+                      setTitulo(e.target.value);
+                      clearFieldWarning("titulo");
+                    }}
                   />
+                  {fieldWarnings.titulo && <small className="exFieldWarning">{fieldWarnings.titulo}</small>}
                 </div>
 
                 <div className="exInputGroup">
-                  <label className="exLabel">Descricao *</label>
+                  <span className="exLabel">Descricao *</span>
                   <textarea
-                    className="exTextarea"
+                    className={`exTextarea ${fieldWarnings.descricao ? "isWarning" : ""}`}
                     placeholder="Descreva o exercicio em detalhes..."
                     value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
+                    onChange={(e) => {
+                      setDescricao(e.target.value);
+                      clearFieldWarning("descricao");
+                    }}
                   />
+                  {fieldWarnings.descricao && <small className="exFieldWarning">{fieldWarnings.descricao}</small>}
                 </div>
 
                 {/* Temporariamente desativado: anexos */}
@@ -1139,7 +1526,7 @@ export default function ExerciciosPage() {
                         </button>
                       )}
                     </div>
-                    <div className="exToggleGroup">
+                    <div className={`exToggleGroup ${fieldWarnings.curso ? "isWarning" : ""}`}>
                       {cursosTogglePaginados.map((curso) => {
                         const cursoCategoria = inferCategoriaFromCourseName(curso.nome);
                         const isAtivo = curso.id === cursoIdSelecionado;
@@ -1161,11 +1548,15 @@ export default function ExerciciosPage() {
                         );
                       })}
                     </div>
+                    {fieldWarnings.curso && <small className="exFieldWarning">{fieldWarnings.curso}</small>}
                     <div className="exCourseCardsActions">
                       <div className={`exCourseCardsSelected ${cursoSelecionado ? "" : "isEmpty"}`}>
-                        {cursoSelecionado
-                          ? `Selecionado: ${cursoSelecionado.nome}`
-                          : "Selecione um curso para ver detalhes"}
+                        <span className="exCourseCardsSelectedLabel">
+                          {iconLabel(<BookOpen size={13} />, cursoSelecionado ? "Curso selecionado" : "Selecao de curso")}
+                        </span>
+                        <strong className="exCourseCardsSelectedValue">
+                          {cursoSelecionado ? cursoSelecionado.nome : "Selecione um curso para ver detalhes"}
+                        </strong>
                       </div>
                       <button
                         type="button"
@@ -1173,9 +1564,21 @@ export default function ExerciciosPage() {
                         onClick={() => setMostrarDetalhesCurso((prev) => !prev)}
                         disabled={!cursoSelecionado}
                       >
-                        {mostrarDetalhesCurso ? "Ocultar detalhes" : "Ver detalhes"}
+                        {iconLabel(<Eye size={14} />, mostrarDetalhesCurso ? "Ocultar detalhes" : "Ver detalhes")}
                       </button>
                     </div>
+                    {cursosToggleFiltrados.length === 0 && (
+                      <small style={{ color: "#94a3b8", marginTop: "6px" }}>
+                        Nenhum curso encontrado no banco.
+                      </small>
+                    )}
+                    <Pagination
+                      currentPage={cursoCardsPagina}
+                      itemsPerPage={cursoCardsItensPorPagina}
+                      totalItems={cursosToggleFiltrados.length}
+                      onPageChange={setCursoCardsPagina}
+                      onItemsPerPageChange={setCursoCardsItensPorPagina}
+                    />
                     <ConditionalFieldAnimation isVisible={Boolean(cursoSelecionado && mostrarDetalhesCurso)}>
                       <div className="exCourseDetailsPanel">
                         <div className="exCourseDetailsGrid">
@@ -1202,28 +1605,24 @@ export default function ExerciciosPage() {
                           <p className="exCourseDescription">{cursoSelecionado.descricao}</p>
                         )}
                         {modulosDoCursoSelecionado.length > 0 && (
-                          <p className="exCourseModulesPreview">
-                            {modulosDoCursoSelecionado
-                              .slice(0, 5)
-                              .map((modulo) => modulo.nome)
-                              .join(" • ")}
-                            {modulosDoCursoSelecionado.length > 5 ? " • ..." : ""}
-                          </p>
+                          <div className="exCourseModulesPreview">
+                            <small>Trilha de modulos</small>
+                            <div className="exCourseModulesChips">
+                              {modulosDoCursoSelecionado.slice(0, 5).map((modulo) => (
+                                <span key={modulo.id} className="exCourseModuleChip">
+                                  {modulo.nome}
+                                </span>
+                              ))}
+                              {modulosDoCursoSelecionado.length > 5 && (
+                                <span className="exCourseModuleChip isMore">
+                                  +{modulosDoCursoSelecionado.length - 5} modulos
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </ConditionalFieldAnimation>
-                    {cursosToggleFiltrados.length === 0 && (
-                      <small style={{ color: "#94a3b8", marginTop: "6px" }}>
-                        Nenhum curso encontrado no banco.
-                      </small>
-                    )}
-                    <Pagination
-                      currentPage={cursoCardsPagina}
-                      itemsPerPage={cursoCardsItensPorPagina}
-                      totalItems={cursosToggleFiltrados.length}
-                      onPageChange={setCursoCardsPagina}
-                      onItemsPerPageChange={setCursoCardsItensPorPagina}
-                    />
                   </div>
                 </div>
 
@@ -1231,7 +1630,7 @@ export default function ExerciciosPage() {
                 {categoria === "programacao" && (
                   <>
                     <div className="exInputGroup">
-                      <label className="exLabel">Tipo de Exercicio</label>
+                      <span className="exLabel">Tipo de Exercicio</span>
                       <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
                         <AnimatedRadioLabel
                           name="tipoExercicio"
@@ -1259,7 +1658,7 @@ export default function ExerciciosPage() {
                     {componenteInterativo === "escrita" && (
                       <ScaleIn>
                         <div className="exInputGroup">
-                          <label className="exLabel">Resposta/Gabarito Esperado</label>
+                          <span className="exLabel">Resposta/Gabarito Esperado</span>
                           <textarea
                             className="exInput"
                             value={gabarito}
@@ -1284,11 +1683,11 @@ export default function ExerciciosPage() {
                             </p>
 
                             {multiplaQuestoes.map((questao, qIndex) => (
-                              <div key={qIndex} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
+                              <div key={`prog-q-${questao.pergunta}-${questao.respostaCorreta}-${questao.opcoes.map((o) => o.text).join("|")}`} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
                                 <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questao {qIndex + 1}</h4>
 
                                 <div style={{ marginBottom: "8px" }}>
-                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Pergunta:</label>
+                                  <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Pergunta:</span>
                                   <input
                                     className="exInput"
                                     type="text"
@@ -1303,10 +1702,10 @@ export default function ExerciciosPage() {
                                 </div>
 
                                 <div style={{ marginBottom: "8px" }}>
-                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opcoes:</label>
+                                  <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opcoes:</span>
                                   {questao.opcoes.map((opcao, oIndex) => (
                                     <input
-                                      key={oIndex}
+                                      key={`prog-op-${questao.pergunta}-${opcao.letter}-${opcao.text}`}
                                       className="exInput"
                                       type="text"
                                       value={opcao.text}
@@ -1322,7 +1721,7 @@ export default function ExerciciosPage() {
                                 </div>
 
                                 <div style={{ marginBottom: "8px" }}>
-                                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Resposta Correta:</label>
+                                  <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Resposta Correta:</span>
                                   <AnimatedSelect
                                     className="exSelect"
                                     value={questao.respostaCorreta}
@@ -1372,7 +1771,10 @@ export default function ExerciciosPage() {
                               {iconLabel(<Eye size={14} />, "Pre-visualizacao:")}
                             </p>
                             {multiplaQuestoes.map((questao, idx) => (
-                              <div key={idx} style={{ marginBottom: "16px" }}>
+                              <div
+                                key={`${questao.pergunta}-${questao.respostaCorreta}-${questao.opcoes.map((o) => o.text).join("|")}`}
+                                style={{ marginBottom: "16px" }}
+                              >
                                 <MultipleChoiceQuestion
                                   question={`Q${idx + 1}: ${questao.pergunta}`}
                                   options={questao.opcoes}
@@ -1385,6 +1787,7 @@ export default function ExerciciosPage() {
                         </>
                       </ScaleIn>
                     )}
+                    {fieldWarnings.multipla && <small className="exFieldWarning">{fieldWarnings.multipla}</small>}
                   </>
                 )}
 
@@ -1392,7 +1795,7 @@ export default function ExerciciosPage() {
                 {categoria === "informatica" && (
                   <>
                     <div className="exInputGroup">
-                      <label className="exLabel">Componente Interativo</label>
+                      <span className="exLabel">Componente Interativo</span>
                       <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
@@ -1420,7 +1823,7 @@ export default function ExerciciosPage() {
                     {componenteInterativo === "escrita" && (
                       <ScaleIn>
                         <div className="exInputGroup">
-                          <label className="exLabel">Resposta/Gabarito Esperado</label>
+                          <span className="exLabel">Resposta/Gabarito Esperado</span>
                           <textarea
                             className="exInput"
                             value={gabarito}
@@ -1450,7 +1853,7 @@ export default function ExerciciosPage() {
 
                         {/* Loop atraves de cada Questao */}
                         {multiplaQuestoes.map((questao, qIndex) => (
-                          <div key={qIndex} style={{
+                          <div key={`info-q-${questao.pergunta}-${questao.respostaCorreta}-${questao.opcoes.map((o) => o.text).join("|")}`} style={{
                             background: "var(--card)",
                             border: "1px solid var(--line)",
                             borderRadius: "8px",
@@ -1463,9 +1866,9 @@ export default function ExerciciosPage() {
 
                             {/* Campo de pergunta */}
                             <div style={{ marginBottom: "12px" }}>
-                              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
                                 Pergunta
-                              </label>
+                              </span>
                               <input
                                 type="text"
                                 placeholder="Digite a pergunta..."
@@ -1489,7 +1892,7 @@ export default function ExerciciosPage() {
 
                             {/* Campos de opcoes */}
                             {questao.opcoes.map((opcao, oIndex) => (
-                              <div key={oIndex} style={{ marginBottom: "12px" }}>
+                              <div key={`info-op-${questao.pergunta}-${opcao.letter}-${opcao.text}`} style={{ marginBottom: "12px" }}>
                                 <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
                                   Opcao {opcao.letter}
                                 </label>
@@ -1595,13 +1998,13 @@ export default function ExerciciosPage() {
                 {/* PERMITIR repeticao */}
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                    <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
                       <AnimatedToggle
                         checked={permitirRepeticao}
                         onChange={setPermitirRepeticao}
                       />
                       Permitir repeticao
-                    </label>
+                    </span>
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       Se ativado, alunos podem enviar multiplas respostas
                     </small>
@@ -1611,7 +2014,7 @@ export default function ExerciciosPage() {
                 {permitirRepeticao && (
                   <div className="exInputRow">
                     <div className="exInputGroup">
-                      <label className="exLabel">Max. Tentativas</label>
+                      <span className="exLabel">Max. Tentativas</span>
                       <input
                         className="exInput"
                         type="number"
@@ -1622,7 +2025,7 @@ export default function ExerciciosPage() {
                       />
                     </div>
                     <div className="exInputGroup">
-                      <label className="exLabel">Penalidade por tentativa (%)</label>
+                      <span className="exLabel">Penalidade por tentativa (%)</span>
                       <input
                         className="exInput"
                         type="number"
@@ -1634,7 +2037,7 @@ export default function ExerciciosPage() {
                       />
                     </div>
                     <div className="exInputGroup">
-                      <label className="exLabel">Intervalo entre tentativas (min)</label>
+                      <span className="exLabel">Intervalo entre tentativas (min)</span>
                       <input
                         className="exInput"
                         type="number"
@@ -1649,7 +2052,7 @@ export default function ExerciciosPage() {
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Curso selecionado *</label>
+                    <span className="exLabel">Curso selecionado *</span>
                     <div className={`exCourseSummary ${cursoSelecionado ? "" : "isEmpty"}`}>
                       {cursoSelecionado ? (
                         <>
@@ -1675,56 +2078,73 @@ export default function ExerciciosPage() {
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Modulo *</label>
-                    <PaginatedSelect
-                      value={moduloIdSelecionado}
-                      onChange={(value) => {
-                        setModuloIdSelecionado(value);
-                        setFaseIdSelecionada("");
-                      }}
-                      options={modulosDisponiveis.map((moduloOption) => ({
-                        value: moduloOption.id,
-                        label: moduloOption.nome,
-                        meta: moduloOption.indexOrder ? `Ordem #${moduloOption.indexOrder}` : undefined,
-                      }))}
-                      placeholder={cursoIdSelecionado ? "Selecione um modulo" : "Selecione um curso primeiro"}
-                      disabled={!cursoIdSelecionado}
-                      pageSize={8}
-                      emptyText="Nenhum modulo encontrado"
-                    />
+                    <span className="exLabel">Modulo *</span>
+                    <div className={`exFieldWarnWrap ${fieldWarnings.modulo ? "isWarning" : ""}`}>
+                      <PaginatedSelect
+                        value={moduloIdSelecionado}
+                        onChange={(value) => {
+                          setModuloIdSelecionado(value);
+                          setFaseIdSelecionada("");
+                          clearFieldWarning("modulo");
+                          clearFieldWarning("fase");
+                          clearFieldWarning("ordem");
+                        }}
+                        options={modulosDisponiveis.map((moduloOption) => ({
+                          value: moduloOption.id,
+                          label: moduloOption.nome,
+                          meta: moduloOption.indexOrder ? `Ordem #${moduloOption.indexOrder}` : undefined,
+                        }))}
+                        placeholder={cursoIdSelecionado ? "Selecione um modulo" : "Selecione um curso primeiro"}
+                        disabled={!cursoIdSelecionado}
+                        pageSize={8}
+                        emptyText="Nenhum modulo encontrado"
+                      />
+                    </div>
+                    {fieldWarnings.modulo && <small className="exFieldWarning">{fieldWarnings.modulo}</small>}
                   </div>
 
                   <div className="exInputGroup">
-                    <label className="exLabel">Fase *</label>
-                    <PaginatedSelect
-                      value={faseIdSelecionada}
-                      onChange={setFaseIdSelecionada}
-                      options={fasesDisponiveis.map((fase) => ({
-                        value: fase.id,
-                        label: fase.nome,
-                        meta: `Semana ${fase.weekNumber}`,
-                      }))}
-                      placeholder={moduloIdSelecionado ? "Selecione uma fase" : "Selecione um modulo primeiro"}
-                      disabled={!moduloIdSelecionado}
-                      pageSize={8}
-                      emptyText="Nenhuma fase encontrada"
-                    />
+                    <span className="exLabel">Fase *</span>
+                    <div className={`exFieldWarnWrap ${fieldWarnings.fase ? "isWarning" : ""}`}>
+                      <PaginatedSelect
+                        value={faseIdSelecionada}
+                        onChange={(value) => {
+                          setFaseIdSelecionada(value);
+                          clearFieldWarning("fase");
+                          clearFieldWarning("ordem");
+                        }}
+                        options={fasesDisponiveis.map((fase) => ({
+                          value: fase.id,
+                          label: fase.nome,
+                          meta: `Semana ${fase.weekNumber}`,
+                        }))}
+                        placeholder={moduloIdSelecionado ? "Selecione uma fase" : "Selecione um modulo primeiro"}
+                        disabled={!moduloIdSelecionado}
+                        pageSize={8}
+                        emptyText="Nenhuma fase encontrada"
+                      />
+                    </div>
+                    {fieldWarnings.fase && <small className="exFieldWarning">{fieldWarnings.fase}</small>}
                   </div>
 
                   <div className="exInputGroup">
-                    <label className="exLabel">Prazo</label>
+                    <span className="exLabel">Prazo *</span>
                     <input
-                      className="exInput"
+                      className={`exInput ${fieldWarnings.prazo ? "isWarning" : ""}`}
                       type="datetime-local"
                       value={prazo}
-                      onChange={(e) => setPrazo(e.target.value)}
+                      onChange={(e) => {
+                        setPrazo(e.target.value);
+                        clearFieldWarning("prazo");
+                      }}
                     />
+                    {fieldWarnings.prazo && <small className="exFieldWarning">{fieldWarnings.prazo}</small>}
                   </div>
                 </div>
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Video URL</label>
+                    <span className="exLabel">Video URL</span>
                     <input
                       className="exInput"
                       type="url"
@@ -1738,12 +2158,22 @@ export default function ExerciciosPage() {
                   </div>
 
                   <div className="exInputGroup">
-                    <label className="exLabel">Dificuldade</label>
+                    <span className="exLabel exLabelWithInfo">
+                      <span>Dificuldade</span>
+                      <button
+                        type="button"
+                        className="exInfoTrigger"
+                        onClick={() => setInfoOverlay("dificuldade")}
+                        aria-label="Ver informacoes sobre dificuldade"
+                      >
+                        <Info size={20} strokeWidth={2.4} />
+                      </button>
+                    </span>
                     <input
                       className="exInput"
                       type="number"
-                      min="0"
-                      placeholder="0"
+                      min="1"
+                      placeholder="1"
                       value={difficulty}
                       onChange={(e) => setDifficulty(e.target.value)}
                     />
@@ -1753,15 +2183,29 @@ export default function ExerciciosPage() {
                   </div>
 
                   <div className="exInputGroup">
-                    <label className="exLabel">Ordem</label>
+                    <span className="exLabel exLabelWithInfo">
+                      <span>Ordem</span>
+                      <button
+                        type="button"
+                        className="exInfoTrigger"
+                        onClick={() => setInfoOverlay("ordem")}
+                        aria-label="Ver informacoes sobre ordem"
+                      >
+                        <Info size={20} strokeWidth={2.4} />
+                      </button>
+                    </span>
                     <input
-                      className="exInput"
+                      className={`exInput ${fieldWarnings.ordem ? "isWarning" : ""}`}
                       type="number"
-                      min="0"
-                      placeholder="0"
+                      min="1"
+                      placeholder="1"
                       value={indexOrder}
-                      onChange={(e) => setIndexOrder(e.target.value)}
+                      onChange={(e) => {
+                        setIndexOrder(e.target.value);
+                        clearFieldWarning("ordem");
+                      }}
                     />
+                    {fieldWarnings.ordem && <small className="exFieldWarning">{fieldWarnings.ordem}</small>}
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       Posicao manual na lista da fase (menor vem primeiro).
                     </small>
@@ -1770,7 +2214,7 @@ export default function ExerciciosPage() {
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel">Pontos de resgate</label>
+                    <span className="exLabel">Pontos de resgate</span>
                     <input
                       className="exInput"
                       type="number"
@@ -1785,7 +2229,7 @@ export default function ExerciciosPage() {
                   </div>
 
                   <div className="exInputGroup">
-                    <label className="exLabel">Periodo do exercicio</label>
+                    <span className="exLabel">Periodo do exercicio</span>
                     <input
                       className="exInput"
                       type="datetime-local"
@@ -1793,69 +2237,37 @@ export default function ExerciciosPage() {
                       onChange={(e) => setExercisePeriod(e.target.value)}
                     />
                     <small style={{ color: "#666", marginTop: "4px" }}>
-                      Data/hora de referencia do periodo (opcional).
+                      Data e hora de quando começou o exercício (opcional).
                     </small>
                   </div>
                 </div>
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                    <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
                       <AnimatedToggle
                         checked={isFinalExercise}
                         onChange={setIsFinalExercise}
                       />
                       Exercicio final
-                    </label>
+                    </span>
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       Marque se este for o exercicio de fechamento da fase.
                     </small>
                   </div>
                   <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                    <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
                       <AnimatedToggle
                         checked={isDailyTask}
                         onChange={setIsDailyTask}
                       />
                       Tarefa diaria
-                    </label>
+                    </span>
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       Mostra este exercicio na aba de tarefa diaria.
                     </small>
                   </div>
                 </div>
-
-                {/* AGENDAMENTO DE Publicacao */}
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <label className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
-                      <AnimatedToggle
-                        checked={publishnaow}
-                        onChange={setPublishnaow}
-                      />
-                      Publicar agora
-                    </label>
-                  </div>
-                </div>
-
-                <ConditionalFieldAnimation isVisible={!publishnaow}>
-                  <div className="exInputRow">
-                    <div className="exInputGroup" style={{ cursor: "pointer" }}>
-                      <label className="exLabel" style={{ cursor: "pointer" }}>{iconLabel(<Calendar size={14} />, "Agendar Publicacao")}</label>
-                      <input
-                        className="exInput"
-                        type="datetime-local"
-                        value={publishedAt}
-                        onChange={(e) => setPublishedAt(e.target.value)}
-                        required={!publishnaow}
-                        style={{ cursor: "pointer" }}
-                      />
-                      <small style={{ color: "#666", marginTop: "4px" }}>
-                        O Exercicio sera visivel a partir dessa data e hora
-                      </small>
-                    </div>
-                  </div>
-                </ConditionalFieldAnimation>
 
                 <div className="exInputGroup">
                   <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
@@ -1946,7 +2358,7 @@ export default function ExerciciosPage() {
                 </div>
 
                 <div className="responsesStudentsList">
-                  {respostasAlunos.map((aluno) => {
+                  {respostasAlunos.map((aluno, alunoIndex) => {
                     const aberto = respostasAlunoAbertoId === aluno.id;
                     const initials = (aluno.nome || "Aluno")
                       .trim()
@@ -1955,8 +2367,15 @@ export default function ExerciciosPage() {
                       .map((parte) => parte.charAt(0))
                       .join("")
                       .toUpperCase();
+                    const studentAnimationStyle = {
+                      "--responses-student-delay": `${Math.min(alunoIndex, 12) * 45}ms`,
+                    } as React.CSSProperties;
                     return (
-                      <div key={aluno.id} className={`responsesStudentItem ${aberto ? "isOpen" : ""}`}>
+                      <div
+                        key={aluno.id}
+                        className={`responsesStudentItem ${aberto ? "isOpen" : ""}`}
+                        style={studentAnimationStyle}
+                      >
                         <button
                           type="button"
                           className="responsesStudentToggle"
@@ -2023,15 +2442,22 @@ export default function ExerciciosPage() {
                               <div className="emptyState">Este usuario ainda nao possui exercicios respondidos.</div>
                             ) : (
                               <div className="responsesExercisesList">
-                                {respostasExerciciosAluno.map((exercicio) => {
+                                {respostasExerciciosAluno.map((exercicio, exercicioIndex) => {
                                   const directKey = getRespostasDiretasKey(aluno.id, exercicio.id);
                                   const respostasDiretas = respostasDiretasPorExercicio[directKey] ?? [];
                                   const carregandoRespostasDiretas = loadingRespostasDiretas[directKey] ?? false;
                                   const seletorValue = seletorRespostaDireta[directKey] ?? "";
                                   const abertoExercicio = respostaExercicioAbertoKey === directKey;
+                                  const exerciseAnimationStyle = {
+                                    "--responses-exercise-delay": `${Math.min(exercicioIndex, 10) * 38}ms`,
+                                  } as React.CSSProperties;
 
                                   return (
-                                    <div key={exercicio.id} className={`responsesExerciseItem ${abertoExercicio ? "isOpen" : ""}`}>
+                                    <div
+                                      key={exercicio.id}
+                                      className={`responsesExerciseItem ${abertoExercicio ? "isOpen" : ""}`}
+                                      style={exerciseAnimationStyle}
+                                    >
                                       <button
                                         type="button"
                                         className="responsesExerciseToggle"
@@ -2070,15 +2496,19 @@ export default function ExerciciosPage() {
                                             <div className="emptyState">Nenhuma resposta listada para este exercicio.</div>
                                           ) : (
                                             <div className="responsesDirectList" role="listbox" aria-label="Respostas do exercicio">
-                                              {respostasDiretas.map((resposta) => {
+                                              {respostasDiretas.map((resposta, respostaIndex) => {
                                                 const value = getRespostaDiretaValue(resposta);
                                                 const selecionada = seletorValue === value;
+                                                const directRowAnimationStyle = {
+                                                  "--responses-direct-delay": `${Math.min(respostaIndex, 14) * 30}ms`,
+                                                } as React.CSSProperties;
 
                                                 return (
                                                   <button
                                                     key={`${resposta.answerId}-${resposta.questionId}`}
                                                     type="button"
                                                     className={`responsesDirectRow ${selecionada ? "isSelected" : ""}`}
+                                                    style={directRowAnimationStyle}
                                                     onClick={() => {
                                                       setSeletorRespostaDireta((prev) => ({ ...prev, [directKey]: value }));
                                                       navegarParaRespostaDireta(exercicio.id, aluno.id, value);
@@ -2186,7 +2616,10 @@ export default function ExerciciosPage() {
                     type="text"
                     placeholder={activeSection === "tarefa-diaria" ? "Buscar tarefa diaria..." : "Buscar por Titulo..."}
                     value={buscaFiltro}
-                    onChange={(e) => setBuscaFiltro(e.target.value)}
+                    onChange={(e) => {
+                      setBuscaFiltro(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     style={{ width: "100%" }}
                   />
                 </div>
@@ -2199,17 +2632,18 @@ export default function ExerciciosPage() {
                   <select
                     className="exSelect"
                     value={moduloFiltro}
-                    onChange={(e) => setModuloFiltro(e.target.value)}
+                    onChange={(e) => {
+                      setModuloFiltro(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     style={{ minWidth: 160 }}
                   >
                     <option value="">Todos os Modulos</option>
-                    {Array.from(new Set(sourceItems.map((ex) => ex.modulo)))
-                      .sort()
-                      .map((mod) => (
-                        <option key={mod} value={mod}>
-                          {mod}
-                        </option>
-                      ))}
+                    {moduloFilterOptions.map((mod) => (
+                      <option key={mod} value={mod}>
+                        {mod}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -2219,7 +2653,10 @@ export default function ExerciciosPage() {
                     <select
                       className="exSelect"
                       value={turmaFiltro}
-                      onChange={(e) => setTurmaFiltro(e.target.value)}
+                      onChange={(e) => {
+                        setTurmaFiltro(e.target.value);
+                        setCurrentPage(1);
+                      }}
                       style={{ minWidth: 180 }}
                     >
                       <option value="todas">Todas as turmas</option>
@@ -2238,7 +2675,10 @@ export default function ExerciciosPage() {
                     <select
                       className="exSelect"
                       value={statusFiltro}
-                      onChange={(e) => setStatusFiltro(e.target.value)}
+                      onChange={(e) => {
+                        setStatusFiltro(e.target.value as "todos" | "publicado" | "programado" | "rascunho");
+                        setCurrentPage(1);
+                      }}
                       style={{ minWidth: 160 }}
                     >
                       <option value="todos">Todos os status</option>
@@ -2270,249 +2710,204 @@ export default function ExerciciosPage() {
                 <>
                   {/* Filtros e Paginacao */}
                   <div style={{ marginBottom: "16px" }}>
-                    {(() => {
-                      const filteredExercises = sourceItems.filter((ex) => {
-                        const alunoIds = getAlunoIds(ex);
-                        const hasAlunoAssignment = alunoIds.length > 0;
-                        if (!isStaff && hasAlunoAssignment) {
-                          if (!userId || !alunoIds.includes(userId)) {
-                            return false;
-                          }
-                        }
-                        // Filtro de busca por titulo
-                        if (
-                          buscaFiltro &&
-                          !(
-                            ex.titulo.toLowerCase().includes(buscaFiltro.toLowerCase()) ||
-                            (ex.descricao || "").toLowerCase().includes(buscaFiltro.toLowerCase()) ||
-                            (ex.tema || "").toLowerCase().includes(buscaFiltro.toLowerCase())
-                          )
-                        ) {
-                          return false;
-                        }
+                    {totalItemsSection === 0 ? (
+                      <div className="emptyState">
+                        <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
+                        <div className="emptyTitle">
+                          {activeSection === "tarefa-diaria"
+                            ? "Nenhuma tarefa diaria encontrada"
+                            : "Nenhum Exercicio encontrado"}
+                        </div>
+                        <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
+                          {activeSection === "tarefa-diaria"
+                            ? "Nenhuma tarefa diaria foi retornada do banco para os filtros selecionados."
+                            : "Ajuste os filtros e tente naovamente."}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="exercisesListVirtualHost" ref={exercisesListVirtualHostRef}>
+                          {shouldVirtualizeExercises && exercisesVirtualWindow && exercisesVirtualWindow.topSpacerHeight > 0 && (
+                            <div
+                              className="exercisesListVirtualSpacer"
+                              style={{ height: exercisesVirtualWindow.topSpacerHeight }}
+                              aria-hidden="true"
+                            />
+                          )}
+                          <div className="exercisesList" ref={exercisesListGridRef}>
+                            {visibleExercises.map((item, visibleIndex) => {
+                            const { ex, alunoIds, hasAlunoAssignment, publishedAtMs, prazoMs } = item;
+                            const alunoNames = hasAlunoAssignment ? getAlunoNames(ex) : [];
+                            const showParaMim = !isStaff && !!userId && alunoIds.includes(userId);
+                            const alunoLabel = showParaMim ? "Para mim" : formatAlunoLabel(alunoNames);
+                            const alunoTitle = showParaMim
+                              ? "Disponivel apenas para vocee"
+                              : alunoNames.length > 0
+                                ? `Disponivel apenas para: ${alunoNames.join(", ")}`
+                                : "Disponivel para aluno(s) especifico(s)";
+                            const tipoInfo = getTipoInfo(ex);
+                            const isPublished = ex.publicado !== false;
+                            const isScheduled = publishedAtMs !== null && publishedAtMs > renderNowMs;
+                            const isDraft = !isPublished && !isScheduled;
+                            const isOverdue = prazoMs !== null && prazoMs < renderNowMs;
+                            const prazoLabel = prazoMs !== null ? prazoDateFormatter.format(prazoMs) : "Sem prazo";
+                            const shouldMeasureCard = shouldVirtualizeExercises && visibleIndex === 0;
+                            const cardAnimationStyle = {
+                              "--card-enter-delay": `${Math.min(visibleIndex, 10) * 45}ms`,
+                            } as React.CSSProperties;
 
-                        // Filtro de modulo
-                        if (moduloFiltro && ex.modulo !== moduloFiltro) {
-                          return false;
-                        }
-
-                        // Filtro de status (staff only)
-                        if (isStaff && statusFiltro !== "todos") {
-                          const isPublished = ex.publicado !== false;
-                          const isScheduled = ex.publishedAt && new Date(ex.publishedAt) > new Date();
-                          if (statusFiltro === "rascunho" && (isPublished || isScheduled)) return false;
-                          if (statusFiltro === "programado" && !isScheduled) return false;
-                          if (statusFiltro === "publicado" && (!isPublished || isScheduled)) return false;
-                        }
-
-                        // Filtro de turma
-                        if (turmaFiltro === "todas") return true;
-                        if (hasAlunoAssignment) return false;
-                        return ex.turmas?.some((t) => t.id === turmaFiltro);
-                      });
-
-                      if (filteredExercises.length === 0) {
-                        return (
-                          <div className="emptyState">
-                            <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
-                            <div className="emptyTitle">
-                              {activeSection === "tarefa-diaria"
-                                ? "Nenhuma tarefa diaria encontrada"
-                                : "Nenhum Exercicio encontrado"}
-                            </div>
-                            <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
-                              {activeSection === "tarefa-diaria"
-                                ? "Nenhuma tarefa diaria foi retornada do banco para os filtros selecionados."
-                                : "Ajuste os filtros e tente naovamente."}
-                            </p>
-                          </div>
-                        );
-                      }
-
-                      const startIndex = (currentPage - 1) * itemsPerPage;
-                      const endIndex = startIndex + itemsPerPage;
-                      const paginatedExercises = filteredExercises.slice(startIndex, endIndex);
-
-                      return (
-                        <>
-                          <div className="exercisesList">
-                            {paginatedExercises.map((ex) => {
-                              const alunoIds = getAlunoIds(ex);
-                              const hasAlunoAssignment = alunoIds.length > 0;
-                              const alunoNames = hasAlunoAssignment ? getAlunoNames(ex) : [];
-                              const showParaMim =
-                                !isStaff && !!userId && alunoIds.includes(userId);
-                              const alunoLabel = showParaMim
-                                ? "Para mim"
-                                : formatAlunoLabel(alunoNames);
-                              const alunoTitle = showParaMim
-                                ? "Disponivel apenas para vocee"
-                                : alunoNames.length > 0
-                                  ? `Disponivel apenas para: ${alunoNames.join(", ")}`
-                                  : "Disponivel para aluno(s) especifico(s)";
-                              const tipoInfo = getTipoInfo(ex);
-
-                              return (
-                                <div
-                                  key={ex.id}
-                                  className={`exerciseCard ${canCreate ? "canEdit" : ""}`}
-                                  onClick={() =>
+                            return (
+                              <div
+                                key={ex.id}
+                                className={`exerciseCard ${canCreate ? "canEdit" : ""}`}
+                                style={cardAnimationStyle}
+                                ref={shouldMeasureCard ? measureExerciseCardRef : undefined}
+                                onClick={() =>
+                                  navigate(`/dashboard/exercicios/${ex.id}`, {
+                                    state: {
+                                      from: location.pathname,
+                                      fromSection: activeSection,
+                                    },
+                                  })
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
                                     navigate(`/dashboard/exercicios/${ex.id}`, {
                                       state: {
                                         from: location.pathname,
                                         fromSection: activeSection,
                                       },
-                                    })
+                                    });
                                   }
-                                  role="button"
-                                  tabIndex={0}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      navigate(`/dashboard/exercicios/${ex.id}`, {
-                                        state: {
-                                          from: location.pathname,
-                                          fromSection: activeSection,
-                                        },
-                                      });
-                                    }
-                                  }}
-                                >
-                                  <div className="exerciseHeader">
-                                    <div className="exerciseInfo">
-                                      <div className="exerciseTitleContainer">
-                                        <h3 className="exerciseTitle">{ex.titulo}</h3>
-                                        {isStaff && (() => {
-                                          const isPublished = ex.publicado !== false;
-                                          const isScheduled = ex.publishedAt && new Date(ex.publishedAt) > new Date();
-                                          const isDraft = !isPublished && !isScheduled;
-                                          if (isDraft) {
-                                            return (
-                                              <span
-                                                className="exerciseBadge"
-                                                style={{
-                                                  background: "rgba(156, 163, 175, 0.15)",
-                                                  color: "#6b7280",
-                                                  borderColor: "rgba(156, 163, 175, 0.3)"
-                                                }}
-                                                title="Rascunho - nao visivel para alunos"
-                                              >
-                                                Rascunho
-                                              </span>
-                                            );
-                                          }
-                                          if (isScheduled) {
-                                            return (
-                                              <span
-                                                className="exerciseBadge"
-                                                style={{
-                                                  background: "rgba(59, 130, 246, 0.1)",
-                                                  color: "#3b82f6",
-                                                  borderColor: "rgba(59, 130, 246, 0.2)"
-                                                }}
-                                                title="Exercicio programado para Publicacao"
-                                              >
-                                                Programado
-                                              </span>
-                                            );
-                                          }
-                                          return null;
-                                        })()}
-                                      </div>
-                                      <div className="exerciseMetaLine">
-                                        <span className={`exerciseTypePill ${tipoInfo.className}`}>{tipoInfo.label}</span>
-                                        <span className="exerciseModulePill">{ex.modulo}</span>
-                                        <span className="exercisePhasePill">{ex.tema?.trim() ? ex.tema : "Sem fase"}</span>
-                                      </div>
-                                    </div>
-                                    <div className="exerciseMetaAndActions">
-                                      <div className="exerciseMeta">
-                                        <div className={`exerciseDeadline ${ex.prazo && new Date(ex.prazo) < new Date() ? "overdue" : ""
-                                          }`}>
-                                          {ex.prazo
-                                            ? new Date(ex.prazo).toLocaleDateString("pt-BR", {
-                                              day: "2-digit",
-                                              month: "short",
-                                              hour: "2-digit",
-                                              minute: "2-digit"
-                                            })
-                                            : "Sem prazo"}
-                                        </div>
-                                      </div>
-
-                                      {canCreate && (
-                                        <div className="exerciseActions">
-                                          <button
-                                            className="exerciseEditBtn"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleEdit(ex);
-                                            }}
-                                            title="Editar Exercicio"
-                                          >
-                                            <Pencil size={14} />
-                                          </button>
-                                          <button
-                                            className="exerciseDeleteBtn"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDelete(ex.id);
-                                            }}
-                                            title="Deletar Exercicio"
-                                          >
-                                            <Trash2 size={14} />
-                                          </button>
-                                        </div>
+                                }}
+                              >
+                                <div className="exerciseHeader">
+                                  <div className="exerciseInfo">
+                                    <div className="exerciseTitleContainer">
+                                      <h3 className="exerciseTitle">{ex.titulo}</h3>
+                                      {isStaff && isDraft && (
+                                        <span
+                                          className="exerciseBadge"
+                                          style={{
+                                            background: "rgba(156, 163, 175, 0.15)",
+                                            color: "#6b7280",
+                                            borderColor: "rgba(156, 163, 175, 0.3)",
+                                          }}
+                                          title="Rascunho - nao visivel para alunos"
+                                        >
+                                          Rascunho
+                                        </span>
+                                      )}
+                                      {isStaff && !isDraft && isScheduled && (
+                                        <span
+                                          className="exerciseBadge"
+                                          style={{
+                                            background: "rgba(59, 130, 246, 0.1)",
+                                            color: "#3b82f6",
+                                            borderColor: "rgba(59, 130, 246, 0.2)",
+                                          }}
+                                          title="Exercicio programado para Publicacao"
+                                        >
+                                          Programado
+                                        </span>
                                       )}
                                     </div>
+                                    <div className="exerciseMetaLine">
+                                      <span className={`exerciseTypePill ${tipoInfo.className}`}>{tipoInfo.label}</span>
+                                      <span className="exerciseModulePill">{ex.modulo}</span>
+                                      <span className="exercisePhasePill">{ex.tema?.trim() ? ex.tema : "Sem fase"}</span>
+                                    </div>
                                   </div>
+                                  <div className="exerciseMetaAndActions">
+                                      <div className="exerciseMeta">
+                                        <div className={`exerciseDeadline ${isOverdue ? "overdue" : ""}`}>
+                                        {prazoLabel}
+                                      </div>
+                                    </div>
 
-                                  <div className="exerciseQuestionBox">
-                                    <div className="exerciseQuestionLabel">Pergunta</div>
-                                    <p className="exerciseQuestionText">{ex.descricao?.trim() || "Sem enunciado cadastrado."}</p>
-                                  </div>
-
-                                  {/* Badges de acesso/turmas */}
-                                  <div className="exerciseAccessRow">
-                                    {hasAlunoAssignment ? (
-                                      <span className="exerciseAccessBadge isAluno" title={alunoTitle}>
-                                        {iconLabel(<UserIcon size={12} />, alunoLabel)}
-                                      </span>
-                                    ) : ex.turmas && ex.turmas.length > 0 ? (
-                                      <>
-                                        <span className="exerciseAccessBadge isTurmas">
-                                          {iconLabel(<Landmark size={12} />, `${ex.turmas.length} turma${ex.turmas.length > 1 ? "s" : ""}`)}
-                                        </span>
-                                        {ex.turmas.map((turma) => (
-                                          <span
-                                            key={turma.id}
-                                            className={`exerciseTurmaBadge ${turma.tipo === "turma" ? "isTurma" : "isParticular"}`}
-                                            title={`${turma.tipo}: ${turma.nome}`}
-                                          >
-                                            {turma.nome}
-                                          </span>
-                                        ))}
-                                      </>
-                                    ) : (
-                                      <span className="exerciseAccessBadge isAll" title="Disponivel para todos os alunos">
-                                        {iconLabel(<Globe size={12} />, "Para Todos")}
-                                      </span>
+                                    {canCreate && (
+                                      <div className="exerciseActions">
+                                        <button
+                                          className="exerciseEditBtn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(ex);
+                                          }}
+                                          title="Editar Exercicio"
+                                        >
+                                          <Pencil size={14} />
+                                        </button>
+                                        <button
+                                          className="exerciseDeleteBtn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(ex.id);
+                                          }}
+                                          title="Deletar Exercicio"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
 
-                          <Pagination
-                            currentPage={currentPage}
-                            itemsPerPage={itemsPerPage}
-                            totalItems={filteredExercises.length}
-                            onPageChange={setCurrentPage}
-                            onItemsPerPageChange={setItemsPerPage}
-                          />
-                        </>
-                      );
-                    })()}
+                                <div className="exerciseQuestionBox">
+                                  <div className="exerciseQuestionLabel">Pergunta</div>
+                                  <p className="exerciseQuestionText">{ex.descricao?.trim() || "Sem enunciado cadastrado."}</p>
+                                </div>
+
+                                {/* Badges de acesso/turmas */}
+                                <div className="exerciseAccessRow">
+                                  {hasAlunoAssignment ? (
+                                    <span className="exerciseAccessBadge isAluno" title={alunoTitle}>
+                                      {iconLabel(<UserIcon size={12} />, alunoLabel)}
+                                    </span>
+                                  ) : ex.turmas && ex.turmas.length > 0 ? (
+                                    <>
+                                      <span className="exerciseAccessBadge isTurmas">
+                                        {iconLabel(<Landmark size={12} />, `${ex.turmas.length} turma${ex.turmas.length > 1 ? "s" : ""}`)}
+                                      </span>
+                                      {ex.turmas.map((turma) => (
+                                        <span
+                                          key={turma.id}
+                                          className={`exerciseTurmaBadge ${turma.tipo === "turma" ? "isTurma" : "isParticular"}`}
+                                          title={`${turma.tipo}: ${turma.nome}`}
+                                        >
+                                          {turma.nome}
+                                        </span>
+                                      ))}
+                                    </>
+                                  ) : (
+                                    <span className="exerciseAccessBadge isAll" title="Disponivel para todos os alunos">
+                                      {iconLabel(<Globe size={12} />, "Para Todos")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                          {shouldVirtualizeExercises && exercisesVirtualWindow && exercisesVirtualWindow.bottomSpacerHeight > 0 && (
+                            <div
+                              className="exercisesListVirtualSpacer"
+                              style={{ height: exercisesVirtualWindow.bottomSpacerHeight }}
+                              aria-hidden="true"
+                            />
+                          )}
+                        </div>
+
+                        <Pagination
+                          currentPage={currentPage}
+                          itemsPerPage={itemsPerPage}
+                          totalItems={totalItemsSection}
+                          onPageChange={setCurrentPage}
+                          onItemsPerPageChange={setItemsPerPage}
+                        />
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -2533,6 +2928,38 @@ export default function ExerciciosPage() {
           danger={true}
           isLoading={saving}
         />
+
+        <Modal
+          isOpen={infoOverlay !== null}
+          onClose={() => setInfoOverlay(null)}
+          title={infoOverlay === "dificuldade" ? "Como funciona a dificuldade" : "Como funciona a ordem"}
+          size="sm"
+          footer={
+            <AnimatedButton className="exInfoModalBtn" onClick={() => setInfoOverlay(null)}>
+              Entendi
+            </AnimatedButton>
+          }
+        >
+          {infoOverlay === "dificuldade" ? (
+            <div className="exInfoModalContent">
+              <p>A dificuldade minima e 1.</p>
+              <ul className="exInfoList">
+                <li>1 = Facil</li>
+                <li>2 = Medio</li>
+                <li>3 = Dificil</li>
+              </ul>
+              <p className="exInfoHint">Use 4 ou mais apenas para exercicios avancados.</p>
+            </div>
+          ) : (
+            <div className="exInfoModalContent">
+              <p>A ordem define a posicao do exercicio dentro da mesma fase/modulo.</p>
+              <ul className="exInfoList">
+                <li>A menor ordem permitida e 1.</li>
+                <li>Menor ordem aparece primeiro.</li>
+              </ul>
+            </div>
+          )}
+        </Modal>
       </div >
     </DashboardLayout >
   );

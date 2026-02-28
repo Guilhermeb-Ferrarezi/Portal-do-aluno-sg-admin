@@ -1,6 +1,6 @@
-﻿import React from "react";
+import React from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { getRole } from "../auth/auth";
 import {
   alterarMinhaSenha,
@@ -897,10 +897,24 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     };
   }, [coverViewerOpen, editorCoverSrc, coverAspectRatio]);
 
+  const buildDismissOverlayClickHandler =
+    (onDismiss: () => void) => (event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+      onDismiss();
+    };
+
+  const buildDismissOverlayKeyDownHandler =
+    (onDismiss: () => void) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (event.target !== event.currentTarget) return;
+      event.preventDefault();
+      onDismiss();
+    };
+
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <m.div
           className="settingsOverlay"
           onClick={onClose}
           initial={{ opacity: 0 }}
@@ -908,7 +922,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
-          <motion.div
+          <m.div
             className="settingsPanel"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.97, y: 10 }}
@@ -1058,7 +1072,11 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                           <div
                             ref={coverPreviewBannerRef}
                             className="profilePreviewBanner profilePreviewBannerBtn"
-                            onClick={handleOpenCover}
+                            onClick={(event) => {
+                              const target = event.target as HTMLElement | null;
+                              if (target?.closest(".profileBannerMenu")) return;
+                              handleOpenCover();
+                            }}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => {
@@ -1079,7 +1097,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                                 : undefined
                             }
                           >
-                            <div className="profileBannerHoverOverlay" onClick={(e) => e.stopPropagation()}>
+                            <div className="profileBannerHoverOverlay">
                               <div className="profileBannerMenuTrigger">
                                 <Camera size={14} />
                                 <span>Mudar banner</span>
@@ -1222,7 +1240,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                         </div>
                         <div className="profileEditorArea">
                           <div className="formGroup">
-                            <label className="formLabel">Bio</label>
+                            <span className="formLabel">Bio</span>
                             <textarea
                               className="formInput"
                               rows={3}
@@ -1487,25 +1505,32 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                 </div>
               </div>
             )}
-          </motion.div>
+          </m.div>
 
           {/* MODAL DE ALTERAR SENHA */}
           {modalSenha && (
-            <div className="modalOverlay" onClick={closeSenhaModal} style={{ zIndex: 10002 }}>
-              <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="modalOverlay"
+              onClick={buildDismissOverlayClickHandler(closeSenhaModal)}
+              onKeyDown={buildDismissOverlayKeyDownHandler(closeSenhaModal)}
+              role="button"
+              tabIndex={0}
+              style={{ zIndex: 10002 }}
+            >
+              <div className="modalContent">
                 <h3>Alterar Senha</h3>
                 <div className="formGroup">
-                  <label className="formLabel">Senha Atual</label>
+                  <span className="formLabel">Senha Atual</span>
                   <input type="password" placeholder="Digite sua senha atual" className="formInput" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} autoComplete="current-password" />
                 </div>
                 <div className="formGroup">
-                  <label className="formLabel">Nova Senha</label>
+                  <span className="formLabel">Nova Senha</span>
                   <input type="password" placeholder="Digite sua nova senha" className="formInput" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" />
                   {novaSenha && novaSenha.length < 6 && <small className="formHint error">{iconLabel(<XCircle size={12} />, "Mínimo 6 caracteres")}</small>}
                   {novaSenha && novaSenha.length >= 6 && <small className="formHint success">{iconLabel(<CheckCircle size={12} />, "Senha forte")}</small>}
                 </div>
                 <div className="formGroup">
-                  <label className="formLabel">Confirmar Nova Senha</label>
+                  <span className="formLabel">Confirmar Nova Senha</span>
                   <input type="password" placeholder="Confirme sua nova senha" className="formInput" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} autoComplete="new-password" />
                   {confirmarSenha && novaSenha === confirmarSenha && <small className="formHint success">{iconLabel(<CheckCircle size={12} />, "Senhas coincidem")}</small>}
                   {confirmarSenha && novaSenha !== confirmarSenha && <small className="formHint error">{iconLabel(<XCircle size={12} />, "As senhas não coincidem")}</small>}
@@ -1530,10 +1555,13 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
           {pictureViewerOpen && currentPictureSrc && (
             <div
               className="profilePhotoViewerOverlay"
-              onClick={() => setPictureViewerOpen(false)}
+              onClick={buildDismissOverlayClickHandler(() => setPictureViewerOpen(false))}
+              onKeyDown={buildDismissOverlayKeyDownHandler(() => setPictureViewerOpen(false))}
+              role="button"
+              tabIndex={0}
               style={{ zIndex: 10003 }}
             >
-              <div className="profilePhotoViewerContent" onClick={(e) => e.stopPropagation()}>
+              <div className="profilePhotoViewerContent">
                 <img src={currentPictureSrc} alt="Foto de perfil ampliada" />
                 <AnimatedButton
                   className="btnCancel"
@@ -1548,10 +1576,13 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
           {coverViewerOpen && editorCoverSrc && (
             <div
               className="profilePhotoViewerOverlay"
-              onClick={handleCloseCoverEditor}
+              onClick={buildDismissOverlayClickHandler(handleCloseCoverEditor)}
+              onKeyDown={buildDismissOverlayKeyDownHandler(handleCloseCoverEditor)}
+              role="button"
+              tabIndex={0}
               style={{ zIndex: 10003 }}
             >
-              <div className="coverEditorModal" onClick={(e) => e.stopPropagation()}>
+              <div className="coverEditorModal">
                 <div className="coverEditorHeader">
                   <h3>Editar banner</h3>
                   <button type="button" className="settingsCloseBtn" onClick={handleCloseCoverEditor} aria-label="Fechar editor de banner">
@@ -1617,9 +1648,12 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
             <div
               className="profilePhotoViewerOverlay"
               style={{ zIndex: 10004 }}
-              onClick={closeCameraModal}
+              onClick={buildDismissOverlayClickHandler(closeCameraModal)}
+              onKeyDown={buildDismissOverlayKeyDownHandler(closeCameraModal)}
+              role="button"
+              tabIndex={0}
             >
-              <div className="profileCameraModal" onClick={(e) => e.stopPropagation()}>
+              <div className="profileCameraModal">
                 <div className="profileCameraPreview">
                   {cameraLoading && <div className="profileCameraLoading">Abrindo câmera...</div>}
                   <video ref={profileCameraVideoRef} autoPlay playsInline muted />
@@ -1661,13 +1695,12 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
               onLogout();
             }}
           />
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>,
     document.body
   );
 }
-
 
 
 

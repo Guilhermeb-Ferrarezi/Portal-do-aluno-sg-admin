@@ -8,9 +8,7 @@ import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
 import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
 import { AnimatedSelect } from "../components/animate-ui/AnimatedSelect";
 import {
-  listarAlunos,
-  listarProfessores,
-  listarAdmins,
+  listarUsuariosPaginado,
   atualizarUsuario,
   deletarUsuario,
   type User,
@@ -26,27 +24,29 @@ import {
 } from "lucide-react";
 
 export default function AdminUsersPage() {
-  const [usuários, setUsuarios] = React.useState<User[]>([]);
+  const [usuarios, setUsuarios] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [erro, setErro] = React.useState<string | null>(null);
   const [filtroTipo, setFiltroTipo] = React.useState<"todos" | "aluno" | "professor" | "admin">("todos");
   const [busca, setBusca] = React.useState("");
 
-  // Estados do modal de edição
   const [editandoUsuario, setEditandoUsuario] = React.useState<User | null>(null);
   const [editNome, setEditNome] = React.useState("");
   const [editEmail, setEditEmail] = React.useState("");
   const [editarAberto, setEditarAberto] = React.useState(false);
 
-  // Estados para deletar
   const [usuarioDeletar, setUsuarioDeletar] = React.useState<User | null>(null);
   const [deletando, setDeletando] = React.useState(false);
 
-  // Estados para feedback
   const [feedback, setFeedback] = React.useState<{
     tipo: "sucesso" | "erro";
     mensagem: string;
   } | null>(null);
+
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(5);
+  const [totalItems, setTotalItems] = React.useState(0);
+
   const roleLabel = (role: string) => {
     const baseStyle = { display: "inline-flex", alignItems: "center", gap: 6 };
     if (role === "aluno") {
@@ -70,68 +70,42 @@ export default function AdminUsersPage() {
     );
   };
 
-  // Paginação
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(5);
-
-  // Carregar usuários ao montar
   React.useEffect(() => {
-    carregarUsuarios();
-  }, []);
-
-  // Auto-dismiss feedback após 3 segundos
-  React.useEffect(() => {
-    if (feedback) {
-      const timer = setTimeout(() => {
-        setFeedback(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
+    if (!feedback) return;
+    const timer = setTimeout(() => {
+      setFeedback(null);
+    }, 3000);
+    return () => clearTimeout(timer);
   }, [feedback]);
 
-  const carregarUsuarios = async () => {
+  const carregarUsuarios = React.useCallback(async () => {
     try {
       setLoading(true);
       setErro(null);
 
-      const [alunos, professores, admins] = await Promise.all([
-        listarAlunos(),
-        listarProfessores(),
-        listarAdmins(),
-      ]);
+      const response = await listarUsuariosPaginado({
+        role: filtroTipo === "todos" ? undefined : filtroTipo,
+        q: busca.trim() || undefined,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
 
-      // Adicionar role aos usuários
-      const alunosComRole: User[] = alunos.map(a => ({ ...a, email: a.email ?? a.usuario ?? "", role: "aluno" }));
-      const professoresComRole: User[] = professores.map(p => ({ ...p, email: p.email ?? p.usuario ?? "", role: "professor" }));
-      const adminsComRole: User[] = admins.map(ad => ({ ...ad, email: ad.email ?? ad.usuario ?? "", role: "admin" }));
+      setUsuarios(response.items);
+      setTotalItems(response.total);
 
-      setUsuarios([...adminsComRole, ...professoresComRole, ...alunosComRole]);
+      if (currentPage > response.pagination.totalPages) {
+        setCurrentPage(response.pagination.totalPages);
+      }
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao carregar usuários");
+      setErro(err instanceof Error ? err.message : "Erro ao carregar usuarios");
     } finally {
       setLoading(false);
     }
-  };
+  }, [busca, currentPage, filtroTipo, itemsPerPage]);
 
-  // Filtrar usuários
-  const usuáriosFiltrados = usuários.filter((u) => {
-    const matchTipo = filtroTipo === "todos" || u.role === filtroTipo;
-    const matchBusca =
-      busca === "" ||
-      u.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      (u.email ?? u.usuario ?? "").toLowerCase().includes(busca.toLowerCase());
-
-    return matchTipo && matchBusca;
-  });
-
-  const totalItems = usuáriosFiltrados.length;
-
-  // Paginação
-  const startIdx = (currentPage - 1) * itemsPerPage;
-  const usuáriosPaginados = usuáriosFiltrados.slice(
-    startIdx,
-    startIdx + itemsPerPage
-  );
+  React.useEffect(() => {
+    void carregarUsuarios();
+  }, [carregarUsuarios]);
 
   const abrirEditar = (usuario: User) => {
     setEditandoUsuario(usuario);
@@ -153,36 +127,27 @@ export default function AdminUsersPage() {
     if (!editNome.trim() || !editEmail.trim()) {
       setFeedback({
         tipo: "erro",
-        mensagem: "Nome e usuário são obrigatórios",
+        mensagem: "Nome e usuario sao obrigatorios",
       });
       return;
     }
 
     try {
-      // Chamar API para atualizar usuário
       await atualizarUsuario(editandoUsuario.id, {
         nome: editNome.trim(),
         email: editEmail.trim(),
       });
 
-      // Atualizar na lista local
-      setUsuarios(
-        usuários.map((u) =>
-          u.id === editandoUsuario.id
-            ? { ...u, nome: editNome, email: editEmail }
-            : u
-        )
-      );
-
+      await carregarUsuarios();
       fecharEditar();
       setFeedback({
         tipo: "sucesso",
-        mensagem: "Usuário atualizado com sucesso!",
+        mensagem: "Usuario atualizado com sucesso!",
       });
     } catch (err) {
       setFeedback({
         tipo: "erro",
-        mensagem: err instanceof Error ? err.message : "Erro ao atualizar usuário",
+        mensagem: err instanceof Error ? err.message : "Erro ao atualizar usuario",
       });
     }
   };
@@ -192,22 +157,18 @@ export default function AdminUsersPage() {
 
     try {
       setDeletando(true);
-
-      // Chamar API para deletar usuário
       await deletarUsuario(usuarioDeletar.id);
-
-      // Remover da lista local
-      setUsuarios(usuários.filter((u) => u.id !== usuarioDeletar.id));
+      await carregarUsuarios();
       setUsuarioDeletar(null);
 
       setFeedback({
         tipo: "sucesso",
-        mensagem: "Usuário deletado com sucesso!",
+        mensagem: "Usuario deletado com sucesso!",
       });
     } catch (err) {
       setFeedback({
         tipo: "erro",
-        mensagem: err instanceof Error ? err.message : "Erro ao deletar usuário",
+        mensagem: err instanceof Error ? err.message : "Erro ao deletar usuario",
       });
     } finally {
       setDeletando(false);
@@ -217,11 +178,11 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <DashboardLayout
-        title="Gerenciar Usuários"
+        title="Gerenciar Usuarios"
         subtitle="Gerencie alunos, professores e admins"
       >
         <div style={{ textAlign: "center", padding: "2rem" }}>
-          <p>Carregando usuários...</p>
+          <p>Carregando usuarios...</p>
         </div>
       </DashboardLayout>
     );
@@ -230,7 +191,7 @@ export default function AdminUsersPage() {
   if (erro) {
     return (
       <DashboardLayout
-        title="Gerenciar Usuários"
+        title="Gerenciar Usuarios"
         subtitle="Gerencie alunos, professores e admins"
       >
         <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
@@ -243,12 +204,11 @@ export default function AdminUsersPage() {
 
   return (
     <DashboardLayout
-      title="Gerenciar Usuários"
+      title="Gerenciar Usuarios"
       subtitle="Gerencie alunos, professores e admins"
     >
       <FadeInUp duration={0.28}>
         <div className="adminUsersContainer">
-          {/* FEEDBACK DE NOTIFICAÇÃO */}
           <AnimatedToast
             message={feedback?.mensagem || null}
             type={feedback?.tipo === "sucesso" ? "success" : "error"}
@@ -256,11 +216,9 @@ export default function AdminUsersPage() {
             onClose={() => setFeedback(null)}
           />
 
-          {/* HEADER COM FILTROS */}
           <FadeInUp duration={0.28} delay={0.08}>
             <div className="adminHeader">
               <div className="filterRow">
-                {/* Busca */}
                 <div className="searchBox">
                   <Search size={16} className="searchIcon" />
                   <input
@@ -275,11 +233,10 @@ export default function AdminUsersPage() {
                   />
                 </div>
 
-                {/* Filtro de Tipo */}
                 <AnimatedSelect
                   value={filtroTipo}
                   onChange={(e) => {
-                    setFiltroTipo(e.target.value as any);
+                    setFiltroTipo(e.target.value as "todos" | "aluno" | "professor" | "admin");
                     setCurrentPage(1);
                   }}
                   className="filterSelect"
@@ -293,11 +250,10 @@ export default function AdminUsersPage() {
             </div>
           </FadeInUp>
 
-          {/* TABELA DE USUÁRIOS */}
-          {usuáriosFiltrados.length === 0 ? (
+          {totalItems === 0 ? (
             <FadeInUp duration={0.28} delay={0.16}>
               <div className="emptyState">
-                <p>Nenhum usuário encontrado</p>
+                <p>Nenhum usuario encontrado</p>
               </div>
             </FadeInUp>
           ) : (
@@ -308,17 +264,17 @@ export default function AdminUsersPage() {
                     <thead>
                       <tr>
                         <th>Nome</th>
-                        <th>Usuário</th>
+                        <th>Usuario</th>
                         <th>Tipo</th>
-                        <th>Ações</th>
+                        <th>Acoes</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {usuáriosPaginados.map((usuario, idx) => (
+                      {usuarios.map((usuario, idx) => (
                         <FadeInUp key={usuario.id} duration={0.28} delay={0.16 + idx * 0.04}>
                           <tr className="userRow">
                             <td data-label="Nome">{usuario.nome}</td>
-                            <td data-label="Usuário" className="usuarioCell">
+                            <td data-label="Usuario" className="usuarioCell">
                               {usuario.email ?? usuario.usuario}
                             </td>
                             <td data-label="Tipo">
@@ -326,18 +282,18 @@ export default function AdminUsersPage() {
                                 {roleLabel(usuario.role)}
                               </span>
                             </td>
-                            <td data-label="Ações" className="actionCell">
+                            <td data-label="Acoes" className="actionCell">
                               <AnimatedButton
                                 className="btnEdit"
                                 onClick={() => abrirEditar(usuario)}
-                                title="Editar usuário"
+                                title="Editar usuario"
                               >
                                 <Pencil size={16} />
                               </AnimatedButton>
                               <AnimatedButton
                                 className="btnDelete"
                                 onClick={() => setUsuarioDeletar(usuario)}
-                                title="Deletar usuário"
+                                title="Deletar usuario"
                               >
                                 <Trash2 size={16} />
                               </AnimatedButton>
@@ -362,25 +318,24 @@ export default function AdminUsersPage() {
             </>
           )}
 
-          {/* MODAL DE EDIÇÃO */}
           <Modal
             isOpen={editarAberto && !!editandoUsuario}
             onClose={fecharEditar}
-            title="Editar Usuário"
+            title="Editar Usuario"
             size="sm"
-            footer={
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            footer={(
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
                 <AnimatedButton onClick={fecharEditar}>
                   Cancelar
                 </AnimatedButton>
                 <AnimatedButton onClick={salvarEdicao}>
-                  Salvar Alterações
+                  Salvar Alteracoes
                 </AnimatedButton>
               </div>
-            }
+            )}
           >
             <div className="formGroup">
-              <label className="formLabel">Nome</label>
+              <span className="formLabel">Nome</span>
               <input
                 type="text"
                 className="formInput"
@@ -391,7 +346,7 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="formGroup">
-              <label className="formLabel">E-mail</label>
+              <span className="formLabel">E-mail</span>
               <input
                 type="email"
                 className="formInput"
@@ -402,27 +357,26 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="formGroup">
-              <label className="formLabel">Tipo</label>
+              <span className="formLabel">Tipo</span>
               <p style={{ margin: "8px 0", fontSize: "14px" }}>
                 {editandoUsuario?.role ? roleLabel(editandoUsuario.role) : "-"}
               </p>
               <small style={{ color: "var(--muted)", fontSize: "12px" }}>
-                Alterar o tipo de usuário requer alteração manual no banco de dados
+                Alterar o tipo de usuario requer alteracao manual no banco de dados
               </small>
             </div>
           </Modal>
 
-          {/* MODAL DE CONFIRMAÇÃO DE DELEÇÃO */}
           <ConfirmDialog
             isOpen={!!usuarioDeletar}
             onClose={() => setUsuarioDeletar(null)}
             onConfirm={confirmarDeletar}
-            title="Deletar Usuário"
-            message={`Tem certeza que deseja deletar o usuário "${usuarioDeletar?.nome}"? Esta ação não pode ser desfeita.`}
+            title="Deletar Usuario"
+            message={`Tem certeza que deseja deletar o usuario "${usuarioDeletar?.nome}"? Esta acao nao pode ser desfeita.`}
             confirmText="Deletar"
             cancelText="Cancelar"
             isLoading={deletando}
-            isDangerous={true}
+            isDangerous
           />
         </div>
       </FadeInUp>

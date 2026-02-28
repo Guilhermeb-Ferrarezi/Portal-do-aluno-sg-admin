@@ -75,7 +75,27 @@ export default function MouseInteractiveBox({
     setCursor({ x: -100, y: -100 });
   };
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const registerEvent = React.useCallback(
+    (type: MouseEvent["type"], x: number, y: number) => {
+      const newEvent: MouseEvent = {
+        type,
+        x,
+        y,
+        timestamp: Date.now(),
+      };
+      const updatedEvents = [...events, newEvent];
+      setEvents(updatedEvents);
+      onInteraction?.(updatedEvents);
+
+      if (checkRulesCompletion(updatedEvents) && !isComplete) {
+        setIsComplete(true);
+        onComplete?.();
+      }
+    },
+    [checkRulesCompletion, events, isComplete, onComplete, onInteraction]
+  );
+
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!boxRef.current) return;
 
     const rect = boxRef.current.getBoundingClientRect();
@@ -85,46 +105,18 @@ export default function MouseInteractiveBox({
     // Detectar clique duplo
     if (clickTimeoutRef.current) {
       clearTimeout(clickTimeoutRef.current);
-      const newEvent: MouseEvent = {
-        type: "double-click",
-        x,
-        y,
-        timestamp: Date.now(),
-      };
-      const updatedEvents = [...events, newEvent];
-      setEvents(updatedEvents);
-      onInteraction?.(updatedEvents);
-
-      // Validar regras
-      if (checkRulesCompletion(updatedEvents) && !isComplete) {
-        setIsComplete(true);
-        onComplete?.();
-      }
+      registerEvent("double-click", x, y);
       clickTimeoutRef.current = undefined;
     } else {
-      const newEvent: MouseEvent = {
-        type: "click",
-        x,
-        y,
-        timestamp: Date.now(),
-      };
-      const updatedEvents = [...events, newEvent];
-      setEvents(updatedEvents);
-      onInteraction?.(updatedEvents);
-
-      // Validar regras
-      if (checkRulesCompletion(updatedEvents) && !isComplete) {
-        setIsComplete(true);
-        onComplete?.();
-      }
+      registerEvent("click", x, y);
 
       clickTimeoutRef.current = setTimeout(() => {
         clickTimeoutRef.current = undefined;
       }, 300);
     }
-  };
+  }, [registerEvent]);
 
-  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleContextMenu = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
 
     if (!boxRef.current) return;
@@ -133,21 +125,15 @@ export default function MouseInteractiveBox({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const newEvent: MouseEvent = {
-      type: "right-click",
-      x,
-      y,
-      timestamp: Date.now(),
-    };
-    const updatedEvents = [...events, newEvent];
-    setEvents(updatedEvents);
-    onInteraction?.(updatedEvents);
+    registerEvent("right-click", x, y);
+  }, [registerEvent]);
 
-    // Validar regras
-    if (checkRulesCompletion(updatedEvents) && !isComplete) {
-      setIsComplete(true);
-      onComplete?.();
-    }
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    if (!boxRef.current) return;
+    const rect = boxRef.current.getBoundingClientRect();
+    registerEvent("click", rect.width / 2, rect.height / 2);
   };
 
   const resetEvents = () => {
@@ -177,6 +163,10 @@ export default function MouseInteractiveBox({
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label="Área interativa para cliques do exercício"
       >
         {/* Indicador do cursor */}
         {cursor.x >= 0 && cursor.y >= 0 && (
@@ -194,9 +184,9 @@ export default function MouseInteractiveBox({
         )}
 
         {/* Mostra eventos de clique */}
-        {events.map((event, index) => (
+        {events.map((event) => (
           <div
-            key={index}
+            key={`${event.type}-${event.timestamp}-${Math.round(event.x)}-${Math.round(event.y)}`}
             className={`mouseEvent mouseEvent-${event.type}`}
             style={{
               left: `${event.x}px`,
@@ -286,9 +276,12 @@ export default function MouseInteractiveBox({
         <div className="mouseEventHistory">
           <h5>Histórico de Cliques ({events.length})</h5>
           <div className="eventsList">
-            {events.map((event, index) => (
-              <div key={index} className="eventItem">
-                <span className="eventIndex">#{index + 1}</span>
+            {events.map((event, position) => (
+              <div
+                key={`history-${event.type}-${event.timestamp}-${Math.round(event.x)}-${Math.round(event.y)}`}
+                className="eventItem"
+              >
+                <span className="eventIndex">#{position + 1}</span>
                 <span className="eventType">{event.type}</span>
                 <span className="eventCoords">
                   ({event.x.toFixed(0)}, {event.y.toFixed(0)})

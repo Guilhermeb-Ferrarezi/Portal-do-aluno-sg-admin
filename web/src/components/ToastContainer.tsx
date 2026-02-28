@@ -1,8 +1,9 @@
 import { AnimatedToast } from './animate-ui';
-import { useToast } from '../contexts/ToastContext';
+import { useToastActions, useToasts } from '../contexts/ToastContext';
 
 export function ToastContainer() {
-  const { toasts, removeToast } = useToast();
+  const toasts = useToasts();
+  const { removeToast } = useToastActions();
 
   return (
     <>

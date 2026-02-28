@@ -297,16 +297,22 @@ export function turmasRouter(jwtSecret: string) {
         return res.status(400).json({ message: "Module ID inválido" });
       }
 
-      const result = await pool.query<DbPhaseRow>(
-        `SELECT id, module_id, name, week_number, index_order, admin_authorize, created_at, updated_at
-         FROM phase
-         WHERE module_id = $1
-         ORDER BY index_order ASC, id ASC`,
-        [moduleId]
-      );
-
-      return res.json(
-        result.rows.map((row) => ({
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
+      const pageRaw = Number(req.query.page ?? 1);
+      const limitRaw = Number(req.query.limit ?? 20);
+      const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+      const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+      const offset = (page - 1) * limit;
+      const params: unknown[] = [moduleId];
+      const conditions: string[] = ["module_id = $1"];
+      if (q) {
+        params.push(`%${q}%`);
+        conditions.push(`COALESCE(name, '') ILIKE $${params.length}`);
+      }
+      const where = `WHERE ${conditions.join(" AND ")}`;
+      const mapRows = (rows: DbPhaseRow[]) =>
+        rows.map((row) => ({
           id: String(row.id),
           moduleId: String(row.module_id),
           nome: row.name ?? `Fase ${row.id}`,
@@ -315,8 +321,50 @@ export function turmasRouter(jwtSecret: string) {
           adminAuthorize: row.admin_authorize,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
-        }))
+        }));
+
+      if (!hasPaginationInput) {
+        const result = await pool.query<DbPhaseRow>(
+          `SELECT id, module_id, name, week_number, index_order, admin_authorize, created_at, updated_at
+           FROM phase
+           ${where}
+           ORDER BY index_order ASC, id ASC`,
+          params
+        );
+
+        return res.json(mapRows(result.rows));
+      }
+
+      const countResult = await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM phase
+         ${where}`,
+        params
       );
+      const listParams = [...params, limit, offset];
+
+      const result = await pool.query<DbPhaseRow>(
+        `SELECT id, module_id, name, week_number, index_order, admin_authorize, created_at, updated_at
+         FROM phase
+         ${where}
+         ORDER BY index_order ASC, id ASC
+         LIMIT $${listParams.length - 1}
+         OFFSET $${listParams.length}`,
+        listParams
+      );
+
+      const total = Number(countResult.rows[0]?.total ?? "0");
+
+      return res.json({
+        items: mapRows(result.rows),
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     } catch (error) {
       console.error("Erro ao listar fases:", error);
       return res.status(500).json({ message: "Erro ao listar fases" });
@@ -395,22 +443,73 @@ export function turmasRouter(jwtSecret: string) {
   };
 
   // GET /courses
-  router.get("/courses", authGuard(jwtSecret), async (_req: AuthRequest, res) => {
+  router.get("/courses", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     try {
-      const result = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid
-         FROM course
-         ORDER BY id ASC`
-      );
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
+      const pageRaw = Number(req.query.page ?? 1);
+      const limitRaw = Number(req.query.limit ?? 20);
+      const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+      const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+      const offset = (page - 1) * limit;
 
-      return res.json(
-        result.rows.map((row) => ({
+      const params: unknown[] = [];
+      const conditions: string[] = [];
+      if (q) {
+        params.push(`%${q}%`);
+        conditions.push(`(COALESCE(name, '') ILIKE $${params.length} OR COALESCE(description, '') ILIKE $${params.length})`);
+      }
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const mapRows = (rows: DbCourseRow[]) =>
+        rows.map((row) => ({
           id: String(row.id),
           nome: row.name ?? `Curso ${row.id}`,
           descricao: row.description,
           isPaid: row.is_paid,
-        }))
+        }));
+
+      if (!hasPaginationInput) {
+        const result = await pool.query<DbCourseRow>(
+          `SELECT id, name, description, is_paid
+           FROM course
+           ${where}
+           ORDER BY id ASC`,
+          params
+        );
+
+        return res.json(mapRows(result.rows));
+      }
+
+      const countResult = await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM course
+         ${where}`,
+        params
       );
+
+      const listParams = [...params, limit, offset];
+      const result = await pool.query<DbCourseRow>(
+        `SELECT id, name, description, is_paid
+         FROM course
+         ${where}
+         ORDER BY id ASC
+         LIMIT $${listParams.length - 1}
+         OFFSET $${listParams.length}`,
+        listParams
+      );
+
+      const total = Number(countResult.rows[0]?.total ?? "0");
+
+      return res.json({
+        items: mapRows(result.rows),
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     } catch (error) {
       console.error("Erro ao listar cursos:", error);
       return res.status(500).json({ message: "Erro ao listar cursos" });
@@ -425,23 +524,72 @@ export function turmasRouter(jwtSecret: string) {
         return res.status(400).json({ message: "Course ID inválido" });
       }
 
-      const result = await pool.query<DbModuleRow>(
-        `SELECT id, course_id, name, description, index_order
-         FROM module
-         WHERE course_id = $1
-         ORDER BY index_order ASC, id ASC`,
-        [courseId]
-      );
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
+      const pageRaw = Number(req.query.page ?? 1);
+      const limitRaw = Number(req.query.limit ?? 20);
+      const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+      const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+      const offset = (page - 1) * limit;
 
-      return res.json(
-        result.rows.map((row) => ({
+      const params: unknown[] = [courseId];
+      const conditions = ["course_id = $1"];
+      if (q) {
+        params.push(`%${q}%`);
+        conditions.push(`(COALESCE(name, '') ILIKE $${params.length} OR COALESCE(description, '') ILIKE $${params.length})`);
+      }
+      const where = `WHERE ${conditions.join(" AND ")}`;
+      const mapRows = (rows: DbModuleRow[]) =>
+        rows.map((row) => ({
           id: String(row.id),
           courseId: String(row.course_id),
           nome: row.name ?? `Módulo ${row.id}`,
           descricao: row.description,
           indexOrder: row.index_order,
-        }))
+        }));
+
+      if (!hasPaginationInput) {
+        const result = await pool.query<DbModuleRow>(
+          `SELECT id, course_id, name, description, index_order
+           FROM module
+           ${where}
+           ORDER BY index_order ASC, id ASC`,
+          params
+        );
+
+        return res.json(mapRows(result.rows));
+      }
+
+      const countResult = await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM module
+         ${where}`,
+        params
       );
+
+      const listParams = [...params, limit, offset];
+      const result = await pool.query<DbModuleRow>(
+        `SELECT id, course_id, name, description, index_order
+         FROM module
+         ${where}
+         ORDER BY index_order ASC, id ASC
+         LIMIT $${listParams.length - 1}
+         OFFSET $${listParams.length}`,
+        listParams
+      );
+
+      const total = Number(countResult.rows[0]?.total ?? "0");
+
+      return res.json({
+        items: mapRows(result.rows),
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     } catch (error) {
       console.error("Erro ao listar módulos do curso:", error);
       return res.status(500).json({ message: "Erro ao listar módulos do curso" });
@@ -484,25 +632,57 @@ export function turmasRouter(jwtSecret: string) {
   router.get("/turmas", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const userId = Number(req.user!.sub);
     const userRole = req.user!.role;
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
+    const pageRaw = Number(req.query.page ?? 1);
+    const limitRaw = Number(req.query.limit ?? 20);
+    const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+    const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+    const offset = (page - 1) * limit;
 
-    let query = `
-      SELECT id, current_module_id, course_id, name, start_date, end_date, created_at, updated_at
-      FROM class
-    `;
-    const params: number[] = [];
+    const params: unknown[] = [];
+    const conditions: string[] = [];
 
     if (userRole === "aluno") {
-      query += `
-        WHERE id IN (
-          SELECT class_id FROM enrollment WHERE user_id = $1
-        )
-      `;
       params.push(userId);
+      conditions.push(`id IN (SELECT class_id FROM enrollment WHERE user_id = $${params.length})`);
     }
 
-    query += " ORDER BY created_at DESC";
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`COALESCE(name, '') ILIKE $${params.length}`);
+    }
 
-    const classes = await pool.query<DbClassRow>(query, params);
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const baseQuery = `
+      SELECT id, current_module_id, course_id, name, start_date, end_date, created_at, updated_at
+      FROM class
+      ${where}
+      ORDER BY created_at DESC
+    `;
+
+    const countResult = hasPaginationInput
+      ? await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM class
+         ${where}`,
+        params
+      )
+      : null;
+
+    let classes;
+    if (hasPaginationInput) {
+      const listParams = [...params, limit, offset];
+      classes = await pool.query<DbClassRow>(
+        `${baseQuery}
+         LIMIT $${listParams.length - 1}
+         OFFSET $${listParams.length}`,
+        listParams
+      );
+    } else {
+      classes = await pool.query<DbClassRow>(baseQuery, params);
+    }
 
     const courseIds = Array.from(new Set(classes.rows.map((c) => c.course_id)));
     const coursesMap = new Map<number, DbCourseRow>();
@@ -517,7 +697,22 @@ export function turmasRouter(jwtSecret: string) {
       for (const c of r.rows) coursesMap.set(c.id, c);
     }
 
-    return res.json(classes.rows.map((row) => mapClassToTurma(row, coursesMap.get(row.course_id) ?? null)));
+    const items = classes.rows.map((row) => mapClassToTurma(row, coursesMap.get(row.course_id) ?? null));
+    if (!hasPaginationInput) {
+      return res.json(items);
+    }
+
+    const total = Number(countResult?.rows[0]?.total ?? "0");
+    return res.json({
+      items,
+      total,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
   });
 
   // GET /turmas/meus-responsaveis/count
@@ -1020,3 +1215,7 @@ export function turmasRouter(jwtSecret: string) {
 
   return router;
 }
+
+
+
+

@@ -1,3 +1,4 @@
+import type { KeyboardEvent, MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import "./ConfirmModal.css";
@@ -29,9 +30,27 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
+  const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    onCancel();
+  };
+
+  const handleOverlayKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    if (event.target === event.currentTarget) onCancel();
+  };
+
   return createPortal(
-    <div className="modalOverlay" onClick={onCancel} style={overlayZIndex ? { zIndex: overlayZIndex } : undefined}>
-      <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modalOverlay"
+      onClick={handleOverlayClick}
+      onKeyDown={handleOverlayKeyDown}
+      role="button"
+      tabIndex={0}
+      style={overlayZIndex ? { zIndex: overlayZIndex } : undefined}
+    >
+      <div className="modalContent">
         <h3 className="modalTitle">{title}</h3>
         <p className="modalMessage">{message}</p>
         <div className="modalActions">

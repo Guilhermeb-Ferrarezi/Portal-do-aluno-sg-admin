@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCcw, Save, Search } from "lucide-react";
 import { getRole } from "../auth/auth";
@@ -490,7 +490,7 @@ export default function ExerciseDetail() {
           <>
             <div className="rvFilters">
               <div className="rvFilterField">
-                <label className="rvFilterLabel">Filtro: Busca</label>
+                <span className="rvFilterLabel">Filtro: Busca</span>
                 <div className="rvSearch">
                   <Search size={14} />
                   <input
@@ -506,7 +506,7 @@ export default function ExerciseDetail() {
               </div>
 
               <div className="rvFilterField">
-                <label className="rvFilterLabel">Filtro: Aluno</label>
+                <span className="rvFilterLabel">Filtro: Aluno</span>
                 <select
                   className="rvSelect"
                   value={studentFilter}
@@ -525,7 +525,7 @@ export default function ExerciseDetail() {
               </div>
 
               <div className="rvFilterField">
-                <label className="rvFilterLabel">Filtro: Questão</label>
+                <span className="rvFilterLabel">Filtro: Questão</span>
                 <select
                   className="rvSelect"
                   value={questionFilter}
@@ -541,7 +541,7 @@ export default function ExerciseDetail() {
               </div>
 
               <div className="rvFilterField">
-                <label className="rvFilterLabel">Filtro: Status</label>
+                <span className="rvFilterLabel">Filtro: Status</span>
                 <select
                   className="rvSelect"
                   value={statusFilter}
@@ -559,15 +559,15 @@ export default function ExerciseDetail() {
 
             <div className="rvFilters" style={{ marginTop: -2 }}>
               <div className="rvFilterField">
-                <label className="rvFilterLabel">Filtro: Data inicial</label>
+                <span className="rvFilterLabel">Filtro: Data inicial</span>
                 <input className="rvInput" type="datetime-local" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
               </div>
               <div className="rvFilterField">
-                <label className="rvFilterLabel">Filtro: Data final</label>
+                <span className="rvFilterLabel">Filtro: Data final</span>
                 <input className="rvInput" type="datetime-local" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
               </div>
               <div className="rvFilterField">
-                <label className="rvFilterLabel">Filtro: Ordenação</label>
+                <span className="rvFilterLabel">Filtro: Ordenação</span>
                 <select className="rvSelect" value={sort} onChange={(e) => { setSort(e.target.value as any); setPage(1); }}>
                   <option value="recent">Mais recentes</option>
                   <option value="oldest">Mais antigas</option>
@@ -632,9 +632,9 @@ export default function ExerciseDetail() {
                               <div key={a.id} className="rvAnswerCard">
                                 <div className="rvAnswerToggleRow">
                                   {!legacyMode && (
-                                    <label className="rvCheckLabel rvCheckCompact">
+                                    <span className="rvCheckLabel rvCheckCompact">
                                       <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} />
-                                    </label>
+                                    </span>
                                   )}
                                   <button
                                     type="button"

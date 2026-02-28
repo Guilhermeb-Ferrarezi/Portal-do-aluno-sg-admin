@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
@@ -942,7 +942,7 @@ export default function MedalhasPage() {
                 <h3>Atribuir medalha a usuário</h3>
                 <div className="medalhasAssignGrid">
                   <div className="medalhaFormRow">
-                    <label>Usuário</label>
+                    <span>Usuário</span>
                     <input
                       value={assignUserQuery}
                       onChange={(e) => {
@@ -983,7 +983,7 @@ export default function MedalhasPage() {
                     )}
                   </div>
                   <div className="medalhaFormRow">
-                    <label>Medalha</label>
+                    <span>Medalha</span>
                     <input
                       value={assignBadgeQuery}
                       onChange={(e) => {
@@ -1059,6 +1059,16 @@ export default function MedalhasPage() {
                         if (!badge) return;
                         iniciarEdicaoMedalha(badge, { manterAbaAtual: true, abrirModal: true });
                       }}
+                      onKeyDown={(event) => {
+                        if (role !== "admin") return;
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        const badge = badgeOptions.find((b) => b.id === img.id);
+                        if (!badge) return;
+                        iniciarEdicaoMedalha(badge, { manterAbaAtual: true, abrirModal: true });
+                      }}
+                      role={role === "admin" ? "button" : undefined}
+                      tabIndex={role === "admin" ? 0 : undefined}
                     >
                       <div className="medalhasImageThumbWrap">
                         {img.url && !imagemBibliotecaLoadError[img.id] ? (
@@ -1095,7 +1105,7 @@ export default function MedalhasPage() {
           <div className="medalhaFormCard">
             <h3>{editingBadgeId ? "Editar medalha" : "Criar medalha"}</h3>
             <div className="medalhaFormRow">
-              <label>Nome da medalha</label>
+              <span>Nome da medalha</span>
               <input
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
@@ -1103,7 +1113,7 @@ export default function MedalhasPage() {
               />
             </div>
             <div className="medalhaFormRow">
-              <label>Descrição</label>
+              <span>Descrição</span>
               <textarea
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
@@ -1113,7 +1123,7 @@ export default function MedalhasPage() {
             </div>
             <div className="medalhaFormGrid">
               <div className="medalhaFormRow">
-                <label>Ícone</label>
+                <span>Ícone</span>
                 <div className="medalhaFileField">
                   <label htmlFor="icone-medalha-file" className="medalhaFileBtn">Selecionar imagem</label>
                   <span className="medalhaFileName">{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
@@ -1222,7 +1232,7 @@ export default function MedalhasPage() {
           }
         >
           <div className="medalhaFormRow">
-            <label>Nome da medalha</label>
+            <span>Nome da medalha</span>
             <input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
@@ -1230,7 +1240,7 @@ export default function MedalhasPage() {
             />
           </div>
           <div className="medalhaFormRow">
-            <label>Descrição</label>
+            <span>Descrição</span>
             <textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
@@ -1239,7 +1249,7 @@ export default function MedalhasPage() {
             />
           </div>
           <div className="medalhaFormRow">
-            <label>Ícone</label>
+            <span>Ícone</span>
             <div className="medalhaFileField">
               <label htmlFor="icone-medalha-file-modal" className="medalhaFileBtn">Selecionar imagem</label>
               <span className="medalhaFileName">{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
@@ -1304,7 +1314,6 @@ export default function MedalhasPage() {
     </DashboardLayout>
   );
 }
-
 
 
 

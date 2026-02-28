@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X } from 'lucide-react';
 import './Modal.css';
 
@@ -114,7 +114,7 @@ export default function Modal({
   return createPortal(
     <AnimatePresence mode="wait">
       {isOpen && (
-        <motion.div
+        <m.div
           className="modal-overlay"
           variants={overlayVariants}
           initial="hidden"
@@ -124,7 +124,7 @@ export default function Modal({
           onClick={handleBackdropClick}
           role="presentation"
         >
-          <motion.div
+          <m.div
             ref={modalRef}
             className={`modal-content modal-${size} ${className}`}
             variants={modalVariants}
@@ -156,8 +156,8 @@ export default function Modal({
 
             {/* Footer */}
             {footer && <div className="modal-footer">{footer}</div>}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>,
     document.body

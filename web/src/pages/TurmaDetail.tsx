@@ -534,9 +534,9 @@ export default function TurmaDetailPage() {
 
                       <div className="exercicioBoxControls">
                         <div className="exercicioBoxField">
-                          <label className="exercicioBoxLabel">
+                          <span className="exercicioBoxLabel">
                             Semana
-                          </label>
+                          </span>
                           <select
                             value={semanaSelecionada}
                             onChange={(e) => setSemanaSelecionada(Number(e.target.value))}
@@ -551,9 +551,9 @@ export default function TurmaDetailPage() {
                         </div>
 
                         <div className="exercicioBoxFieldLarge">
-                          <label className="exercicioBoxLabel">
+                          <span className="exercicioBoxLabel">
                             Exercício
-                          </label>
+                          </span>
                           <select
                             value={exercicioSelecionado}
                             onChange={(e) => setExercicioSelecionado(e.target.value)}
@@ -648,8 +648,22 @@ export default function TurmaDetailPage() {
 
         {/* MODAL DE ADICIONAR ALUNOS */}
         {modalAdicionarAberto && createPortal(
-          <div className="modalOverlay" onClick={() => setModalAdicionarAberto(false)}>
-            <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modalOverlay"
+            onClick={(e) => {
+              if (e.target !== e.currentTarget) return;
+              setModalAdicionarAberto(false);
+            }}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                e.preventDefault();
+                setModalAdicionarAberto(false);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="modalContent">
               <h3>Adicionar alunos à turma</h3>
 
               {alunosDisponiveis.length === 0 ? (
@@ -710,6 +724,5 @@ export default function TurmaDetailPage() {
     </DashboardLayout>
   );
 }
-
 
 

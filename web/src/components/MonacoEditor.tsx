@@ -1,5 +1,5 @@
 import React from "react";
-import Editor from "@monaco-editor/react";
+const MonacoEditorLazy = React.lazy(() => import("@monaco-editor/react"));
 
 interface MonacoEditorProps {
   value: string;
@@ -106,27 +106,45 @@ export default function MonacoEditor({
       </div>
 
       <div style={{ border: "1px solid var(--line)", borderRadius: "10px", overflow: "hidden" }}>
-        <Editor
-          height={autoHeight ? contentHeight : height}
-          language={currentLanguage}
-          value={value}
-          onChange={onChange}
-          onMount={handleMount}
-          theme={theme === "dark" ? "vs-dark" : "vs-light"}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            fontFamily: "Fira Code, Consolas, monospace",
-            lineNumbers: showLineNumbers ? "on" : "off",
-            wordWrap: "on",
-            automaticLayout: true,
-            tabSize: 2,
-            readOnly,
-            scrollBeyondLastLine: false,
-            scrollbar: autoHeight ? { vertical: "hidden" } : undefined,
-            padding: { top: 12, bottom: 12 },
-          }}
-        />
+        <React.Suspense
+          fallback={
+            <div
+              style={{
+                minHeight: autoHeight ? contentHeight : undefined,
+                height: autoHeight ? undefined : height,
+                display: "grid",
+                placeItems: "center",
+                color: "var(--muted)",
+                fontSize: 13,
+                background: "var(--card-bg, transparent)",
+              }}
+            >
+              Carregando editor...
+            </div>
+          }
+        >
+          <MonacoEditorLazy
+            height={autoHeight ? contentHeight : height}
+            language={currentLanguage}
+            value={value}
+            onChange={onChange}
+            onMount={handleMount}
+            theme={theme === "dark" ? "vs-dark" : "vs-light"}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              fontFamily: "Fira Code, Consolas, monospace",
+              lineNumbers: showLineNumbers ? "on" : "off",
+              wordWrap: "on",
+              automaticLayout: true,
+              tabSize: 2,
+              readOnly,
+              scrollBeyondLastLine: false,
+              scrollbar: autoHeight ? { vertical: "hidden" } : undefined,
+              padding: { top: 12, bottom: 12 },
+            }}
+          />
+        </React.Suspense>
       </div>
     </div>
   );

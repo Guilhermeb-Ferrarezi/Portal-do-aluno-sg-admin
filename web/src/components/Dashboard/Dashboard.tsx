@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import DashboardLayout from "./DashboardLayout";
 import { getName, getRole, hasRole } from "../../auth/auth";
 import { RippleButton, GradientBackground, FadeInUp } from "../animate-ui";
@@ -240,7 +240,7 @@ export default function Dashboard() {
           {/* SEÇÃO 1: ESTATÍSTICAS */}
           <section className={isManagementView ? "grid4" : "grid3"}>
             {(isManagementView || turmas.length > 0) && (
-              <motion.div
+              <m.div
                 className="card"
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
@@ -271,11 +271,11 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             {(isManagementView || turmas.length > 0) && (
-              <motion.div
+              <m.div
                 className="card"
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
@@ -299,10 +299,10 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
-            <motion.div
+            <m.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
@@ -333,12 +333,12 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           </section>
 
           {/* SEÇÃO 2: PROGRESSO E ATIVIDADES */}
           <section className="grid2">
-            <motion.div
+            <m.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
@@ -405,9 +405,9 @@ export default function Dashboard() {
                   })
                 )}
               </div>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
@@ -430,12 +430,12 @@ export default function Dashboard() {
                   <strong>{progresso.exercicios}</strong>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </section>
 
           {/* SEÇÃO 3: INFORMAÇÕES ADICIONAIS */}
           <section className="grid2">
-            <motion.div
+            <m.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
@@ -457,9 +457,9 @@ export default function Dashboard() {
                   ? "Continue assim! Você está em uma ótima sequência de estudos."
                   : "Envie uma atividade hoje para iniciar sua sequência."}
               </p>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
@@ -494,12 +494,12 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           </section>
 
           {/* SEÇÃO 4: AÇÕES RÁPIDAS */}
           <section>
-            <motion.div
+            <m.div
               initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 7 * 0.1, duration: 0.3 }}
@@ -558,7 +558,7 @@ export default function Dashboard() {
                   )}
                 </div>
               </GradientBackground>
-            </motion.div>
+            </m.div>
           </section>
         </div>
       </FadeInUp>

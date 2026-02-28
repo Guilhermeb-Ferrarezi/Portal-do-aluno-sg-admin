@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 interface AnimatedButtonProps {
   children: React.ReactNode;
@@ -12,18 +12,20 @@ interface AnimatedButtonProps {
   title?: string;
 }
 
+const EMPTY_STYLE: React.CSSProperties = {};
+
 export function AnimatedButton({
   children,
   onClick,
   disabled = false,
   loading = false,
   className = '',
-  style = {},
+  style = EMPTY_STYLE,
   type = 'button',
   title,
 }: AnimatedButtonProps) {
   return (
-    <motion.button
+    <m.button
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
@@ -35,14 +37,14 @@ export function AnimatedButton({
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
       {loading ? (
-        <motion.div
+        <m.div
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
           }}
         >
-          <motion.span
+          <m.span
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             style={{
@@ -55,10 +57,10 @@ export function AnimatedButton({
             }}
           />
           {children}
-        </motion.div>
+        </m.div>
       ) : (
         children
       )}
-    </motion.button>
+    </m.button>
   );
 }

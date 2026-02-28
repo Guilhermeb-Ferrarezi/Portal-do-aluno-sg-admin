@@ -207,27 +207,91 @@ function transformMaterial(row: MaterialRow) {
   };
 }
 
+function getFileExtension(value: string): string | null {
+  const noQuery = value.split("?")[0].split("#")[0];
+  const ext = noQuery.split(".").pop()?.toLowerCase() ?? "";
+  return ext.length > 0 && ext !== noQuery.toLowerCase() ? ext : null;
+}
+
+function getMaterialCategoria(material: ReturnType<typeof transformMaterial>) {
+  if (material.tipo === "link") return "link";
+  const ext = getFileExtension(material.url);
+  if (!ext) return "arquivo";
+  if (["pdf"].includes(ext)) return "pdf";
+  if (["doc", "docx"].includes(ext)) return "word";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "excel";
+  if (["ppt", "pptx"].includes(ext)) return "powerpoint";
+  if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) return "imagem";
+  if (["txt", "md"].includes(ext)) return "texto";
+  if (["zip", "rar", "7z"].includes(ext)) return "compactado";
+  return "arquivo";
+}
+
 export function materiaisRouter(jwtSecret: string) {
   const router = express.Router();
 
   router.get("/materiais", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     try {
       const modulo = typeof req.query.modulo === "string" ? req.query.modulo.trim() : "";
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const tipo = typeof req.query.tipo === "string" ? req.query.tipo.trim().toLowerCase() : "todos";
+      const hasPaginationInput =
+        req.query.page !== undefined ||
+        req.query.limit !== undefined ||
+        req.query.q !== undefined ||
+        req.query.modulo !== undefined ||
+        req.query.tipo !== undefined;
+      const pageRaw = Number(req.query.page ?? 1);
+      const limitRaw = Number(req.query.limit ?? 20);
+      const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+      const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+      const offset = (page - 1) * limit;
+
+      const queryParams: unknown[] = [];
+      const whereClauses: string[] = [];
+      if (q) {
+        queryParams.push(`%${q}%`);
+        whereClauses.push(`(title ILIKE $${queryParams.length} OR COALESCE(description, '') ILIKE $${queryParams.length})`);
+      }
+      const where = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
       const result = await pool.query<MaterialRow>(
         `SELECT id, class_id, title, description, file_url, file_type, visibility, uploaded_at
          FROM material
-         ORDER BY uploaded_at DESC`
+         ${where}
+         ORDER BY uploaded_at DESC`,
+        queryParams
       );
 
-      const mapped = result.rows.map(transformMaterial);
+      const mapped = result.rows
+        .map(transformMaterial)
+        .filter((m) => {
+          if (modulo && modulo.toLowerCase() !== "todos" && !m.modulo.toLowerCase().includes(modulo.toLowerCase())) {
+            return false;
+          }
+          if (tipo && tipo !== "todos") {
+            return getMaterialCategoria(m) === tipo;
+          }
+          return true;
+        });
 
-      if (!modulo || modulo.toLowerCase() === "todos") {
+      if (!hasPaginationInput) {
         res.json(mapped);
         return;
       }
 
-      res.json(mapped.filter((m) => m.modulo.toLowerCase() === modulo.toLowerCase()));
+      const total = mapped.length;
+      const items = mapped.slice(offset, offset + limit);
+      res.json({
+        items,
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Erro ao listar materiais" });

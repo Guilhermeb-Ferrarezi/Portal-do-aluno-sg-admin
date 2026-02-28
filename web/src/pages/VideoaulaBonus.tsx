@@ -4,8 +4,7 @@ import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
-import { useToast } from "../contexts/ToastContext";
-import { useCachedData } from "../hooks/useCachedData";
+import { useToastActions } from "../contexts/ToastContext";
 import {
   Search,
   Plus,
@@ -99,7 +98,7 @@ function getPlayableVideoUrl(videoaula: Videoaula): string {
 
 export default function VideoaulaBonusPage() {
   const canUpload = hasRole(["admin", "professor"]);
-  const { addToast } = useToast();
+  const { addToast } = useToastActions();
   const iconLabel = (icon: React.ReactNode, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       {icon}
@@ -108,10 +107,10 @@ export default function VideoaulaBonusPage() {
   );
 
   // Carregar videoaulas com cache
-  const { data: videoaulas, loading, error, refetch } = useCachedData(
-    'videoaulas-list',
-    listarVideoaulas
-  );
+  const [videoaulas, setVideoaulas] = React.useState<Videoaula[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [totalItems, setTotalItems] = React.useState(0);
 
   // Estados
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
@@ -135,6 +134,12 @@ export default function VideoaulaBonusPage() {
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
+  const deferredBusca = React.useDeferredValue(busca);
+  const moduloQuery = React.useMemo(() => {
+    if (filtroModulo !== "todos") return filtroModulo;
+    const termo = buscaModuloFiltro.trim();
+    return termo.length > 0 ? termo : undefined;
+  }, [buscaModuloFiltro, filtroModulo]);
 
   const [formData, setFormData] = React.useState({
     titulo: "",
@@ -160,24 +165,34 @@ export default function VideoaulaBonusPage() {
   }, [canUpload]);
 
   // Filtrar videoaulas
-  const videoaulasFiltradas = videoaulas.filter((v) => {
-    const termoModulo = buscaModuloFiltro.trim().toLowerCase();
-    const matchModulo =
-      filtroModulo !== "todos"
-        ? v.modulo === filtroModulo
-        : termoModulo === "" || v.modulo.toLowerCase().includes(termoModulo);
-    const matchTipo = filtroTipo === "todos" || v.tipo === filtroTipo;
-    const matchBusca =
-      busca === "" ||
-      v.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-      (v.descricao && v.descricao.toLowerCase().includes(busca.toLowerCase()));
-    const matchTurma =
-      turmaFiltro === "todas" ||
-      (v.turmas && v.turmas.some((t) => t.id === turmaFiltro)) ||
-      (!v.turmas || v.turmas.length === 0); // Videoaulas sem turma visíveis para todos
+  const carregarVideoaulas = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    return matchModulo && matchTipo && matchBusca && matchTurma;
-  });
+      const response = await listarVideoaulas({
+        modulo: moduloQuery,
+        q: deferredBusca.trim() || undefined,
+        tipo: filtroTipo,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+
+      setVideoaulas(response.items);
+      setTotalItems(response.total);
+      if (currentPage > response.pagination.totalPages) {
+        setCurrentPage(response.pagination.totalPages);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar videoaulas");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, deferredBusca, filtroTipo, itemsPerPage, moduloQuery]);
+
+  React.useEffect(() => {
+    void carregarVideoaulas();
+  }, [carregarVideoaulas]);
 
   // Obter lista única de módulos
   const modulos = Array.from(
@@ -200,6 +215,12 @@ export default function VideoaulaBonusPage() {
       : modulosDisponiveis.filter((mod) =>
           mod.nome.toLowerCase().includes(termoModuloForm)
         );
+  const hasAnyFiltro =
+    busca.trim() !== "" ||
+    filtroTipo !== "todos" ||
+    filtroModulo !== "todos" ||
+    buscaModuloFiltro.trim() !== "" ||
+    turmaFiltro !== "todas";
 
   const handleAssistir = (videoaula: Videoaula) => {
     setVideoSelecionado(videoaula);
@@ -308,7 +329,7 @@ export default function VideoaulaBonusPage() {
       }
 
       // Recarregar lista de videoaulas
-      await refetch();
+      await carregarVideoaulas();
 
       // Resetar formulário
       setFormData({
@@ -347,7 +368,7 @@ export default function VideoaulaBonusPage() {
       await deletarVideoaula(target.id);
       setDeleteTarget(null);
       addToast(`"${target.titulo}" foi removido.`, "success");
-      await refetch();
+      await carregarVideoaulas();
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : "Erro ao deletar videoaula",
@@ -381,7 +402,7 @@ export default function VideoaulaBonusPage() {
       >
         <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
           <p>Erro: {error}</p>
-          <button onClick={refetch}>Tentar novamente</button>
+          <button onClick={carregarVideoaulas}>Tentar novamente</button>
         </div>
       </DashboardLayout>
     );
@@ -406,7 +427,10 @@ export default function VideoaulaBonusPage() {
                 type="text"
                 placeholder="Buscar videoaulas..."
                 value={busca}
-                onChange={(e) => setBusca(e.target.value)}
+                onChange={(e) => {
+                  setBusca(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="searchInput"
               />
             </div>
@@ -414,7 +438,10 @@ export default function VideoaulaBonusPage() {
             {/* Filtro de Tipo */}
             <AnimatedSelect
               value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value as VideoTipoFiltro)}
+              onChange={(e) => {
+                setFiltroTipo(e.target.value as VideoTipoFiltro);
+                setCurrentPage(1);
+              }}
               className="filterSelect"
             >
               <option value="todos">Todos os tipos</option>
@@ -432,6 +459,7 @@ export default function VideoaulaBonusPage() {
                 onChange={(e) => {
                   setBuscaModuloFiltro(e.target.value);
                   setFiltroModulo("todos");
+                  setCurrentPage(1);
                   setShowSugestoesModuloFiltro(true);
                 }}
                 className="filterSelect"
@@ -458,6 +486,7 @@ export default function VideoaulaBonusPage() {
                       onClick={() => {
                         setFiltroModulo(mod);
                         setBuscaModuloFiltro(mod);
+                        setCurrentPage(1);
                         setShowSugestoesModuloFiltro(false);
                       }}
                       style={{ width: "100%", textAlign: "left" }}
@@ -473,7 +502,10 @@ export default function VideoaulaBonusPage() {
             {/* Filtro de Turmas */}
             <AnimatedSelect
               value={turmaFiltro}
-              onChange={(e) => setTurmaFiltro(e.target.value)}
+              onChange={(e) => {
+                setTurmaFiltro(e.target.value);
+                setCurrentPage(1);
+              }}
               className="filterSelect"
             >
               <option value="todas">Todas as turmas</option>
@@ -498,43 +530,42 @@ export default function VideoaulaBonusPage() {
 
         {/* GRID DE VIDEOAULAS */}
         <div>
-          {videoaulasFiltradas.length === 0 ? (
+          {totalItems === 0 ? (
             <div className="emptyState">
               <div className="emptyIcon" style={{ display: "inline-flex" }}>
                 <Film size={22} />
               </div>
               <div className="emptyTitle">
-                {videoaulas.length === 0
+                {!hasAnyFiltro
                   ? "Nenhuma videoaula disponível"
                   : "Nenhuma videoaula encontrada"}
               </div>
               <p className="emptyText">
-                {videoaulas.length === 0
+                {!hasAnyFiltro
                   ? "Em breve serão adicionadas videoaulas extras."
                   : "Tente ajustar seus filtros de busca."}
               </p>
             </div>
           ) : (
             <>
-              {(() => {
-                const startIndex = (currentPage - 1) * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                const paginatedVideoaulas = videoaulasFiltradas.slice(
-                  startIndex,
-                  endIndex
-                );
+              <div className="videoaulasGrid">
+                {videoaulas.map((videoaula, index) => {
 
-                return (
-                  <>
-                    <div className="videoaulasGrid">
-                      {paginatedVideoaulas.map((videoaula, index) => {
-
-                        return (
-                        <FadeInUp key={videoaula.id} delay={index * 0.05}>
-                        <div className="videoaulaCard">
+                  return (
+                  <FadeInUp key={videoaula.id} delay={index * 0.05}>
+                  <div className="videoaulaCard">
                   <div
                     className="videoaulaThumbnail"
                     onClick={() => handleAssistir(videoaula)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Assistir ${videoaula.titulo}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleAssistir(videoaula);
+                      }
+                    }}
                   >
                     <img
                       src={videoaula.thumbnail || "https://via.placeholder.com/320x180"}
@@ -659,21 +690,18 @@ export default function VideoaulaBonusPage() {
                     </div>
                   </div>
                 </div>
-                        </FadeInUp>
-                        );
-                      })}
-                    </div>
+                  </FadeInUp>
+                  );
+                })}
+              </div>
 
-                    <Pagination
-                      currentPage={currentPage}
-                      itemsPerPage={itemsPerPage}
-                      totalItems={videoaulasFiltradas.length}
-                      onPageChange={setCurrentPage}
-                      onItemsPerPageChange={setItemsPerPage}
-                    />
-                  </>
-                );
-              })()}
+              <Pagination
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={totalItems}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+              />
             </>
           )}
         </div>
@@ -692,7 +720,7 @@ export default function VideoaulaBonusPage() {
                   width="100%"
                   height="400"
                   src={playableVideoUrl}
-                  title={videoSelecionado?.titulo || ""}
+                  title="Videoaula YouTube"
                   frameBorder={0}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -702,7 +730,7 @@ export default function VideoaulaBonusPage() {
                   width="100%"
                   height="400"
                   src={playableVideoUrl}
-                  title={videoSelecionado?.titulo || ""}
+                  title="Videoaula Vimeo"
                   frameBorder={0}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -785,7 +813,7 @@ export default function VideoaulaBonusPage() {
           }
         >
               <div className="formGroup">
-                <label className="formLabel">Título *</label>
+                <span className="formLabel">Título *</span>
                 <input
                   type="text"
                   placeholder="Título da videoaula"
@@ -798,7 +826,7 @@ export default function VideoaulaBonusPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Módulo *</label>
+                <span className="formLabel">Módulo *</span>
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
@@ -844,7 +872,7 @@ export default function VideoaulaBonusPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Tipo *</label>
+                <span className="formLabel">Tipo *</span>
                 <div className="videoTypeSegment" role="tablist" aria-label="Tipo de videoaula">
                   <button
                     type="button"
@@ -882,7 +910,7 @@ export default function VideoaulaBonusPage() {
               ) : null}
 
               <div className="formGroup">
-                <label className="formLabel">Descrição</label>
+                <span className="formLabel">Descrição</span>
                 <textarea
                   placeholder="Descrição da videoaula"
                   value={formData.descricao}
@@ -895,7 +923,7 @@ export default function VideoaulaBonusPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Turmas (opcional)</label>
+                <span className="formLabel">Turmas (opcional)</span>
                   <select
                     className="formInput"
                     multiple
@@ -935,7 +963,7 @@ export default function VideoaulaBonusPage() {
                 </div>
               ) : (
                 <div className="formGroup">
-                  <label className="formLabel">Arquivo de Vídeo *</label>
+                  <span className="formLabel">Arquivo de Vídeo *</span>
                   <label className="fileInputWrapper">
                     <input
                       type="file"
@@ -957,7 +985,7 @@ export default function VideoaulaBonusPage() {
               )}
 
               <div className="formGroup">
-                <label className="formLabel">Duração (mm:ss) *</label>
+                <span className="formLabel">Duração (mm:ss) *</span>
                 <input
                   type="text"
                   placeholder="Ex: 25:30"

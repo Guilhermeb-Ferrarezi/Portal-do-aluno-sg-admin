@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 interface AnimatedSelectProps {
   className?: string;
@@ -12,6 +12,8 @@ interface AnimatedSelectProps {
   style?: React.CSSProperties;
 }
 
+const EMPTY_STYLE: React.CSSProperties = {};
+
 export function AnimatedSelect({
   className = '',
   value,
@@ -20,12 +22,12 @@ export function AnimatedSelect({
   disabled = false,
   multiple = false,
   size,
-  style = {},
+  style = EMPTY_STYLE,
 }: AnimatedSelectProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <motion.div
+    <m.div
       style={{ position: 'relative', ...style }}
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
@@ -42,7 +44,7 @@ export function AnimatedSelect({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         style={{
-          transition: 'all 180ms cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'filter 180ms cubic-bezier(0.4, 0, 0.2, 1)',
           filter: isFocused ? 'drop-shadow(0 0 8px rgba(225, 29, 46, 0.2))' : 'none',
         }}
       >
@@ -51,7 +53,7 @@ export function AnimatedSelect({
 
       {/* Pseudo-animation indicator */}
       {isFocused && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -67,6 +69,6 @@ export function AnimatedSelect({
           }}
         />
       )}
-    </motion.div>
+    </m.div>
   );
 }

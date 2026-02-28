@@ -4,8 +4,7 @@ import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { hasRole } from "../auth/auth";
-import { useToast } from "../contexts/ToastContext";
-import { useCachedData } from "../hooks/useCachedData";
+import { useToastActions } from "../contexts/ToastContext";
 import {
   FadeInUp,
   PopInBadge,
@@ -164,7 +163,7 @@ function getCategoriaIcon(categoria: MaterialCategoria): React.ReactNode {
 
 export default function MateriaisPage() {
   const canUpload = hasRole(["admin", "professor"]);
-  const { addToast } = useToast();
+  const { addToast } = useToastActions();
   const iconLabel = (icon: React.ReactNode, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       {icon}
@@ -173,10 +172,10 @@ export default function MateriaisPage() {
   );
 
   // Carregar materiais com cache
-  const { data: materiais, loading, error, refetch } = useCachedData(
-    'materiais-list',
-    listarMateriais
-  );
+  const [materiais, setMateriais] = React.useState<Material[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [totalItems, setTotalItems] = React.useState(0);
 
   // Estados de filtros
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
@@ -209,6 +208,12 @@ export default function MateriaisPage() {
   // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
+  const deferredBusca = React.useDeferredValue(busca);
+  const moduloQuery = React.useMemo(() => {
+    if (filtroModulo !== "todos") return filtroModulo;
+    const termo = buscaModuloFiltro.trim();
+    return termo.length > 0 ? termo : undefined;
+  }, [buscaModuloFiltro, filtroModulo]);
 
   // Carregar turmas e modulos quando puder fazer upload
 
@@ -224,26 +229,34 @@ export default function MateriaisPage() {
   }, [canUpload]);
 
   // Filtrar materiais
-  const materiaisFiltrados = materiais.filter((m) => {
-    const categoria = getMaterialCategoria(m);
-    const termoModuloFiltro = buscaModuloFiltro.trim().toLowerCase();
-    const matchModulo =
-      filtroModulo !== "todos"
-        ? m.modulo === filtroModulo
-        : termoModuloFiltro === "" || m.modulo.toLowerCase().includes(termoModuloFiltro);
-    const matchTipo = filtroTipo === "todos" || categoria === filtroTipo;
-    const matchBusca =
-      busca === "" ||
-      m.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-      (m.descricao &&
-        m.descricao.toLowerCase().includes(busca.toLowerCase()));
-    const matchTurma =
-      turmaFiltro === "todas" ||
-      (m.turmas && m.turmas.some((t) => t.id === turmaFiltro)) ||
-      (!m.turmas || m.turmas.length === 0); // Materiais sem turma visíveis para todos
+  const carregarMateriais = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    return matchModulo && matchTipo && matchBusca && matchTurma;
-  });
+      const response = await listarMateriais({
+        modulo: moduloQuery,
+        q: deferredBusca.trim() || undefined,
+        tipo: filtroTipo,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+
+      setMateriais(response.items);
+      setTotalItems(response.total);
+      if (currentPage > response.pagination.totalPages) {
+        setCurrentPage(response.pagination.totalPages);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar materiais");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, deferredBusca, filtroTipo, itemsPerPage, moduloQuery]);
+
+  React.useEffect(() => {
+    void carregarMateriais();
+  }, [carregarMateriais]);
 
   // Obter lista única de módulos
   const modulos = Array.from(
@@ -264,6 +277,12 @@ export default function MateriaisPage() {
     termoModuloForm.length === 0
       ? []
       : modulosDisponiveis.filter((mod) => mod.nome.toLowerCase().includes(termoModuloForm));
+  const hasAnyFiltro =
+    busca.trim() !== "" ||
+    filtroTipo !== "todos" ||
+    filtroModulo !== "todos" ||
+    buscaModuloFiltro.trim() !== "" ||
+    turmaFiltro !== "todas";
 
   const resetForm = () => {
     setFormTitulo("");
@@ -360,7 +379,7 @@ export default function MateriaisPage() {
       setModalAberto(false);
       resetForm();
       addToast("Material adicionado com sucesso.", "success");
-      await refetch();
+      await carregarMateriais();
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : "Erro ao adicionar material",
@@ -380,7 +399,7 @@ export default function MateriaisPage() {
       await deletarMaterial(target.id);
       setDeleteTarget(null);
       addToast(`"${target.titulo}" foi removido.`, "success");
-      await refetch();
+      await carregarMateriais();
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : "Erro ao deletar material",
@@ -422,7 +441,7 @@ export default function MateriaisPage() {
       >
         <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
           <p>Erro: {error}</p>
-          <button onClick={refetch}>Tentar novamente</button>
+          <button onClick={carregarMateriais}>Tentar novamente</button>
         </div>
       </DashboardLayout>
     );
@@ -444,7 +463,10 @@ export default function MateriaisPage() {
                   type="text"
                   placeholder="Buscar materiais..."
                   value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
+                  onChange={(e) => {
+                    setBusca(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="searchInput"
                 />
               </div>
@@ -452,7 +474,10 @@ export default function MateriaisPage() {
               {/* Filtro de Tipo */}
               <AnimatedSelect
                 value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value as "todos" | MaterialCategoria)}
+                onChange={(e) => {
+                  setFiltroTipo(e.target.value as "todos" | MaterialCategoria);
+                  setCurrentPage(1);
+                }}
                 className="filterSelect"
               >
                 {FILTER_TIPO_OPTIONS.map((option) => (
@@ -471,6 +496,7 @@ export default function MateriaisPage() {
                   onChange={(e) => {
                     setBuscaModuloFiltro(e.target.value);
                     setFiltroModulo("todos");
+                    setCurrentPage(1);
                     setShowSugestoesModuloFiltro(true);
                   }}
                   className="filterSelect"
@@ -497,6 +523,7 @@ export default function MateriaisPage() {
                         onClick={() => {
                           setFiltroModulo(mod);
                           setBuscaModuloFiltro(mod);
+                          setCurrentPage(1);
                           setShowSugestoesModuloFiltro(false);
                         }}
                         style={{ width: "100%", textAlign: "left" }}
@@ -512,7 +539,10 @@ export default function MateriaisPage() {
               {/* Filtro de Turmas */}
               <AnimatedSelect
                 value={turmaFiltro}
-                onChange={(e) => setTurmaFiltro(e.target.value)}
+                onChange={(e) => {
+                  setTurmaFiltro(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="filterSelect"
               >
                 <option value="todas">Todas as turmas</option>
@@ -540,177 +570,164 @@ export default function MateriaisPage() {
 
           {/* LISTA DE MATERIAIS */}
           <div>
-            {materiaisFiltrados.length === 0 ? (
+            {totalItems === 0 ? (
               <div className="emptyState">
                 <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
                 <div className="emptyTitle">
-                  {materiais.length === 0
+                  {!hasAnyFiltro
                     ? "Nenhum material disponível"
                     : "Nenhum material encontrado"}
                 </div>
                 <p className="emptyText">
-                  {materiais.length === 0
+                  {!hasAnyFiltro
                     ? "Em breve serão adicionados materiais para estudo."
                     : "Tente ajustar seus filtros de busca."}
                 </p>
               </div>
             ) : (
               <>
-                {(() => {
-                  const startIndex = (currentPage - 1) * itemsPerPage;
-                  const endIndex = startIndex + itemsPerPage;
-                  const paginatedMateriais = materiaisFiltrados.slice(
-                    startIndex,
-                    endIndex
-                  );
-
-                  return (
-                    <>
-                      <div className="materiaisGrid">
-                        {paginatedMateriais.map((material, index) => {
-                          const categoria = getMaterialCategoria(material);
-                          return (
-                            <FadeInUp key={material.id} delay={index * 0.1}>
-                              <div className="materialCard">
-                                <div className="materialHeader">
-                                  <div className="materialIcon">
-                                    {getCategoriaIcon(categoria)}
-                                  </div>
-                                  <div className="materialInfo">
-                                    <h3 className="materialTitulo">{material.titulo}</h3>
-                                    <div className="materialMeta">
-                                      <span className="metaBadge">{material.modulo}</span>
-                                      <span className="metaBadge materialTypeBadge">{getCategoriaLabel(categoria)}</span>
-                                      <span className="metaData">
-                                        {new Date(material.createdAt).toLocaleDateString(
-                                          "pt-BR"
-                                        )}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <p className="materialDescricao">
-                                  {material.descricao || "Sem descrição"}
-                                </p>
-
-                                {/* Badges de acesso/turmas */}
-                                <div
-                                  style={{
-                                    marginTop: "8px",
-                                    display: "flex",
-                                    flexWrap: "wrap",
-                                    gap: "6px",
-                                  }}
-                                >
-                                  {material.turmas && material.turmas.length > 0 ? (
-                                    <>
-                                      <PopInBadge delay={0.1}>
-                                        <span
-                                          style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: "4px",
-                                            padding: "4px 10px",
-                                            fontSize: "11px",
-                                            fontWeight: 700,
-                                            borderRadius: "12px",
-                                            background: "rgba(59, 130, 246, 0.15)",
-                                            color: "#1e40af",
-                                            border: "1px solid rgba(59, 130, 246, 0.3)",
-                                          }}
-                                        >
-                                          {iconLabel(<Landmark size={12} />, `${material.turmas.length} turma${material.turmas.length > 1 ? "s" : ""}`)}
-                                        </span>
-                                      </PopInBadge>
-                                      {material.turmas.map((turma, idx) => (
-                                        <PopInBadge key={turma.id} delay={0.2 + idx * 0.1}>
-                                          <span
-                                            style={{
-                                              display: "inline-flex",
-                                              alignItems: "center",
-                                              gap: "4px",
-                                              padding: "4px 10px",
-                                              fontSize: "10px",
-                                              fontWeight: 600,
-                                              borderRadius: "12px",
-                                              background:
-                                                turma.tipo === "turma"
-                                                  ? "rgba(59, 130, 246, 0.1)"
-                                                  : "rgba(168, 85, 247, 0.1)",
-                                              color:
-                                                turma.tipo === "turma" ? "#2563eb" : "#a855f7",
-                                              border:
-                                                turma.tipo === "turma"
-                                                  ? "1px solid rgba(59, 130, 246, 0.2)"
-                                                  : "1px solid rgba(168, 85, 247, 0.2)",
-                                            }}
-                                            title={`${turma.tipo}: ${turma.nome}`}
-                                          >
-                                            {turma.nome}
-                                          </span>
-                                        </PopInBadge>
-                                      ))}
-                                    </>
-                                  ) : (
-                                    <PopInBadge delay={0.1}>
-                                      <span
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: "4px",
-                                          padding: "4px 10px",
-                                          fontSize: "11px",
-                                          fontWeight: 700,
-                                          borderRadius: "12px",
-                                          background: "rgba(34, 197, 94, 0.15)",
-                                          color: "#15803d",
-                                          border: "1px solid rgba(34, 197, 94, 0.3)",
-                                        }}
-                                        title="Disponível para todos os alunos"
-                                      >
-                                        {iconLabel(<Globe size={12} />, "Para Todos")}
-                                      </span>
-                                    </PopInBadge>
+                <div className="materiaisGrid">
+                  {materiais.map((material, index) => {
+                    const categoria = getMaterialCategoria(material);
+                    return (
+                      <FadeInUp key={material.id} delay={index * 0.1}>
+                        <div className="materialCard">
+                          <div className="materialHeader">
+                            <div className="materialIcon">
+                              {getCategoriaIcon(categoria)}
+                            </div>
+                            <div className="materialInfo">
+                              <h3 className="materialTitulo">{material.titulo}</h3>
+                              <div className="materialMeta">
+                                <span className="metaBadge">{material.modulo}</span>
+                                <span className="metaBadge materialTypeBadge">{getCategoriaLabel(categoria)}</span>
+                                <span className="metaData">
+                                  {new Date(material.createdAt).toLocaleDateString(
+                                    "pt-BR"
                                   )}
-                                </div>
-
-                                <div className="materialFooter">
-                                  <AnimatedButton
-                                    className="materialBtn"
-                                    onClick={() => handleDownload(material)}
-                                  >
-                                    {material.tipo === "arquivo"
-                                      ? iconLabel(<Download size={14} />, "Baixar")
-                                      : iconLabel(<Globe size={14} />, "Abrir Link")}
-                                  </AnimatedButton>
-
-                                  {canUpload && (
-                                    <AnimatedButton
-                                      onClick={() => setDeleteTarget(material)}
-                                      className="materialDeleteBtn"
-                                      title="Deletar"
-                                    >
-                                      <Trash2 size={14} />
-                                    </AnimatedButton>
-                                  )}
-                                </div>
+                                </span>
                               </div>
-                            </FadeInUp>
-                          );
-                        })}
-                      </div>
+                            </div>
+                          </div>
 
-                      <Pagination
-                        currentPage={currentPage}
-                        itemsPerPage={itemsPerPage}
-                        totalItems={materiaisFiltrados.length}
-                        onPageChange={setCurrentPage}
-                        onItemsPerPageChange={setItemsPerPage}
-                      />
-                    </>
-                  );
-                })()}
+                          <p className="materialDescricao">
+                            {material.descricao || "Sem descrição"}
+                          </p>
+
+                          {/* Badges de acesso/turmas */}
+                          <div
+                            style={{
+                              marginTop: "8px",
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "6px",
+                            }}
+                          >
+                            {material.turmas && material.turmas.length > 0 ? (
+                              <>
+                                <PopInBadge delay={0.1}>
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                      padding: "4px 10px",
+                                      fontSize: "11px",
+                                      fontWeight: 700,
+                                      borderRadius: "12px",
+                                      background: "rgba(59, 130, 246, 0.15)",
+                                      color: "#1e40af",
+                                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                                    }}
+                                  >
+                                    {iconLabel(<Landmark size={12} />, `${material.turmas.length} turma${material.turmas.length > 1 ? "s" : ""}`)}
+                                  </span>
+                                </PopInBadge>
+                                {material.turmas.map((turma, idx) => (
+                                  <PopInBadge key={turma.id} delay={0.2 + idx * 0.1}>
+                                    <span
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                        padding: "4px 10px",
+                                        fontSize: "10px",
+                                        fontWeight: 600,
+                                        borderRadius: "12px",
+                                        background:
+                                          turma.tipo === "turma"
+                                            ? "rgba(59, 130, 246, 0.1)"
+                                            : "rgba(168, 85, 247, 0.1)",
+                                        color:
+                                          turma.tipo === "turma" ? "#2563eb" : "#a855f7",
+                                        border:
+                                          turma.tipo === "turma"
+                                            ? "1px solid rgba(59, 130, 246, 0.2)"
+                                            : "1px solid rgba(168, 85, 247, 0.2)",
+                                      }}
+                                      title={`${turma.tipo}: ${turma.nome}`}
+                                    >
+                                      {turma.nome}
+                                    </span>
+                                  </PopInBadge>
+                                ))}
+                              </>
+                            ) : (
+                              <PopInBadge delay={0.1}>
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "4px 10px",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    borderRadius: "12px",
+                                    background: "rgba(34, 197, 94, 0.15)",
+                                    color: "#15803d",
+                                    border: "1px solid rgba(34, 197, 94, 0.3)",
+                                  }}
+                                  title="Disponível para todos os alunos"
+                                >
+                                  {iconLabel(<Globe size={12} />, "Para Todos")}
+                                </span>
+                              </PopInBadge>
+                            )}
+                          </div>
+
+                          <div className="materialFooter">
+                            <AnimatedButton
+                              className="materialBtn"
+                              onClick={() => handleDownload(material)}
+                            >
+                              {material.tipo === "arquivo"
+                                ? iconLabel(<Download size={14} />, "Baixar")
+                                : iconLabel(<Globe size={14} />, "Abrir Link")}
+                            </AnimatedButton>
+
+                            {canUpload && (
+                              <AnimatedButton
+                                onClick={() => setDeleteTarget(material)}
+                                className="materialDeleteBtn"
+                                title="Deletar"
+                              >
+                                <Trash2 size={14} />
+                              </AnimatedButton>
+                            )}
+                          </div>
+                        </div>
+                      </FadeInUp>
+                    );
+                  })}
+                </div>
+
+                <Pagination
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={totalItems}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={setItemsPerPage}
+                />
               </>
             )}
           </div>
@@ -765,14 +782,9 @@ export default function MateriaisPage() {
           >
             {formError && <p className="formError">{formError}</p>}
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleSubmit();
-              }}
-            >
+            <div>
               <div className="formGroup">
-                <label className="formLabel">Título *</label>
+                <span className="formLabel">Título *</span>
                 <input
                   type="text"
                   placeholder="Título do material"
@@ -784,7 +796,7 @@ export default function MateriaisPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Módulo *</label>
+                <span className="formLabel">Módulo *</span>
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
@@ -832,7 +844,7 @@ export default function MateriaisPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Tipo *</label>
+                <span className="formLabel">Tipo *</span>
                 <div className="materialTypeSegment" role="tablist" aria-label="Tipo de material">
                   <button
                     type="button"
@@ -858,7 +870,7 @@ export default function MateriaisPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Descrição</label>
+                <span className="formLabel">Descrição</span>
                 <textarea
                   placeholder="Descrição do material"
                   className="formInput"
@@ -869,7 +881,7 @@ export default function MateriaisPage() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Turmas (opcional)</label>
+                <span className="formLabel">Turmas (opcional)</span>
                 <select
                   className="formInput"
                   multiple
@@ -896,7 +908,7 @@ export default function MateriaisPage() {
               {/* Input dinâmico baseado no tipo */}
               {formTipo === "arquivo" ? (
                 <div className="formGroup">
-                  <label className="formLabel">Formato do Arquivo</label>
+                  <span className="formLabel">Formato do Arquivo</span>
                   <select
                     className="formInput"
                     value={formFormatoArquivo}
@@ -916,7 +928,7 @@ export default function MateriaisPage() {
                     Selecione um formato específico para restringir os arquivos permitidos.
                   </small>
 
-                  <label className="formLabel">Arquivo *</label>
+                  <span className="formLabel">Arquivo *</span>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -939,7 +951,7 @@ export default function MateriaisPage() {
                 </div>
               ) : (
                 <div className="formGroup">
-                  <label className="formLabel">URL *</label>
+                  <span className="formLabel">URL *</span>
                   <input
                     type="url"
                     placeholder="https://exemplo.com/recurso"
@@ -950,7 +962,7 @@ export default function MateriaisPage() {
                   />
                 </div>
               )}
-            </form>
+            </div>
           </Modal>
 
           <ConfirmDialog

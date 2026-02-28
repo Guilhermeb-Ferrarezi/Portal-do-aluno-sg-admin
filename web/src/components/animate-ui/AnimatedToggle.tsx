@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 
 interface AnimatedToggleProps {
   checked: boolean;
@@ -54,7 +54,7 @@ export const AnimatedToggle: React.FC<AnimatedToggleProps> = ({
         }}
       />
 
-      <motion.div
+      <m.div
         className="slider"
         style={{
           position: "absolute",
@@ -79,7 +79,7 @@ export const AnimatedToggle: React.FC<AnimatedToggleProps> = ({
         }}
       >
         {/* Animated circle */}
-        <motion.div
+        <m.div
           className="slider-thumb"
           style={{
             position: "absolute",
@@ -98,7 +98,7 @@ export const AnimatedToggle: React.FC<AnimatedToggleProps> = ({
             ease: "easeInOut",
           }}
         />
-      </motion.div>
+      </m.div>
     </label>
   );
 };

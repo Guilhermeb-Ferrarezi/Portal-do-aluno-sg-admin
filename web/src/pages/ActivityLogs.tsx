@@ -432,7 +432,7 @@ export default function ActivityLogsPage() {
               <div className="alFiltersPanel">
                 <div className="alFiltersGrid">
                   <div className="alFilterGroup">
-                    <label className="alFilterLabel">Ação</label>
+                    <span className="alFilterLabel">Ação</span>
                     <select
                       className="alFilterSelect"
                       value={draft.action}
@@ -446,7 +446,7 @@ export default function ActivityLogsPage() {
                     </select>
                   </div>
                   <div className="alFilterGroup">
-                    <label className="alFilterLabel">Entidade</label>
+                    <span className="alFilterLabel">Entidade</span>
                     <select
                       className="alFilterSelect"
                       value={draft.entityType}
@@ -460,7 +460,7 @@ export default function ActivityLogsPage() {
                     </select>
                   </div>
                   <div className="alFilterGroup">
-                    <label className="alFilterLabel">Actor ID</label>
+                    <span className="alFilterLabel">Actor ID</span>
                     <input
                       type="text"
                       className="alFilterInput"
@@ -471,7 +471,7 @@ export default function ActivityLogsPage() {
                     />
                   </div>
                   <div className="alFilterGroup">
-                    <label className="alFilterLabel">De</label>
+                    <span className="alFilterLabel">De</span>
                     <input
                       type="datetime-local"
                       className="alFilterInput"
@@ -480,7 +480,7 @@ export default function ActivityLogsPage() {
                     />
                   </div>
                   <div className="alFilterGroup">
-                    <label className="alFilterLabel">Até</label>
+                    <span className="alFilterLabel">Até</span>
                     <input
                       type="datetime-local"
                       className="alFilterInput"

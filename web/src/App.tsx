@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
+import { LazyMotion, domAnimation } from "framer-motion";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useTheme } from "./hooks/useTheme";
 import ProtectedRoute from "./auth/ProtectedRoute";
@@ -7,20 +8,36 @@ import { ToastContainer } from "./components/ToastContainer";
 import { getToken, getTokenExpiryMs, isTokenExpired, onAuthChanged } from "./auth/auth";
 import { logoutWithServer } from "./services/api";
 
-import Login from "./components/Login/Login";
-import Dashboard from "./components/Dashboard/Dashboard";
-import CreateUser from "./components/Dashboard/Sidebar/CreateUser/CreateUser";
-import ExerciciosPage from "./pages/Exercises";
-import ExerciseDetail from "./pages/ExerciseDetail";
-import AdminUsersPage from "./pages/AdminUsers";
-import ActivityLogsPage from "./pages/ActivityLogs";
-import Turmas from "./pages/Turmas";
-import TurmaDetail from "./pages/TurmaDetail";
-import EstruturaCursoPage from "./pages/EstruturaCurso";
-import MateriaisPage from "./pages/Materiais";
-import VideoaulaBonusPage from "./pages/VideoaulaBonus";
-import PerfilPage from "./pages/Perfil";
-import MedalhasPage from "./pages/Medalhas";
+const Login = React.lazy(() => import("./components/Login/Login"));
+const Dashboard = React.lazy(() => import("./components/Dashboard/Dashboard"));
+const CreateUser = React.lazy(() => import("./components/Dashboard/Sidebar/CreateUser/CreateUser"));
+const ExerciciosPage = React.lazy(() => import("./pages/Exercises"));
+const ExerciseDetail = React.lazy(() => import("./pages/ExerciseDetail"));
+const AdminUsersPage = React.lazy(() => import("./pages/AdminUsers"));
+const ActivityLogsPage = React.lazy(() => import("./pages/ActivityLogs"));
+const Turmas = React.lazy(() => import("./pages/Turmas"));
+const TurmaDetail = React.lazy(() => import("./pages/TurmaDetail"));
+const EstruturaCursoPage = React.lazy(() => import("./pages/EstruturaCurso"));
+const MateriaisPage = React.lazy(() => import("./pages/Materiais"));
+const VideoaulaBonusPage = React.lazy(() => import("./pages/VideoaulaBonus"));
+const PerfilPage = React.lazy(() => import("./pages/Perfil"));
+const MedalhasPage = React.lazy(() => import("./pages/Medalhas"));
+
+function RouteLoader() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        color: "var(--muted)",
+        fontWeight: 600,
+      }}
+    >
+      Carregando...
+    </div>
+  );
+}
 
 function AppContent() {
   useTheme();
@@ -99,14 +116,15 @@ function AppContent() {
   }, [navigate]);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
+    <React.Suspense fallback={<RouteLoader />}>
+      <Routes>
+        <Route path="/login" element={<Login />} />
 
         {/* logado */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* exercícios: qualquer logado (admin/prof/aluno) */}
+          {/* exercicios: qualquer logado (admin/prof/aluno) */}
           <Route path="/dashboard/exercicios" element={<ExerciciosPage />} />
           <Route
             path="/dashboard/exercicios/:id"
@@ -120,7 +138,7 @@ function AppContent() {
           {/* materiais: qualquer logado */}
           <Route path="/dashboard/materiais" element={<MateriaisPage />} />
 
-          {/* videoaulas bônus: qualquer logado */}
+          {/* videoaulas bonus: qualquer logado */}
           <Route
             path="/dashboard/videoaulas"
             element={<VideoaulaBonusPage />}
@@ -172,16 +190,19 @@ function AppContent() {
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+    </React.Suspense>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <ToastProvider>
-        <AppContent />
-        <ToastContainer />
-      </ToastProvider>
+      <LazyMotion features={domAnimation}>
+        <ToastProvider>
+          <AppContent />
+          <ToastContainer />
+        </ToastProvider>
+      </LazyMotion>
     </BrowserRouter>
   );
 }

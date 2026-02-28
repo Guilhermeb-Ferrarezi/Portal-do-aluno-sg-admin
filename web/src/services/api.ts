@@ -280,12 +280,77 @@ export type ActivityLog = {
   createdAt: string;
 };
 
-export async function listarExercicios() {
-  return apiFetch<Exercicio[]>("/exercicios");
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PaginatedItemsResponse<T> = {
+  items: T[];
+  total: number;
+  pagination: PaginationMeta;
+};
+
+export async function listarExercicios(): Promise<Exercicio[]>;
+export async function listarExercicios(params: {
+  page?: number;
+  limit?: number;
+  q?: string;
+  modulo?: string;
+  turmaId?: string;
+  status?: "todos" | "publicado" | "programado" | "rascunho";
+}): Promise<PaginatedItemsResponse<Exercicio>>;
+export async function listarExercicios(params?: {
+  page?: number;
+  limit?: number;
+  q?: string;
+  modulo?: string;
+  turmaId?: string;
+  status?: "todos" | "publicado" | "programado" | "rascunho";
+}) {
+  const search = new URLSearchParams();
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.q) search.set("q", params.q);
+  if (params?.modulo) search.set("modulo", params.modulo);
+  if (params?.turmaId) search.set("turmaId", params.turmaId);
+  if (params?.status && params.status !== "todos") search.set("status", params.status);
+  const query = search.toString();
+  return apiFetch<Exercicio[] | PaginatedItemsResponse<Exercicio>>(
+    `/exercicios${query ? `?${query}` : ""}`
+  );
 }
 
-export async function listarTarefasDiarias() {
-  return apiFetch<Exercicio[]>("/exercicios/daily-tasks");
+export async function listarTarefasDiarias(): Promise<Exercicio[]>;
+export async function listarTarefasDiarias(params: {
+  page?: number;
+  limit?: number;
+  q?: string;
+  modulo?: string;
+  turmaId?: string;
+  status?: "todos" | "publicado" | "programado" | "rascunho";
+}): Promise<PaginatedItemsResponse<Exercicio>>;
+export async function listarTarefasDiarias(params?: {
+  page?: number;
+  limit?: number;
+  q?: string;
+  modulo?: string;
+  turmaId?: string;
+  status?: "todos" | "publicado" | "programado" | "rascunho";
+}) {
+  const search = new URLSearchParams();
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.q) search.set("q", params.q);
+  if (params?.modulo) search.set("modulo", params.modulo);
+  if (params?.turmaId) search.set("turmaId", params.turmaId);
+  if (params?.status && params.status !== "todos") search.set("status", params.status);
+  const query = search.toString();
+  return apiFetch<Exercicio[] | PaginatedItemsResponse<Exercicio>>(
+    `/exercicios/daily-tasks${query ? `?${query}` : ""}`
+  );
 }
 
 export async function obterExercicio(id: string) {
@@ -622,8 +687,23 @@ export type CronogramaSemana = {
 };
 
 // Funções de Turma
-export async function listarTurmas() {
-  return apiFetch<Turma[]>("/turmas");
+export async function listarTurmas(): Promise<Turma[]>;
+export async function listarTurmas(params: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedItemsResponse<Turma>>;
+export async function listarTurmas(params?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.q) search.set("q", params.q);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<Turma[] | PaginatedItemsResponse<Turma>>(`/turmas${query ? `?${query}` : ""}`);
 }
 
 export async function obterTurmasResponsavel() {
@@ -837,6 +917,21 @@ export async function listarAdmins() {
   return apiFetch<User[]>("/users?role=admin");
 }
 
+export async function listarUsuariosPaginado(params?: {
+  role?: "admin" | "professor" | "aluno";
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.role) search.set("role", params.role);
+  if (params?.q) search.set("q", params.q);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<PaginatedItemsResponse<User>>(`/users${query ? `?${query}` : ""}`);
+}
+
 export async function atualizarUsuario(
   id: string,
   dados: { nome?: string; email?: string; usuario?: string; role?: Role; ativo?: boolean }
@@ -942,9 +1037,32 @@ export type BadgeHolder = {
   awardedAt: string;
 };
 
-export async function listarMateriais(modulo?: string) {
-  const query = modulo ? `?modulo=${encodeURIComponent(modulo)}` : "";
-  return apiFetch<Material[]>(`/materiais${query}`);
+export async function listarMateriais(modulo?: string): Promise<Material[]>;
+export async function listarMateriais(params: {
+  modulo?: string;
+  q?: string;
+  tipo?: "todos" | "link" | "pdf" | "word" | "excel" | "powerpoint" | "imagem" | "texto" | "compactado" | "arquivo";
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedItemsResponse<Material>>;
+export async function listarMateriais(
+  moduloOrParams?: string | {
+    modulo?: string;
+    q?: string;
+    tipo?: "todos" | "link" | "pdf" | "word" | "excel" | "powerpoint" | "imagem" | "texto" | "compactado" | "arquivo";
+    page?: number;
+    limit?: number;
+  }
+) {
+  const params = typeof moduloOrParams === "string" ? { modulo: moduloOrParams } : (moduloOrParams ?? {});
+  const search = new URLSearchParams();
+  if (params.modulo) search.set("modulo", params.modulo);
+  if (params.q) search.set("q", params.q);
+  if (params.tipo && params.tipo !== "todos") search.set("tipo", params.tipo);
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<Material[] | PaginatedItemsResponse<Material>>(`/materiais${query ? `?${query}` : ""}`);
 }
 
 export async function obterMaterial(id: string) {
@@ -1005,17 +1123,55 @@ export async function removerMaterialDaTurma(materialId: string, turmaId: string
 }
 
 // Videoaulas
-export async function listarVideoaulas(modulo?: string) {
-  const query = modulo ? `?modulo=${encodeURIComponent(modulo)}` : "";
-  return apiFetch<Videoaula[]>(`/videoaulas${query}`);
+export async function listarVideoaulas(modulo?: string): Promise<Videoaula[]>;
+export async function listarVideoaulas(params: {
+  modulo?: string;
+  q?: string;
+  tipo?: "todos" | "youtube" | "vimeo" | "arquivo";
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedItemsResponse<Videoaula>>;
+export async function listarVideoaulas(
+  moduloOrParams?: string | {
+    modulo?: string;
+    q?: string;
+    tipo?: "todos" | "youtube" | "vimeo" | "arquivo";
+    page?: number;
+    limit?: number;
+  }
+) {
+  const params = typeof moduloOrParams === "string" ? { modulo: moduloOrParams } : (moduloOrParams ?? {});
+  const search = new URLSearchParams();
+  if (params.modulo) search.set("modulo", params.modulo);
+  if (params.q) search.set("q", params.q);
+  if (params.tipo && params.tipo !== "todos") search.set("tipo", params.tipo);
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<Videoaula[] | PaginatedItemsResponse<Videoaula>>(`/videoaulas${query ? `?${query}` : ""}`);
 }
 
 export async function listarModulos() {
   return apiFetch<Modulo[]>("/modules");
 }
 
-export async function listarCursos() {
-  return apiFetch<Curso[]>("/courses");
+export async function listarCursos(): Promise<Curso[]>;
+export async function listarCursos(params: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedItemsResponse<Curso>>;
+export async function listarCursos(params?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.q) search.set("q", params.q);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<Curso[] | PaginatedItemsResponse<Curso>>(`/courses${query ? `?${query}` : ""}`);
 }
 
 export async function criarCurso(dados: {
@@ -1035,8 +1191,25 @@ export async function deletarCurso(id: string) {
   });
 }
 
-export async function listarModulosPorCurso(courseId: string) {
-  return apiFetch<Modulo[]>(`/courses/${courseId}/modules`);
+export async function listarModulosPorCurso(courseId: string): Promise<Modulo[]>;
+export async function listarModulosPorCurso(courseId: string, params: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedItemsResponse<Modulo>>;
+export async function listarModulosPorCurso(courseId: string, params?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.q) search.set("q", params.q);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<Modulo[] | PaginatedItemsResponse<Modulo>>(
+    `/courses/${courseId}/modules${query ? `?${query}` : ""}`
+  );
 }
 
 export async function criarModulo(dados: {
@@ -1057,8 +1230,25 @@ export async function deletarModulo(id: string) {
   });
 }
 
-export async function listarFasesDoModulo(moduleId: string) {
-  return apiFetch<Fase[]>(`/modules/${moduleId}/phases`);
+export async function listarFasesDoModulo(moduleId: string): Promise<Fase[]>;
+export async function listarFasesDoModulo(moduleId: string, params: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedItemsResponse<Fase>>;
+export async function listarFasesDoModulo(moduleId: string, params?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.q) search.set("q", params.q);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  return apiFetch<Fase[] | PaginatedItemsResponse<Fase>>(
+    `/modules/${moduleId}/phases${query ? `?${query}` : ""}`
+  );
 }
 
 export async function criarFase(moduleId: string, dados: {

@@ -110,6 +110,21 @@ function toRole(role: number): UserRole {
   return "admin";
 }
 
+function mapUserRow(u: DbUserRow) {
+  return {
+    id: String(u.id),
+    usuario: u.email,
+    email: u.email,
+    nome: u.name,
+    bio: u.bio,
+    profilePictureUrl: u.profile_picture_url,
+    coverPictureUrl: u.cover_photo_url,
+    role: toRole(u.role),
+    ativo: true,
+    createdAt: u.created_at,
+  };
+}
+
 export function usersRouter(jwtSecret: string) {
   const router = Router();
 
@@ -146,37 +161,72 @@ export function usersRouter(jwtSecret: string) {
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
       const roleFilter = req.query.role as UserRole | undefined;
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
+      const pageRaw = Number(req.query.page ?? 1);
+      const limitRaw = Number(req.query.limit ?? 20);
+      const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+      const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+      const offset = (page - 1) * limit;
 
       const params: unknown[] = [];
-      let where = "";
+      const conditions: string[] = [];
       if (roleFilter === "admin" || roleFilter === "professor" || roleFilter === "aluno") {
         params.push(toNumericRole(roleFilter));
-        where = "WHERE role = $1";
+        conditions.push(`role = $${params.length}`);
       }
+      if (q) {
+        params.push(`%${q}%`);
+        conditions.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length})`);
+      }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const mappedRows = (rows: DbUserRow[]) => rows.map(mapUserRow);
+
+      if (!hasPaginationInput) {
+        const r = await pool.query<DbUserRow>(
+          `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at
+           FROM "user"
+           ${where}
+           ORDER BY created_at DESC
+           LIMIT 200`,
+          params
+        );
+
+        return res.json(mappedRows(r.rows));
+      }
+
+      const countQuery = await pool.query<{ total: string }>(
+        `SELECT COUNT(*)::text AS total
+         FROM "user"
+         ${where}`,
+        params
+      );
+
+      const listParams = [...params, limit, offset];
 
       const r = await pool.query<DbUserRow>(
         `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at
          FROM "user"
          ${where}
          ORDER BY created_at DESC
-         LIMIT 200`,
-        params
+         LIMIT $${listParams.length - 1}
+         OFFSET $${listParams.length}`,
+        listParams
       );
 
-      return res.json(
-        r.rows.map((u) => ({
-          id: String(u.id),
-          usuario: u.email,
-          email: u.email,
-          nome: u.name,
-          bio: u.bio,
-          profilePictureUrl: u.profile_picture_url,
-      coverPictureUrl: u.cover_photo_url,
-          role: toRole(u.role),
-          ativo: true,
-          createdAt: u.created_at,
-        }))
-      );
+      const total = Number(countQuery.rows[0]?.total ?? "0");
+
+      return res.json({
+        items: mappedRows(r.rows),
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
     }
   );
 

@@ -63,6 +63,7 @@ export default function TurmasPage() {
   const canCreate = role === "admin";
 
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -121,8 +122,15 @@ export default function TurmasPage() {
   async function load() {
     try {
       setLoading(true);
-      const data = await listarTurmas();
-      setTurmas(data);
+      const data = await listarTurmas({
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+      setTurmas(data.items);
+      setTotalItems(data.total);
+      if (currentPage > data.pagination.totalPages) {
+        setCurrentPage(data.pagination.totalPages);
+      }
     } catch (e) {
       setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao carregar turmas" });
     } finally {
@@ -146,8 +154,6 @@ export default function TurmasPage() {
   }
 
   React.useEffect(() => {
-    load();
-
     if (role === "admin") {
       listarCursos()
         .then(async (data) => {
@@ -162,6 +168,10 @@ export default function TurmasPage() {
         .catch((e) => console.error("Erro ao carregar cursos:", e));
     }
   }, [role]);
+
+  React.useEffect(() => {
+    void load();
+  }, [currentPage, itemsPerPage]);
 
   React.useEffect(() => {
     if (role !== "admin") return;
@@ -507,7 +517,7 @@ export default function TurmasPage() {
 
               <form onSubmit={handleSubmit} className="turmaForm">
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Nome da Turma *</label>
+                  <span className="turmaLabel">Nome da Turma *</span>
                   <input
                     className="turmaInput"
                     placeholder="ex: Turma A 2024"
@@ -518,7 +528,7 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Tipo *</label>
+                  <span className="turmaLabel">Tipo *</span>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={tipo}
@@ -530,7 +540,7 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Categoria *</label>
+                  <span className="turmaLabel">Categoria *</span>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={categoria}
@@ -542,7 +552,7 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Curso *</label>
+                  <span className="turmaLabel">Curso *</span>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={courseIdSelecionado}
@@ -558,7 +568,7 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Módulo Inicial *</label>
+                  <span className="turmaLabel">Módulo Inicial *</span>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={moduloIdSelecionado}
@@ -575,7 +585,7 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Descrição</label>
+                  <span className="turmaLabel">Descrição</span>
                   <textarea
                     className="turmaTextarea"
                     placeholder="Descrição opcional da turma..."
@@ -591,7 +601,7 @@ export default function TurmasPage() {
                   </h3>
 
                   <div className="turmaInputGroup">
-                    <label className="turmaLabel">Data de Início da Turma</label>
+                    <span className="turmaLabel">Data de Início da Turma</span>
                     <input
                       type="date"
                       className="turmaInput"
@@ -604,7 +614,7 @@ export default function TurmasPage() {
                   </div>
 
                   <div className="turmaInputGroup">
-                    <label className="turmaLabel">Duração do Cronograma (semanas)</label>
+                    <span className="turmaLabel">Duração do Cronograma (semanas)</span>
                     <input
                       type="number"
                       min="1"
@@ -619,13 +629,13 @@ export default function TurmasPage() {
                   </div>
 
                   <div className="turmaInputGroup">
-                    <label style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                       <AnimatedToggle
                         checked={cronogramaAtivo}
                         onChange={setCronogramaAtivo}
                       />
                       <span className="turmaLabel" style={{ margin: 0 }}>Ativar Cronograma Automático</span>
-                    </label>
+                    </span>
                     <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
                       Se ativado, os exercícios serão liberados automaticamente conforme o cronograma
                     </small>
@@ -638,7 +648,7 @@ export default function TurmasPage() {
                   </h3>
 
                   <div className="turmaInputGroup">
-                    <label className="turmaLabel">Semana para liberar</label>
+                    <span className="turmaLabel">Semana para liberar</span>
                     <input
                       type="number"
                       min="1"
@@ -665,7 +675,7 @@ export default function TurmasPage() {
                     ) : (
                       <div className="exerciciosSelectorList">
                         {filtrados.map((exercicio) => (
-                          <label key={exercicio.id} className="exercicioCheckboxItem">
+                          <span key={exercicio.id} className="exercicioCheckboxItem">
                             <input
                               type="checkbox"
                               checked={exerciciosSelecionados.includes(exercicio.id)}
@@ -683,7 +693,7 @@ export default function TurmasPage() {
                               <div className="exercicioCheckboxTitle">{exercicio.titulo}</div>
                               <div className="exercicioCheckboxMeta">{exercicio.modulo || "Sem modulo"}</div>
                             </div>
-                          </label>
+                          </span>
                         ))}
                       </div>
                     );
@@ -729,7 +739,7 @@ export default function TurmasPage() {
 
               <form onSubmit={handleCriarModulo} className="turmaForm" style={{ marginBottom: 18 }}>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Curso do Módulo *</label>
+                  <span className="turmaLabel">Curso do Módulo *</span>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={novoModuloCourseId}
@@ -744,7 +754,7 @@ export default function TurmasPage() {
                   </AnimatedSelect>
                 </div>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Nome do Módulo *</label>
+                  <span className="turmaLabel">Nome do Módulo *</span>
                   <input
                     className="turmaInput"
                     value={novoModuloNome}
@@ -753,7 +763,7 @@ export default function TurmasPage() {
                   />
                 </div>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Descrição do Módulo</label>
+                  <span className="turmaLabel">Descrição do Módulo</span>
                   <textarea
                     className="turmaTextarea"
                     value={novoModuloDescricao}
@@ -770,7 +780,7 @@ export default function TurmasPage() {
 
               <form onSubmit={handleCriarFase} className="turmaForm">
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Módulo da Fase *</label>
+                  <span className="turmaLabel">Módulo da Fase *</span>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={novaFaseModuloId}
@@ -785,7 +795,7 @@ export default function TurmasPage() {
                   </AnimatedSelect>
                 </div>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Nome da Fase *</label>
+                  <span className="turmaLabel">Nome da Fase *</span>
                   <input
                     className="turmaInput"
                     value={novaFaseNome}
@@ -794,7 +804,7 @@ export default function TurmasPage() {
                   />
                 </div>
                 <div className="turmaInputGroup">
-                  <label className="turmaLabel">Semana</label>
+                  <span className="turmaLabel">Semana</span>
                   <input
                     type="number"
                     min={1}
@@ -823,7 +833,7 @@ export default function TurmasPage() {
               <div style={{ textAlign: "center", padding: "2rem" }}>
                 <PulseLoader size="large" text="Carregando turmas..." />
               </div>
-            ) : !loading && turmas.length === 0 ? (
+            ) : !loading && totalItems === 0 ? (
               <div className="emptyState">
                 <div className="emptyIcon" style={{ display: "inline-flex" }}>
                   <BookOpen size={22} />
@@ -836,12 +846,7 @@ export default function TurmasPage() {
             ) : (
               <>
                 <div className="turmasList">
-                  {(() => {
-                    const startIndex = (currentPage - 1) * itemsPerPage;
-                    const endIndex = startIndex + itemsPerPage;
-                    const paginatedTurmas = turmas.slice(startIndex, endIndex);
-
-                    return paginatedTurmas.map((turma, i) => (
+                  {turmas.map((turma, i) => (
                       <FadeInUp key={turma.id} delay={i * 0.05}>
                         <div className="turmaCard">
                           <div className="turmaCardHeader">
@@ -916,14 +921,13 @@ export default function TurmasPage() {
                           </div>
                         </div>
                       </FadeInUp>
-                    ));
-                  })()}
+                    ))}
                 </div>
 
                 <Pagination
                   currentPage={currentPage}
                   itemsPerPage={itemsPerPage}
-                  totalItems={turmas.length}
+                  totalItems={totalItems}
                   onPageChange={setCurrentPage}
                   onItemsPerPageChange={setItemsPerPage}
                 />
@@ -946,8 +950,22 @@ export default function TurmasPage() {
 
           {/* MODAL ADICIONAR ALUNOS */}
           {modalAdicionarAberto && createPortal(
-            <div className="modalOverlay" onClick={fecharModalAdicionar}>
-              <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="modalOverlay"
+              onClick={(e) => {
+                if (e.target !== e.currentTarget) return;
+                fecharModalAdicionar();
+              }}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                  e.preventDefault();
+                  fecharModalAdicionar();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="modalContent">
                 <h3>Adicionar alunos à turma: {turmaAcabadaCriar?.nome}</h3>
 
                 {alunosDisponiveis.length === 0 ? (
@@ -1008,9 +1026,6 @@ export default function TurmasPage() {
     </DashboardLayout>
   );
 }
-
-
-
 
 
 

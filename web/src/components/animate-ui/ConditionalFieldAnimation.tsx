@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 
 interface ConditionalFieldAnimationProps {
   children: React.ReactNode;
@@ -15,7 +15,7 @@ export function ConditionalFieldAnimation({
   return (
     <AnimatePresence mode="wait">
       {isVisible && (
-        <motion.div
+        <m.div
           key="conditional-field"
           initial={{ opacity: 0, height: 0, marginTop: 0 }}
           animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
@@ -27,7 +27,7 @@ export function ConditionalFieldAnimation({
           style={{ overflow: 'hidden' }}
         >
           {children}
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

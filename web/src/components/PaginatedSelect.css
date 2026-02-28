@@ -12,33 +12,36 @@
 
 .paginatedSelectTrigger {
   width: 100%;
-  border: 1px solid var(--input-border);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   border-radius: 14px;
+  font-family: "Jetbrains mono" monospace;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 4%, transparent), transparent 72%),
-    var(--input-bg);
-  color: var(--input-text);
-  min-height: 52px;
-  padding: 11px 14px;
+    radial-gradient(circle at 10% 20%, rgba(var(--info-rgb), 0.11), transparent 48%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.72));
+  color: #e2e8f0;
+  min-height: 56px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   cursor: pointer;
-  font-size: 15px;
-  font-weight: 500;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .paginatedSelectTrigger:hover {
-  border-color: var(--input-border-hover);
+  border-color: rgba(125, 211, 252, 0.46);
   transform: translateY(-1px);
+  filter: brightness(1.04);
 }
 
 .paginatedSelectTrigger:focus-visible {
   outline: none;
-  border-color: var(--focus-color);
-  box-shadow: var(--focus-ring);
+  border-color: rgba(96, 165, 250, 0.65);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
 }
 
 .paginatedSelectTrigger:disabled {
@@ -64,27 +67,28 @@
 
 .paginatedSelectValueMeta {
   text-align: left;
-  color: var(--text-muted);
+  color: #93c5fd;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .paginatedSelect.isPlaceholder .paginatedSelectValue {
-  color: color-mix(in srgb, var(--text-secondary) 82%, var(--text) 18%);
+  color: #94a3b8;
   font-weight: 500;
   letter-spacing: 0.01em;
   font-size: 14px;
 }
 
 .paginatedSelectChevron {
-  color: var(--text-secondary);
-  transition: transform 0.2s ease;
+  color: #93c5fd;
+  transition: transform 0.2s ease, color 0.2s ease;
 }
 
 .paginatedSelectChevron.isOpen {
   transform: rotate(180deg);
+  color: #dbeafe;
 }
 
 .paginatedSelectPanel {
@@ -93,12 +97,10 @@
   left: 0;
   right: 0;
   z-index: 60;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 3%, transparent), transparent 80%),
-    var(--surface-1);
-  border: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94));
+  border: 1px solid rgba(125, 211, 252, 0.24);
   border-radius: 14px;
-  box-shadow: var(--shadow-md), 0 18px 34px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 22px 42px rgba(2, 6, 23, 0.52);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -111,10 +113,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--input-border);
+  border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 12px;
   padding: 8px 10px;
-  background: var(--input-bg);
+  background: rgba(15, 23, 42, 0.72);
+  color: #cbd5e1;
 }
 
 .paginatedSelectSearch input {
@@ -122,8 +125,8 @@
   outline: none;
   width: 100%;
   background: transparent;
-  color: var(--input-text);
-  font-size: 16px;
+  color: #e5e7eb;
+  font-size: 14px;
 }
 
 .clearQueryBtn {
@@ -150,11 +153,11 @@
 .paginatedSelectOption {
   width: 100%;
   text-align: left;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(148, 163, 184, 0.24);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
-    var(--surface-2);
-  color: var(--text-strong);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
   border-radius: 12px;
   padding: 10px 12px;
   display: flex;
@@ -173,7 +176,7 @@
 }
 
 .paginatedSelectOptionMain > span {
-  font-weight: 500;
+  font-weight: 600;
   font-family: "JetBrains Mono", monospace;
 }
 
@@ -182,24 +185,24 @@
 }
 
 .paginatedSelectOption small {
-  color: var(--text-muted);
+  color: #94a3b8;
   font-size: 11px;
   letter-spacing: 0.03em;
   text-transform: none;
 }
 
 .paginatedSelectOption:hover {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+  border-color: rgba(125, 211, 252, 0.48);
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(8, 16, 34, 0.22);
+  box-shadow: 0 10px 20px rgba(8, 16, 34, 0.35);
 }
 
 .paginatedSelectOption.active {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--line));
+  border-color: rgba(96, 165, 250, 0.62);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--primary) 18%, transparent), transparent 45%),
-    color-mix(in srgb, var(--primary) 8%, var(--background-secondary));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
+    linear-gradient(90deg, rgba(59, 130, 246, 0.2), transparent 50%),
+    rgba(15, 23, 42, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.24);
 }
 
 .paginatedSelectEmpty {
