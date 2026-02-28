@@ -147,6 +147,12 @@ export default function Login() {
   const podeEntrar = useMemo(() => {
     return usuario.trim().length > 0 && senha.trim().length > 0 && !loading;
   }, [usuario, senha, loading]);
+  const redirecionando = sucesso !== null && segundos !== null;
+  const showLoadingScreen = loading || redirecionando;
+  const loadingTitle = loading ? "Validando acesso..." : "Login realizado";
+  const loadingDescription = loading
+    ? "Conferindo suas credenciais no servidor."
+    : `Redirecionando para o painel em ${segundos ?? 0}s.`;
 
   function clearCountdown() {
     if (intervalRef.current !== null) {
@@ -329,6 +335,31 @@ export default function Login() {
 
         <p className="login-footer">© {new Date().getFullYear()} Santos Tech</p>
       </div>
+
+      {showLoadingScreen && (
+        <div className="login-loading-screen" role="status" aria-live="polite" aria-busy="true">
+          <div className="login-loading-panel">
+            <div className="login-loading-logo" aria-hidden="true">
+              <img
+                className="login-loading-logo-img"
+                src="/faviconPreto.png"
+                alt=""
+              />
+            </div>
+
+            <div className="login-loading-spinner" aria-hidden="true" />
+
+            <h2 className="login-loading-title">{loadingTitle}</h2>
+            <p className="login-loading-description">{loadingDescription}</p>
+
+            <div className="login-loading-dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
