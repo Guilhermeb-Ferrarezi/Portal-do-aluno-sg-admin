@@ -299,7 +299,27 @@ export default function ExerciciosPage() {
     [todosModulosDisponiveis, cursoIdSelecionado]
   );
 
-  const cursosToggleOrdenados = cursosDisponiveis;
+  const cursosToggleOrdenados = React.useMemo(() => {
+    // Apenas cursos gratuitos (isPaid !== true) e que estão vinculados a turmas do tipo "turma"
+    const cursosGratuitos = cursosDisponiveis.filter((curso) => curso.isPaid !== true);
+
+    if (turmasDisponiveis.length === 0) {
+      return cursosGratuitos;
+    }
+
+    const cursoIdsPorTurma = new Set(
+      turmasDisponiveis
+        .filter((turma) => turma.tipo === "turma" && turma.courseId)
+        .map((turma) => turma.courseId as string)
+    );
+
+    // Se nenhuma turma tiver courseId, mantemos apenas o filtro por gratuidade
+    if (cursoIdsPorTurma.size === 0) {
+      return cursosGratuitos;
+    }
+
+    return cursosGratuitos.filter((curso) => cursoIdsPorTurma.has(curso.id));
+  }, [cursosDisponiveis, turmasDisponiveis]);
   const cursosToggleFiltrados = React.useMemo(() => {
     const termo = cursoCardsFiltro.trim().toLowerCase();
     if (!termo) return cursosToggleOrdenados;

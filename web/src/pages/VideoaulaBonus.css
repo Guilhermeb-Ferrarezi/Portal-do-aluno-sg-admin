@@ -392,8 +392,8 @@
   overflow-y: auto;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
-  display:flex;
-  flex-direction:column;
+  display: flex;
+  flex-direction: column;
 }
 
 .infoFooter {
@@ -600,6 +600,7 @@ select.formInput[multiple] {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -610,6 +611,7 @@ select.formInput[multiple] {
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -626,6 +628,19 @@ select.formInput[multiple] {
   .videoaulasContainer .filtrosRow {
     flex-direction: column;
     flex: none;
+    align-items: stretch;
+    background: color-mix(in srgb, var(--background-secondary) 82%, var(--card) 18%);
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+    gap: 10px;
+  }
+
+  /* Faz a div parente do input Filtrar Módulos alinhar corretamente ao stretch */
+  .videoaulasContainer .filtrosRow>div {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
   }
 
   .videoaulasContainer .filterSelect,

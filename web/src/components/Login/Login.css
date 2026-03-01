@@ -130,15 +130,36 @@ body {
   outline: none;
 
   box-shadow: 0 0 14px rgba(225, 29, 72, 0.22);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 
 .login-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
 
+.login-input:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.login-input:focus,
 .login-input:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
   border-color: #e11d48;
   box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.22), 0 0 18px rgba(225, 29, 72, 0.25);
+}
+
+/* Evita fundo branco do autofill no Chrome/Edge no tema claro. */
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.08) inset;
+  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.08) inset;
+  transition: background-color 9999s ease-out 0s;
 }
 
 /* Olhinho dentro do input */

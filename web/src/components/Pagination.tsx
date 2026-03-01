@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import "./Pagination.css";
 
 interface PaginationProps {
@@ -83,7 +84,7 @@ export default function Pagination({
             className="paginationBtn"
             title="Página anterior"
           >
-            ← Anterior
+            <ChevronLeft size={16} /> Anterior
           </button>
 
           <div className="pageIndicator">
@@ -99,27 +100,27 @@ export default function Pagination({
             ))}
           </div>
 
-          <div className="pageJump">
-            <label htmlFor="jumpToPage">Página:</label>
-            <input
-              id="jumpToPage"
-              type="number"
-              min={1}
-              max={totalPages}
-              value={jumpPage}
-              onChange={(e) => setJumpPage(e.target.value)}
-              className="pageJumpInput"
-            />
-          </div>
-
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             className="paginationBtn"
             title="Próxima página"
           >
-            Próxima →
+            Próxima <ChevronRight size={16} />
           </button>
+        </div>
+
+        <div className="pageJump">
+          <label htmlFor="jumpToPage">Página:</label>
+          <input
+            id="jumpToPage"
+            type="number"
+            min={1}
+            max={totalPages}
+            value={jumpPage}
+            onChange={(e) => setJumpPage(e.target.value)}
+            className="pageJumpInput"
+          />
         </div>
       </div>
     </div>

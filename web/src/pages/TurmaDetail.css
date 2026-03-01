@@ -7,14 +7,105 @@
   padding: 40px 20px;
   border-radius: 24px;
   background: linear-gradient(135deg,
-    rgba(225, 29, 46, 0.03) 0%,
-    rgba(59, 130, 246, 0.03) 50%,
-    rgba(168, 85, 247, 0.03) 100%);
+      rgba(225, 29, 46, 0.03) 0%,
+      rgba(59, 130, 246, 0.03) 50%,
+      rgba(168, 85, 247, 0.03) 100%);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(225, 29, 46, 0.08);
   box-shadow:
     0 8px 32px rgba(225, 29, 46, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ABAS DA TURMA */
+.turmaTabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 82%, var(--card) 18%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow: visible;
+  background-clip: border-box;
+  margin-bottom: 20px;
+}
+
+.turmaTabs::before {
+  content: "EXIBIR:";
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--text-secondary) 86%, var(--text) 14%);
+  padding: 0 10px 0 8px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .turmaTabs {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 8px;
+    border-radius: 16px;
+    padding: 10px;
+    background: color-mix(in srgb, var(--background-secondary) 82%, var(--card) 18%);
+    border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+  }
+
+  .turmaTabs::before {
+    flex: 0 0 100%;
+    padding: 0;
+    margin-bottom: 2px;
+    font-size: 12px;
+  }
+
+  .turmaTabButton {
+    flex: 1 1 calc(50% - 10px);
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+.turmaTabButton {
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--background-secondary) 68%, #0f172a 32%);
+  color: color-mix(in srgb, var(--text) 92%, #fff 8%);
+  border-radius: 999px;
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.turmaTabButton:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--line));
+  background: color-mix(in srgb, var(--background-secondary) 56%, #111827 44%);
+  transform: translateY(-1px);
+}
+
+.turmaTabButton.active {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--line));
+  background: color-mix(in srgb, var(--primary) 76%, #b91c1c 24%);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 6px 14px rgba(var(--primary-rgb), 0.28);
+}
+
+.turmaTabButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Removido pseudo-elementos para evitar contexto de posicionamento */
@@ -48,6 +139,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -57,8 +149,8 @@
 /* INFO CARD */
 .turmaInfoCard {
   background: linear-gradient(135deg,
-    var(--card) 0%,
-    rgba(225, 29, 46, 0.02) 100%);
+      var(--card) 0%,
+      rgba(225, 29, 46, 0.02) 100%);
   border: 1.5px solid rgba(225, 29, 46, 0.15);
   border-radius: 20px;
   padding: 32px;
@@ -271,8 +363,8 @@
   border-radius: 12px;
   margin-bottom: 16px;
   background: linear-gradient(135deg,
-    rgba(217, 119, 6, 0.08) 0%,
-    rgba(217, 119, 6, 0.04) 100%);
+      rgba(217, 119, 6, 0.08) 0%,
+      rgba(217, 119, 6, 0.04) 100%);
   border: 1.5px solid rgba(217, 119, 6, 0.2);
   color: var(--text);
   font-weight: 500;
@@ -285,8 +377,8 @@
   border-radius: 12px;
   margin-bottom: 20px;
   background: linear-gradient(135deg,
-    rgba(225, 29, 46, 0.06) 0%,
-    rgba(59, 130, 246, 0.04) 100%);
+      rgba(225, 29, 46, 0.06) 0%,
+      rgba(59, 130, 246, 0.04) 100%);
   border: 1.5px solid rgba(225, 29, 46, 0.12);
   box-shadow:
     0 4px 12px rgba(225, 29, 46, 0.08),
@@ -319,8 +411,8 @@
   border-radius: 12px;
   margin-bottom: 20px;
   background: linear-gradient(135deg,
-    rgba(59, 130, 246, 0.05) 0%,
-    rgba(168, 85, 247, 0.04) 100%);
+      rgba(59, 130, 246, 0.05) 0%,
+      rgba(168, 85, 247, 0.04) 100%);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
@@ -409,8 +501,8 @@
 .cronogramaAdminOnly {
   padding: 16px;
   background: linear-gradient(135deg,
-    rgba(217, 119, 6, 0.08) 0%,
-    rgba(217, 119, 6, 0.04) 100%);
+      rgba(217, 119, 6, 0.08) 0%,
+      rgba(217, 119, 6, 0.04) 100%);
   border-radius: 8px;
   margin-bottom: 20px;
   border: 1px solid rgba(217, 119, 6, 0.2);
@@ -446,8 +538,8 @@
 
 .cronogramaSemanaCard.hasExercicios {
   background: linear-gradient(135deg,
-    rgba(34, 197, 94, 0.04) 0%,
-    rgba(34, 197, 94, 0.02) 100%);
+      rgba(34, 197, 94, 0.04) 0%,
+      rgba(34, 197, 94, 0.02) 100%);
   border-color: rgba(34, 197, 94, 0.15);
 }
 
@@ -873,6 +965,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -883,6 +976,7 @@
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -938,4 +1032,3 @@
     margin-top: 8px;
   }
 }
-

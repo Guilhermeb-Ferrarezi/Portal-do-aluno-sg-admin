@@ -24,7 +24,7 @@
   content: none;
 }
 
-.estruturaContainerSingle > * {
+.estruturaContainerSingle>* {
   position: relative;
   z-index: 1;
 }
@@ -246,20 +246,18 @@
   transition: transform .22s ease;
 }
 
-.estruturaSwitchInput:checked + .estruturaSwitchTrack {
+.estruturaSwitchInput:checked+.estruturaSwitchTrack {
   border-color: color-mix(in srgb, var(--primary) 70%, var(--line));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--primary) 30%, transparent),
-    color-mix(in srgb, var(--primary) 14%, transparent)
-  );
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--primary) 30%, transparent),
+      color-mix(in srgb, var(--primary) 14%, transparent));
 }
 
-.estruturaSwitchInput:checked + .estruturaSwitchTrack .estruturaSwitchThumb {
+.estruturaSwitchInput:checked+.estruturaSwitchTrack .estruturaSwitchThumb {
   transform: translateX(22px);
 }
 
-.estruturaSwitchInput:focus-visible + .estruturaSwitchTrack {
+.estruturaSwitchInput:focus-visible+.estruturaSwitchTrack {
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
 }
 
@@ -373,11 +371,9 @@
   margin-top: 12px;
   border: 1px solid color-mix(in srgb, var(--line) 56%, transparent);
   border-radius: 14px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--background-secondary) 58%, transparent),
-    color-mix(in srgb, var(--background-secondary) 28%, transparent)
-  );
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--background-secondary) 58%, transparent),
+      color-mix(in srgb, var(--background-secondary) 28%, transparent));
   padding: 12px;
 }
 
@@ -587,14 +583,28 @@
 @media (max-width: 900px) {
   .estruturaTabs {
     width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 8px;
+    border-radius: 16px;
+    padding: 10px;
+    background: color-mix(in srgb, var(--background-secondary) 82%, var(--card) 18%);
+    border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+    overflow: visible;
   }
 
   .estruturaTabs::before {
-    padding-left: 6px;
-    padding-right: 6px;
+    flex: 0 0 100%;
+    padding: 0;
+    margin-bottom: 2px;
     font-size: 12px;
+  }
+
+  .estruturaTabBtn {
+    width: 100%;
+    justify-content: center;
+    border-radius: 12px;
   }
 
   .estruturaGrid {

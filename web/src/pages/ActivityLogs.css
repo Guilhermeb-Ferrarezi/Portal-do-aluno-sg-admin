@@ -867,11 +867,16 @@
 
   .alSectionTabs {
     width: 100%;
+    justify-content: center;
   }
 
   .alSectionTab {
     flex: 1;
     justify-content: center;
+    white-space: normal;
+    text-align: center;
+    padding: 8px 10px;
+    font-size: 12px;
   }
 
   .alStats {

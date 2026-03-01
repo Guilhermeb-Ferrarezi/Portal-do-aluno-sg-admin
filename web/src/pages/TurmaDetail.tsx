@@ -296,429 +296,389 @@ export default function TurmaDetailPage() {
     >
       <FadeInUp duration={0.28}>
         <div className="turmaDetailContainer">
-        <AnimatedToast
-          message={erro}
-          type="error"
-          onClose={() => setErro(null)}
-        />
-        <AnimatedToast
-          message={okMsg}
-          type="success"
-          onClose={() => setOkMsg(null)}
-        />
+          <AnimatedToast
+            message={erro}
+            type="error"
+            onClose={() => setErro(null)}
+          />
+          <AnimatedToast
+            message={okMsg}
+            type="success"
+            onClose={() => setOkMsg(null)}
+          />
 
-        {/* ABAS */}
-        {(canManageTurmas || role === "aluno") && (
-          <div style={{ display: "flex", gap: "8px", marginBottom: "20px", borderBottom: "1px solid var(--border)", justifyContent: "center" }}>
-            <AnimatedButton
-              onClick={() => setAbaSelecionada("info")}
-              style={{
-                padding: "12px 16px",
-                background: abaSelecionada === "info" ? "var(--primary)" : "transparent",
-                color: abaSelecionada === "info" ? "white" : "var(--text)",
-                border: "2px solid transparent",
-                borderRadius: "12px",
-                margin: "5px",
-                cursor: "pointer",
-                fontWeight: abaSelecionada === "info" ? 600 : 400,
-                borderBottom: abaSelecionada === "info" ? "2px solid var(--primary)" : "none",
-              }}
-            >
-              {iconLabel(<Info size={16} />, "Informações")}
-            </AnimatedButton>
-            <AnimatedButton
-              onClick={() => setAbaSelecionada("alunos")}
-              style={{
-                padding: "12px 16px",
-                background: abaSelecionada === "alunos" ? "var(--primary)" : "transparent",
-                color: abaSelecionada === "alunos" ? "white" : "var(--text)",
-                border: "2px solid transparent",
-                borderRadius: "12px",
-                margin: "5px",
-                cursor: "pointer",
-                fontWeight: abaSelecionada === "alunos" ? 600 : 400,
-                borderBottom: abaSelecionada === "alunos" ? "2px solid var(--primary)" : "none",
-              }}
-            >
-              {iconLabel(<Users size={16} />, "Alunos")}
-            </AnimatedButton>
-            <AnimatedButton
-              onClick={() => setAbaSelecionada("exercicios")}
-              style={{
-                padding: "12px 16px",
-                background: abaSelecionada === "exercicios" ? "var(--primary)" : "transparent",
-                color: abaSelecionada === "exercicios" ? "white" : "var(--text)",
-                border: "2px solid transparent",
-                borderRadius: "12px",
-                margin: "5px",
-                cursor: "pointer",
-                fontWeight: abaSelecionada === "exercicios" ? 600 : 400,
-                borderBottom: abaSelecionada === "exercicios" ? "2px solid var(--primary)" : "none",
-              }}
-            >
-              {iconLabel(<BookOpen size={16} />, "Exercícios")}
-            </AnimatedButton>
-            {canManageTurmas && turma.dataInicio && (
+          {/* ABAS */}
+          {(canManageTurmas || role === "aluno") && (
+            <div className="turmaTabs">
               <AnimatedButton
-                onClick={() => setAbaSelecionada("cronograma")}
-                style={{
-                  padding: "12px 16px",
-                  background: abaSelecionada === "cronograma" ? "var(--primary)" : "transparent",
-                  color: abaSelecionada === "cronograma" ? "white" : "var(--text)",
-                  border: "2px solid transparent",
-                  borderRadius: "12px",
-                  margin: "5px",
-                  cursor: "pointer",
-                  fontWeight: abaSelecionada === "cronograma" ? 600 : 400,
-                  borderBottom: abaSelecionada === "cronograma" ? "2px solid var(--primary)" : "none",
-                }}
+                onClick={() => setAbaSelecionada("info")}
+                className={`turmaTabButton ${abaSelecionada === "info" ? "active" : ""}`}
               >
-                {iconLabel(<Calendar size={16} />, "Cronograma")}
+                {iconLabel(<Info size={16} />, "Informações")}
               </AnimatedButton>
-            )}
-          </div>
-        )}
-
-        {/* INFORMAÇÕES DA TURMA */}
-        {abaSelecionada === "info" && (
-          <div className="turmaInfoCard">
-          <div className="turmaInfoHeader">
-            <div>
-              <h3 className="turmaInfoTitle">{turma.nome}</h3>
-              <p className="turmaInfoMeta">
-                {turma.tipo === "turma"
-                  ? iconLabel(<Users size={14} />, "Turma (Grupo)")
-                  : iconLabel(<Lock size={14} />, "Turma Particular")}
-                {turma.categoria && (
-                  <> - {turma.categoria === "programacao"
-                    ? iconLabel(<Laptop size={14} />, "Programação")
-                    : iconLabel(<Monitor size={14} />, "Informática")}</>
-                )}
-                {turma.descricao && <> - {turma.descricao}</>}
-              </p>
-            </div>
-
-            <AnimatedButton
-              className="btnBack"
-              onClick={() => navigate(backPath)}
-            >
-              {iconLabel(<ArrowLeft size={16} />, "Voltar")}
-            </AnimatedButton>
-          </div>
-
-          </div>
-        )}
-
-        {/* SEÇÃO DE ALUNOS */}
-        {abaSelecionada === "alunos" && (
-        <div className="turmaSection">
-          <div className="turmaSectionHeader">
-            <h2 className="turmaSectionTitle">
-              {iconLabel(<Users size={18} />, `Alunos (${turma.alunos.length})`)}
-            </h2>
-            {(role === "admin" || role === "professor") && (
               <AnimatedButton
-                onClick={abrirModalAdicionar}
-                className="btnAdicionarAluno"
+                onClick={() => setAbaSelecionada("alunos")}
+                className={`turmaTabButton ${abaSelecionada === "alunos" ? "active" : ""}`}
               >
-                {iconLabel(<Plus size={16} />, "Adicionar aluno")}
+                {iconLabel(<Users size={16} />, "Alunos")}
               </AnimatedButton>
-            )}
-          </div>
-
-          {turma.alunos.length === 0 ? (
-            <div className="emptySection">
-              <p>Nenhum aluno cadastrado nesta turma ainda.</p>
-            </div>
-          ) : (
-            <div className="alunosList">
-              {turma.alunos.map((aluno) => (
-                <div key={aluno.id} className="alunoCard">
-                  <div className="alunoInfo">
-                    <div className="alunoAvatar">
-                      {aluno.nome.slice(0, 1).toUpperCase()}
-                    </div>
-                    <div className="alunoDetails">
-                      <div className="alunoName">{aluno.nome}</div>
-                      <div className="alunoUsername">@{aluno.usuario}</div>
-                    </div>
-                  </div>
-                  {(role === "admin" || role === "professor") && (
-                    <FlipButton
-                      front={<Trash2 size={16} />}
-                      back="Remover?"
-                      onClick={() => handleRemoverAluno(aluno.id)}
-                    />
-                  )}
-                </div>
-              ))}
+              <AnimatedButton
+                onClick={() => setAbaSelecionada("exercicios")}
+                className={`turmaTabButton ${abaSelecionada === "exercicios" ? "active" : ""}`}
+              >
+                {iconLabel(<BookOpen size={16} />, "Exercícios")}
+              </AnimatedButton>
+              {canManageTurmas && turma.dataInicio && (
+                <AnimatedButton
+                  onClick={() => setAbaSelecionada("cronograma")}
+                  className={`turmaTabButton ${abaSelecionada === "cronograma" ? "active" : ""}`}
+                >
+                  {iconLabel(<Calendar size={16} />, "Cronograma")}
+                </AnimatedButton>
+              )}
             </div>
           )}
-        </div>
-        )}
 
-        {/* SEÇÃO DE EXERCÍCIOS */}
-        {abaSelecionada === "exercicios" && turma.exercicios.length > 0 && (
-          <div className="turmaSection">
-            <h2 className="turmaSectionTitle">
-              {iconLabel(<BookOpen size={18} />, `Exercícios Atribuídos (${turma.exercicios.length})`)}
-            </h2>
-
-            <div className="exerciciosList">
-              {turma.exercicios.map((ex) => (
-                <div key={ex.id} className="exercicioItem">
-                  <div className="exercicioInfo">
-                    <div className="exercicioTitle">{ex.titulo}</div>
-                    <div className="exercicioMeta">{ex.modulo}</div>
-                  </div>
-                  <AnimatedButton
-                    className="btnVisualizar"
-                    onClick={() =>
-                      navigate(`/dashboard/exercicios/${ex.id}`)
-                    }
-                  >
-                    {iconLabel(<ArrowRight size={16} />, "Ver")}
-                  </AnimatedButton>
+          {/* INFORMAÇÕES DA TURMA */}
+          {abaSelecionada === "info" && (
+            <div className="turmaInfoCard">
+              <div className="turmaInfoHeader">
+                <div>
+                  <h3 className="turmaInfoTitle">{turma.nome}</h3>
+                  <p className="turmaInfoMeta">
+                    {turma.tipo === "turma"
+                      ? iconLabel(<Users size={14} />, "Turma (Grupo)")
+                      : iconLabel(<Lock size={14} />, "Turma Particular")}
+                    {turma.categoria && (
+                      <> - {turma.categoria === "programacao"
+                        ? iconLabel(<Laptop size={14} />, "Programação")
+                        : iconLabel(<Monitor size={14} />, "Informática")}</>
+                    )}
+                    {turma.descricao && <> - {turma.descricao}</>}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* SEÇÃO DE CRONOGRAMA */}
-        {abaSelecionada === "cronograma" && (
-          <div className="turmaSection">
-            <h2 className="turmaSectionTitle">
-              {iconLabel(<Calendar size={18} />, "Cronograma Semanal")}
-            </h2>
-
-            {!turma.dataInicio ? (
-              <div className="cronogramaWarning">
-                {iconLabel(<AlertTriangle size={16} />, "Configure a data de início da turma para usar o cronograma")}
+                <AnimatedButton
+                  className="btnBack"
+                  onClick={() => navigate(backPath)}
+                >
+                  {iconLabel(<ArrowLeft size={16} />, "Voltar")}
+                </AnimatedButton>
               </div>
-            ) : (
-              <>
-                <div className="cronogramaInfoBox">
-                  <p className="cronogramaInfoLine">
-                    <strong><Pin size={14} /> Início:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
-                  </p>
-                  <p className="cronogramaInfoLine">
-                    <strong><Clock size={14} /> Duração:</strong> {turma.duracaoSemanas} semanas
-                  </p>
-                  <p className="cronogramaInfoLine">
-                    <strong><RefreshCcw size={14} /> Status:</strong>{" "}
-                    {turma.cronogramaAtivo ? (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <CheckCircle size={14} /> Cronograma Ativo
-                      </span>
-                    ) : (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <Pause size={14} /> Cronograma Pausado
-                      </span>
-                    )}
-                  </p>
-                </div>
 
-                {carregandoCronograma ? (
-                  <div className="cronogramaLoading">
-                    Carregando cronograma...
-                  </div>
-                ) : (
-                  <>
-                    {/* Seletor para adicionar exercício - apenas para admins */}
-                    {role === "admin" ? (
-                    <div className="addExercicioBox">
-                      <h3 className="exercicioBoxTitle">
-                        {iconLabel(<Plus size={16} />, "Adicionar Exercício a uma Semana")}
-                      </h3>
+            </div>
+          )}
 
-                      <div className="exercicioBoxControls">
-                        <div className="exercicioBoxField">
-                          <span className="exercicioBoxLabel">
-                            Semana
-                          </span>
-                          <select
-                            value={semanaSelecionada}
-                            onChange={(e) => setSemanaSelecionada(Number(e.target.value))}
-                            className="exercicioBoxSelect"
-                          >
-                            {Array.from({ length: turma.duracaoSemanas || 12 }, (_, i) => i + 1).map((semana: number) => (
-                              <option key={semana} value={semana}>
-                                Semana {semana}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="exercicioBoxFieldLarge">
-                          <span className="exercicioBoxLabel">
-                            Exercício
-                          </span>
-                          <select
-                            value={exercicioSelecionado}
-                            onChange={(e) => setExercicioSelecionado(e.target.value)}
-                            className="exercicioBoxSelect"
-                          >
-                            <option value="">Selecione um exercício...</option>
-                            {exerciciosDisponiveis.map((exercicio) => (
-                              <option key={exercicio.id} value={exercicio.id}>
-                                {exercicio.titulo} ({exercicio.modulo || "Sem módulo"})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <AnimatedButton
-                          onClick={() => handleAdicionarExercicioSemana(semanaSelecionada)}
-                          disabled={salvandoCronograma || !exercicioSelecionado}
-                          className="btnAdicionarExercicio"
-                        >
-                          {salvandoCronograma ? "Adicionando..." : "Adicionar"}
-                        </AnimatedButton>
-                      </div>
-                    </div>
-                    ) : (
-                    <div className="cronogramaAdminOnly">
-                      <p className="cronogramaAdminOnlyText">
-                        {iconLabel(<Info size={16} />, "Apenas administradores podem adicionar exercícios ao cronograma.")}
-                      </p>
-                    </div>
-                    )}
-
-                    {/* Visualização do cronograma */}
-                    <div className="cronogramaVisualization">
-                      <h3 className="cronogramaVizTitle">Cronograma por Semana</h3>
-
-                      {Array.from({ length: turma.duracaoSemanas || 12 }, (_, i) => i + 1).map((semana: number) => {
-                        const exerciciosDaSemana = cronograma[semana] || [];
-                        return (
-                        <div
-                          key={semana}
-                          className={`cronogramaSemanaCard ${exerciciosDaSemana.length > 0 ? "hasExercicios" : ""}`}
-                        >
-                          <div className="cronogramaSemanaHeader">
-                            <h4 className="cronogramaSemanaTitle">
-                              Semana {semana}
-                              {exerciciosDaSemana.length > 0 && (
-                                <span className="cronogramaSemanaCount">
-                                  ({exerciciosDaSemana.length} exercício{exerciciosDaSemana.length > 1 ? "s" : ""})
-                                </span>
-                              )}
-                            </h4>
-                          </div>
-
-                          {exerciciosDaSemana.length > 0 ? (
-                            <div className="cronogramaExerciciosList">
-                              {exerciciosDaSemana.map((exercicio: any) => (
-                                <div
-                                  key={exercicio.id}
-                                  className="cronogramaExercicioItem"
-                                >
-                                  <div className="cronogramaExercicioInfo">
-                                    <div className="cronogramaExercicioTitulo">{exercicio.titulo}</div>
-                                    <div className="cronogramaExercicioModulo">
-                                      {exercicio.modulo || "Sem módulo"}
-                                    </div>
-                                  </div>
-                                  <AnimatedButton
-                                    onClick={() => handleRemoverExercicioSemana(semana, exercicio.id)}
-                                    disabled={salvandoCronograma}
-                                    className="btnRemoverExercicio"
-                                  >
-                                    {iconLabel(<Trash2 size={16} />, "Remover")}
-                                  </AnimatedButton>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div style={{ padding: "12px", color: "var(--muted)", fontSize: "14px", textAlign: "center" }}>
-                              Nenhum exercício atribuído
-                            </div>
-                          )}
-                        </div>
-                        );
-                      })}
-                    </div>
-                  </>
+          {/* SEÇÃO DE ALUNOS */}
+          {abaSelecionada === "alunos" && (
+            <div className="turmaSection">
+              <div className="turmaSectionHeader">
+                <h2 className="turmaSectionTitle">
+                  {iconLabel(<Users size={18} />, `Alunos (${turma.alunos.length})`)}
+                </h2>
+                {(role === "admin" || role === "professor") && (
+                  <AnimatedButton
+                    onClick={abrirModalAdicionar}
+                    className="btnAdicionarAluno"
+                  >
+                    {iconLabel(<Plus size={16} />, "Adicionar aluno")}
+                  </AnimatedButton>
                 )}
-              </>
-            )}
-          </div>
-        )}
+              </div>
 
-        {/* MODAL DE ADICIONAR ALUNOS */}
-        {modalAdicionarAberto && createPortal(
-          <div
-            className="modalOverlay"
-            onClick={(e) => {
-              if (e.target !== e.currentTarget) return;
-              setModalAdicionarAberto(false);
-            }}
-            onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                e.preventDefault();
-                setModalAdicionarAberto(false);
-              }
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="modalContent">
-              <h3>Adicionar alunos à turma</h3>
-
-              {alunosDisponiveis.length === 0 ? (
-                <p style={{ color: "var(--muted)", textAlign: "center" }}>
-                  Nenhum aluno disponível para adicionar.
-                </p>
+              {turma.alunos.length === 0 ? (
+                <div className="emptySection">
+                  <p>Nenhum aluno cadastrado nesta turma ainda.</p>
+                </div>
               ) : (
-                <div className="alunosSelectorList">
-                  {alunosDisponiveis.map((aluno) => (
-                    <label key={aluno.id} className="alunoCheckboxItem">
-                      <input
-                        type="checkbox"
-                        checked={alunosSelecionados.includes(aluno.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setAlunosSelecionados([...alunosSelecionados, aluno.id]);
-                          } else {
-                            setAlunosSelecionados(
-                              alunosSelecionados.filter((id) => id !== aluno.id)
-                            );
-                          }
-                        }}
-                      />
-                      <span className="alunoCheckboxAvatar">
-                        {aluno.nome.slice(0, 1).toUpperCase()}
-                      </span>
-                      <div className="alunoCheckboxInfo">
-                        <div className="alunoCheckboxName">{aluno.nome}</div>
-                        <div className="alunoCheckboxUser">@{aluno.usuario}</div>
+                <div className="alunosList">
+                  {turma.alunos.map((aluno) => (
+                    <div key={aluno.id} className="alunoCard">
+                      <div className="alunoInfo">
+                        <div className="alunoAvatar">
+                          {aluno.nome.slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="alunoDetails">
+                          <div className="alunoName">{aluno.nome}</div>
+                          <div className="alunoUsername">@{aluno.usuario}</div>
+                        </div>
                       </div>
-                    </label>
+                      {(role === "admin" || role === "professor") && (
+                        <FlipButton
+                          front={<Trash2 size={16} />}
+                          back="Remover?"
+                          onClick={() => handleRemoverAluno(aluno.id)}
+                        />
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
+            </div>
+          )}
 
-              <div className="modalActions">
-                <AnimatedButton
-                  onClick={() => setModalAdicionarAberto(false)}
-                  className="modalBtnCancel"
-                  disabled={adicionando}
-                >
-                  Cancelar
-                </AnimatedButton>
-                <AnimatedButton
-                  onClick={handleAdicionarAlunos}
-                  className="modalBtnConfirm"
-                  disabled={adicionando || alunosSelecionados.length === 0}
-                >
-                  {adicionando ? iconLabel(<Loader2 size={16} />, "Adicionando...") : "Adicionar"}
-                </AnimatedButton>
+          {/* SEÇÃO DE EXERCÍCIOS */}
+          {abaSelecionada === "exercicios" && turma.exercicios.length > 0 && (
+            <div className="turmaSection">
+              <h2 className="turmaSectionTitle">
+                {iconLabel(<BookOpen size={18} />, `Exercícios Atribuídos (${turma.exercicios.length})`)}
+              </h2>
+
+              <div className="exerciciosList">
+                {turma.exercicios.map((ex) => (
+                  <div key={ex.id} className="exercicioItem">
+                    <div className="exercicioInfo">
+                      <div className="exercicioTitle">{ex.titulo}</div>
+                      <div className="exercicioMeta">{ex.modulo}</div>
+                    </div>
+                    <AnimatedButton
+                      className="btnVisualizar"
+                      onClick={() =>
+                        navigate(`/dashboard/exercicios/${ex.id}`)
+                      }
+                    >
+                      {iconLabel(<ArrowRight size={16} />, "Ver")}
+                    </AnimatedButton>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>,
-          document.body
-        )}
+          )}
+
+          {/* SEÇÃO DE CRONOGRAMA */}
+          {abaSelecionada === "cronograma" && (
+            <div className="turmaSection">
+              <h2 className="turmaSectionTitle">
+                {iconLabel(<Calendar size={18} />, "Cronograma Semanal")}
+              </h2>
+
+              {!turma.dataInicio ? (
+                <div className="cronogramaWarning">
+                  {iconLabel(<AlertTriangle size={16} />, "Configure a data de início da turma para usar o cronograma")}
+                </div>
+              ) : (
+                <>
+                  <div className="cronogramaInfoBox">
+                    <p className="cronogramaInfoLine">
+                      <strong><Pin size={14} /> Início:</strong> {new Date(turma.dataInicio).toLocaleDateString("pt-BR")}
+                    </p>
+                    <p className="cronogramaInfoLine">
+                      <strong><Clock size={14} /> Duração:</strong> {turma.duracaoSemanas} semanas
+                    </p>
+                    <p className="cronogramaInfoLine">
+                      <strong><RefreshCcw size={14} /> Status:</strong>{" "}
+                      {turma.cronogramaAtivo ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle size={14} /> Cronograma Ativo
+                        </span>
+                      ) : (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <Pause size={14} /> Cronograma Pausado
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  {carregandoCronograma ? (
+                    <div className="cronogramaLoading">
+                      Carregando cronograma...
+                    </div>
+                  ) : (
+                    <>
+                      {/* Seletor para adicionar exercício - apenas para admins */}
+                      {role === "admin" ? (
+                        <div className="addExercicioBox">
+                          <h3 className="exercicioBoxTitle">
+                            {iconLabel(<Plus size={16} />, "Adicionar Exercício a uma Semana")}
+                          </h3>
+
+                          <div className="exercicioBoxControls">
+                            <div className="exercicioBoxField">
+                              <span className="exercicioBoxLabel">
+                                Semana
+                              </span>
+                              <select
+                                value={semanaSelecionada}
+                                onChange={(e) => setSemanaSelecionada(Number(e.target.value))}
+                                className="exercicioBoxSelect"
+                              >
+                                {Array.from({ length: turma.duracaoSemanas || 12 }, (_, i) => i + 1).map((semana: number) => (
+                                  <option key={semana} value={semana}>
+                                    Semana {semana}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="exercicioBoxFieldLarge">
+                              <span className="exercicioBoxLabel">
+                                Exercício
+                              </span>
+                              <select
+                                value={exercicioSelecionado}
+                                onChange={(e) => setExercicioSelecionado(e.target.value)}
+                                className="exercicioBoxSelect"
+                              >
+                                <option value="">Selecione um exercício...</option>
+                                {exerciciosDisponiveis.map((exercicio) => (
+                                  <option key={exercicio.id} value={exercicio.id}>
+                                    {exercicio.titulo} ({exercicio.modulo || "Sem módulo"})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <AnimatedButton
+                              onClick={() => handleAdicionarExercicioSemana(semanaSelecionada)}
+                              disabled={salvandoCronograma || !exercicioSelecionado}
+                              className="btnAdicionarExercicio"
+                            >
+                              {salvandoCronograma ? "Adicionando..." : "Adicionar"}
+                            </AnimatedButton>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="cronogramaAdminOnly">
+                          <p className="cronogramaAdminOnlyText">
+                            {iconLabel(<Info size={16} />, "Apenas administradores podem adicionar exercícios ao cronograma.")}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Visualização do cronograma */}
+                      <div className="cronogramaVisualization">
+                        <h3 className="cronogramaVizTitle">Cronograma por Semana</h3>
+
+                        {Array.from({ length: turma.duracaoSemanas || 12 }, (_, i) => i + 1).map((semana: number) => {
+                          const exerciciosDaSemana = cronograma[semana] || [];
+                          return (
+                            <div
+                              key={semana}
+                              className={`cronogramaSemanaCard ${exerciciosDaSemana.length > 0 ? "hasExercicios" : ""}`}
+                            >
+                              <div className="cronogramaSemanaHeader">
+                                <h4 className="cronogramaSemanaTitle">
+                                  Semana {semana}
+                                  {exerciciosDaSemana.length > 0 && (
+                                    <span className="cronogramaSemanaCount">
+                                      ({exerciciosDaSemana.length} exercício{exerciciosDaSemana.length > 1 ? "s" : ""})
+                                    </span>
+                                  )}
+                                </h4>
+                              </div>
+
+                              {exerciciosDaSemana.length > 0 ? (
+                                <div className="cronogramaExerciciosList">
+                                  {exerciciosDaSemana.map((exercicio: any) => (
+                                    <div
+                                      key={exercicio.id}
+                                      className="cronogramaExercicioItem"
+                                    >
+                                      <div className="cronogramaExercicioInfo">
+                                        <div className="cronogramaExercicioTitulo">{exercicio.titulo}</div>
+                                        <div className="cronogramaExercicioModulo">
+                                          {exercicio.modulo || "Sem módulo"}
+                                        </div>
+                                      </div>
+                                      <AnimatedButton
+                                        onClick={() => handleRemoverExercicioSemana(semana, exercicio.id)}
+                                        disabled={salvandoCronograma}
+                                        className="btnRemoverExercicio"
+                                      >
+                                        {iconLabel(<Trash2 size={16} />, "Remover")}
+                                      </AnimatedButton>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ padding: "12px", color: "var(--muted)", fontSize: "14px", textAlign: "center" }}>
+                                  Nenhum exercício atribuído
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* MODAL DE ADICIONAR ALUNOS */}
+          {modalAdicionarAberto && createPortal(
+            <div
+              className="modalOverlay"
+              onClick={(e) => {
+                if (e.target !== e.currentTarget) return;
+                setModalAdicionarAberto(false);
+              }}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                  e.preventDefault();
+                  setModalAdicionarAberto(false);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="modalContent">
+                <h3>Adicionar alunos à turma</h3>
+
+                {alunosDisponiveis.length === 0 ? (
+                  <p style={{ color: "var(--muted)", textAlign: "center" }}>
+                    Nenhum aluno disponível para adicionar.
+                  </p>
+                ) : (
+                  <div className="alunosSelectorList">
+                    {alunosDisponiveis.map((aluno) => (
+                      <label key={aluno.id} className="alunoCheckboxItem">
+                        <input
+                          type="checkbox"
+                          checked={alunosSelecionados.includes(aluno.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAlunosSelecionados([...alunosSelecionados, aluno.id]);
+                            } else {
+                              setAlunosSelecionados(
+                                alunosSelecionados.filter((id) => id !== aluno.id)
+                              );
+                            }
+                          }}
+                        />
+                        <span className="alunoCheckboxAvatar">
+                          {aluno.nome.slice(0, 1).toUpperCase()}
+                        </span>
+                        <div className="alunoCheckboxInfo">
+                          <div className="alunoCheckboxName">{aluno.nome}</div>
+                          <div className="alunoCheckboxUser">@{aluno.usuario}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                <div className="modalActions">
+                  <AnimatedButton
+                    onClick={() => setModalAdicionarAberto(false)}
+                    className="modalBtnCancel"
+                    disabled={adicionando}
+                  >
+                    Cancelar
+                  </AnimatedButton>
+                  <AnimatedButton
+                    onClick={handleAdicionarAlunos}
+                    className="modalBtnConfirm"
+                    disabled={adicionando || alunosSelecionados.length === 0}
+                  >
+                    {adicionando ? iconLabel(<Loader2 size={16} />, "Adicionando...") : "Adicionar"}
+                  </AnimatedButton>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
         </div>
       </FadeInUp>
     </DashboardLayout>

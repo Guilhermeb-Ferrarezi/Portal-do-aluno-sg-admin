@@ -68,14 +68,25 @@
 @media (max-width: 900px) {
   .medalhasTabs {
     width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 8px;
+    overflow: visible;
+    border-radius: 16px;
+    padding: 10px;
   }
 
   .medalhasTabs::before {
-    padding-left: 6px;
-    padding-right: 6px;
+    flex: 0 0 100%;
+    padding: 0;
+    margin-bottom: 2px;
     font-size: 12px;
+  }
+
+  .medalhasTab {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+    text-align: center;
   }
 }
 
@@ -392,12 +403,10 @@
 .medalhasImageThumbLoading,
 .medalhasImageTextLoading {
   border: none;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--background-secondary) 80%, #1f2937 20%) 25%,
-    color-mix(in srgb, var(--background-secondary) 60%, #334155 40%) 50%,
-    color-mix(in srgb, var(--background-secondary) 80%, #1f2937 20%) 75%
-  );
+  background: linear-gradient(90deg,
+      color-mix(in srgb, var(--background-secondary) 80%, #1f2937 20%) 25%,
+      color-mix(in srgb, var(--background-secondary) 60%, #334155 40%) 50%,
+      color-mix(in srgb, var(--background-secondary) 80%, #1f2937 20%) 75%);
   background-size: 220% 100%;
   animation: medalhasShimmer 1.2s ease-in-out infinite;
 }
@@ -411,6 +420,7 @@
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -20% 0;
   }

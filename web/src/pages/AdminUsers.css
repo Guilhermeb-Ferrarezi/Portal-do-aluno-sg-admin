@@ -22,6 +22,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -291,8 +292,8 @@
   max-height: calc(100vh - 120px);
   box-shadow: var(--shadow-xl);
   animation: modalSlideIn var(--motion-fast) ease;
-  display:flex;
-  flex-direction:column;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes modalSlideIn {
@@ -300,6 +301,7 @@
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -496,12 +498,20 @@
   }
 
   .filterRow {
+    display: flex;
     flex-direction: column;
+    align-items: stretch;
+    background: color-mix(in srgb, var(--background-secondary) 82%, var(--card) 18%);
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+    gap: 10px;
   }
 
   .searchBox,
   .filterSelect {
     width: 100%;
+    margin: 0;
   }
 
   .usersTableContainer {
@@ -579,9 +589,7 @@
   .searchInput,
   .filterSelect,
   .formInput {
-    min-height: 42px;
-    padding-top: 9px;
-    padding-bottom: 9px;
+    min-height: 48px;
   }
 }
 
