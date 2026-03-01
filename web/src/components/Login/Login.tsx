@@ -3,6 +3,7 @@ import "./Login.css";
 import { login } from "../../services/api";
 import { useNavigate } from "react-router-dom";
 import { notifyAuthChanged } from "../../auth/auth";
+import { AnimatedToast } from "../animate-ui/AnimatedToast";
 
 function EyeIcon() {
   return (
@@ -253,6 +254,18 @@ export default function Login() {
 
   return (
     <div className={`login-page ${isDarkMode ? 'dark-mode' : ''}`}>
+      <AnimatedToast
+        message={sucesso}
+        type="success"
+        duration={0}
+      />
+      <AnimatedToast
+        message={erro}
+        type="error"
+        duration={4500}
+        onClose={() => dispatch({ type: "set_erro", value: null })}
+      />
+
       <div className="login-card">
         <header className="login-header">
           <div className="login-logo" aria-hidden>
@@ -314,15 +327,6 @@ export default function Login() {
               Esqueci minha senha
             </button>
           </div>
-
-          {sucesso && segundos !== null && (
-            <div className="login-success">
-              {sucesso} <br />
-              Redirecionando em {segundos}s
-            </div>
-          )}
-
-          {erro && <div className="login-error">{erro}</div>}
 
           <button
             type="submit"

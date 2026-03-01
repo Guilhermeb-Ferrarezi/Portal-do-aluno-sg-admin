@@ -2,6 +2,7 @@ import React from "react";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
+import { AnimatedToast } from "../components/animate-ui";
 import { Medal, PlusCircle, Eye, CalendarClock, Pencil, Trash2, ChevronDown, Images } from "lucide-react";
 import {
   atribuirBadgeAoUsuario,
@@ -690,8 +691,18 @@ export default function MedalhasPage() {
           </button>
         </div>
 
-        {mensagem && <div className="medalhasMessage success">{mensagem}</div>}
-        {erro && <div className="medalhasMessage error">{erro}</div>}
+        <AnimatedToast
+          message={mensagem}
+          type="success"
+          duration={3500}
+          onClose={() => setMensagem(null)}
+        />
+        <AnimatedToast
+          message={erro}
+          type="error"
+          duration={4500}
+          onClose={() => setErro(null)}
+        />
 
         {aba === "ver" ? (
           <div className="medalhasView">
@@ -1314,7 +1325,6 @@ export default function MedalhasPage() {
     </DashboardLayout>
   );
 }
-
 
 
 

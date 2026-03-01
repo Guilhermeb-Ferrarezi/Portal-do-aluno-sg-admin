@@ -19,7 +19,6 @@ import {
   Eye,
   Save,
   Sparkles,
-  XCircle,
   X,
   Lightbulb,
   User as UserIcon,
@@ -1452,14 +1451,12 @@ export default function ExerciciosPage() {
         </div>
 
         {/* MENSAGENS */}
-        {erro && (
-          <div className="exMessage error">
-            <span>
-              <XCircle size={16} />
-            </span>
-            <span>{erro}</span>
-          </div>
-        )}
+        <AnimatedToast
+          message={erro}
+          type="error"
+          duration={4000}
+          onClose={() => setErro(null)}
+        />
 
         <AnimatedToast
           message={okMsg}

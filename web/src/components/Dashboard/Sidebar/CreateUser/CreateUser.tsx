@@ -10,6 +10,7 @@ import {
   logoutWithServer,
   type User,
 } from "../../../../services/api";
+import { AnimatedToast } from "../../../animate-ui/AnimatedToast";
 import DashboardLayout from "../../DashboardLayout";
 import "./CreateUser.css";
 
@@ -374,7 +375,12 @@ export default function CreateUser() {
               </label>
             )}
 
-            {msg ? <div className={`cuMsg ${msg.type}`}>{msg.text}</div> : null}
+            <AnimatedToast
+              message={msg?.text ?? null}
+              type={msg?.type === "ok" ? "success" : "error"}
+              duration={3500}
+              onClose={() => setMsg(null)}
+            />
 
             <div className="cuActions">
               <button

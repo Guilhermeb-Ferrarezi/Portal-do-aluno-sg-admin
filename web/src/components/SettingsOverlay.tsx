@@ -183,7 +183,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const [feedback, setFeedback] = React.useState<
     { type: "success" | "error"; message: string } | null
   >(null);
-  const [toastMsg, setToastMsg] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [pictureLoadError, setPictureLoadError] = React.useState(false);
   const [coverLoadError, setCoverLoadError] = React.useState(false);
   const profilePictureFileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -953,10 +952,10 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
             </div>
 
             <AnimatedToast
-              message={toastMsg?.msg || null}
-              type={toastMsg?.type || 'success'}
+              message={feedback?.message || null}
+              type={feedback?.type || "success"}
               duration={3000}
-              onClose={() => setToastMsg(null)}
+              onClose={() => setFeedback(null)}
             />
 
             {loading ? (
@@ -1049,12 +1048,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
 
                 {/* RIGHT CONTENT */}
                 <div className="settingsContent">
-                  {feedback && (
-                    <div className={`perfilMessage ${feedback.type}`} style={{ marginBottom: 16 }}>
-                      <span>{feedback.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}</span>
-                      <span>{feedback.message}</span>
-                    </div>
-                  )}
 
                   {/* MINHA CONTA */}
                   {activeSection === "conta" && (
@@ -1701,7 +1694,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     document.body
   );
 }
-
 
 
 

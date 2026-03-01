@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCcw, Save, Search } from "lucide-react";
 import { getRole } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
+import { AnimatedToast } from "../components/animate-ui";
 import {
   atualizarAnswer,
   atualizarAnswersEmLote,
@@ -474,8 +475,18 @@ export default function ExerciseDetail() {
           </div>
         </div>
 
-        {erro && <div className="exMessage error">{erro}</div>}
-        {okMsg && <div className="exMessage success">{okMsg}</div>}
+        <AnimatedToast
+          message={erro}
+          type="error"
+          duration={4000}
+          onClose={() => setErro(null)}
+        />
+        <AnimatedToast
+          message={okMsg}
+          type="success"
+          duration={3000}
+          onClose={() => setOkMsg(null)}
+        />
         {legacyMode && (
           <div className="exMessage">
             Exibindo respostas do fluxo legado (submissões). Edição em lote/por questão indisponível nesta origem.

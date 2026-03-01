@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { useEffect } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
 import { CheckCircle, XCircle, Info } from 'lucide-react';
@@ -7,6 +8,7 @@ interface AnimatedToastProps {
   type?: 'success' | 'error' | 'info';
   duration?: number;
   onClose?: () => void;
+  position?: 'top-right' | 'inline';
 }
 
 export function AnimatedToast({
@@ -14,9 +16,10 @@ export function AnimatedToast({
   type = 'success',
   duration = 4000,
   onClose,
+  position = 'top-right',
 }: AnimatedToastProps) {
   useEffect(() => {
-    if (!message) return;
+    if (!message || duration <= 0) return;
 
     const timer = setTimeout(() => {
       onClose?.();
@@ -24,6 +27,8 @@ export function AnimatedToast({
 
     return () => clearTimeout(timer);
   }, [message, duration, onClose]);
+
+  const isFloating = position === 'top-right';
 
   const backgroundColor = {
     success: 'rgba(34, 197, 94, 0.12)',
@@ -48,20 +53,35 @@ export function AnimatedToast({
     error: <XCircle size={18} />,
     info: <Info size={18} />,
   }[type];
+
+  const wrapperStyle: CSSProperties = isFloating
+    ? {
+        position: 'fixed',
+        top: 'max(16px, env(safe-area-inset-top))',
+        right: 'max(16px, env(safe-area-inset-right))',
+        width: 'min(420px, calc(100vw - 32px))',
+        boxSizing: 'border-box',
+        zIndex: 12000,
+      }
+    : {
+        width: '100%',
+        boxSizing: 'border-box',
+      };
+
+  const initial = isFloating ? { x: 20, opacity: 0 } : { y: -20, opacity: 0 };
+  const animate = isFloating ? { x: 0, opacity: 1 } : { y: 0, opacity: 1 };
+  const exit = isFloating ? { x: 20, opacity: 0 } : { y: -20, opacity: 0 };
+
   return (
     <AnimatePresence>
       {message && (
         <m.div
           key="toast"
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -20, opacity: 0 }}
+          initial={initial}
+          animate={animate}
+          exit={exit}
           transition={{ type: 'spring', stiffness: 240, damping: 24 }}
-          style={{
-            width: '100%',
-            padding: '16px 24px',
-            zIndex: 9999,
-          }}
+          style={wrapperStyle}
         >
           <div
             style={{
