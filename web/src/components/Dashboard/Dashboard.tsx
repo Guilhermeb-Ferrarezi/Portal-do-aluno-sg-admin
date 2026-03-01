@@ -13,86 +13,39 @@ import {
   todasMinhasSubmissoes,
   type Exercicio,
   type Submissao,
-  type Turma,
 } from "../../services/api";
 import {
   Calendar,
-  Flame,
   PenLine,
   School,
   Plus,
   KeyRound,
+  RefreshCcw,
+  ShieldCheck,
+  Users,
+  ClipboardList,
 } from "lucide-react";
 
-function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function calcularSequencia(submissoes: Submissao[]) {
-  if (!submissoes.length) return 0;
-
-  const diasAtivos = new Set(
-    submissoes.map((s) => toDateKey(new Date(s.createdAt)))
-  );
-
-  let sequencia = 0;
-  const cursor = new Date();
-
-  while (true) {
-    const chave = toDateKey(cursor);
-    if (!diasAtivos.has(chave)) break;
-    sequencia += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  return sequencia;
-}
-
-function calcularMediaNota(submissoes: Submissao[]) {
-  const notasPorExercicio = new Map<string, { nota: number; createdAt: string }>();
-
-  for (const submissao of submissoes) {
-    // Converter nota para número se necessário (defesa adicional)
-    const notaNum = typeof submissao.nota === 'string' ? parseFloat(submissao.nota) : submissao.nota;
-
-    // Ignorar notas inválidas
-    if (notaNum === null || notaNum === undefined || isNaN(notaNum)) continue;
-
-    const atual = notasPorExercicio.get(submissao.exercicioId);
-    if (!atual || new Date(submissao.createdAt) > new Date(atual.createdAt)) {
-      notasPorExercicio.set(submissao.exercicioId, {
-        nota: notaNum,
-        createdAt: submissao.createdAt,
-      });
-    }
-  }
-
-  if (notasPorExercicio.size === 0) return null;
-
-  const soma = Array.from(notasPorExercicio.values()).reduce(
-    (total, item) => total + item.nota,
-    0
-  );
-  const mediaBruta = soma / notasPorExercicio.size;
-
-  // Validação adicional de NaN
-  if (isNaN(mediaBruta)) return null;
-
-  return mediaBruta > 10 ? mediaBruta / 10 : mediaBruta;
+function ordenarExerciciosRecentes(items: Exercicio[]) {
+  return [...items]
+    .sort((a, b) => {
+      const da = new Date(a.publishedAt ?? a.prazo ?? a.createdAt ?? 0).getTime();
+      const db = new Date(b.publishedAt ?? b.prazo ?? b.createdAt ?? 0).getTime();
+      return db - da;
+    })
+    .slice(0, 6);
 }
 
 function RingProgress({ value }: { value: number }) {
+  const normalized = Math.max(0, Math.min(value, 100));
   const style = {
-    background: `conic-gradient(var(--red) ${value}%, var(--ring) 0)`,
+    background: `conic-gradient(var(--red) ${normalized}%, var(--ring) 0)`,
   } as React.CSSProperties;
 
   return (
-    <div className="ring" style={style} aria-label={`Progresso ${value}%`}>
+    <div className="ring" style={style} aria-label={`Progresso ${normalized}%`}>
       <div className="ringInner">
-        <span className="ringValue">{value}%</span>
+        <span className="ringValue">{normalized}%</span>
       </div>
     </div>
   );
@@ -103,21 +56,27 @@ export default function Dashboard() {
   const name = getName() ?? "Aluno";
   const role = getRole();
   const isAdmin = role === "admin";
+  const isManagementView = role === "admin" || role === "professor";
   const canCreateUser = hasRole(["admin"]);
 
-  // Estados
-  const [turmas, setTurmas] = React.useState<Turma[]>([]);
+  const [totalTurmasAluno, setTotalTurmasAluno] = React.useState(0);
+  const [hasTurmas, setHasTurmas] = React.useState(false);
   const [turmasResponsavel, setTurmasResponsavel] = React.useState(0);
   const [totalTurmasDoSistema, setTotalTurmasDoSistema] = React.useState(0);
-  const [exercicios, setExercicios] = React.useState<Exercicio[]>([]);
-  const [submissoes, setSubmissoes] = React.useState<Submissao[]>([]);
   const [totalAlunos, setTotalAlunos] = React.useState(0);
   const [totalAlunosDoSistema, setTotalAlunosDoSistema] = React.useState(0);
-  const [sequencia, setSequencia] = React.useState(0);
+
+  const [totalExercicios, setTotalExercicios] = React.useState(0);
+  const [totalExerciciosPublicados, setTotalExerciciosPublicados] = React.useState(0);
+  const [exerciciosProgramados, setExerciciosProgramados] = React.useState(0);
+  const [exerciciosRascunho, setExerciciosRascunho] = React.useState(0);
+  const [exerciciosPendentes, setExerciciosPendentes] = React.useState(0);
+  const [exerciciosRecentes, setExerciciosRecentes] = React.useState<Exercicio[]>([]);
+
+  const [submissoes, setSubmissoes] = React.useState<Submissao[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [erro, setErro] = React.useState<string | null>(null);
 
-  // Carregar dados
   React.useEffect(() => {
     let active = true;
 
@@ -126,43 +85,87 @@ export default function Dashboard() {
         setLoading(true);
         setErro(null);
 
-        const [
-          turmasData,
-          exerciciosData,
-          turmasResponsavelResult,
-          totalTurmasResult,
-          contagemAlunos,
-        ] = await Promise.all([
-          listarTurmas(),
-          listarExercicios(),
-          obterTurmasResponsavel().catch(() => ({ total: 0 })),
-          obterTotalTurmas().catch(() => ({ total: 0 })),
-          obterContagemAlunosDashboard().catch(() => ({ total: 0, totalSistema: 0 })),
-        ]);
+        if (isManagementView) {
+          const [
+            turmasResponsavelResult,
+            totalTurmasResult,
+            contagemAlunos,
+            paginaExercicios,
+            programadosResult,
+            publicadosResult,
+            rascunhosResult,
+          ] = await Promise.all([
+            obterTurmasResponsavel().catch(() => ({ total: 0 })),
+            obterTotalTurmas().catch(() => ({ total: 0 })),
+            obterContagemAlunosDashboard().catch(() => ({ total: 0, totalSistema: 0 })),
+            listarExercicios({ page: 1, limit: 6, status: "todos" }),
+            listarExercicios({ page: 1, limit: 1, status: "programado" }),
+            listarExercicios({ page: 1, limit: 1, status: "publicado" }),
+            listarExercicios({ page: 1, limit: 1, status: "rascunho" }),
+          ]);
 
-        if (!active) return;
+          if (!active) return;
 
-        setTurmas(turmasData);
-        setTurmasResponsavel(turmasResponsavelResult.total);
-        setTotalTurmasDoSistema(totalTurmasResult.total);
-        setExercicios(exerciciosData);
-        setTotalAlunos(contagemAlunos.total);
-        setTotalAlunosDoSistema(contagemAlunos.totalSistema ?? 0);
+          setTurmasResponsavel(turmasResponsavelResult.total);
+          setTotalTurmasDoSistema(totalTurmasResult.total);
+          setHasTurmas(turmasResponsavelResult.total > 0);
+
+          setTotalAlunos(contagemAlunos.total);
+          setTotalAlunosDoSistema(contagemAlunos.totalSistema ?? 0);
+
+          setTotalExercicios(paginaExercicios.total);
+          setTotalExerciciosPublicados(publicadosResult.total);
+          setExerciciosProgramados(programadosResult.total);
+          setExerciciosRascunho(rascunhosResult.total);
+          setExerciciosPendentes(0);
+          setExerciciosRecentes(ordenarExerciciosRecentes(paginaExercicios.items));
+        } else {
+          const [turmasPage, exerciciosData, contagemAlunos] = await Promise.all([
+            listarTurmas({ page: 1, limit: 1 }).catch(() => ({
+              items: [],
+              total: 0,
+              pagination: { page: 1, limit: 1, total: 0, totalPages: 0 },
+            })),
+            listarExercicios(),
+            obterContagemAlunosDashboard().catch(() => ({ total: 0, totalSistema: 0 })),
+          ]);
+
+          if (!active) return;
+
+          const now = new Date();
+          const programados = exerciciosData.filter(
+            (e) => !!e.publishedAt && new Date(e.publishedAt) > now
+          ).length;
+          const pendentes = exerciciosData.filter(
+            (e) => !!e.prazo && new Date(e.prazo) > now
+          ).length;
+
+          setTotalTurmasAluno(turmasPage.total);
+          setHasTurmas(turmasPage.total > 0);
+
+          setTotalAlunos(contagemAlunos.total);
+          setTotalAlunosDoSistema(contagemAlunos.totalSistema ?? 0);
+
+          setTotalExercicios(exerciciosData.length);
+          setTotalExerciciosPublicados(exerciciosData.length);
+          setExerciciosProgramados(programados);
+          setExerciciosRascunho(0);
+          setExerciciosPendentes(pendentes);
+          setExerciciosRecentes(ordenarExerciciosRecentes(exerciciosData));
+        }
 
         void todasMinhasSubmissoes()
           .then((submissoesData) => {
             if (!active) return;
             setSubmissoes(submissoesData);
-            setSequencia(calcularSequencia(submissoesData));
           })
           .catch(() => {
             if (!active) return;
             setSubmissoes([]);
-            setSequencia(0);
           });
       } catch (e) {
         if (!active) return;
-        setErro(e instanceof Error ? e.message : "Erro ao carregar dados");
+        setErro(e instanceof Error ? e.message : "Erro ao carregar dados do dashboard");
       } finally {
         if (!active) return;
         setLoading(false);
@@ -172,13 +175,56 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [role]);
+  }, [isManagementView]);
+
+  const exerciciosConcluidos = React.useMemo(
+    () => new Set(submissoes.map((item) => item.exercicioId)).size,
+    [submissoes]
+  );
+  const exerciciosAtivos = Math.max(totalExerciciosPublicados - exerciciosProgramados, 0);
+
+  const progressoOverall = isManagementView
+    ? totalExerciciosPublicados > 0
+      ? Math.round((exerciciosAtivos / totalExerciciosPublicados) * 100)
+      : 0
+    : totalExercicios > 0
+      ? Math.round((exerciciosConcluidos / totalExercicios) * 100)
+      : 0;
+
+  const progressoLabelA = "Turmas";
+  const progressoValueA = isManagementView
+    ? isAdmin && totalTurmasDoSistema > 0
+      ? `${turmasResponsavel}/${totalTurmasDoSistema}`
+      : `${turmasResponsavel}`
+    : `${totalTurmasAluno}`;
+
+  const progressoLabelB = isManagementView ? "Exercicios ativos" : "Exercicios resolvidos";
+  const progressoValueB = isManagementView
+    ? `${exerciciosAtivos}/${Math.max(totalExerciciosPublicados, 1)}`
+    : `${exerciciosConcluidos}/${Math.max(totalExercicios, 1)}`;
+
+  const taxaAgendamento = totalExerciciosPublicados > 0
+    ? Math.round((exerciciosProgramados / totalExerciciosPublicados) * 100)
+    : 0;
 
   if (loading) {
     return (
       <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
-        <div style={{ textAlign: "center", padding: "40px", color: "var(--muted)" }}>
-          Carregando...
+        <div className="dashboardSections">
+          <section className="card dashboardSkeletonIntro">
+            <div className="skeletonLine skeletonTitle" />
+            <div className="skeletonLine skeletonSub" />
+          </section>
+          <section className={isManagementView ? "grid4" : "grid3"}>
+            {Array.from({ length: isManagementView ? 4 : 3 }).map((_, idx) => (
+              <div key={idx} className="card skeletonCard">
+                <div className="skeletonLine skeletonKicker" />
+                <div className="skeletonLine skeletonBig" />
+                <div className="skeletonLine skeletonRow" />
+                <div className="skeletonLine skeletonRow" />
+              </div>
+            ))}
+          </section>
         </div>
       </DashboardLayout>
     );
@@ -187,75 +233,70 @@ export default function Dashboard() {
   if (erro) {
     return (
       <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
-        <div
-          style={{
-            textAlign: "center",
-            padding: "40px",
-            color: "var(--red)",
-            fontSize: "14px",
-          }}
-        >
-          Erro ao carregar dados: {erro}
+        <div className="card dashboardErrorCard">
+          <div className="cardTitle">Falha ao carregar dashboard</div>
+          <p className="mutedSmall">{erro}</p>
+          <RippleButton
+            className="dashboardActionBtn"
+            onClick={() => window.location.reload()}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <RefreshCcw size={16} /> Tentar novamente
+            </span>
+          </RippleButton>
         </div>
       </DashboardLayout>
     );
   }
 
-  // Calcular estatísticas
-  const isManagementView = role === "admin" || role === "professor";
-  const now = new Date();
-  const totalExercicios = exercicios.length;
-  const exerciciosPendentes = exercicios.filter(
-    (e) => e.prazo && new Date(e.prazo) > now
-  ).length;
-  const exerciciosProgramados = exercicios.filter(
-    (e) => !!e.publishedAt && new Date(e.publishedAt) > now
-  ).length;
-  const exerciciosAtivos = Math.max(totalExercicios - exerciciosProgramados, 0);
-
-  // Exercícios recentes (últimos 5)
-  const exerciciosRecentes = [...exercicios]
-    .sort((a, b) => {
-      const da = new Date(a.publishedAt ?? a.prazo ?? 0).getTime();
-      const db = new Date(b.publishedAt ?? b.prazo ?? 0).getTime();
-      return db - da;
-    })
-    .slice(0, 6);
-
-  // Simular estatísticas (em produção, viriam da API)
-  const progresso = {
-    overall: 65,
-    modulos: "3/6",
-    exercicios: "41/60",
-  };
-
-  const streak = sequencia;
-  const mediaNota = calcularMediaNota(submissoes);
-  const ranking = 5;
-
   return (
     <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
       <FadeInUp>
         <div className={`dashboardSections ${isManagementView ? "adminBoard" : ""}`}>
-          {/* SEÇÃO 1: ESTATÍSTICAS */}
+          {isManagementView && (
+            <section className="card adminOverview">
+              <div>
+                <div className="kicker">Visao administrativa</div>
+                <div className="adminOverviewTitle">Painel operacional</div>
+                <p className="muted">
+                  Leitura consolidada de turmas, alunos e exercicios com foco em operacao.
+                </p>
+              </div>
+              <div className="adminOverviewStats">
+                <div className="adminOverviewChip">
+                  <Users size={14} />
+                  <span>{totalAlunos} alunos vinculados</span>
+                </div>
+                <div className="adminOverviewChip">
+                  <ClipboardList size={14} />
+                  <span>{exerciciosAtivos} exercicios ativos</span>
+                </div>
+                <div className="adminOverviewChip">
+                  <ShieldCheck size={14} />
+                  <span>{taxaAgendamento}% em agendamento</span>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className={isManagementView ? "grid4" : "grid3"}>
-            {(isManagementView || turmas.length > 0) && (
+            {(isManagementView || hasTurmas) && (
               <m.div
                 className="card"
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0 * 0.1, duration: 0.3 }}
+                transition={{ delay: 0, duration: 0.3 }}
               >
                 <div className="cardHead">
                   <div>
                     <div className="kicker">{isManagementView ? "Turmas geridas" : "Turmas"}</div>
-                    <div className="big">{role === "aluno" ? turmas.length : turmasResponsavel}</div>
+                    <div className="big">{isManagementView ? turmasResponsavel : totalTurmasAluno}</div>
                   </div>
                 </div>
                 <div className="kv">
                   <div className="kvRow">
                     <span>{isManagementView ? "Sob responsabilidade" : "Turmas registradas"}</span>
-                    <strong>{role === "aluno" ? turmas.length : turmasResponsavel}</strong>
+                    <strong>{isManagementView ? turmasResponsavel : totalTurmasAluno}</strong>
                   </div>
                   {isAdmin && (
                     <div className="kvRow">
@@ -263,33 +304,26 @@ export default function Dashboard() {
                       <strong style={{ color: "var(--muted)", fontSize: "14px" }}>{totalTurmasDoSistema}</strong>
                     </div>
                   )}
-                  {role === "professor" && (
-                    <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "8px", lineHeight: "1.5" }}>
-                      {turmasResponsavel > 0
-                        ? `Você está responsável por ${turmasResponsavel} turma${turmasResponsavel !== 1 ? "s" : ""}.`
-                        : "Você não está responsável por nenhuma turma ainda."}
-                    </div>
-                  )}
                 </div>
               </m.div>
             )}
 
-            {(isManagementView || turmas.length > 0) && (
+            {(isManagementView || hasTurmas) && (
               <m.div
                 className="card"
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1 * 0.1, duration: 0.3 }}
+                transition={{ delay: 0.1, duration: 0.3 }}
               >
                 <div className="cardHead">
                   <div>
-                    <div className="kicker">{isManagementView ? "Cobertura de alunos" : "ALUNOS"}</div>
+                    <div className="kicker">{isManagementView ? "Cobertura de alunos" : "Alunos"}</div>
                     <div className="big">{totalAlunos}</div>
                   </div>
                 </div>
                 <div className="kv">
                   <div className="kvRow">
-                    <span>{isManagementView ? "Alunos vinculados" : `Alunos nas ${isAdmin ? "minhas turmas" : "turmas"}`}</span>
+                    <span>{isManagementView ? "Alunos vinculados" : "Alunos nas turmas"}</span>
                     <strong>{totalAlunos}</strong>
                   </div>
                   {isAdmin && (
@@ -306,11 +340,11 @@ export default function Dashboard() {
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 2 * 0.1, duration: 0.3 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
             >
               <div className="cardHead">
                 <div>
-                  <div className="kicker">{isManagementView ? "Operacao de exercicios" : "EXERCICIOS"}</div>
+                  <div className="kicker">{isManagementView ? "Operacao de exercicios" : "Exercicios"}</div>
                   <div className="big">{isManagementView ? exerciciosAtivos : totalExercicios}</div>
                 </div>
               </div>
@@ -319,7 +353,7 @@ export default function Dashboard() {
                   <>
                     <div className="kvRow">
                       <span>Publicados</span>
-                      <strong>{totalExercicios}</strong>
+                      <strong>{totalExerciciosPublicados}</strong>
                     </div>
                     <div className="kvRow">
                       <span>Programados</span>
@@ -334,28 +368,44 @@ export default function Dashboard() {
                 )}
               </div>
             </m.div>
+
+            {isManagementView && (
+              <m.div
+                className="card"
+                initial={false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.3 }}
+              >
+                <div className="cardHead">
+                  <div>
+                    <div className="kicker">Backlog editorial</div>
+                    <div className="big">{exerciciosRascunho}</div>
+                  </div>
+                </div>
+                <p className="mutedSmall" style={{ marginTop: 8 }}>
+                  Exercicios em rascunho aguardando revisao ou publicacao.
+                </p>
+              </m.div>
+            )}
           </section>
 
-          {/* SEÇÃO 2: PROGRESSO E ATIVIDADES */}
           <section className="grid2">
             <m.div
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 3 * 0.1, duration: 0.3 }}
+              transition={{ delay: 0.35, duration: 0.3 }}
             >
-              <div className="cardTitle">Exercícios Recentes</div>
+              <div className="cardTitle">Exercicios recentes</div>
               <div className="taskList">
                 {exerciciosRecentes.length === 0 ? (
                   <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
-                    Nenhum exercício disponível
+                    Nenhum exercicio disponivel
                   </div>
                 ) : (
                   exerciciosRecentes.map((ex) => {
-                    const isPassed =
-                      ex.prazo && new Date(ex.prazo) < new Date();
-                    const isProgrammed =
-                      ex.publishedAt ? new Date(ex.publishedAt) > new Date() : false;
+                    const isPassed = !!ex.prazo && new Date(ex.prazo) < new Date();
+                    const isProgrammed = !!ex.publishedAt && new Date(ex.publishedAt) > new Date();
                     return (
                       <div
                         key={ex.id}
@@ -364,8 +414,9 @@ export default function Dashboard() {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ")
+                          if (e.key === "Enter" || e.key === " ") {
                             navigate(`/dashboard/exercicios/${ex.id}`);
+                          }
                         }}
                         style={{ cursor: "pointer" }}
                       >
@@ -377,15 +428,17 @@ export default function Dashboard() {
                           <div className="taskTitle" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             {ex.titulo}
                             {isProgrammed && (
-                              <span style={{
-                                fontSize: "11px",
-                                fontWeight: 600,
-                                background: "#3b82f6",
-                                color: "white",
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                whiteSpace: "nowrap"
-                              }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  background: "#3b82f6",
+                                  color: "white",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                                   <Calendar size={14} /> Programado
                                 </span>
@@ -394,7 +447,7 @@ export default function Dashboard() {
                           </div>
                           <div className="mutedSmall">
                             {isProgrammed && ex.publishedAt
-                              ? `Publicação: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
+                              ? `Publicacao: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
                               : ex.prazo
                                 ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
                                 : "Sem prazo"}
@@ -411,101 +464,36 @@ export default function Dashboard() {
               className="card"
               initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 4 * 0.1, duration: 0.3 }}
+              transition={{ delay: 0.45, duration: 0.3 }}
             >
               <div className="cardHead">
                 <div>
-                  <div className="kicker">PROGRESSO</div>
-                  <div className="big">{progresso.overall}%</div>
+                  <div className="kicker">{isManagementView ? "Saude operacional" : "Progresso"}</div>
+                  <div className="big">{progressoOverall}%</div>
                 </div>
-                <RingProgress value={progresso.overall} />
+                <RingProgress value={progressoOverall} />
               </div>
               <div className="kv" style={{ marginTop: "12px" }}>
                 <div className="kvRow">
-                  <span>Módulos</span>
-                  <strong>{progresso.modulos}</strong>
+                  <span>{progressoLabelA}</span>
+                  <strong>{progressoValueA}</strong>
                 </div>
                 <div className="kvRow">
-                  <span>Exercícios</span>
-                  <strong>{progresso.exercicios}</strong>
+                  <span>{progressoLabelB}</span>
+                  <strong>{progressoValueB}</strong>
                 </div>
               </div>
             </m.div>
           </section>
 
-          {/* SEÇÃO 3: INFORMAÇÕES ADICIONAIS */}
-          <section className="grid2">
-            <m.div
-              className="card"
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 5 * 0.1, duration: 0.3 }}
-            >
-              <div className="cardHead">
-                <div>
-                  <div className="kicker">SEQUÊNCIA</div>
-                  <div className="big">
-                    {streak} <span className="bigSub">dias</span>
-                  </div>
-                </div>
-                <div className="streakBadge" aria-hidden="true">
-                  <Flame size={18} />
-                </div>
-              </div>
-              <p className="muted">
-                {streak > 0
-                  ? "Continue assim! Você está em uma ótima sequência de estudos."
-                  : "Envie uma atividade hoje para iniciar sua sequência."}
-              </p>
-            </m.div>
-
-            <m.div
-              className="card"
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 6 * 0.1, duration: 0.3 }}
-            >
-              <div className="cardTitle">Seu Desempenho</div>
-              <div className="perf">
-                <div className="perfRow">
-                  <span className="muted">Média de notas</span>
-                  <strong>
-                    {mediaNota !== null && !isNaN(mediaNota)
-                      ? `${mediaNota.toFixed(1)}/10`
-                      : "Nenhum exercício corrigido"}
-                  </strong>
-                </div>
-                {mediaNota !== null && !isNaN(mediaNota) ? (
-                  <>
-                    <div className="bar">
-                      <div
-                        className="barFillGreen"
-                        style={{ width: `${Math.min(mediaNota * 10, 100)}%` }}
-                      />
-                    </div>
-                    <div className="perfRow" style={{ marginTop: 14 }}>
-                      <span className="muted">Ranking</span>
-                      <strong>#{ranking}</strong>
-                    </div>
-                  </>
-                ) : (
-                  <div className="mutedSmall" style={{ marginTop: 10 }}>
-                    Envie um exercício e aguarde a correção para ver sua média.
-                  </div>
-                )}
-              </div>
-            </m.div>
-          </section>
-
-          {/* SEÇÃO 4: AÇÕES RÁPIDAS */}
           <section>
             <m.div
               initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 7 * 0.1, duration: 0.3 }}
+              transition={{ delay: 0.55, duration: 0.3 }}
             >
               <GradientBackground className="card">
-                <div className="cardTitle">Ações Rápidas</div>
+                <div className="cardTitle">Acoes rapidas</div>
                 <div
                   style={{
                     display: "grid",
@@ -519,11 +507,11 @@ export default function Dashboard() {
                     className="dashboardActionBtn"
                   >
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <PenLine size={16} /> Exercícios
+                      <PenLine size={16} /> Exercicios
                     </span>
                   </RippleButton>
 
-                  {(role === "admin" || role === "professor" || turmas.length > 0) && (
+                  {(role === "admin" || role === "professor" || hasTurmas) && (
                     <RippleButton
                       onClick={() => navigate("/dashboard/turmas")}
                       className="dashboardActionBtn"
@@ -541,7 +529,7 @@ export default function Dashboard() {
                         className="dashboardActionBtn"
                       >
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Plus size={16} /> Criar Usuário
+                          <Plus size={16} /> Criar usuario
                         </span>
                       </RippleButton>
 
@@ -550,10 +538,9 @@ export default function Dashboard() {
                         className="dashboardActionBtn"
                       >
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <KeyRound size={16} /> Gerenciar Usuários
+                          <KeyRound size={16} /> Gerenciar usuarios
                         </span>
                       </RippleButton>
-
                     </>
                   )}
                 </div>

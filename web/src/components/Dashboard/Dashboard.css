@@ -476,11 +476,58 @@
   gap: 32px;
 }
 
+.adminBoard {
+  gap: 24px;
+}
+
+.adminOverview {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(260px, 1fr);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: radial-gradient(circle at 8% 20%, rgba(225, 29, 46, 0.12), transparent 56%), var(--card);
+}
+
+.adminOverviewTitle {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.adminOverviewStats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.adminOverviewChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  background: var(--background-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+}
+
 /* CARDS & GRIDS */
 .grid3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 32px;
+}
+
+.grid4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 24px;
 }
 
 .grid2 {
@@ -565,6 +612,71 @@
   color: var(--text);
   margin-bottom: 16px;
   letter-spacing: -0.01em;
+}
+
+.dashboardErrorCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  max-width: 640px;
+}
+
+.dashboardSkeletonIntro {
+  border-style: dashed;
+}
+
+.skeletonCard {
+  border-style: dashed;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonCard::after,
+.dashboardSkeletonIntro::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  animation: dashboardShimmer 1.2s ease-in-out infinite;
+}
+
+.skeletonLine {
+  height: 11px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.skeletonTitle {
+  width: 48%;
+  height: 18px;
+  margin-bottom: 12px;
+}
+
+.skeletonSub {
+  width: 74%;
+}
+
+.skeletonKicker {
+  width: 38%;
+  margin-bottom: 12px;
+}
+
+.skeletonBig {
+  width: 44%;
+  height: 34px;
+  margin-bottom: 16px;
+}
+
+.skeletonRow {
+  width: 100%;
+  margin-top: 10px;
 }
 
 /* Widgets Específicos */
@@ -714,6 +826,10 @@
   .content {
     padding: 24px;
   }
+
+  .grid4 {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
 }
 
 @media (max-width: 1024px) and (min-width: 769px) {
@@ -735,6 +851,7 @@
   .sbNav { padding: 12px 8px; }
   .sbItem { justify-content: center; padding: 12px; }
   .sbBottom { padding: 16px; display: flex; justify-content: center; }
+  .grid4 { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
 }
 
 /* Esconder hamburger no desktop */
@@ -782,7 +899,15 @@
   }
   
   .content { padding: 16px; gap: 16px; }
-  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+
+  .adminOverview {
+    grid-template-columns: 1fr;
+  }
+
+  .adminOverviewTitle {
+    font-size: 22px;
+  }
   
   .hamburger {
     display: flex !important;
@@ -840,6 +965,12 @@
   .sbCloseBtn:active {
     background: rgba(255, 255, 255, 0.2);
     transform: scale(0.95);
+  }
+}
+
+@keyframes dashboardShimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 
