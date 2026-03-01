@@ -1032,3 +1032,107 @@
     margin-top: 8px;
   }
 }
+
+/* Adicionar Exercício Box */
+.addExercicioBox {
+  margin-top: 24px;
+  padding: 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.exercicioBoxTitle {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exercicioBoxControls {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.exercicioBoxField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.exercicioBoxFieldLarge {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.exercicioBoxLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.exercicioBoxSelect {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+  box-sizing: border-box;
+}
+
+.exercicioBoxSelect:focus {
+  outline: none;
+  border-color: var(--focus-color);
+  box-shadow: var(--focus-ring);
+  background: var(--input-bg-focus);
+}
+
+.btnAdicionarExercicio {
+  min-height: 42px;
+  border-radius: 10px;
+  padding: 0 20px;
+  font-weight: 600;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 20%, transparent), color-mix(in srgb, var(--primary) 8%, transparent));
+  border: 1px solid color-mix(in srgb, var(--primary) 60%, var(--line));
+  color: color-mix(in srgb, var(--text) 92%, #fff);
+}
+
+.btnAdicionarExercicio:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 80%, var(--line));
+}
+
+@media (max-width: 768px) {
+  .exercicioBoxControls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .exercicioBoxField,
+  .exercicioBoxFieldLarge {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .btnAdicionarExercicio {
+    width: 100%;
+    margin-top: 4px;
+  }
+}
