@@ -195,7 +195,9 @@ export default function ExerciciosPage() {
   const [saving, setSaving] = React.useState(false);
   const [okMsg, setOkMsg] = React.useState<string | null>(null);
   const [editandoId, setEditandoId] = React.useState<string | null>(null);
-  const [activeSection, setActiveSection] = React.useState<"criar" | "lista" | "tarefa-diaria" | "respostas">("lista");
+  const [activeSection, setActiveSection] = React.useState<"criar" | "lista" | "tarefa-diaria" | "respostas">(() => {
+    return "lista";
+  });
   const [respostasAlunoId, setRespostasAlunoId] = React.useState("");
   const [respostasAlunoAbertoId, setRespostasAlunoAbertoId] = React.useState<string | null>(null);
   const [respostasAlunos, setRespostasAlunos] = React.useState<RespostasAlunoOption[]>([]);
@@ -837,9 +839,9 @@ export default function ExerciciosPage() {
   }, [activeSection, currentPage, itemsPerPage, buscaFiltroQuery, moduloFiltro, turmaFiltro, statusFiltro, isStaff]);
 
   React.useEffect(() => {
-    if (!canCreate || activeSection !== "criar") return;
+    if (!canCreate || !editandoId) return;
     void ensureCreateDependenciesLoaded();
-  }, [activeSection, canCreate]);
+  }, [editandoId, canCreate]);
 
   React.useEffect(() => {
     if (!cursoIdSelecionado) {
@@ -1096,7 +1098,6 @@ export default function ExerciciosPage() {
   }
 
   function handleEdit(exercicio: Exercicio) {
-    setActiveSection("criar");
     setFieldWarnings({});
     setTitulo(exercicio.titulo);
     setDescricao(exercicio.descricao);
@@ -1395,7 +1396,7 @@ export default function ExerciciosPage() {
   const visibleExercises = exercisesVirtualWindow?.visibleItems ?? paginatedExercises;
 
   function handleRefresh() {
-    if (activeSection === "criar") {
+    if (editandoId) {
       void ensureCreateDependenciesLoaded(true);
       return;
     }
@@ -1430,15 +1431,6 @@ export default function ExerciciosPage() {
         <div className="exercisesTabs">
           <span className="exercisesTabsLabel">{iconLabel(<Eye size={14} />, "Exibir:")}</span>
           <div className="exercisesTabsGroup">
-            {canCreate && (
-              <button
-                type="button"
-                className={`exercisesTab ${activeSection === "criar" ? "active" : ""}`}
-                onClick={() => setActiveSection("criar")}
-              >
-                {iconLabel(<PenLine size={14} />, "Criar exercicios")}
-              </button>
-            )}
             <button
               type="button"
               className={`exercisesTab ${activeSection === "lista" ? "active" : ""}`}
@@ -1482,11 +1474,11 @@ export default function ExerciciosPage() {
 
 
 
-        {/* SECAO DE CRIAR */}
-        {canCreate && activeSection === "criar" && (
+        {/* SECAO DE EDITAR */}
+        {canCreate && editandoId && (
           <FadeInUp duration={0.28}>
             <div className="createExerciseCard">
-              <h2 className="exFormTitle">Criar novo exercicio</h2>
+              <h2 className="exFormTitle">Editar exercicio</h2>
 
               <div className="exFormGrid">
                 <div className="exInputGroup">
@@ -2242,7 +2234,7 @@ export default function ExerciciosPage() {
                         checked={isDailyTask}
                         onChange={setIsDailyTask}
                       />
-                      Tarefa diaria
+                      Tarefas diárias
                     </span>
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       Mostra este exercicio na aba de tarefa diaria.

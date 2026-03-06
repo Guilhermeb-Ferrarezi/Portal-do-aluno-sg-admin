@@ -38,6 +38,11 @@ type DashboardLayoutProps = {
   children: ReactNode;
 };
 
+function readStoredDropdownState(key: string) {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(key) === "true";
+}
+
 function roleLabel(role: string | null) {
   if (role === "admin") return "Administrador";
   if (role === "professor") return "Professor";
@@ -60,7 +65,8 @@ export default function DashboardLayout({
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [estruturaOpen, setEstruturaOpen] = React.useState(false);
+  const [estruturaOpen, setEstruturaOpen] = React.useState(() => readStoredDropdownState("dashboard.sidebar.estruturaOpen"));
+  const [usuariosOpen, setUsuariosOpen] = React.useState(() => readStoredDropdownState("dashboard.sidebar.usuariosOpen"));
   const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -93,6 +99,23 @@ export default function DashboardLayout({
       setEstruturaOpen(true);
     }
   }, [isEstruturaCurso, isExercicios, location.pathname]);
+
+  // Auto-open "Usuários" dropdown when on user management pages
+  React.useEffect(() => {
+    if (isAdminUsers || isCreateUser) {
+      setUsuariosOpen(true);
+    }
+  }, [isAdminUsers, isCreateUser]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("dashboard.sidebar.estruturaOpen", String(estruturaOpen));
+  }, [estruturaOpen]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("dashboard.sidebar.usuariosOpen", String(usuariosOpen));
+  }, [usuariosOpen]);
 
   function handleLogout() {
     void logoutWithServer().finally(() => {
@@ -188,12 +211,45 @@ export default function DashboardLayout({
 
           {canCreateUser && (
             <>
-              <Link className={`sbItem ${isAdminUsers ? "active" : ""}`} to="/dashboard/usuarios">
-                <span className="sbIcon" aria-hidden="true">
-                  <KeyRound size={18} />
-                </span>
-                <span className="sbLabel">Gerenciar Usuários</span>
-              </Link>
+              {/* Usuários - Dropdown */}
+              <div className="sideSection">
+                <button
+                  className={`sideSectionHeader ${isAdminUsers || isCreateUser ? "active" : ""}`}
+                  onClick={() => setUsuariosOpen((v) => !v)}
+                  type="button"
+                >
+                  <span className="sbIcon" aria-hidden="true">
+                    <Users size={18} />
+                  </span>
+                  <span className="sbLabel">Usuários</span>
+                  <span className={`sideExpand ${usuariosOpen ? "open" : ""}`} aria-hidden="true">
+                    <ChevronDown size={14} />
+                  </span>
+                </button>
+
+                {usuariosOpen && (
+                  <div className="sideSectionContent">
+                    <Link
+                      className={`sbItem sbSubItem ${isAdminUsers ? "active" : ""}`}
+                      to="/dashboard/usuarios"
+                    >
+                      <span className="sbIcon" aria-hidden="true">
+                        <KeyRound size={16} />
+                      </span>
+                      <span className="sbLabel">Gerenciar Usuários</span>
+                    </Link>
+                    <Link
+                      className={`sbItem sbSubItem ${isCreateUser ? "active" : ""}`}
+                      to="/dashboard/criar-usuario"
+                    >
+                      <span className="sbIcon" aria-hidden="true">
+                        <Plus size={16} />
+                      </span>
+                      <span className="sbLabel">Criar Usuário</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
 
               {/* Estrutura do Curso - Dropdown */}
               <div className="sideSection">
@@ -249,16 +305,6 @@ export default function DashboardLayout({
                   <BarChart3 size={18} />
                 </span>
                 <span className="sbLabel">Logs de Atividade</span>
-              </Link>
-
-              <Link
-                className={`sbItem ${isCreateUser ? "active" : ""}`}
-                to="/dashboard/criar-usuario"
-              >
-                <span className="sbIcon" aria-hidden="true">
-                  <Plus size={18} />
-                </span>
-                <span className="sbLabel">Criar usuário</span>
               </Link>
             </>
           )}

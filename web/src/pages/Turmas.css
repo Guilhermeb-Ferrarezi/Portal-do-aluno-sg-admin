@@ -604,72 +604,232 @@
 }
 
 /* MODAL ADICIONAR ALUNOS */
+/* ── Modal Atribuição de Alunos ────────────────────────── */
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   z-index: 9999;
   padding: 24px;
   overflow-y: auto;
+  animation: modalFadeIn 0.2s ease;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .modalContent {
   background: var(--card);
-  padding: 24px;
-  border-radius: 12px;
-  max-width: 520px;
-  width: 90%;
-  max-height: calc(100vh - 120px);
-  overflow-y: auto;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
-  display:flex;
-  flex-direction:column;
+  padding: 0;
+  border-radius: 16px;
+  max-width: 560px;
+  width: 95%;
+  max-height: calc(100vh - 80px);
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease;
 }
 
+/* Header */
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modalHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modalHeaderSub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.modalSelectedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(225, 29, 46, 0.12), rgba(225, 29, 46, 0.06));
+  color: var(--red);
+  font-weight: 700;
+  font-size: 13px;
+  border: 1px solid rgba(225, 29, 46, 0.2);
+  flex-shrink: 0;
+}
+
+/* Search & Toolbar */
+.modalToolbar {
+  padding: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--background-secondary);
+}
+
+.modalSearchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.modalSearchIcon {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.modalSearchInput {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modalSearchInput::placeholder {
+  color: var(--muted);
+}
+
+.modalSearchInput:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
+}
+
+.modalSelectAllRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalSelectAllBtn {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.modalSelectAllBtn:hover {
+  background: rgba(225, 29, 46, 0.08);
+}
+
+.modalCountText {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Student list */
 .alunosSelectorList {
-  margin: 16px 0;
-  max-height: 400px;
+  padding: 12px 24px;
   overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .alunoCheckboxItem {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  border-radius: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: var(--background-secondary);
-  border: 1px solid var(--line);
+  border: 2px solid transparent;
   cursor: pointer;
-  transition: all var(--motion-fast) ease;
+  transition: all 0.2s ease;
+  user-select: none;
 }
 
 .alunoCheckboxItem:hover {
   background: var(--background-hover);
+  border-color: rgba(225, 29, 46, 0.25);
+}
+
+.alunoCheckboxItem.selected {
+  background: linear-gradient(135deg, rgba(225, 29, 46, 0.08), rgba(225, 29, 46, 0.04));
   border-color: var(--red);
 }
 
+/* Custom checkbox */
 .alunoCheckboxItem input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--red);
+  display: none;
+}
+
+.alunoCustomCheck {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  background: var(--card);
+}
+
+.alunoCheckboxItem.selected .alunoCustomCheck {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
 }
 
 .alunoCheckboxAvatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--info-rgb), 0.1));
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.15), rgba(var(--info-rgb), 0.1));
   border: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
+  font-size: 16px;
   color: var(--text);
   flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.alunoCheckboxItem.selected .alunoCheckboxAvatar {
+  background: linear-gradient(135deg, rgba(225, 29, 46, 0.18), rgba(225, 29, 46, 0.08));
+  border-color: rgba(225, 29, 46, 0.3);
 }
 
 .alunoCheckboxInfo {
@@ -677,63 +837,98 @@
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  min-width: 0;
 }
 
 .alunoCheckboxName {
   font-weight: 600;
   color: var(--text);
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .alunoCheckboxUser {
   font-size: 12px;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.alunosEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.alunosEmptyState svg {
+  opacity: 0.4;
+}
+
+.alunosEmptyState p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Actions footer */
 .modalActions {
   display: flex;
   gap: 12px;
-  margin-top: 20px;
-  padding-top: 16px;
+  padding: 16px 24px;
   border-top: 1px solid var(--line);
+  background: var(--background-secondary);
 }
 
 .modalBtnCancel,
 .modalBtnConfirm {
   flex: 1;
-  padding: 11px 14px;
+  padding: 12px 16px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: all var(--motion-fast) ease;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .modalBtnCancel {
-  background: var(--background-secondary);
+  background: var(--card);
   color: var(--muted);
+  border: 1px solid var(--line);
 }
 
 .modalBtnCancel:hover:not(:disabled) {
   background: var(--background-hover);
+  color: var(--text);
 }
 
 .modalBtnConfirm {
-  background: linear-gradient(135deg, var(--red), #d41c28);
+  background: linear-gradient(135deg, var(--red), #c91a26);
   color: white;
-  box-shadow: 0 4px 12px rgba(225, 29, 46, 0.2);
+  box-shadow: 0 4px 16px rgba(225, 29, 46, 0.25);
 }
 
 .modalBtnConfirm:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(225, 29, 46, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(225, 29, 46, 0.35);
 }
 
 .modalBtnCancel:disabled,
 .modalBtnConfirm:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none !important;
 }
 
 @keyframes fadeIn {

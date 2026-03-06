@@ -281,14 +281,25 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
   }
   if (isAluno) {
     params.push(userId);
-    where.push(`EXISTS (
-      SELECT 1
-      FROM enrollment en
-      JOIN class c ON c.id = en.class_id
-      JOIN module m2 ON m2.course_id = c.course_id
-      JOIN phase p2 ON p2.module_id = m2.id
-      WHERE en.user_id = $1
-        AND p2.id = e.phase_id
+    where.push(`(
+      EXISTS (
+        SELECT 1
+        FROM enrollment en
+        JOIN class c ON c.id = en.class_id
+        JOIN phase p2 ON p2.module_id = c.current_module_id
+        WHERE en.user_id = $1
+          AND p2.id = e.phase_id
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM progress_paid_courses ppc
+        JOIN course co ON co.id = ppc.course_id
+        JOIN module m2 ON m2.course_id = co.id
+        JOIN phase p2 ON p2.module_id = m2.id
+        WHERE ppc.user_id = $1
+          AND p2.id = e.phase_id
+          AND m2.index_order <= CEIL(ppc.progress_percentage / 100 * COALESCE((SELECT COUNT(*) FROM module WHERE course_id = co.id), 1))
+      )
     )`);
   }
 
@@ -329,14 +340,25 @@ async function listDailyTasksFromNewExerciseSchema(
 
   if (isAluno) {
     params.push(userId);
-    where.push(`EXISTS (
-      SELECT 1
-      FROM enrollment en
-      JOIN class c ON c.id = en.class_id
-      JOIN module m2 ON m2.course_id = c.course_id
-      JOIN phase p2 ON p2.module_id = m2.id
-      WHERE en.user_id = $1
-        AND p2.id = e.phase_id
+    where.push(`(
+      EXISTS (
+        SELECT 1
+        FROM enrollment en
+        JOIN class c ON c.id = en.class_id
+        JOIN phase p2 ON p2.module_id = c.current_module_id
+        WHERE en.user_id = $1
+          AND p2.id = e.phase_id
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM progress_paid_courses ppc
+        JOIN course co ON co.id = ppc.course_id
+        JOIN module m2 ON m2.course_id = co.id
+        JOIN phase p2 ON p2.module_id = m2.id
+        WHERE ppc.user_id = $1
+          AND p2.id = e.phase_id
+          AND m2.index_order <= CEIL(ppc.progress_percentage / 100 * COALESCE((SELECT COUNT(*) FROM module WHERE course_id = co.id), 1))
+      )
     )`);
   }
 
@@ -370,14 +392,25 @@ async function getFromNewExerciseSchema(
   const where: string[] = ["e.id = $1"];
   if (isAluno) {
     params.push(userId);
-    where.push(`EXISTS (
-      SELECT 1
-      FROM enrollment en
-      JOIN class c ON c.id = en.class_id
-      JOIN module m2 ON m2.course_id = c.course_id
-      JOIN phase p2 ON p2.module_id = m2.id
-      WHERE en.user_id = $2
-        AND p2.id = e.phase_id
+    where.push(`(
+      EXISTS (
+        SELECT 1
+        FROM enrollment en
+        JOIN class c ON c.id = en.class_id
+        JOIN phase p2 ON p2.module_id = c.current_module_id
+        WHERE en.user_id = $2
+          AND p2.id = e.phase_id
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM progress_paid_courses ppc
+        JOIN course co ON co.id = ppc.course_id
+        JOIN module m2 ON m2.course_id = co.id
+        JOIN phase p2 ON p2.module_id = m2.id
+        WHERE ppc.user_id = $2
+          AND p2.id = e.phase_id
+          AND m2.index_order <= CEIL(ppc.progress_percentage / 100 * COALESCE((SELECT COUNT(*) FROM module WHERE course_id = co.id), 1))
+      )
     )`);
   }
 
@@ -2039,6 +2072,112 @@ export function exerciciosRouter(jwtSecret: string) {
       }).catch((err) => console.error("activity log error:", err));
 
       return res.json({ message: "Exercicio deletado com sucesso" });
+    }
+  );
+
+  // GET /exercicios/by-phase/:phaseId - list exercises for a specific phase
+  router.get(
+    "/exercicios/by-phase/:phaseId",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      try {
+        const phaseId = Number(req.params.phaseId);
+        if (!Number.isFinite(phaseId)) {
+          return res.status(400).json({ message: "ID de fase inválido" });
+        }
+
+        const schema = await getExerciseSchemaInfo();
+
+        if (schema.hasExercise) {
+          const result = await pool.query(
+            `SELECT e.id, e.title, e.description, e.index_order, e.difficulty, e.phase_id,
+                    e.created_at, e.updated_at
+             FROM exercise e
+             WHERE e.phase_id = $1
+             ORDER BY e.index_order ASC, e.created_at ASC`,
+            [phaseId]
+          );
+
+          return res.json(result.rows.map((row: any) => ({
+            id: String(row.id),
+            titulo: row.title ?? "",
+            descricao: row.description ?? "",
+            indexOrder: row.index_order ?? 0,
+            difficulty: row.difficulty ?? null,
+            phaseId: String(row.phase_id),
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+          })));
+        }
+
+        return res.json([]);
+      } catch (error) {
+        console.error("Erro ao listar exercícios por fase:", error);
+        return res.status(500).json({ message: "Erro ao listar exercícios por fase" });
+      }
+    }
+  );
+
+  // PATCH /exercicios/:id/reorder - reorder exercise index_order
+  router.patch(
+    "/exercicios/:id/reorder",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      try {
+        const id = Number(req.params.id);
+        const { direction } = req.body as { direction: "up" | "down" };
+        if (!Number.isFinite(id) || !["up", "down"].includes(direction)) {
+          return res.status(400).json({ message: "Dados inválidos" });
+        }
+
+        const schema = await getExerciseSchemaInfo();
+        if (!schema.hasExercise) {
+          return res.status(400).json({ message: "Schema de exercícios não suporta reordenação" });
+        }
+
+        const current = await pool.query(
+          `SELECT id, phase_id, index_order FROM exercise WHERE id = $1`,
+          [id]
+        );
+        if (current.rows.length === 0) {
+          return res.status(404).json({ message: "Exercício não encontrado" });
+        }
+
+        const exercise = current.rows[0];
+        const op = direction === "up" ? "<" : ">";
+        const order = direction === "up" ? "DESC" : "ASC";
+
+        const neighbor = await pool.query(
+          `SELECT id, index_order FROM exercise
+           WHERE phase_id = $1 AND index_order ${op} $2
+           ORDER BY index_order ${order}
+           LIMIT 1`,
+          [exercise.phase_id, exercise.index_order]
+        );
+
+        if (neighbor.rows.length === 0) {
+          return res.json({ message: "Já está na posição limite" });
+        }
+
+        const neighborRow = neighbor.rows[0];
+
+        // Swap index_order
+        await pool.query(
+          `UPDATE exercise SET index_order = $1, updated_at = NOW() WHERE id = $2`,
+          [neighborRow.index_order, exercise.id]
+        );
+        await pool.query(
+          `UPDATE exercise SET index_order = $1, updated_at = NOW() WHERE id = $2`,
+          [exercise.index_order, neighborRow.id]
+        );
+
+        return res.json({ message: "Exercício reordenado com sucesso" });
+      } catch (error) {
+        console.error("Erro ao reordenar exercício:", error);
+        return res.status(500).json({ message: "Erro ao reordenar exercício" });
+      }
     }
   );
 

@@ -26,6 +26,8 @@ type DbCourseRow = {
   is_paid: boolean;
   duration_hours: number | null;
   level: string | null;
+  focus: string | null;
+  price: number | null;
 };
 
 type DbModuleRow = {
@@ -99,7 +101,7 @@ function buildEndDate(startDateIso: string, durationWeeks: number): string {
 
 async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
   const result = await pool.query<DbCourseRow>(
-    `SELECT id, name, description, is_paid, duration_hours, level
+    `SELECT id, name, description, is_paid, duration_hours, level, focus, price
      FROM course
      WHERE id = $1
      LIMIT 1`,
@@ -111,7 +113,7 @@ async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
 async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | null> {
   if (categoria === "informatica") {
     const inf = await pool.query<DbCourseRow>(
-      `SELECT id, name, description, is_paid, duration_hours, level
+      `SELECT id, name, description, is_paid, duration_hours, level, focus, price
        FROM course
        WHERE COALESCE(name, '') ILIKE '%informat%'
        ORDER BY id ASC
@@ -121,7 +123,7 @@ async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | 
   }
 
   const any = await pool.query<DbCourseRow>(
-    `SELECT id, name, description, is_paid, duration_hours, level
+    `SELECT id, name, description, is_paid, duration_hours, level, focus, price
      FROM course
      ORDER BY id ASC
      LIMIT 1`
@@ -444,6 +446,27 @@ export function turmasRouter(jwtSecret: string) {
     }
   };
 
+  // GET /estrutura/stats – global totals for overview cards
+  router.get("/estrutura/stats", authGuard(jwtSecret), async (_req: AuthRequest, res: any) => {
+    try {
+      const result = await pool.query<{ cursos: string; modulos: string; fases: string }>(
+        `SELECT
+           (SELECT COUNT(*) FROM course)::text   AS cursos,
+           (SELECT COUNT(*) FROM module)::text    AS modulos,
+           (SELECT COUNT(*) FROM phase)::text     AS fases`
+      );
+      const row = result.rows[0];
+      return res.json({
+        cursos: Number(row?.cursos ?? 0),
+        modulos: Number(row?.modulos ?? 0),
+        fases: Number(row?.fases ?? 0),
+      });
+    } catch (error) {
+      console.error("Erro ao buscar stats:", error);
+      return res.status(500).json({ message: "Erro ao buscar stats" });
+    }
+  });
+
   // GET /courses
   router.get("/courses", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     try {
@@ -470,11 +493,13 @@ export function turmasRouter(jwtSecret: string) {
           isPaid: row.is_paid,
           durationHours: row.duration_hours,
           level: row.level,
+          focus: row.focus,
+          price: row.price,
         }));
 
       if (!hasPaginationInput) {
         const result = await pool.query<DbCourseRow>(
-          `SELECT id, name, description, is_paid, duration_hours, level
+          `SELECT id, name, description, is_paid, duration_hours, level, focus, price
            FROM course
            ${where}
            ORDER BY id ASC`,
@@ -493,7 +518,7 @@ export function turmasRouter(jwtSecret: string) {
 
       const listParams = [...params, limit, offset];
       const result = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid, duration_hours, level
+        `SELECT id, name, description, is_paid, duration_hours, level, focus, price
          FROM course
          ${where}
          ORDER BY id ASC
@@ -525,8 +550,10 @@ export function turmasRouter(jwtSecret: string) {
     nome: z.string().min(2, "Nome obrigatório"),
     descricao: z.string().optional().nullable(),
     is_paid: z.boolean().optional().default(false),
-    duration_hours: z.coerce.number().int().min(0).optional().nullable(),
+    duration_hours: z.coerce.number().int().min(1).optional().nullable(),
     level: z.string().optional().nullable(),
+    focus: z.string().optional().nullable(),
+    price: z.coerce.number().min(0).optional().nullable(),
   });
 
   router.post(
@@ -542,10 +569,10 @@ export function turmasRouter(jwtSecret: string) {
         const data = parsed.data;
 
         const result = await pool.query<DbCourseRow>(
-          `INSERT INTO course (name, description, is_paid, duration_hours, level, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-           RETURNING id, name, description, is_paid, duration_hours, level`,
-          [data.nome, data.descricao ?? null, data.is_paid, data.duration_hours ?? null, data.level ?? null]
+          `INSERT INTO course (name, description, is_paid, duration_hours, level, focus, price, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+           RETURNING id, name, description, is_paid, duration_hours, level, focus, price`,
+          [data.nome, data.descricao ?? null, data.is_paid, data.duration_hours ?? null, data.level ?? null, data.focus ?? null, data.price ?? null]
         );
 
         const row = result.rows[0];
@@ -569,6 +596,8 @@ export function turmasRouter(jwtSecret: string) {
             isPaid: row.is_paid,
             durationHours: row.duration_hours,
             level: row.level,
+            focus: row.focus,
+            price: row.price,
           },
         });
       } catch (error) {
@@ -862,7 +891,7 @@ export function turmasRouter(jwtSecret: string) {
 
     if (courseIds.length > 0) {
       const r = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid, duration_hours, level
+        `SELECT id, name, description, is_paid, duration_hours, level, focus, price
          FROM course
          WHERE id = ANY($1::int[])`,
         [courseIds]
@@ -1383,6 +1412,102 @@ export function turmasRouter(jwtSecret: string) {
     } catch (error) {
       console.error("Erro ao buscar cronograma:", error);
       return res.status(500).json({ message: "Erro ao buscar cronograma" });
+    }
+  });
+
+  // ─── REORDER MODULES ───────────────────────────────────────────────
+  router.patch("/modules/:id/reorder", authGuard(jwtSecret), requireRole(["admin", "professor"]), async (req: AuthRequest, res: any) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) return res.status(400).json({ message: "ID inválido" });
+
+      const direction = req.body?.direction as string;
+      if (direction !== "up" && direction !== "down") {
+        return res.status(400).json({ message: "direction deve ser 'up' ou 'down'" });
+      }
+
+      const current = await pool.query<{ id: number; course_id: number; index_order: number }>(
+        `SELECT id, course_id, index_order FROM module WHERE id = $1`,
+        [id]
+      );
+      if (current.rows.length === 0) return res.status(404).json({ message: "Módulo não encontrado" });
+
+      const mod = current.rows[0];
+      const operator = direction === "up" ? "<" : ">";
+      const order = direction === "up" ? "DESC" : "ASC";
+
+      const neighbor = await pool.query<{ id: number; index_order: number }>(
+        `SELECT id, index_order FROM module
+         WHERE course_id = $1 AND index_order ${operator} $2
+         ORDER BY index_order ${order}
+         LIMIT 1`,
+        [mod.course_id, mod.index_order]
+      );
+
+      if (neighbor.rows.length === 0) {
+        return res.status(400).json({ message: "Já está na posição limite" });
+      }
+
+      const nb = neighbor.rows[0];
+
+      await pool.query("BEGIN");
+      await pool.query(`UPDATE module SET index_order = $1, updated_at = NOW() WHERE id = $2`, [nb.index_order, mod.id]);
+      await pool.query(`UPDATE module SET index_order = $1, updated_at = NOW() WHERE id = $2`, [mod.index_order, nb.id]);
+      await pool.query("COMMIT");
+
+      return res.json({ message: "Ordem atualizada" });
+    } catch (error) {
+      await pool.query("ROLLBACK").catch(() => {});
+      console.error("Erro ao reordenar módulo:", error);
+      return res.status(500).json({ message: "Erro ao reordenar módulo" });
+    }
+  });
+
+  // ─── REORDER PHASES ────────────────────────────────────────────────
+  router.patch("/phases/:id/reorder", authGuard(jwtSecret), requireRole(["admin", "professor"]), async (req: AuthRequest, res: any) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) return res.status(400).json({ message: "ID inválido" });
+
+      const direction = req.body?.direction as string;
+      if (direction !== "up" && direction !== "down") {
+        return res.status(400).json({ message: "direction deve ser 'up' ou 'down'" });
+      }
+
+      const current = await pool.query<{ id: number; module_id: number; index_order: number }>(
+        `SELECT id, module_id, index_order FROM phase WHERE id = $1`,
+        [id]
+      );
+      if (current.rows.length === 0) return res.status(404).json({ message: "Fase não encontrada" });
+
+      const phase = current.rows[0];
+      const operator = direction === "up" ? "<" : ">";
+      const order = direction === "up" ? "DESC" : "ASC";
+
+      const neighbor = await pool.query<{ id: number; index_order: number }>(
+        `SELECT id, index_order FROM phase
+         WHERE module_id = $1 AND index_order ${operator} $2
+         ORDER BY index_order ${order}
+         LIMIT 1`,
+        [phase.module_id, phase.index_order]
+      );
+
+      if (neighbor.rows.length === 0) {
+        return res.status(400).json({ message: "Já está na posição limite" });
+      }
+
+      const nb = neighbor.rows[0];
+
+      await pool.query("BEGIN");
+      await pool.query(`UPDATE phase SET index_order = $1, updated_at = NOW() WHERE id = $2`, [nb.index_order, phase.id]);
+      await pool.query(`UPDATE phase SET index_order = $1, updated_at = NOW() WHERE id = $2`, [phase.index_order, nb.id]);
+      await pool.query("COMMIT");
+
+      return res.json({ message: "Ordem atualizada" });
+    } catch (error) {
+      await pool.query("ROLLBACK").catch(() => {});
+      console.error("Erro ao reordenar fase:", error);
+      return res.status(500).json({ message: "Erro ao reordenar fase" });
     }
   });
 

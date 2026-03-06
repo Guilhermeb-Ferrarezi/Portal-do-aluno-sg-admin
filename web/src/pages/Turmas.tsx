@@ -37,15 +37,11 @@ import {
   obterCronograma,
   listarCursos,
   listarModulosPorCurso,
-  criarModulo,
-  criarFase,
-  listarFasesDoModulo,
   listarExercicios,
   type Turma,
   type User,
   type Curso,
   type Modulo,
-  type Fase,
   type Exercicio,
 } from "../services/api";
 import ConfirmModal from "../components/ConfirmModal";
@@ -83,17 +79,6 @@ export default function TurmasPage() {
   const [courseIdSelecionado, setCourseIdSelecionado] = React.useState("");
   const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
 
-  // Form criação de módulo/fase
-  const [novoModuloNome, setNovoModuloNome] = React.useState("");
-  const [novoModuloDescricao, setNovoModuloDescricao] = React.useState("");
-  const [novoModuloCourseId, setNovoModuloCourseId] = React.useState("");
-  const [criandoModulo, setCriandoModulo] = React.useState(false);
-
-  const [novaFaseNome, setNovaFaseNome] = React.useState("");
-  const [novaFaseWeek, setNovaFaseWeek] = React.useState(1);
-  const [novaFaseModuloId, setNovaFaseModuloId] = React.useState("");
-  const [fasesModuloAtual, setFasesModuloAtual] = React.useState<Fase[]>([]);
-  const [criandoFase, setCriandoFase] = React.useState(false);
 
   // Cronograma
   const [, setExerciciosDisponiveis] = React.useState<Exercicio[]>([]);
@@ -160,7 +145,6 @@ export default function TurmasPage() {
           setCursos(data);
           const firstCourseId = data[0]?.id ?? "";
           setCourseIdSelecionado(firstCourseId);
-          setNovoModuloCourseId(firstCourseId);
           if (firstCourseId) {
             await carregarModulosDoCurso(firstCourseId);
           }
@@ -196,16 +180,6 @@ export default function TurmasPage() {
     });
   }, [courseIdSelecionado, role]);
 
-  React.useEffect(() => {
-    if (role !== "admin") return;
-    if (!novaFaseModuloId) {
-      setFasesModuloAtual([]);
-      return;
-    }
-    listarFasesDoModulo(novaFaseModuloId)
-      .then(setFasesModuloAtual)
-      .catch(() => setFasesModuloAtual([]));
-  }, [novaFaseModuloId, role]);
 
   async function adicionarExerciciosNoCronograma(turmaId: string) {
     if (exerciciosSelecionados.length === 0) return;
@@ -367,7 +341,6 @@ export default function TurmasPage() {
     setCronogramaAtivo(false);
     if (cursos[0]?.id) {
       setCourseIdSelecionado(cursos[0].id);
-      setNovoModuloCourseId(cursos[0].id);
     } else {
       setCourseIdSelecionado("");
     }
@@ -422,57 +395,6 @@ export default function TurmasPage() {
     }
   }
 
-  async function handleCriarModulo(e: React.FormEvent) {
-    e.preventDefault();
-    if (!novoModuloNome.trim() || !novoModuloCourseId) {
-      setToastMsg({ type: "error", msg: "Informe curso e nome do módulo" });
-      return;
-    }
-
-    try {
-      setCriandoModulo(true);
-      const created = await criarModulo({
-        nome: novoModuloNome.trim(),
-        descricao: novoModuloDescricao.trim() || null,
-        course_id: Number(novoModuloCourseId),
-      });
-      setToastMsg({ type: "success", msg: "Módulo criado com sucesso!" });
-      setNovoModuloNome("");
-      setNovoModuloDescricao("");
-      setCourseIdSelecionado(novoModuloCourseId);
-      await carregarModulosDoCurso(novoModuloCourseId, created.modulo.id);
-      setNovaFaseModuloId(created.modulo.id);
-    } catch (e) {
-      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar módulo" });
-    } finally {
-      setCriandoModulo(false);
-    }
-  }
-
-  async function handleCriarFase(e: React.FormEvent) {
-    e.preventDefault();
-    if (!novaFaseModuloId || !novaFaseNome.trim()) {
-      setToastMsg({ type: "error", msg: "Informe módulo e nome da fase" });
-      return;
-    }
-
-    try {
-      setCriandoFase(true);
-      await criarFase(novaFaseModuloId, {
-        nome: novaFaseNome.trim(),
-        week_number: novaFaseWeek,
-      });
-      setToastMsg({ type: "success", msg: "Fase criada com sucesso!" });
-      setNovaFaseNome("");
-      const fases = await listarFasesDoModulo(novaFaseModuloId);
-      setFasesModuloAtual(fases);
-      setNovaFaseWeek((prev) => prev + 1);
-    } catch (e) {
-      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar fase" });
-    } finally {
-      setCriandoFase(false);
-    }
-  }
 
   const disabled =
     saving || !nome.trim() || !courseIdSelecionado || !moduloIdSelecionado;
@@ -483,7 +405,7 @@ export default function TurmasPage() {
       : "Nenhuma turma registrada";
   const emptyDescription = !canCreate
     ? "Você ainda não está registrado em nenhuma turma. Aguarde administrador adicioná-lo a uma turma."
-    : "Crie sua primeira turma preenchendo o formulario acima.";
+    : "Crie turmas através da página Estrutura do Curso.";
 
   return (
     <DashboardLayout
@@ -508,8 +430,8 @@ export default function TurmasPage() {
             </button>
           </div>
 
-          {/* FORMULÁRIO */}
-          {canCreate && (
+          {/* FORMULÁRIO - apenas edição */}
+          {canCreate && editandoId && (
             <div className="turmaFormCard">
               <h2 className="turmaFormTitle">
                 {editandoId ? "Editar Turma" : "Criar Nova Turma"}
@@ -656,90 +578,7 @@ export default function TurmasPage() {
             </div>
           )}
 
-          {canCreate && (
-            <div className="turmaFormCard" style={{ marginTop: 16 }}>
-              <h2 className="turmaFormTitle">Criar Módulo e Fase</h2>
 
-              <form onSubmit={handleCriarModulo} className="turmaForm" style={{ marginBottom: 18 }}>
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Curso do Módulo *</span>
-                  <AnimatedSelect
-                    className="turmaSelect"
-                    value={novoModuloCourseId}
-                    onChange={(e) => setNovoModuloCourseId(e.target.value)}
-                  >
-                    <option value="">Selecione um curso</option>
-                    {cursos.map((curso) => (
-                      <option key={curso.id} value={curso.id}>
-                        {curso.nome}
-                      </option>
-                    ))}
-                  </AnimatedSelect>
-                </div>
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Nome do Módulo *</span>
-                  <input
-                    className="turmaInput"
-                    value={novoModuloNome}
-                    onChange={(e) => setNovoModuloNome(e.target.value)}
-                    placeholder="Ex: JavaScript + DOM"
-                  />
-                </div>
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Descrição do Módulo</span>
-                  <textarea
-                    className="turmaTextarea"
-                    value={novoModuloDescricao}
-                    onChange={(e) => setNovoModuloDescricao(e.target.value)}
-                    placeholder="Opcional"
-                  />
-                </div>
-                <div className="turmaActions">
-                  <AnimatedButton className="turmaSubmitBtn" type="submit" disabled={criandoModulo}>
-                    {criandoModulo ? iconLabel(<Loader2 size={16} />, "Criando módulo...") : iconLabel(<Plus size={16} />, "Criar Módulo")}
-                  </AnimatedButton>
-                </div>
-              </form>
-
-              <form onSubmit={handleCriarFase} className="turmaForm">
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Módulo da Fase *</span>
-                  <AnimatedSelect
-                    className="turmaSelect"
-                    value={novaFaseModuloId}
-                    onChange={(e) => setNovaFaseModuloId(e.target.value)}
-                  >
-                    <option value="">Selecione um módulo</option>
-                    {modulosCurso.map((mod) => (
-                      <option key={mod.id} value={mod.id}>
-                        {mod.indexOrder}. {mod.nome}
-                      </option>
-                    ))}
-                  </AnimatedSelect>
-                </div>
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Nome da Fase *</span>
-                  <input
-                    className="turmaInput"
-                    value={novaFaseNome}
-                    onChange={(e) => setNovaFaseNome(e.target.value)}
-                    placeholder="Ex: Semana 1 - Introdução"
-                  />
-                </div>
-                {/* Semana removida da criação conforme correções.md - editar somente na lista */}
-                {novaFaseModuloId && (
-                  <small style={{ fontSize: 12, color: "var(--muted)" }}>
-                    {fasesModuloAtual.length} fase(s) cadastrada(s) neste módulo.
-                  </small>
-                )}
-                <div className="turmaActions">
-                  <AnimatedButton className="turmaSubmitBtn" type="submit" disabled={criandoFase}>
-                    {criandoFase ? iconLabel(<Loader2 size={16} />, "Criando fase...") : iconLabel(<Plus size={16} />, "Criar Fase")}
-                  </AnimatedButton>
-                </div>
-              </form>
-            </div>
-          )}
 
           {/* LISTA DE TURMAS */}
           <div>
@@ -818,14 +657,6 @@ export default function TurmasPage() {
                           </div>
 
                           <div className="turmaCardFooter">
-                            {canCreate && (
-                              <AnimatedButton
-                                className="turmaManageBtn"
-                                onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
-                              >
-                                {iconLabel(<Users size={16} />, "Gerenciar Alunos")}
-                              </AnimatedButton>
-                            )}
                             <AnimatedButton
                               className="turmaViewBtn"
                               onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}

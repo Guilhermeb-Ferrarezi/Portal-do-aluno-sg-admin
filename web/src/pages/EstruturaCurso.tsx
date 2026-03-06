@@ -14,15 +14,23 @@ import {
   deletarCurso,
   deletarModulo,
   deletarFase,
+  reordenarModulo,
+  reordenarFase,
+  obterEstruturaStats,
+  listarExerciciosPorFase,
+  reordenarExercicio,
   type Curso,
   type Modulo,
   type Fase,
+  type ExercicioFase,
 } from "../services/api";
 import { AnimatedButton, AnimatedToast } from "../components/animate-ui";
-import { Loader2, Plus, Layers, GitBranch, Trash2 } from "lucide-react";
+import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown } from "lucide-react";
+import CriarExercicioForm from "../components/CriarExercicioForm";
+import CriarTurmaForm from "../components/CriarTurmaForm";
 import "./EstruturaCurso.css";
 
-type AbaEstrutura = "curso" | "modulo" | "fase";
+type AbaEstrutura = "curso" | "modulo" | "fase" | "exercicios" | "turmas";
 type DetalheModalState =
   | { tipo: "curso"; item: Curso }
   | { tipo: "modulo"; item: Modulo }
@@ -46,11 +54,20 @@ export default function EstruturaCursoPage() {
   const [fasesModulo, setFasesModulo] = React.useState<Fase[]>([]);
   const [totalFases, setTotalFases] = React.useState(0);
 
+  // Global stats for overview cards
+  const [globalStats, setGlobalStats] = React.useState({ cursos: 0, modulos: 0, fases: 0 });
+  // All courses loaded (without pagination) for selects in módulo/fase tabs
+  const [todosCursos, setTodosCursos] = React.useState<Curso[]>([]);
+  // All modules loaded (without pagination) for selects in fase tab
+  const [todosModulos, setTodosModulos] = React.useState<Modulo[]>([]);
+
   const [novoCursoNome, setNovoCursoNome] = React.useState("");
   const [novoCursoDescricao, setNovoCursoDescricao] = React.useState("");
   const [novoCursoPago, setNovoCursoPago] = React.useState(false);
   const [novoCursoDuracao, setNovoCursoDuracao] = React.useState<number | "">("");
-  const [novoCursoLevel, setNovoCursoLevel] = React.useState("");
+  const [novoCursoNivel, setNovoCursoNivel] = React.useState("");
+  const [novoCursoFoco, setNovoCursoFoco] = React.useState("");
+  const [novoCursoPreco, setNovoCursoPreco] = React.useState<number | "">("");
   const [criandoCurso, setCriandoCurso] = React.useState(false);
 
   const [novoModuloNome, setNovoModuloNome] = React.useState("");
@@ -61,7 +78,7 @@ export default function EstruturaCursoPage() {
   const [novaFaseWeek, setNovaFaseWeek] = React.useState(1);
   const [criandoFase, setCriandoFase] = React.useState(false);
 
-  const [filtroCursoId, setFiltroCursoId] = React.useState("");
+  const [filtroCursoId, _setFiltroCursoId] = React.useState("");
   const [paginaCursos, setPaginaCursos] = React.useState(1);
   const [itensCursos, setItensCursos] = React.useState(5);
 
@@ -75,15 +92,23 @@ export default function EstruturaCursoPage() {
   const [detalheModal, setDetalheModal] = React.useState<DetalheModalState>(null);
   const [deletandoDetalhe, setDeletandoDetalhe] = React.useState(false);
 
+  // Exercises for selected phase
+  const [exerciciosFase, setExerciciosFase] = React.useState<ExercicioFase[]>([]);
+  const [faseIdParaExercicios, setFaseIdParaExercicios] = React.useState("");
+
   const abaAtiva: AbaEstrutura = React.useMemo(() => {
     if (location.pathname.endsWith("/modulos")) return "modulo";
     if (location.pathname.endsWith("/fases")) return "fase";
+    if (location.pathname.endsWith("/exercicios")) return "exercicios";
+    if (location.pathname.endsWith("/turmas")) return "turmas";
     return "curso";
   }, [location.pathname]);
 
   const rotaAba = (aba: AbaEstrutura) => {
     if (aba === "modulo") return "/dashboard/estrutura-curso/modulos";
     if (aba === "fase") return "/dashboard/estrutura-curso/fases";
+    if (aba === "exercicios") return "/dashboard/estrutura-curso/exercicios";
+    if (aba === "turmas") return "/dashboard/estrutura-curso/turmas";
     return "/dashboard/estrutura-curso/cursos";
   };
 
@@ -106,6 +131,46 @@ export default function EstruturaCursoPage() {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar cursos" })
     );
   }, [carregarCursos]);
+
+  // Load global stats
+  const carregarStats = React.useCallback(() => {
+    obterEstruturaStats()
+      .then(setGlobalStats)
+      .catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    carregarStats();
+  }, [carregarStats]);
+
+  // Load all courses (no pagination) for selects
+  React.useEffect(() => {
+    listarCursos()
+      .then((data) => {
+        const items = Array.isArray(data) ? data : [];
+        setTodosCursos(items);
+        // Auto-select first free course if none selected
+        if (!courseIdSelecionado && items.length > 0) {
+          const free = items.find((c) => !c.isPaid);
+          if (free) setCourseIdSelecionado(free.id);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Load all modules when courseIdSelecionado changes (for fase tab select)
+  React.useEffect(() => {
+    if (!courseIdSelecionado) {
+      setTodosModulos([]);
+      return;
+    }
+    listarModulosPorCurso(courseIdSelecionado)
+      .then((data) => {
+        const items = Array.isArray(data) ? data : [];
+        setTodosModulos(items);
+      })
+      .catch(() => setTodosModulos([]));
+  }, [courseIdSelecionado]);
 
   React.useEffect(() => {
     if (!courseIdSelecionado) {
@@ -150,6 +215,29 @@ export default function EstruturaCursoPage() {
   React.useEffect(() => setPaginaModulos(1), [filtroModuloId, courseIdSelecionado, itensModulos]);
   React.useEffect(() => setPaginaFases(1), [filtroFaseId, moduloIdSelecionado, itensFases]);
 
+  // Load exercises when a phase is clicked for exercise list view
+  React.useEffect(() => {
+    if (!faseIdParaExercicios) {
+      setExerciciosFase([]);
+      return;
+    }
+    listarExerciciosPorFase(faseIdParaExercicios)
+      .then(setExerciciosFase)
+      .catch(() => setExerciciosFase([]));
+  }, [faseIdParaExercicios]);
+
+  async function handleReordenarExercicio(id: string, direction: "up" | "down") {
+    try {
+      await reordenarExercicio(id, direction);
+      if (faseIdParaExercicios) {
+        const updated = await listarExerciciosPorFase(faseIdParaExercicios);
+        setExerciciosFase(updated);
+      }
+    } catch (e) {
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao reordenar exercício" });
+    }
+  }
+
   async function handleCriarCurso(e: React.FormEvent) {
     e.preventDefault();
     if (!novoCursoNome.trim()) {
@@ -163,18 +251,28 @@ export default function EstruturaCursoPage() {
         nome: novoCursoNome.trim(),
         descricao: novoCursoDescricao.trim() || null,
         is_paid: novoCursoPago,
-        duration_hours: novoCursoDuracao !== "" ? Number(novoCursoDuracao) : null,
-        level: novoCursoLevel || null,
+        duration_hours: novoCursoDuracao || null,
+        level: novoCursoNivel || null,
+        focus: novoCursoPago ? (novoCursoFoco || null) : null,
+        price: novoCursoPreco !== "" ? novoCursoPreco : null,
       });
 
       setNovoCursoNome("");
       setNovoCursoDescricao("");
       setNovoCursoPago(false);
       setNovoCursoDuracao("");
-      setNovoCursoLevel("");
+      setNovoCursoNivel("");
+      setNovoCursoFoco("");
+      setNovoCursoPreco("");
       setToastMsg({ type: "success", msg: "Curso criado com sucesso" });
 
       await carregarCursos();
+      carregarStats();
+      // Refresh all courses list for selects
+      listarCursos().then((data) => {
+        const items = Array.isArray(data) ? data : [];
+        setTodosCursos(items);
+      }).catch(() => {});
       if (result.curso?.id) {
         setCourseIdSelecionado(result.curso.id);
       }
@@ -212,6 +310,12 @@ export default function EstruturaCursoPage() {
       const mods = modsResponse.items;
       setModulosCurso(mods);
       setTotalModulos(modsResponse.total);
+      // Also refresh todosModulos for fase tab select
+      listarModulosPorCurso(courseIdSelecionado).then((data) => {
+        const items = Array.isArray(data) ? data : [];
+        setTodosModulos(items);
+      }).catch(() => {});
+      carregarStats();
       const nextId = result.modulo.id || mods[0]?.id || "";
       setModuloIdSelecionado(nextId);
       navigate(rotaAba("fase"));
@@ -246,10 +350,39 @@ export default function EstruturaCursoPage() {
       });
       setFasesModulo(fasesResponse.items);
       setTotalFases(fasesResponse.total);
+      carregarStats();
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar fase" });
     } finally {
       setCriandoFase(false);
+    }
+  }
+
+  async function handleReordenarModulo(id: string, direction: "up" | "down") {
+    try {
+      await reordenarModulo(id, direction);
+      const modsResponse = await listarModulosPorCurso(courseIdSelecionado, {
+        page: paginaModulos,
+        limit: itensModulos,
+      });
+      setModulosCurso(modsResponse.items);
+      setTotalModulos(modsResponse.total);
+    } catch (e) {
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao reordenar módulo" });
+    }
+  }
+
+  async function handleReordenarFase(id: string, direction: "up" | "down") {
+    try {
+      await reordenarFase(id, direction);
+      const fasesResponse = await listarFasesDoModulo(moduloIdSelecionado, {
+        page: paginaFases,
+        limit: itensFases,
+      });
+      setFasesModulo(fasesResponse.items);
+      setTotalFases(fasesResponse.total);
+    } catch (e) {
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao reordenar fase" });
     }
   }
 
@@ -373,20 +506,26 @@ export default function EstruturaCursoPage() {
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "fase" ? "active" : ""}`} onClick={() => navigate(rotaAba("fase"))}>
             <GitBranch size={16} /> Fase
           </button>
+          <button type="button" className={`estruturaTabBtn ${abaAtiva === "exercicios" ? "active" : ""}`} onClick={() => navigate(rotaAba("exercicios"))}>
+            <PenLine size={16} /> Exercícios
+          </button>
+          <button type="button" className={`estruturaTabBtn ${abaAtiva === "turmas" ? "active" : ""}`} onClick={() => navigate(rotaAba("turmas"))}>
+            <School size={16} /> Turmas
+          </button>
         </div>
 
         <div className="estruturaOverview" aria-label="Resumo da estrutura">
           <div className="estruturaOverviewCard">
             <span>Cursos</span>
-            <strong>{totalCursos}</strong>
+            <strong>{globalStats.cursos}</strong>
           </div>
           <div className="estruturaOverviewCard">
             <span>Módulos</span>
-            <strong>{totalModulos}</strong>
+            <strong>{globalStats.modulos}</strong>
           </div>
           <div className="estruturaOverviewCard">
             <span>Fases</span>
-            <strong>{totalFases}</strong>
+            <strong>{globalStats.fases}</strong>
           </div>
         </div>
 
@@ -404,27 +543,6 @@ export default function EstruturaCursoPage() {
                 <span>Descrição</span>
                 <textarea value={novoCursoDescricao} onChange={(e) => setNovoCursoDescricao(e.target.value)} placeholder="Opcional" />
 
-                <span>Duração (horas)</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={novoCursoDuracao}
-                  onChange={(e) => setNovoCursoDuracao(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="Ex: 40"
-                />
-
-                <span>Nível de dificuldade</span>
-                <select
-                  value={novoCursoLevel}
-                  onChange={(e) => setNovoCursoLevel(e.target.value)}
-                  className="estruturaSelect"
-                >
-                  <option value="">Selecione...</option>
-                  <option value="iniciante">Iniciante</option>
-                  <option value="intermediario">Intermediário</option>
-                  <option value="avancado">Avançado</option>
-                </select>
-
                 <label className="estruturaSwitchRow">
                   <input type="checkbox" className="estruturaSwitchInput" checked={novoCursoPago} onChange={(e) => setNovoCursoPago(e.target.checked)} />
                   <span className="estruturaSwitchTrack" aria-hidden="true">
@@ -432,6 +550,36 @@ export default function EstruturaCursoPage() {
                   </span>
                   <span className="estruturaSwitchText">{novoCursoPago ? "Curso pago" : "Curso gratuito"}</span>
                 </label>
+
+                <span>Duração (horas)</span>
+                <input type="number" min={1} value={novoCursoDuracao} onChange={(e) => setNovoCursoDuracao(e.target.value ? Number(e.target.value) : "")} placeholder="Ex: 120" />
+
+                <span>Nível de dificuldade</span>
+                <select value={novoCursoNivel} onChange={(e) => setNovoCursoNivel(e.target.value)}>
+                  <option value="">Selecione o nível</option>
+                  <option value="iniciante">Iniciante</option>
+                  <option value="intermediario">Intermediário</option>
+                  <option value="avancado">Avançado</option>
+                </select>
+
+                {!novoCursoPago && (
+                  <div className="estruturaInfoBox">
+                    <span>Turmas via Cadastro</span>
+                    <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "4px 0 0" }}>
+                      Cursos gratuitos têm turmas criadas via cadastro de alunos.
+                    </p>
+                  </div>
+                )}
+
+                {novoCursoPago && (
+                  <>
+                    <span>Foco do curso</span>
+                    <input value={novoCursoFoco} onChange={(e) => setNovoCursoFoco(e.target.value)} placeholder="Ex: Desenvolvimento Web, Data Science" />
+                  </>
+                )}
+
+                <span>Preço (R$)</span>
+                <input type="number" min={0} step="0.01" value={novoCursoPreco} onChange={(e) => setNovoCursoPreco(e.target.value ? Number(e.target.value) : "")} placeholder={novoCursoPago ? "Ex: 497.00" : "0 (gratuito)"} />
 
                 <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoCurso}>
                   {criandoCurso ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar curso</>}
@@ -442,26 +590,15 @@ export default function EstruturaCursoPage() {
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Cursos Disponíveis</h2>
-                <p>Filtre e navegue pelos cursos cadastrados.</p>
+                <p>Clique em um curso para ver detalhes.</p>
               </div>
-              <div className="estruturaForm">
-                <PaginatedSelect
-                  value={filtroCursoId}
-                  onChange={setFiltroCursoId}
-                  options={cursos.map((c) => ({
-                    value: c.id,
-                    label: c.nome,
-                    meta: c.isPaid ? "Pago" : "Gratuito",
-                  }))}
-                  placeholder="Busque ou selecione um curso"
-                  emptyText="Nenhum curso para selecionar"
-                />
-                {filtroCursoId && (
-                  <button type="button" className="filtroLimparBtn" onClick={() => setFiltroCursoId("")}>
-                    Limpar filtro
-                  </button>
-                )}
-              </div>
+              {cursoSelecionado && (
+                <div className="estruturaSelectedInfo">
+                  <span className="estruturaSelectedLabel">Curso selecionado:</span>
+                  <strong>{cursoSelecionado.nome}</strong>
+                  <span className="viewerItemMeta">{cursoSelecionado.isPaid ? "Pago" : "Gratuito"}{cursoSelecionado.durationHours ? ` • ${cursoSelecionado.durationHours}h` : ""}{cursoSelecionado.price != null && cursoSelecionado.price > 0 ? ` • R$ ${Number(cursoSelecionado.price).toFixed(2)}` : ""}</span>
+                </div>
+              )}
               <div className="viewerList" style={{ marginTop: 10 }}>
                 {paginaCursosItens.length === 0 ? (
                   <div className="viewerEmpty">Nenhum curso encontrado.</div>
@@ -505,7 +642,7 @@ export default function EstruturaCursoPage() {
                 <PaginatedSelect
                   value={courseIdSelecionado}
                   onChange={setCourseIdSelecionado}
-                  options={cursos.map((curso) => ({
+                  options={todosCursos.map((curso) => ({
                     value: curso.id,
                     label: curso.nome,
                     meta: curso.isPaid ? "Pago" : "Gratuito",
@@ -556,19 +693,40 @@ export default function EstruturaCursoPage() {
                 ) : paginaModulosItens.length === 0 ? (
                   <div className="viewerEmpty">Nenhum módulo encontrado.</div>
                 ) : (
-                  paginaModulosItens.map((mod) => (
-                    <button
-                      key={mod.id}
-                      type="button"
-                      className={`viewerItem ${mod.id === moduloIdSelecionado ? "active" : ""}`}
-                      onClick={() => {
-                        setModuloIdSelecionado(mod.id);
-                        setDetalheModal({ tipo: "modulo", item: mod });
-                      }}
-                    >
-                      <span className="viewerItemTitle">{mod.nome}</span>
-                      <span className="viewerItemMeta">#{mod.indexOrder}</span>
-                    </button>
+                  paginaModulosItens.map((mod, idx) => (
+                    <div key={mod.id} className="viewerItemRow">
+                      <div className="reorderBtns">
+                        <button
+                          type="button"
+                          className="reorderBtn"
+                          title="Mover para cima"
+                          disabled={idx === 0 && paginaModulos === 1}
+                          onClick={(e) => { e.stopPropagation(); handleReordenarModulo(mod.id, "up"); }}
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="reorderBtn"
+                          title="Mover para baixo"
+                          disabled={idx === paginaModulosItens.length - 1 && paginaModulos * itensModulos >= totalModulosPaginacao}
+                          onClick={(e) => { e.stopPropagation(); handleReordenarModulo(mod.id, "down"); }}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className={`viewerItem ${mod.id === moduloIdSelecionado ? "active" : ""}`}
+                        onClick={() => {
+                          setModuloIdSelecionado(mod.id);
+                          setDetalheModal({ tipo: "modulo", item: mod });
+                        }}
+                      >
+                        <span className="viewerItemTitle">{mod.nome}</span>
+                        <span className="viewerItemMeta">#{mod.indexOrder}</span>
+                      </button>
+                    </div>
                   ))
                 )}
               </div>
@@ -591,11 +749,24 @@ export default function EstruturaCursoPage() {
                 <p>Formulário de criação de fase.</p>
               </div>
               <form onSubmit={handleCriarFase} className="estruturaForm">
+                <span>Curso *</span>
+                <PaginatedSelect
+                  value={courseIdSelecionado}
+                  onChange={setCourseIdSelecionado}
+                  options={todosCursos.map((curso) => ({
+                    value: curso.id,
+                    label: curso.nome,
+                    meta: curso.isPaid ? "Pago" : "Gratuito",
+                  }))}
+                  placeholder="Selecione um curso"
+                  emptyText="Nenhum curso cadastrado"
+                />
+
                 <span>Módulo *</span>
                 <PaginatedSelect
                   value={moduloIdSelecionado}
                   onChange={setModuloIdSelecionado}
-                  options={modulosCurso.map((mod) => ({
+                  options={todosModulos.map((mod) => ({
                     value: mod.id,
                     label: mod.nome,
                     meta: `Ordem #${mod.indexOrder}`,
@@ -646,16 +817,40 @@ export default function EstruturaCursoPage() {
                 ) : paginaFasesItens.length === 0 ? (
                   <div className="viewerEmpty">Nenhuma fase encontrada.</div>
                 ) : (
-                  paginaFasesItens.map((fase) => (
-                    <button
-                      key={fase.id}
-                      type="button"
-                      className="viewerItem"
-                      onClick={() => setDetalheModal({ tipo: "fase", item: fase })}
-                    >
-                      <span className="viewerItemTitle">{fase.nome}</span>
-                      <span className="viewerItemMeta">Semana {fase.weekNumber}</span>
-                    </button>
+                  paginaFasesItens.map((fase, idx) => (
+                    <div key={fase.id} className="viewerItemRow">
+                      <div className="reorderBtns">
+                        <button
+                          type="button"
+                          className="reorderBtn"
+                          title="Mover para cima"
+                          disabled={idx === 0 && paginaFases === 1}
+                          onClick={(e) => { e.stopPropagation(); handleReordenarFase(fase.id, "up"); }}
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="reorderBtn"
+                          title="Mover para baixo"
+                          disabled={idx === paginaFasesItens.length - 1 && paginaFases * itensFases >= totalFasesPaginacao}
+                          onClick={(e) => { e.stopPropagation(); handleReordenarFase(fase.id, "down"); }}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className={`viewerItem ${fase.id === faseIdParaExercicios ? "active" : ""}`}
+                        onClick={() => {
+                          setFaseIdParaExercicios(fase.id);
+                          setDetalheModal({ tipo: "fase", item: fase });
+                        }}
+                      >
+                        <span className="viewerItemTitle">{fase.nome}</span>
+                        <span className="viewerItemMeta">Semana {fase.weekNumber}</span>
+                      </button>
+                    </div>
                   ))
                 )}
               </div>
@@ -666,7 +861,63 @@ export default function EstruturaCursoPage() {
                 onPageChange={setPaginaFases}
                 onItemsPerPageChange={setItensFases}
               />
+
+              {/* Exercises for selected phase */}
+              {faseIdParaExercicios && (
+                <div style={{ marginTop: 16, borderTop: "1px solid color-mix(in srgb, var(--line) 40%, transparent)", paddingTop: 14 }}>
+                  <div className="estruturaCardHead" style={{ padding: "0 0 8px" }}>
+                    <h3 style={{ fontSize: "1rem", margin: 0 }}>Exercícios da Fase</h3>
+                    <p style={{ fontSize: "0.82rem", margin: 0 }}>Exercícios vinculados à fase selecionada. Reordene com as setas.</p>
+                  </div>
+                  <div className="viewerList">
+                    {exerciciosFase.length === 0 ? (
+                      <div className="viewerEmpty">Nenhum exercício vinculado a esta fase.</div>
+                    ) : (
+                      exerciciosFase.map((ex, idx) => (
+                        <div key={ex.id} className="viewerItemRow">
+                          <div className="reorderBtns">
+                            <button
+                              type="button"
+                              className="reorderBtn"
+                              title="Mover para cima"
+                              disabled={idx === 0}
+                              onClick={(e) => { e.stopPropagation(); handleReordenarExercicio(ex.id, "up"); }}
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="reorderBtn"
+                              title="Mover para baixo"
+                              disabled={idx === exerciciosFase.length - 1}
+                              onClick={(e) => { e.stopPropagation(); handleReordenarExercicio(ex.id, "down"); }}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
+                          <div className="viewerItem" style={{ cursor: "default" }}>
+                            <span className="viewerItemTitle">{ex.titulo}</span>
+                            <span className="viewerItemMeta">Ordem #{ex.indexOrder}{ex.difficulty != null ? ` • Dif. ${ex.difficulty}` : ""}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {abaAtiva === "exercicios" && (
+          <div className="estruturaGrid">
+            <CriarExercicioForm />
+          </div>
+        )}
+
+        {abaAtiva === "turmas" && (
+          <div className="estruturaGrid">
+            <CriarTurmaForm />
           </div>
         )}
 
@@ -722,6 +973,24 @@ export default function EstruturaCursoPage() {
                   <div className="estruturaDetalheRow">
                     <span>Tipo</span>
                     <strong>{detalheModal.item.isPaid ? "Pago" : "Gratuito"}</strong>
+                  </div>
+                  <div className="estruturaDetalheRow">
+                    <span>Duração</span>
+                    <strong>{detalheModal.item.durationHours ? `${detalheModal.item.durationHours}h` : "-"}</strong>
+                  </div>
+                  <div className="estruturaDetalheRow">
+                    <span>Nível</span>
+                    <strong>{detalheModal.item.level || "-"}</strong>
+                  </div>
+                  {detalheModal.item.isPaid && (
+                    <div className="estruturaDetalheRow">
+                      <span>Foco</span>
+                      <strong>{detalheModal.item.focus || "-"}</strong>
+                    </div>
+                  )}
+                  <div className="estruturaDetalheRow">
+                    <span>Preço</span>
+                    <strong>{detalheModal.item.price != null ? `R$ ${Number(detalheModal.item.price).toFixed(2)}` : "Gratuito"}</strong>
                   </div>
                   <div className="estruturaDetalheRow">
                     <span>Módulos vinculados</span>

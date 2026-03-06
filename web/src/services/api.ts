@@ -1005,6 +1005,8 @@ export type Curso = {
   isPaid?: boolean;
   durationHours?: number | null;
   level?: string | null;
+  focus?: string | null;
+  price?: number | null;
 };
 
 export type Fase = {
@@ -1157,6 +1159,10 @@ export async function listarModulos() {
   return apiFetch<Modulo[]>("/modules");
 }
 
+export async function obterEstruturaStats() {
+  return apiFetch<{ cursos: number; modulos: number; fases: number }>("/estrutura/stats");
+}
+
 export async function listarCursos(): Promise<Curso[]>;
 export async function listarCursos(params: {
   q?: string;
@@ -1182,6 +1188,8 @@ export async function criarCurso(dados: {
   is_paid?: boolean;
   duration_hours?: number | null;
   level?: string | null;
+  focus?: string | null;
+  price?: number | null;
 }) {
   return apiFetch<{ message: string; curso: Curso }>("/courses", {
     method: "POST",
@@ -1234,6 +1242,13 @@ export async function deletarModulo(id: string) {
   });
 }
 
+export async function reordenarModulo(id: string, direction: "up" | "down") {
+  return apiFetch<{ message: string }>(`/modules/${id}/reorder`, {
+    method: "PATCH",
+    body: JSON.stringify({ direction }),
+  });
+}
+
 export async function listarFasesDoModulo(moduleId: string): Promise<Fase[]>;
 export async function listarFasesDoModulo(moduleId: string, params: {
   q?: string;
@@ -1270,6 +1285,35 @@ export async function criarFase(moduleId: string, dados: {
 export async function deletarFase(id: string) {
   return apiFetch<{ message: string }>(`/phases/${id}`, {
     method: "DELETE",
+  });
+}
+
+export async function reordenarFase(id: string, direction: "up" | "down") {
+  return apiFetch<{ message: string }>(`/phases/${id}/reorder`, {
+    method: "PATCH",
+    body: JSON.stringify({ direction }),
+  });
+}
+
+export type ExercicioFase = {
+  id: string;
+  titulo: string;
+  descricao: string;
+  indexOrder: number;
+  difficulty: number | null;
+  phaseId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function listarExerciciosPorFase(phaseId: string) {
+  return apiFetch<ExercicioFase[]>(`/exercicios/by-phase/${phaseId}`);
+}
+
+export async function reordenarExercicio(id: string, direction: "up" | "down") {
+  return apiFetch<{ message: string }>(`/exercicios/${id}/reorder`, {
+    method: "PATCH",
+    body: JSON.stringify({ direction }),
   });
 }
 
