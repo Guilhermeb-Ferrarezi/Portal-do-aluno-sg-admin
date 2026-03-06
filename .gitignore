@@ -29,5 +29,3 @@ dist-ssr
 docker-compose.*
 *.bat
 *.sh
-*.md
-*.MD

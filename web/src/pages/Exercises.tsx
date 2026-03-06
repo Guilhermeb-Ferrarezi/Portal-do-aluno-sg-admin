@@ -30,7 +30,6 @@ import {
   MessageSquareText,
   ChevronDown,
   ChevronUp,
-  Info,
 } from "lucide-react";
 import {
   criarExercicio,
@@ -962,18 +961,14 @@ export default function ExerciciosPage() {
       const maxTentativasNum = maxTentativas.trim() ? Number(maxTentativas) : null;
       const penalidadeNum = penalidadeTentativa.trim() ? Number(penalidadeTentativa) : 0;
       const intervaloNum = intervaloReenvio.trim() ? Number(intervaloReenvio) : null;
-      const dificuldadeNum = difficulty.trim() ? Number(difficulty) : null;
+      const dificuldadeNum = difficulty.trim() ? difficulty.trim() : null;
       const ordemNum = indexOrder.trim() ? Number(indexOrder) : null;
       const pontosNum = pointsRedeem.trim() ? Number(pointsRedeem) : null;
       const videoUrlLimpa = videoUrl.trim();
       const courseIdNum = Number(cursoIdSelecionado);
       const phaseIdNum = Number(faseIdSelecionada);
 
-      if (difficulty.trim() && (!Number.isInteger(dificuldadeNum) || Number(dificuldadeNum) < 1)) {
-        setErro("Dificuldade deve ser um numero inteiro maior ou igual a 1.");
-        setSaving(false);
-        return;
-      }
+      /* Dificuldade agora é string: 'normal' ou 'lower' - sem validação numérica */
       if (indexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 1)) {
         setErro("Ordem deve ser um numero inteiro maior ou igual a 1.");
         setSaving(false);
@@ -1495,7 +1490,7 @@ export default function ExerciciosPage() {
 
               <div className="exFormGrid">
                 <div className="exInputGroup">
-                  <span className="exLabel">Titulo *</span>
+                  <span className="exLabel">Nome do exercício *</span>
                   <input
                     className={`exInput ${fieldWarnings.titulo ? "isWarning" : ""}`}
                     placeholder="ex: Exercicio 15.3: Layout Responsivo"
@@ -1509,10 +1504,10 @@ export default function ExerciciosPage() {
                 </div>
 
                 <div className="exInputGroup">
-                  <span className="exLabel">Descricao *</span>
+                  <span className="exLabel">Pergunta *</span>
                   <textarea
                     className={`exTextarea ${fieldWarnings.descricao ? "isWarning" : ""}`}
-                    placeholder="Descreva o exercicio em detalhes..."
+                    placeholder="Descreva a pergunta do exercício em detalhes..."
                     value={descricao}
                     onChange={(e) => {
                       setDescricao(e.target.value);
@@ -1672,6 +1667,7 @@ export default function ExerciciosPage() {
                     </div>
 
                     {/* EXERCICIO DE ESCRITA - Para Programacao */}
+                    {/* Temporariamente desativado: Resposta/Gabarito conforme correções.md
                     {componenteInterativo === "escrita" && (
                       <ScaleIn>
                         <div className="exInputGroup">
@@ -1689,6 +1685,7 @@ export default function ExerciciosPage() {
                         </div>
                       </ScaleIn>
                     )}
+                    */}
 
                     {/* QUESTOES DE MULTIPLA ESCOLHA - Para Programacao */}
                     {componenteInterativo === "multipla" && (
@@ -1837,6 +1834,7 @@ export default function ExerciciosPage() {
                     </div>
 
                     {/* EXERCICIO DE ESCRITA - Para Informatica */}
+                    {/* Temporariamente desativado: Resposta/Gabarito conforme correções.md
                     {componenteInterativo === "escrita" && (
                       <ScaleIn>
                         <div className="exInputGroup">
@@ -1854,6 +1852,7 @@ export default function ExerciciosPage() {
                         </div>
                       </ScaleIn>
                     )}
+                    */}
 
                     {/* FORMULARIO DINAMICO PARA MULTIPLA ESCOLHA */}
                     <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
@@ -2012,7 +2011,7 @@ export default function ExerciciosPage() {
                   </>
                 )}
 
-                {/* PERMITIR repeticao */}
+                {/* PERMITIR repeticao - Temporariamente desativado conforme correções.md
                 <div className="exInputRow">
                   <div className="exInputGroup">
                     <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
@@ -2066,6 +2065,7 @@ export default function ExerciciosPage() {
                     </div>
                   </div>
                 )}
+                */}
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
@@ -2175,58 +2175,22 @@ export default function ExerciciosPage() {
                   </div>
 
                   <div className="exInputGroup">
-                    <span className="exLabel exLabelWithInfo">
-                      <span>Dificuldade</span>
-                      <button
-                        type="button"
-                        className="exInfoTrigger"
-                        onClick={() => setInfoOverlay("dificuldade")}
-                        aria-label="Ver informacoes sobre dificuldade"
-                      >
-                        <Info size={20} strokeWidth={2.4} />
-                      </button>
-                    </span>
-                    <input
-                      className="exInput"
-                      type="number"
-                      min="1"
-                      placeholder="1"
+                    <span className="exLabel">Dificuldade</span>
+                    <AnimatedSelect
+                      className="exSelect"
                       value={difficulty}
                       onChange={(e) => setDifficulty(e.target.value)}
-                    />
+                    >
+                      <option value="">Selecione</option>
+                      <option value="normal">Normal</option>
+                      <option value="lower">Lower (Recuperação)</option>
+                    </AnimatedSelect>
                     <small style={{ color: "#666", marginTop: "4px" }}>
-                      Nivel numerico para classificar dificuldade.
+                      Normal para exercícios regulares. Lower para exercícios de recuperação.
                     </small>
                   </div>
 
-                  <div className="exInputGroup">
-                    <span className="exLabel exLabelWithInfo">
-                      <span>Ordem</span>
-                      <button
-                        type="button"
-                        className="exInfoTrigger"
-                        onClick={() => setInfoOverlay("ordem")}
-                        aria-label="Ver informacoes sobre ordem"
-                      >
-                        <Info size={20} strokeWidth={2.4} />
-                      </button>
-                    </span>
-                    <input
-                      className={`exInput ${fieldWarnings.ordem ? "isWarning" : ""}`}
-                      type="number"
-                      min="1"
-                      placeholder="1"
-                      value={indexOrder}
-                      onChange={(e) => {
-                        setIndexOrder(e.target.value);
-                        clearFieldWarning("ordem");
-                      }}
-                    />
-                    {fieldWarnings.ordem && <small className="exFieldWarning">{fieldWarnings.ordem}</small>}
-                    <small style={{ color: "#666", marginTop: "4px" }}>
-                      Posicao manual na lista da fase (menor vem primeiro).
-                    </small>
-                  </div>
+                  {/* Campo Ordem removido da criação conforme correções.md */}
                 </div>
 
                 <div className="exInputRow">

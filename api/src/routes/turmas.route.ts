@@ -24,6 +24,8 @@ type DbCourseRow = {
   name: string | null;
   description: string | null;
   is_paid: boolean;
+  duration_hours: number | null;
+  level: string | null;
 };
 
 type DbModuleRow = {
@@ -97,7 +99,7 @@ function buildEndDate(startDateIso: string, durationWeeks: number): string {
 
 async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
   const result = await pool.query<DbCourseRow>(
-    `SELECT id, name, description, is_paid
+    `SELECT id, name, description, is_paid, duration_hours, level
      FROM course
      WHERE id = $1
      LIMIT 1`,
@@ -109,7 +111,7 @@ async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
 async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | null> {
   if (categoria === "informatica") {
     const inf = await pool.query<DbCourseRow>(
-      `SELECT id, name, description, is_paid
+      `SELECT id, name, description, is_paid, duration_hours, level
        FROM course
        WHERE COALESCE(name, '') ILIKE '%informat%'
        ORDER BY id ASC
@@ -119,7 +121,7 @@ async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | 
   }
 
   const any = await pool.query<DbCourseRow>(
-    `SELECT id, name, description, is_paid
+    `SELECT id, name, description, is_paid, duration_hours, level
      FROM course
      ORDER BY id ASC
      LIMIT 1`
@@ -466,11 +468,13 @@ export function turmasRouter(jwtSecret: string) {
           nome: row.name ?? `Curso ${row.id}`,
           descricao: row.description,
           isPaid: row.is_paid,
+          durationHours: row.duration_hours,
+          level: row.level,
         }));
 
       if (!hasPaginationInput) {
         const result = await pool.query<DbCourseRow>(
-          `SELECT id, name, description, is_paid
+          `SELECT id, name, description, is_paid, duration_hours, level
            FROM course
            ${where}
            ORDER BY id ASC`,
@@ -489,7 +493,7 @@ export function turmasRouter(jwtSecret: string) {
 
       const listParams = [...params, limit, offset];
       const result = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid
+        `SELECT id, name, description, is_paid, duration_hours, level
          FROM course
          ${where}
          ORDER BY id ASC
@@ -515,6 +519,175 @@ export function turmasRouter(jwtSecret: string) {
       return res.status(500).json({ message: "Erro ao listar cursos" });
     }
   });
+
+  // POST /courses (criação de curso)
+  const createCourseSchema = z.object({
+    nome: z.string().min(2, "Nome obrigatório"),
+    descricao: z.string().optional().nullable(),
+    is_paid: z.boolean().optional().default(false),
+    duration_hours: z.coerce.number().int().min(0).optional().nullable(),
+    level: z.string().optional().nullable(),
+  });
+
+  router.post(
+    "/courses",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      try {
+        const parsed = createCourseSchema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Dados inválidos" });
+        }
+        const data = parsed.data;
+
+        const result = await pool.query<DbCourseRow>(
+          `INSERT INTO course (name, description, is_paid, duration_hours, level, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+           RETURNING id, name, description, is_paid, duration_hours, level`,
+          [data.nome, data.descricao ?? null, data.is_paid, data.duration_hours ?? null, data.level ?? null]
+        );
+
+        const row = result.rows[0];
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "create",
+          entityType: "course",
+          entityId: String(row.id),
+          metadata: { nome: data.nome },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        return res.status(201).json({
+          message: "Curso criado com sucesso!",
+          curso: {
+            id: String(row.id),
+            nome: row.name ?? `Curso ${row.id}`,
+            descricao: row.description,
+            isPaid: row.is_paid,
+            durationHours: row.duration_hours,
+            level: row.level,
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao criar curso:", error);
+        return res.status(500).json({ message: "Erro ao criar curso" });
+      }
+    }
+  );
+
+  // DELETE /courses/:id
+  router.delete(
+    "/courses/:id",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      try {
+        const id = Number(req.params.id);
+        if (!Number.isFinite(id)) {
+          return res.status(400).json({ message: "ID de curso inválido" });
+        }
+
+        const existing = await getCourseById(id);
+        if (!existing) {
+          return res.status(404).json({ message: "Curso não encontrado" });
+        }
+
+        await pool.query(`DELETE FROM course WHERE id = $1`, [id]);
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "delete",
+          entityType: "course",
+          entityId: String(id),
+          metadata: { nome: existing.name },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        return res.json({ message: "Curso deletado com sucesso" });
+      } catch (error) {
+        console.error("Erro ao deletar curso:", error);
+        return res.status(500).json({ message: "Erro ao deletar curso" });
+      }
+    }
+  );
+
+  // DELETE /modules/:id
+  router.delete(
+    "/modules/:id",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      try {
+        const id = Number(req.params.id);
+        if (!Number.isFinite(id)) {
+          return res.status(400).json({ message: "ID de módulo inválido" });
+        }
+
+        const existing = await getModuleById(id);
+        if (!existing) {
+          return res.status(404).json({ message: "Módulo não encontrado" });
+        }
+
+        await pool.query(`DELETE FROM module WHERE id = $1`, [id]);
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "delete",
+          entityType: "module",
+          entityId: String(id),
+          metadata: { nome: existing.name },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        return res.json({ message: "Módulo deletado com sucesso" });
+      } catch (error) {
+        console.error("Erro ao deletar módulo:", error);
+        return res.status(500).json({ message: "Erro ao deletar módulo" });
+      }
+    }
+  );
+
+  // DELETE /phases/:id
+  router.delete(
+    "/phases/:id",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      try {
+        const id = Number(req.params.id);
+        if (!Number.isFinite(id)) {
+          return res.status(400).json({ message: "ID de fase inválido" });
+        }
+
+        const existing = await pool.query(`SELECT id, name FROM phase WHERE id = $1 LIMIT 1`, [id]);
+        if (!existing.rows[0]) {
+          return res.status(404).json({ message: "Fase não encontrada" });
+        }
+
+        await pool.query(`DELETE FROM phase WHERE id = $1`, [id]);
+
+        logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "delete",
+          entityType: "phase",
+          entityId: String(id),
+          metadata: { nome: existing.rows[0].name },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        return res.json({ message: "Fase deletada com sucesso" });
+      } catch (error) {
+        console.error("Erro ao deletar fase:", error);
+        return res.status(500).json({ message: "Erro ao deletar fase" });
+      }
+    }
+  );
 
   // GET /courses/:courseId/modules
   router.get("/courses/:courseId/modules", authGuard(jwtSecret), async (req: AuthRequest, res) => {
@@ -689,7 +862,7 @@ export function turmasRouter(jwtSecret: string) {
 
     if (courseIds.length > 0) {
       const r = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid
+        `SELECT id, name, description, is_paid, duration_hours, level
          FROM course
          WHERE id = ANY($1::int[])`,
         [courseIds]

@@ -27,6 +27,8 @@ import {
   Monitor,
   ArrowRight,
   Medal,
+  ChevronDown,
+  BookOpen,
   } from "lucide-react";
 import "./Dashboard.css";
 
@@ -58,6 +60,7 @@ export default function DashboardLayout({
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [estruturaOpen, setEstruturaOpen] = React.useState(false);
   const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -83,6 +86,13 @@ export default function DashboardLayout({
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
   const isEstruturaCurso = location.pathname.startsWith("/dashboard/estrutura-curso");
   const isActivityLogs = location.pathname === "/dashboard/logs";
+
+  // Auto-open "Estrutura do Curso" dropdown when on any sub-route
+  React.useEffect(() => {
+    if (isEstruturaCurso || isExercicios || location.pathname === "/dashboard/turmas") {
+      setEstruturaOpen(true);
+    }
+  }, [isEstruturaCurso, isExercicios, location.pathname]);
 
   function handleLogout() {
     void logoutWithServer().finally(() => {
@@ -135,12 +145,15 @@ export default function DashboardLayout({
             </span>
             <span className="sbLabel">Dashboard</span>
           </Link>
-          <Link className={`sbItem ${isExercicios ? "active" : ""}`} to="/dashboard/exercicios">
-            <span className="sbIcon" aria-hidden="true">
-              <PenLine size={18} />
-            </span>
-            <span className="sbLabel">Exercícios</span>
-          </Link>
+          {/* Exercícios link visible for non-admin/non-creator roles */}
+          {!canCreateUser && (
+            <Link className={`sbItem ${isExercicios ? "active" : ""}`} to="/dashboard/exercicios">
+              <span className="sbIcon" aria-hidden="true">
+                <PenLine size={18} />
+              </span>
+              <span className="sbLabel">Exercícios</span>
+            </Link>
+          )}
           <Link className={`sbItem ${isMateriais ? "active" : ""}`} to="/dashboard/materiais">
             <span className="sbIcon" aria-hidden="true">
               <FileText size={18} />
@@ -159,8 +172,8 @@ export default function DashboardLayout({
             </span>
             <span className="sbLabel">Medalhas</span>
           </Link>
-          {/* Turmas */}
-          {(role === "admin" || role === "professor" || turmas.length > 0) ? (
+          {/* Turmas for non-admin roles (aluno/professor) */}
+          {!canCreateUser && (role === "professor" || turmas.length > 0) ? (
             <button
               className="sbItem"
               onClick={handleMinhasTurmas}
@@ -182,12 +195,54 @@ export default function DashboardLayout({
                 <span className="sbLabel">Gerenciar Usuários</span>
               </Link>
 
-              <Link className={`sbItem ${isEstruturaCurso ? "active" : ""}`} to="/dashboard/estrutura-curso/cursos">
-                <span className="sbIcon" aria-hidden="true">
-                  <Blocks size={18} />
-                </span>
-                <span className="sbLabel">Estrutura do Curso</span>
-              </Link>
+              {/* Estrutura do Curso - Dropdown */}
+              <div className="sideSection">
+                <button
+                  className={`sideSectionHeader ${isEstruturaCurso || isExercicios || location.pathname === "/dashboard/turmas" ? "active" : ""}`}
+                  onClick={() => setEstruturaOpen((v) => !v)}
+                  type="button"
+                >
+                  <span className="sbIcon" aria-hidden="true">
+                    <Blocks size={18} />
+                  </span>
+                  <span className="sbLabel">Estrutura do Curso</span>
+                  <span className={`sideExpand ${estruturaOpen ? "open" : ""}`} aria-hidden="true">
+                    <ChevronDown size={14} />
+                  </span>
+                </button>
+
+                {estruturaOpen && (
+                  <div className="sideSectionContent">
+                    <Link
+                      className={`sbItem sbSubItem ${isEstruturaCurso ? "active" : ""}`}
+                      to="/dashboard/estrutura-curso/cursos"
+                    >
+                      <span className="sbIcon" aria-hidden="true">
+                        <BookOpen size={16} />
+                      </span>
+                      <span className="sbLabel">Criar Estrutura</span>
+                    </Link>
+                    <Link
+                      className={`sbItem sbSubItem ${isExercicios ? "active" : ""}`}
+                      to="/dashboard/exercicios"
+                    >
+                      <span className="sbIcon" aria-hidden="true">
+                        <PenLine size={16} />
+                      </span>
+                      <span className="sbLabel">Exercícios</span>
+                    </Link>
+                    <Link
+                      className={`sbItem sbSubItem ${location.pathname === "/dashboard/turmas" ? "active" : ""}`}
+                      to="/dashboard/turmas"
+                    >
+                      <span className="sbIcon" aria-hidden="true">
+                        <School size={16} />
+                      </span>
+                      <span className="sbLabel">Turmas</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
 
               <Link className={`sbItem ${isActivityLogs ? "active" : ""}`} to="/dashboard/logs">
                 <span className="sbIcon" aria-hidden="true">

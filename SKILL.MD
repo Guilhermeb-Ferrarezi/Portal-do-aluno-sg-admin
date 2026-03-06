@@ -1,0 +1,1 @@
+nao deixe bugs de caracteres especiais

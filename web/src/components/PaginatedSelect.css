@@ -61,6 +61,7 @@
 .paginatedSelectValue {
   text-align: left;
   text-overflow: ellipsis;
+  font-family: "Jetbrains mono" monospace;
   white-space: nowrap;
   max-width: 100%;
 }

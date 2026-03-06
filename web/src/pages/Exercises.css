@@ -2475,6 +2475,15 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator {
     animation: none !important;
     transition: none !important;
   }
+
+  /* These blocks start hidden and rely on animation to become visible. */
+  .exerciseCard,
+  .responsesStudentItem,
+  .responsesExerciseItem,
+  .responsesDirectRow {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* Dense mobile form layout */

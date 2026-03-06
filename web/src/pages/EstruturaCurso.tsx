@@ -49,6 +49,8 @@ export default function EstruturaCursoPage() {
   const [novoCursoNome, setNovoCursoNome] = React.useState("");
   const [novoCursoDescricao, setNovoCursoDescricao] = React.useState("");
   const [novoCursoPago, setNovoCursoPago] = React.useState(false);
+  const [novoCursoDuracao, setNovoCursoDuracao] = React.useState<number | "">("");
+  const [novoCursoLevel, setNovoCursoLevel] = React.useState("");
   const [criandoCurso, setCriandoCurso] = React.useState(false);
 
   const [novoModuloNome, setNovoModuloNome] = React.useState("");
@@ -161,11 +163,15 @@ export default function EstruturaCursoPage() {
         nome: novoCursoNome.trim(),
         descricao: novoCursoDescricao.trim() || null,
         is_paid: novoCursoPago,
+        duration_hours: novoCursoDuracao !== "" ? Number(novoCursoDuracao) : null,
+        level: novoCursoLevel || null,
       });
 
       setNovoCursoNome("");
       setNovoCursoDescricao("");
       setNovoCursoPago(false);
+      setNovoCursoDuracao("");
+      setNovoCursoLevel("");
       setToastMsg({ type: "success", msg: "Curso criado com sucesso" });
 
       await carregarCursos();
@@ -359,13 +365,13 @@ export default function EstruturaCursoPage() {
 
         <div className="estruturaTabs" role="tablist" aria-label="Etapas de estrutura">
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "curso" ? "active" : ""}`} onClick={() => navigate(rotaAba("curso"))}>
-            <Plus size={16} /> Criar curso
+            <Plus size={16} /> Cursos
           </button>
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "modulo" ? "active" : ""}`} onClick={() => navigate(rotaAba("modulo"))}>
-            <Layers size={16} /> Criar módulo
+            <Layers size={16} /> Módulos
           </button>
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "fase" ? "active" : ""}`} onClick={() => navigate(rotaAba("fase"))}>
-            <GitBranch size={16} /> Criar fase
+            <GitBranch size={16} /> Fase
           </button>
         </div>
 
@@ -397,6 +403,27 @@ export default function EstruturaCursoPage() {
 
                 <span>Descrição</span>
                 <textarea value={novoCursoDescricao} onChange={(e) => setNovoCursoDescricao(e.target.value)} placeholder="Opcional" />
+
+                <span>Duração (horas)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={novoCursoDuracao}
+                  onChange={(e) => setNovoCursoDuracao(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="Ex: 40"
+                />
+
+                <span>Nível de dificuldade</span>
+                <select
+                  value={novoCursoLevel}
+                  onChange={(e) => setNovoCursoLevel(e.target.value)}
+                  className="estruturaSelect"
+                >
+                  <option value="">Selecione...</option>
+                  <option value="iniciante">Iniciante</option>
+                  <option value="intermediario">Intermediário</option>
+                  <option value="avancado">Avançado</option>
+                </select>
 
                 <label className="estruturaSwitchRow">
                   <input type="checkbox" className="estruturaSwitchInput" checked={novoCursoPago} onChange={(e) => setNovoCursoPago(e.target.checked)} />
@@ -581,8 +608,7 @@ export default function EstruturaCursoPage() {
                 <span>Nome da fase *</span>
                 <input value={novaFaseNome} onChange={(e) => setNovaFaseNome(e.target.value)} placeholder="Ex: Semana 1 - Introdução" />
 
-                <span>Semana</span>
-                <input type="number" min={1} value={novaFaseWeek} onChange={(e) => setNovaFaseWeek(Math.max(1, Number(e.target.value) || 1))} />
+                {/* Semana removida da criação conforme correções.md - editar somente na lista */}
 
                 <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoFase || !moduloIdSelecionado}>
                   {criandoFase ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar fase</>}

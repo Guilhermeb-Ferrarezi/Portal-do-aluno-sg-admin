@@ -96,10 +96,10 @@ export default function TurmasPage() {
   const [criandoFase, setCriandoFase] = React.useState(false);
 
   // Cronograma
-  const [exerciciosDisponiveis, setExerciciosDisponiveis] = React.useState<Exercicio[]>([]);
+  const [, setExerciciosDisponiveis] = React.useState<Exercicio[]>([]);
   const [exerciciosSelecionados, setExerciciosSelecionados] = React.useState<string[]>([]);
   const [semanaExercicios, setSemanaExercicios] = React.useState(1);
-  const [carregandoExercicios, setCarregandoExercicios] = React.useState(false);
+  const [, setCarregandoExercicios] = React.useState(false);
 
   const [dataInicio, setDataInicio] = React.useState("");
   const [duracaoSemanas, setDuracaoSemanas] = React.useState(12);
@@ -527,6 +527,7 @@ export default function TurmasPage() {
                   />
                 </div>
 
+                {/* Campo Tipo comentado conforme correções.md
                 <div className="turmaInputGroup">
                   <span className="turmaLabel">Tipo *</span>
                   <AnimatedSelect
@@ -538,18 +539,9 @@ export default function TurmasPage() {
                     <option value="particular">Particular</option>
                   </AnimatedSelect>
                 </div>
+                */}
 
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Categoria *</span>
-                  <AnimatedSelect
-                    className="turmaSelect"
-                    value={categoria}
-                    onChange={(e) => setCategoria(e.target.value as "programacao" | "informatica")}
-                  >
-                    <option value="programacao">Programação</option>
-                    <option value="informatica">Informática</option>
-                  </AnimatedSelect>
-                </div>
+                {/* Campo Categoria removido conforme correções.md */}
 
                 <div className="turmaInputGroup">
                   <span className="turmaLabel">Curso *</span>
@@ -559,7 +551,7 @@ export default function TurmasPage() {
                     onChange={(e) => setCourseIdSelecionado(e.target.value)}
                   >
                     <option value="">Selecione um curso</option>
-                    {cursos.map((curso) => (
+                    {cursos.filter((curso) => !curso.isPaid).map((curso) => (
                       <option key={curso.id} value={curso.id}>
                         {curso.nome}
                       </option>
@@ -568,12 +560,12 @@ export default function TurmasPage() {
                 </div>
 
                 <div className="turmaInputGroup">
-                  <span className="turmaLabel">Módulo Inicial *</span>
+                  <span className="turmaLabel">Módulo Inicial</span>
                   <AnimatedSelect
                     className="turmaSelect"
                     value={moduloIdSelecionado}
-                    onChange={(e) => setModuloIdSelecionado(e.target.value)}
-                    disabled={!courseIdSelecionado || modulosCurso.length === 0}
+                    disabled={true}
+                    onChange={() => {}}
                   >
                     <option value="">Selecione um módulo</option>
                     {modulosCurso.map((mod) => (
@@ -582,20 +574,15 @@ export default function TurmasPage() {
                       </option>
                     ))}
                   </AnimatedSelect>
+                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
+                    Módulo inicial é definido automaticamente. Apenas exibição.
+                  </small>
                 </div>
 
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Descrição</span>
-                  <textarea
-                    className="turmaTextarea"
-                    placeholder="Descrição opcional da turma..."
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                  />
-                </div>
+                {/* Campo Descrição removido conforme correções.md */}
 
                 {/* CRONOGRAMA */}
-                <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
+                <div style={{ borderTop: "1px solid var(--border)" }}>
                   <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
                     Configuração de Cronograma (Opcional)
                   </h3>
@@ -640,70 +627,6 @@ export default function TurmasPage() {
                       Se ativado, os exercícios serão liberados automaticamente conforme o cronograma
                     </small>
                   </div>
-                </div>
-
-                <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
-                  <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
-                    Adicionar exercícios ao cronograma
-                  </h3>
-
-                  <div className="turmaInputGroup">
-                    <span className="turmaLabel">Semana para liberar</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max={duracaoSemanas}
-                      className="turmaInput"
-                      value={semanaExercicios}
-                      onChange={(e) => setSemanaExercicios(parseInt(e.target.value) || 1)}
-                    />
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Escolha a semana do cronograma para esses exercícios
-                    </small>
-                  </div>
-
-                  {carregandoExercicios ? (
-                    <div style={{ color: "var(--muted)", fontSize: 13 }}>Carregando exercícios...</div>
-                  ) : (() => {
-                    const filtrados = exerciciosDisponiveis.filter((exercicio) => (exercicio.categoria || "programacao") === categoria);
-                    return filtrados.length === 0 ? (
-                      <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                        {exerciciosDisponiveis.length === 0
-                          ? "Nenhum exercício cadastrado."
-                          : `Nenhum exercício de ${categoria === "informatica" ? "Informática" : "Programação"} encontrado.`}
-                      </div>
-                    ) : (
-                      <div className="exerciciosSelectorList">
-                        {filtrados.map((exercicio) => (
-                          <span key={exercicio.id} className="exercicioCheckboxItem">
-                            <input
-                              type="checkbox"
-                              checked={exerciciosSelecionados.includes(exercicio.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setExerciciosSelecionados([...exerciciosSelecionados, exercicio.id]);
-                                } else {
-                                  setExerciciosSelecionados(
-                                    exerciciosSelecionados.filter((id) => id !== exercicio.id)
-                                  );
-                                }
-                              }}
-                            />
-                            <div className="exercicioCheckboxInfo">
-                              <div className="exercicioCheckboxTitle">{exercicio.titulo}</div>
-                              <div className="exercicioCheckboxMeta">{exercicio.modulo || "Sem modulo"}</div>
-                            </div>
-                          </span>
-                        ))}
-                      </div>
-                    );
-                  })()}
-
-                  {!cronogramaAtivo && (
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, display: "block" }}>
-                      O cronograma está desativado. Os exercícios serão salvos, mas não serão liberados automaticamente.
-                    </small>
-                  )}
                 </div>
 
                 <div className="turmaActions">
@@ -803,16 +726,7 @@ export default function TurmasPage() {
                     placeholder="Ex: Semana 1 - Introdução"
                   />
                 </div>
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Semana</span>
-                  <input
-                    type="number"
-                    min={1}
-                    className="turmaInput"
-                    value={novaFaseWeek}
-                    onChange={(e) => setNovaFaseWeek(Math.max(1, Number(e.target.value) || 1))}
-                  />
-                </div>
+                {/* Semana removida da criação conforme correções.md - editar somente na lista */}
                 {novaFaseModuloId && (
                   <small style={{ fontSize: 12, color: "var(--muted)" }}>
                     {fasesModuloAtual.length} fase(s) cadastrada(s) neste módulo.

@@ -1003,6 +1003,8 @@ export type Curso = {
   nome: string;
   descricao?: string | null;
   isPaid?: boolean;
+  durationHours?: number | null;
+  level?: string | null;
 };
 
 export type Fase = {
@@ -1178,6 +1180,8 @@ export async function criarCurso(dados: {
   nome: string;
   descricao?: string | null;
   is_paid?: boolean;
+  duration_hours?: number | null;
+  level?: string | null;
 }) {
   return apiFetch<{ message: string; curso: Curso }>("/courses", {
     method: "POST",
