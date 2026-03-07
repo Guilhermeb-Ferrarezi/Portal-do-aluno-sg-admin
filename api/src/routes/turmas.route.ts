@@ -30,6 +30,15 @@ type DbCourseRow = {
   price: number | null;
 };
 
+type CourseColumnConfig = {
+  hasCourseTable: boolean;
+  durationColumn: "duration_hours" | null;
+  levelColumn: "level_difficulty" | "level" | null;
+  focusColumn: "paid_focus" | "focus" | null;
+  priceColumn: "price" | null;
+  selectList: string;
+};
+
 type DbModuleRow = {
   id: number;
   course_id: number;
@@ -108,13 +117,56 @@ function isMissingDatabaseObjectError(error: unknown): boolean {
   return code === "42P01" || code === "42703";
 }
 
+let courseColumnConfigCache: CourseColumnConfig | null = null;
+
+async function getCourseColumnConfig(forceRefresh = false): Promise<CourseColumnConfig> {
+  if (!forceRefresh && courseColumnConfigCache) {
+    return courseColumnConfigCache;
+  }
+
+  const result = await pool.query<{ column_name: string }>(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'course'`
+  );
+
+  const columns = new Set(result.rows.map((row) => row.column_name));
+  const durationColumn = columns.has("duration_hours") ? "duration_hours" : null;
+  const levelColumn = columns.has("level_difficulty") ? "level_difficulty" : columns.has("level") ? "level" : null;
+  const focusColumn = columns.has("paid_focus") ? "paid_focus" : columns.has("focus") ? "focus" : null;
+  const priceColumn = columns.has("price") ? "price" : null;
+
+  courseColumnConfigCache = {
+    hasCourseTable: columns.size > 0,
+    durationColumn,
+    levelColumn,
+    focusColumn,
+    priceColumn,
+    selectList: [
+      "id",
+      "name",
+      "description",
+      "is_paid",
+      durationColumn ?? "NULL::int AS duration_hours",
+      levelColumn ? `${levelColumn} AS level` : "NULL::text AS level",
+      focusColumn ? `${focusColumn} AS focus` : "NULL::text AS focus",
+      priceColumn ?? "NULL::numeric AS price",
+    ].join(", "),
+  };
+
+  return courseColumnConfigCache;
+}
+
 async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
   try {
+    const courseColumns = await getCourseColumnConfig();
+    if (!courseColumns.hasCourseTable) {
+      return null;
+    }
+
     const result = await pool.query<DbCourseRow>(
-      `SELECT id, name, description, is_paid, duration_hours,
-              level_difficulty AS level,
-              paid_focus AS focus,
-              price
+      `SELECT ${courseColumns.selectList}
        FROM course
        WHERE id = $1
        LIMIT 1`,
@@ -131,12 +183,14 @@ async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
 
 async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | null> {
   try {
+    const courseColumns = await getCourseColumnConfig();
+    if (!courseColumns.hasCourseTable) {
+      return null;
+    }
+
     if (categoria === "informatica") {
       const inf = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid, duration_hours,
-                level_difficulty AS level,
-                paid_focus AS focus,
-                price
+        `SELECT ${courseColumns.selectList}
          FROM course
          WHERE COALESCE(name, '') ILIKE '%informat%'
          ORDER BY id ASC
@@ -146,10 +200,7 @@ async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | 
     }
 
     const any = await pool.query<DbCourseRow>(
-      `SELECT id, name, description, is_paid, duration_hours,
-              level_difficulty AS level,
-              paid_focus AS focus,
-              price
+      `SELECT ${courseColumns.selectList}
        FROM course
        ORDER BY id ASC
        LIMIT 1`
@@ -512,6 +563,24 @@ export function turmasRouter(jwtSecret: string) {
     const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
 
     try {
+      const courseColumns = await getCourseColumnConfig();
+      if (!courseColumns.hasCourseTable) {
+        if (!hasPaginationInput) {
+          return res.json([]);
+        }
+
+        return res.json({
+          items: [],
+          total: 0,
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 1,
+          },
+        });
+      }
+
       const offset = (page - 1) * limit;
 
       const params: unknown[] = [];
@@ -535,10 +604,7 @@ export function turmasRouter(jwtSecret: string) {
 
       if (!hasPaginationInput) {
         const result = await pool.query<DbCourseRow>(
-          `SELECT id, name, description, is_paid, duration_hours,
-                  level_difficulty AS level,
-                  paid_focus AS focus,
-                  price
+          `SELECT ${courseColumns.selectList}
            FROM course
            ${where}
            ORDER BY id ASC`,
@@ -557,10 +623,7 @@ export function turmasRouter(jwtSecret: string) {
 
       const listParams = [...params, limit, offset];
       const result = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid, duration_hours,
-          level_difficulty AS level,
-          paid_focus AS focus,
-          price
+        `SELECT ${courseColumns.selectList}
          FROM course
          ${where}
          ORDER BY id ASC
@@ -625,15 +688,46 @@ export function turmasRouter(jwtSecret: string) {
           return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Dados inválidos" });
         }
         const data = parsed.data;
+        const courseColumns = await getCourseColumnConfig(true);
+
+        if (!courseColumns.hasCourseTable) {
+          return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
+        }
+
+        const insertColumns = ["name", "description", "is_paid"];
+        const insertValues: Array<string | number | boolean | null> = [
+          data.nome,
+          data.descricao ?? null,
+          data.is_paid,
+        ];
+
+        if (courseColumns.durationColumn) {
+          insertColumns.push(courseColumns.durationColumn);
+          insertValues.push(data.duration_hours ?? null);
+        }
+
+        if (courseColumns.levelColumn) {
+          insertColumns.push(courseColumns.levelColumn);
+          insertValues.push(data.level ?? null);
+        }
+
+        if (courseColumns.focusColumn) {
+          insertColumns.push(courseColumns.focusColumn);
+          insertValues.push(data.focus ?? null);
+        }
+
+        if (courseColumns.priceColumn) {
+          insertColumns.push(courseColumns.priceColumn);
+          insertValues.push(data.price ?? null);
+        }
+
+        const valuePlaceholders = insertValues.map((_, index) => `$${index + 1}`).join(", ");
 
         const result = await pool.query<DbCourseRow>(
-          `INSERT INTO course (name, description, is_paid, duration_hours, level_difficulty, paid_focus, price, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-           RETURNING id, name, description, is_paid, duration_hours,
-                     level_difficulty AS level,
-                     paid_focus AS focus,
-                     price`,
-          [data.nome, data.descricao ?? null, data.is_paid, data.duration_hours ?? null, data.level ?? null, data.focus ?? null, data.price ?? null]
+          `INSERT INTO course (${insertColumns.join(", ")}, created_at, updated_at)
+           VALUES (${valuePlaceholders}, NOW(), NOW())
+           RETURNING ${courseColumns.selectList}`,
+          insertValues
         );
 
         const row = result.rows[0];
@@ -957,13 +1051,16 @@ export function turmasRouter(jwtSecret: string) {
     const coursesMap = new Map<number, DbCourseRow>();
 
     if (courseIds.length > 0) {
-      const r = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid, duration_hours, level_difficulty AS level, paid_focus AS focus, price
-         FROM course
-         WHERE id = ANY($1::int[])`,
-        [courseIds]
-      );
-      for (const c of r.rows) coursesMap.set(c.id, c);
+      const courseColumns = await getCourseColumnConfig();
+      if (courseColumns.hasCourseTable) {
+        const r = await pool.query<DbCourseRow>(
+          `SELECT ${courseColumns.selectList}
+           FROM course
+           WHERE id = ANY($1::int[])`,
+          [courseIds]
+        );
+        for (const c of r.rows) coursesMap.set(c.id, c);
+      }
     }
 
     const items = classes.rows.map((row) => mapClassToTurma(row, coursesMap.get(row.course_id) ?? null));

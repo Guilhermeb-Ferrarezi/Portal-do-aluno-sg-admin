@@ -70,6 +70,11 @@ Implementação: **Código apenas** (sem alterações de schema)
 - O formulário agora mostra primeiro o tipo de exercício e, logo abaixo, os cards de curso com paginação e detalhes
 - Mantida a mesma interação de seleção, filtro e visualização de detalhes do curso
 
+### Correção do erro `column "level" does not exist`
+- Refatoradas as consultas de curso no backend para detectar automaticamente quais colunas existem de fato na tabela `course`
+- O arquivo [api/src/routes/turmas.route.ts](api/src/routes/turmas.route.ts) agora funciona tanto com `level` / `focus` quanto com `level_difficulty` / `paid_focus`
+- A compatibilidade foi aplicada na listagem de cursos, busca por curso, curso preferencial, criação de curso e hidratação de cursos nas turmas
+
 ---
 
 ## Arquitetura de Acesso
