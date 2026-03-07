@@ -229,6 +229,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  min-height: 400px;
 }
 
 .turmaCard::before {

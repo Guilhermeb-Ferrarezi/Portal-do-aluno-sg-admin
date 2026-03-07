@@ -13,8 +13,6 @@ import { materiaisRouter } from "./routes/materiais.route";
 import { videoaulasRouter } from "./routes/videoaulas.route";
 import { activityLogsRouter } from "./routes/activityLogs";
 import { badgesRouter } from "./routes/badges";
-import { startPublishScheduledExercisesJob } from "./jobs/publishScheduledExercises";
-import { startWeeklyExerciseReleaseJob } from "./jobs/releaseWeeklyExercises";
 import { initializeDatabaseTables } from "./db/migrations";
 
 const envSchema = z.object({
@@ -138,10 +136,6 @@ app.use(
 (async () => {
   // Inicializar banco de dados
   await initializeDatabaseTables();
-
-  // Iniciar jobs agendados
-  startPublishScheduledExercisesJob();
-  startWeeklyExerciseReleaseJob();
 
   app.listen(env.PORT, "0.0.0.0", () => {
     console.log(`API rodando na porta ${env.PORT}`);

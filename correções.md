@@ -26,10 +26,49 @@ Implementação: **Código apenas** (sem alterações de schema)
   - carregamento de curso por id
   - resolução de cursos nas turmas
 
+### Correção do erro 500 em cursos
+- Removidos os arquivos de agendamento de exercícios que não eram mais necessários
+- A API de cursos e estatísticas da estrutura agora retorna resposta vazia/segura quando a estrutura de `course` não existe no banco atual, evitando erro 500 na tela
+- Ajustado o mapeamento da tabela `course` para usar as colunas reais `level_difficulty` e `paid_focus` na listagem/criação
+- Nenhuma tabela ou coluna foi criada/alterada
+
+### Botão de detalhes no curso selecionado
+- Adicionado botão **Ver detalhes** no card do curso selecionado na tela de estrutura
+- O botão abre o modal existente de detalhes do curso sem precisar clicar novamente na lista
+
+### Ajuste de interação na lista de cursos
+- Clique no item da lista agora apenas seleciona o curso
+- Abertura de detalhes ficou centralizada no botão **Ver detalhes** do card selecionado
+- Adicionada animação de loading durante o carregamento da página atual de cursos
+
+### Selects de curso com paginação remota
+- Os selects de curso nas abas de módulos e fases deixaram de carregar todos os cursos de uma vez
+- Agora usam busca e paginação remota com a API de cursos
+- O curso selecionado continua visível no trigger mesmo quando não está na página atual do dropdown
+
+### Select de fases com paginação remota
+- O select de fases no formulário de exercícios agora busca páginas da API em vez de carregar todas as fases do módulo
+- Mantida busca remota, navegação por página e exibição da fase selecionada fora da página atual
+
+### Rollout completo de paginação remota com animação
+- Aplicado também aos selects de módulos restantes na estrutura do curso e no formulário de exercícios
+- O loading dos selects remotos agora exibe animação visual durante a busca
+- Mantido o comportamento de exibir o item selecionado mesmo fora da página atual
+
 ### Sidebar com dropdown persistente
 - Estado dos dropdowns **Usuários** e **Estrutura do Curso** agora é preservado entre navegações
 - Ao clicar em um subitem da sidebar, os outros dropdowns que já estavam abertos não são mais fechados automaticamente
 - Persistência feita com `localStorage`
+
+### Formulário de exercícios sem select duplicado de curso
+- Removido o segundo campo **Curso** do formulário de criação de exercícios
+- A seleção de curso agora fica centralizada apenas nos cards/toggles do topo da tela
+- Mantido o mesmo comportamento de limpeza de módulo e fase ao trocar o curso
+
+### Reposicionamento da seleção de curso em exercícios
+- A área visual de seleção de curso foi movida para o bloco onde ficava o campo inferior de curso
+- O formulário agora mostra primeiro o tipo de exercício e, logo abaixo, os cards de curso com paginação e detalhes
+- Mantida a mesma interação de seleção, filtro e visualização de detalhes do curso
 
 ---
 

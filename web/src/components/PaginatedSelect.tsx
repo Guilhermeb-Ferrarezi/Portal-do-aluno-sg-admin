@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import "./PaginatedSelect.css";
 
 export type PaginatedSelectOption = {
@@ -8,28 +8,41 @@ export type PaginatedSelectOption = {
   meta?: string;
 };
 
+type PaginatedSelectRemoteConfig = {
+  query: string;
+  onQueryChange: (value: string) => void;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  loading?: boolean;
+};
+
 type PaginatedSelectProps = {
   value: string;
   onChange: (value: string) => void;
   options: PaginatedSelectOption[];
+  selectedOption?: PaginatedSelectOption | null;
   placeholder?: string;
   disabled?: boolean;
   pageSize?: number;
   pageSizeOptions?: number[];
   allowPageSizeChange?: boolean;
   emptyText?: string;
+  remote?: PaginatedSelectRemoteConfig;
 };
 
 export default function PaginatedSelect({
   value,
   onChange,
   options,
+  selectedOption,
   placeholder = "Selecionar",
   disabled = false,
   pageSize = 6,
   pageSizeOptions = [5, 10, 20, 30],
   allowPageSizeChange = true,
   emptyText = "Nenhuma opcao encontrada",
+  remote,
 }: PaginatedSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -37,6 +50,10 @@ export default function PaginatedSelect({
   const [currentPageSize, setCurrentPageSize] = React.useState(pageSize);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const pageSizeId = React.useId();
+  const isRemote = !!remote;
+
+  const currentQuery = isRemote ? remote.query : query;
+  const currentPage = isRemote ? remote.page : page;
 
   React.useEffect(() => {
     const handleDocClick = (event: MouseEvent) => {
@@ -50,8 +67,8 @@ export default function PaginatedSelect({
   }, []);
 
   const selected = React.useMemo(
-    () => options.find((opt) => opt.value === value) || null,
-    [options, value]
+    () => selectedOption ?? (options.find((opt) => opt.value === value) || null),
+    [options, selectedOption, value]
   );
 
   function cleanDisplayText(text: string | undefined) {
@@ -62,13 +79,15 @@ export default function PaginatedSelect({
   }
 
   const filtered = React.useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    if (isRemote) return options;
+
+    const normalized = currentQuery.trim().toLowerCase();
     if (!normalized) return options;
     return options.filter((opt) => {
       const meta = (opt.meta || "").toLowerCase();
       return opt.label.toLowerCase().includes(normalized) || meta.includes(normalized);
     });
-  }, [options, query]);
+  }, [currentQuery, isRemote, options]);
 
   React.useEffect(() => {
     setCurrentPageSize(pageSize);
@@ -82,13 +101,37 @@ export default function PaginatedSelect({
     return Array.from(new Set(merged)).sort((a, b) => a - b);
   }, [pageSize, pageSizeOptions]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / safePageSize));
-  const safePage = Math.min(page, totalPages);
-  const paged = filtered.slice((safePage - 1) * safePageSize, safePage * safePageSize);
+  const totalPages = isRemote
+    ? Math.max(1, remote.totalPages || 1)
+    : Math.max(1, Math.ceil(filtered.length / safePageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paged = isRemote
+    ? filtered
+    : filtered.slice((safePage - 1) * safePageSize, safePage * safePageSize);
 
   React.useEffect(() => {
+    if (isRemote) return;
     setPage(1);
-  }, [query, options.length, safePageSize]);
+  }, [currentQuery, isRemote, options.length, safePageSize]);
+
+  function handleQueryChange(next: string) {
+    if (isRemote) {
+      remote.onQueryChange(next);
+      if (remote.page !== 1) {
+        remote.onPageChange(1);
+      }
+      return;
+    }
+    setQuery(next);
+  }
+
+  function handlePageChange(next: number) {
+    if (isRemote) {
+      remote.onPageChange(next);
+      return;
+    }
+    setPage(next);
+  }
 
   return (
     <div className={`paginatedSelect ${disabled ? "isDisabled" : ""} ${!selected ? "isPlaceholder" : ""}`} ref={rootRef}>
@@ -112,19 +155,24 @@ export default function PaginatedSelect({
           <div className="paginatedSelectSearch">
             <Search size={14} />
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={currentQuery}
+              onChange={(e) => handleQueryChange(e.target.value)}
               placeholder="Buscar..."
             />
-            {query && (
-              <button type="button" onClick={() => setQuery("")} className="clearQueryBtn" aria-label="Limpar busca">
+            {currentQuery && (
+              <button type="button" onClick={() => handleQueryChange("")} className="clearQueryBtn" aria-label="Limpar busca">
                 <X size={12} />
               </button>
             )}
           </div>
 
           <div className="paginatedSelectList">
-            {paged.length === 0 ? (
+            {remote?.loading ? (
+              <div className="paginatedSelectLoading" role="status" aria-live="polite">
+                <Loader2 size={14} className="paginatedSelectLoadingIcon" />
+                <span>Carregando...</span>
+              </div>
+            ) : paged.length === 0 ? (
               <div className="paginatedSelectEmpty">{emptyText}</div>
             ) : (
               paged.map((opt) => (
@@ -173,7 +221,7 @@ export default function PaginatedSelect({
               <button
                 type="button"
                 className="paginatedNavBtn"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => handlePageChange(Math.max(1, safePage - 1))}
                 disabled={safePage <= 1}
               >
                 <ChevronLeft size={14} /> Ant
@@ -182,7 +230,7 @@ export default function PaginatedSelect({
               <button
                 type="button"
                 className="paginatedNavBtn"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, safePage + 1))}
                 disabled={safePage >= totalPages}
               >
                 Prox <ChevronRight size={14} />

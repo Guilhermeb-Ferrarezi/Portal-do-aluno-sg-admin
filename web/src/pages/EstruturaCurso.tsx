@@ -25,7 +25,7 @@ import {
   type ExercicioFase,
 } from "../services/api";
 import { AnimatedButton, AnimatedToast } from "../components/animate-ui";
-import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown, Eye } from "lucide-react";
 import CriarExercicioForm from "../components/CriarExercicioForm";
 import CriarTurmaForm from "../components/CriarTurmaForm";
 import "./EstruturaCurso.css";
@@ -45,6 +45,7 @@ export default function EstruturaCursoPage() {
 
   const [cursos, setCursos] = React.useState<Curso[]>([]);
   const [totalCursos, setTotalCursos] = React.useState(0);
+  const [carregandoCursos, setCarregandoCursos] = React.useState(false);
   const [courseIdSelecionado, setCourseIdSelecionado] = React.useState("");
 
   const [modulosCurso, setModulosCurso] = React.useState<Modulo[]>([]);
@@ -56,10 +57,18 @@ export default function EstruturaCursoPage() {
 
   // Global stats for overview cards
   const [globalStats, setGlobalStats] = React.useState({ cursos: 0, modulos: 0, fases: 0 });
-  // All courses loaded (without pagination) for selects in módulo/fase tabs
-  const [todosCursos, setTodosCursos] = React.useState<Curso[]>([]);
-  // All modules loaded (without pagination) for selects in fase tab
-  const [todosModulos, setTodosModulos] = React.useState<Modulo[]>([]);
+  const [cursoSelectOpcoes, setCursoSelectOpcoes] = React.useState<Curso[]>([]);
+  const [cursoSelectBusca, setCursoSelectBusca] = React.useState("");
+  const [cursoSelectPagina, setCursoSelectPagina] = React.useState(1);
+  const [cursoSelectTotalPages, setCursoSelectTotalPages] = React.useState(1);
+  const [cursoSelectCarregando, setCursoSelectCarregando] = React.useState(false);
+  const [cursoSelectSelecionado, setCursoSelectSelecionado] = React.useState<Curso | null>(null);
+  const [moduloSelectOpcoes, setModuloSelectOpcoes] = React.useState<Modulo[]>([]);
+  const [moduloSelectBusca, setModuloSelectBusca] = React.useState("");
+  const [moduloSelectPagina, setModuloSelectPagina] = React.useState(1);
+  const [moduloSelectTotalPages, setModuloSelectTotalPages] = React.useState(1);
+  const [moduloSelectCarregando, setModuloSelectCarregando] = React.useState(false);
+  const [moduloSelectSelecionado, setModuloSelectSelecionado] = React.useState<Modulo | null>(null);
 
   const [novoCursoNome, setNovoCursoNome] = React.useState("");
   const [novoCursoDescricao, setNovoCursoDescricao] = React.useState("");
@@ -85,6 +94,9 @@ export default function EstruturaCursoPage() {
   const [filtroModuloId, setFiltroModuloId] = React.useState("");
   const [paginaModulos, setPaginaModulos] = React.useState(1);
   const [itensModulos, setItensModulos] = React.useState(5);
+
+  const [carregandoModulos, setCarregandoModulos] = React.useState(false);
+  const [carregandoFases, setCarregandoFases] = React.useState(false);
 
   const [filtroFaseId, setFiltroFaseId] = React.useState("");
   const [paginaFases, setPaginaFases] = React.useState(1);
@@ -113,16 +125,21 @@ export default function EstruturaCursoPage() {
   };
 
   const carregarCursos = React.useCallback(async () => {
-    const response = await listarCursos({
-      page: paginaCursos,
-      limit: itensCursos,
-    });
-    const items = response.items;
-    setCursos(items);
-    setTotalCursos(response.total);
-    setCourseIdSelecionado((prev) => (items.some((c) => c.id === prev) ? prev : items[0]?.id || ""));
-    if (paginaCursos > response.pagination.totalPages) {
-      setPaginaCursos(response.pagination.totalPages);
+    try {
+      setCarregandoCursos(true);
+      const response = await listarCursos({
+        page: paginaCursos,
+        limit: itensCursos,
+      });
+      const items = response.items;
+      setCursos(items);
+      setTotalCursos(response.total);
+      setCourseIdSelecionado((prev) => (items.some((c) => c.id === prev) ? prev : items[0]?.id || ""));
+      if (paginaCursos > response.pagination.totalPages) {
+        setPaginaCursos(response.pagination.totalPages);
+      }
+    } finally {
+      setCarregandoCursos(false);
     }
   }, [itensCursos, paginaCursos]);
 
@@ -143,34 +160,76 @@ export default function EstruturaCursoPage() {
     carregarStats();
   }, [carregarStats]);
 
-  // Load all courses (no pagination) for selects
   React.useEffect(() => {
-    listarCursos()
+    let ativo = true;
+
+    setCursoSelectCarregando(true);
+    listarCursos({ page: cursoSelectPagina, limit: 8, q: cursoSelectBusca || undefined })
       .then((data) => {
-        const items = Array.isArray(data) ? data : [];
-        setTodosCursos(items);
-        // Auto-select first free course if none selected
-        if (!courseIdSelecionado && items.length > 0) {
-          const free = items.find((c) => !c.isPaid);
+        if (!ativo || Array.isArray(data)) return;
+        setCursoSelectOpcoes(data.items);
+        setCursoSelectTotalPages(data.pagination.totalPages);
+        if (!courseIdSelecionado && data.items.length > 0) {
+          const free = data.items.find((c) => !c.isPaid) ?? data.items[0];
           if (free) setCourseIdSelecionado(free.id);
         }
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => {
+        if (!ativo) return;
+        setCursoSelectOpcoes([]);
+        setCursoSelectTotalPages(1);
+      })
+      .finally(() => {
+        if (ativo) setCursoSelectCarregando(false);
+      });
 
-  // Load all modules when courseIdSelecionado changes (for fase tab select)
+    return () => {
+      ativo = false;
+    };
+  }, [courseIdSelecionado, cursoSelectBusca, cursoSelectPagina]);
+
+  React.useEffect(() => {
+    const fromMainList = cursos.find((curso) => curso.id === courseIdSelecionado) ?? null;
+    const fromSelectList = cursoSelectOpcoes.find((curso) => curso.id === courseIdSelecionado) ?? null;
+    setCursoSelectSelecionado(fromMainList ?? fromSelectList ?? cursoSelectSelecionado);
+  }, [courseIdSelecionado, cursoSelectOpcoes, cursos]);
+
   React.useEffect(() => {
     if (!courseIdSelecionado) {
-      setTodosModulos([]);
+      setModuloSelectOpcoes([]);
+      setModuloSelectBusca("");
+      setModuloSelectPagina(1);
+      setModuloSelectTotalPages(1);
+      setModuloSelectSelecionado(null);
       return;
     }
-    listarModulosPorCurso(courseIdSelecionado)
+
+    let ativo = true;
+    setModuloSelectCarregando(true);
+
+    listarModulosPorCurso(courseIdSelecionado, {
+      page: moduloSelectPagina,
+      limit: 8,
+      q: moduloSelectBusca || undefined,
+    })
       .then((data) => {
-        const items = Array.isArray(data) ? data : [];
-        setTodosModulos(items);
+        if (!ativo || Array.isArray(data)) return;
+        setModuloSelectOpcoes(data.items);
+        setModuloSelectTotalPages(data.pagination.totalPages);
       })
-      .catch(() => setTodosModulos([]));
-  }, [courseIdSelecionado]);
+      .catch(() => {
+        if (!ativo) return;
+        setModuloSelectOpcoes([]);
+        setModuloSelectTotalPages(1);
+      })
+      .finally(() => {
+        if (ativo) setModuloSelectCarregando(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [courseIdSelecionado, moduloSelectBusca, moduloSelectPagina]);
 
   React.useEffect(() => {
     if (!courseIdSelecionado) {
@@ -180,6 +239,7 @@ export default function EstruturaCursoPage() {
       return;
     }
 
+    setCarregandoModulos(true);
     listarModulosPorCurso(courseIdSelecionado, { page: paginaModulos, limit: itensModulos })
       .then((response) => {
         const mods = response.items;
@@ -190,7 +250,8 @@ export default function EstruturaCursoPage() {
           setPaginaModulos(response.pagination.totalPages);
         }
       })
-      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar modulos" }));
+      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar modulos" }))
+      .finally(() => setCarregandoModulos(false));
   }, [courseIdSelecionado, itensModulos, paginaModulos]);
 
   React.useEffect(() => {
@@ -200,6 +261,7 @@ export default function EstruturaCursoPage() {
       return;
     }
 
+    setCarregandoFases(true);
     listarFasesDoModulo(moduloIdSelecionado, { page: paginaFases, limit: itensFases })
       .then((response) => {
         setFasesModulo(response.items);
@@ -208,12 +270,19 @@ export default function EstruturaCursoPage() {
           setPaginaFases(response.pagination.totalPages);
         }
       })
-      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar fases" }));
+      .catch((e) => setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao carregar fases" }))
+      .finally(() => setCarregandoFases(false));
   }, [itensFases, moduloIdSelecionado, paginaFases]);
 
   React.useEffect(() => setPaginaCursos(1), [filtroCursoId, itensCursos]);
   React.useEffect(() => setPaginaModulos(1), [filtroModuloId, courseIdSelecionado, itensModulos]);
   React.useEffect(() => setPaginaFases(1), [filtroFaseId, moduloIdSelecionado, itensFases]);
+
+  React.useEffect(() => {
+    const fromMainList = modulosCurso.find((modulo) => modulo.id === moduloIdSelecionado) ?? null;
+    const fromSelectList = moduloSelectOpcoes.find((modulo) => modulo.id === moduloIdSelecionado) ?? null;
+    setModuloSelectSelecionado(fromMainList ?? fromSelectList ?? moduloSelectSelecionado);
+  }, [moduloIdSelecionado, moduloSelectOpcoes, modulosCurso]);
 
   // Load exercises when a phase is clicked for exercise list view
   React.useEffect(() => {
@@ -268,13 +337,10 @@ export default function EstruturaCursoPage() {
 
       await carregarCursos();
       carregarStats();
-      // Refresh all courses list for selects
-      listarCursos().then((data) => {
-        const items = Array.isArray(data) ? data : [];
-        setTodosCursos(items);
-      }).catch(() => {});
+      setCursoSelectPagina(1);
       if (result.curso?.id) {
         setCourseIdSelecionado(result.curso.id);
+        setCursoSelectSelecionado(result.curso);
       }
       navigate(rotaAba("modulo"));
     } catch (e) {
@@ -310,14 +376,10 @@ export default function EstruturaCursoPage() {
       const mods = modsResponse.items;
       setModulosCurso(mods);
       setTotalModulos(modsResponse.total);
-      // Also refresh todosModulos for fase tab select
-      listarModulosPorCurso(courseIdSelecionado).then((data) => {
-        const items = Array.isArray(data) ? data : [];
-        setTodosModulos(items);
-      }).catch(() => {});
       carregarStats();
       const nextId = result.modulo.id || mods[0]?.id || "";
       setModuloIdSelecionado(nextId);
+      setModuloSelectSelecionado(result.modulo ?? null);
       navigate(rotaAba("fase"));
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao criar módulo" });
@@ -420,8 +482,8 @@ export default function EstruturaCursoPage() {
   );
 
   const moduloSelecionado = React.useMemo(
-    () => modulosCurso.find((modulo) => modulo.id === moduloIdSelecionado) || null,
-    [modulosCurso, moduloIdSelecionado]
+    () => modulosCurso.find((modulo) => modulo.id === moduloIdSelecionado) || moduloSelectSelecionado || null,
+    [moduloSelectSelecionado, modulosCurso, moduloIdSelecionado]
   );
 
   async function handleDeletarDetalhe() {
@@ -590,17 +652,28 @@ export default function EstruturaCursoPage() {
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Cursos Disponíveis</h2>
-                <p>Clique em um curso para ver detalhes.</p>
               </div>
               {cursoSelecionado && (
                 <div className="estruturaSelectedInfo">
                   <span className="estruturaSelectedLabel">Curso selecionado:</span>
                   <strong>{cursoSelecionado.nome}</strong>
                   <span className="viewerItemMeta">{cursoSelecionado.isPaid ? "Pago" : "Gratuito"}{cursoSelecionado.durationHours ? ` • ${cursoSelecionado.durationHours}h` : ""}{cursoSelecionado.price != null && cursoSelecionado.price > 0 ? ` • R$ ${Number(cursoSelecionado.price).toFixed(2)}` : ""}</span>
+                  <AnimatedButton
+                    type="button"
+                    className="estruturaSelectedAction"
+                    onClick={() => setDetalheModal({ tipo: "curso", item: cursoSelecionado })}
+                  >
+                    <Eye size={16} /> Ver detalhes
+                  </AnimatedButton>
                 </div>
               )}
               <div className="viewerList" style={{ marginTop: 10 }}>
-                {paginaCursosItens.length === 0 ? (
+                {carregandoCursos ? (
+                  <div className="estruturaLoadingCursos" role="status" aria-live="polite">
+                    <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                    <span>Carregando cursos...</span>
+                  </div>
+                ) : paginaCursosItens.length === 0 ? (
                   <div className="viewerEmpty">Nenhum curso encontrado.</div>
                 ) : (
                   paginaCursosItens.map((curso) => (
@@ -610,7 +683,6 @@ export default function EstruturaCursoPage() {
                       className={`viewerItem ${curso.id === courseIdSelecionado ? "active" : ""}`}
                       onClick={() => {
                         setCourseIdSelecionado(curso.id);
-                        setDetalheModal({ tipo: "curso", item: curso });
                       }}
                     >
                       <span className="viewerItemTitle">{curso.nome}</span>
@@ -641,14 +713,32 @@ export default function EstruturaCursoPage() {
                 <span>Curso *</span>
                 <PaginatedSelect
                   value={courseIdSelecionado}
-                  onChange={setCourseIdSelecionado}
-                  options={todosCursos.map((curso) => ({
+                  onChange={(value) => {
+                    setCourseIdSelecionado(value);
+                    const found = cursoSelectOpcoes.find((curso) => curso.id === value) ?? null;
+                    if (found) setCursoSelectSelecionado(found);
+                  }}
+                  options={cursoSelectOpcoes.map((curso) => ({
                     value: curso.id,
                     label: curso.nome,
                     meta: curso.isPaid ? "Pago" : "Gratuito",
                   }))}
+                  selectedOption={cursoSelectSelecionado ? {
+                    value: cursoSelectSelecionado.id,
+                    label: cursoSelectSelecionado.nome,
+                    meta: cursoSelectSelecionado.isPaid ? "Pago" : "Gratuito",
+                  } : null}
                   placeholder="Selecione um curso"
                   emptyText="Nenhum curso cadastrado"
+                  allowPageSizeChange={false}
+                  remote={{
+                    query: cursoSelectBusca,
+                    onQueryChange: setCursoSelectBusca,
+                    page: cursoSelectPagina,
+                    totalPages: cursoSelectTotalPages,
+                    onPageChange: setCursoSelectPagina,
+                    loading: cursoSelectCarregando,
+                  }}
                 />
 
                 <span>Nome do módulo *</span>
@@ -690,6 +780,11 @@ export default function EstruturaCursoPage() {
               <div className="viewerList" style={{ marginTop: 10 }}>
                 {!courseIdSelecionado ? (
                   <div className="viewerEmpty">Selecione um curso para listar módulos.</div>
+                ) : carregandoModulos ? (
+                  <div className="estruturaLoadingCursos" role="status" aria-live="polite">
+                    <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                    <span>Carregando módulos...</span>
+                  </div>
                 ) : paginaModulosItens.length === 0 ? (
                   <div className="viewerEmpty">Nenhum módulo encontrado.</div>
                 ) : (
@@ -752,28 +847,64 @@ export default function EstruturaCursoPage() {
                 <span>Curso *</span>
                 <PaginatedSelect
                   value={courseIdSelecionado}
-                  onChange={setCourseIdSelecionado}
-                  options={todosCursos.map((curso) => ({
+                  onChange={(value) => {
+                    setCourseIdSelecionado(value);
+                    const found = cursoSelectOpcoes.find((curso) => curso.id === value) ?? null;
+                    if (found) setCursoSelectSelecionado(found);
+                  }}
+                  options={cursoSelectOpcoes.map((curso) => ({
                     value: curso.id,
                     label: curso.nome,
                     meta: curso.isPaid ? "Pago" : "Gratuito",
                   }))}
+                  selectedOption={cursoSelectSelecionado ? {
+                    value: cursoSelectSelecionado.id,
+                    label: cursoSelectSelecionado.nome,
+                    meta: cursoSelectSelecionado.isPaid ? "Pago" : "Gratuito",
+                  } : null}
                   placeholder="Selecione um curso"
                   emptyText="Nenhum curso cadastrado"
+                  allowPageSizeChange={false}
+                  remote={{
+                    query: cursoSelectBusca,
+                    onQueryChange: setCursoSelectBusca,
+                    page: cursoSelectPagina,
+                    totalPages: cursoSelectTotalPages,
+                    onPageChange: setCursoSelectPagina,
+                    loading: cursoSelectCarregando,
+                  }}
                 />
 
                 <span>Módulo *</span>
                 <PaginatedSelect
                   value={moduloIdSelecionado}
-                  onChange={setModuloIdSelecionado}
-                  options={todosModulos.map((mod) => ({
+                  onChange={(value) => {
+                    setModuloIdSelecionado(value);
+                    const found = moduloSelectOpcoes.find((mod) => mod.id === value) ?? null;
+                    if (found) setModuloSelectSelecionado(found);
+                  }}
+                  options={moduloSelectOpcoes.map((mod) => ({
                     value: mod.id,
                     label: mod.nome,
                     meta: `Ordem #${mod.indexOrder}`,
                   }))}
+                  selectedOption={moduloSelectSelecionado ? {
+                    value: moduloSelectSelecionado.id,
+                    label: moduloSelectSelecionado.nome,
+                    meta: `Ordem #${moduloSelectSelecionado.indexOrder}`,
+                  } : null}
                   placeholder={courseIdSelecionado ? "Selecione um módulo" : "Selecione um curso primeiro"}
                   disabled={!courseIdSelecionado}
+                  allowPageSizeChange={false}
                   emptyText="Nenhum módulo cadastrado para este curso"
+                  remote={{
+                    query: moduloSelectBusca,
+                    onQueryChange: setModuloSelectBusca,
+                    page: moduloSelectPagina,
+                    totalPages: moduloSelectTotalPages,
+                    onPageChange: setModuloSelectPagina,
+                    loading: moduloSelectCarregando,
+                  }}
                 />
 
                 <span>Nome da fase *</span>
@@ -814,6 +945,11 @@ export default function EstruturaCursoPage() {
               <div className="viewerList" style={{ marginTop: 10 }}>
                 {!moduloIdSelecionado ? (
                   <div className="viewerEmpty">Selecione um módulo para listar fases.</div>
+                ) : carregandoFases ? (
+                  <div className="estruturaLoadingCursos" role="status" aria-live="polite">
+                    <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                    <span>Carregando fases...</span>
+                  </div>
                 ) : paginaFasesItens.length === 0 ? (
                   <div className="viewerEmpty">Nenhuma fase encontrada.</div>
                 ) : (

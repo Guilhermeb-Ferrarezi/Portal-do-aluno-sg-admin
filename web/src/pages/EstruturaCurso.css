@@ -589,6 +589,41 @@
   color: var(--text-secondary);
 }
 
+.estruturaSelectedAction {
+  align-self: flex-start;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 10px;
+}
+
+.estruturaLoadingCursos {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--line) 56%, transparent);
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--background-secondary) 70%, var(--card) 30%);
+}
+
+.estruturaLoadingCursosIcon {
+  animation: estruturaSpin 0.9s linear infinite;
+}
+
+@keyframes estruturaSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .estruturaInfoBox {
   background: color-mix(in srgb, var(--accent) 6%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);

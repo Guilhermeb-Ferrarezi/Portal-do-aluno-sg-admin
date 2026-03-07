@@ -99,36 +99,68 @@ function buildEndDate(startDateIso: string, durationWeeks: number): string {
   return d.toISOString();
 }
 
+function isMissingDatabaseObjectError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+  return code === "42P01" || code === "42703";
+}
+
 async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
-  const result = await pool.query<DbCourseRow>(
-    `SELECT id, name, description, is_paid, duration_hours, level, focus, price
-     FROM course
-     WHERE id = $1
-     LIMIT 1`,
-    [courseId]
-  );
-  return result.rows[0] ?? null;
+  try {
+    const result = await pool.query<DbCourseRow>(
+      `SELECT id, name, description, is_paid, duration_hours,
+              level_difficulty AS level,
+              paid_focus AS focus,
+              price
+       FROM course
+       WHERE id = $1
+       LIMIT 1`,
+      [courseId]
+    );
+    return result.rows[0] ?? null;
+  } catch (error) {
+    if (isMissingDatabaseObjectError(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 async function findPreferredCourse(categoria: Categoria): Promise<DbCourseRow | null> {
-  if (categoria === "informatica") {
-    const inf = await pool.query<DbCourseRow>(
-      `SELECT id, name, description, is_paid, duration_hours, level, focus, price
+  try {
+    if (categoria === "informatica") {
+      const inf = await pool.query<DbCourseRow>(
+        `SELECT id, name, description, is_paid, duration_hours,
+                level_difficulty AS level,
+                paid_focus AS focus,
+                price
+         FROM course
+         WHERE COALESCE(name, '') ILIKE '%informat%'
+         ORDER BY id ASC
+         LIMIT 1`
+      );
+      if (inf.rows[0]) return inf.rows[0];
+    }
+
+    const any = await pool.query<DbCourseRow>(
+      `SELECT id, name, description, is_paid, duration_hours,
+              level_difficulty AS level,
+              paid_focus AS focus,
+              price
        FROM course
-       WHERE COALESCE(name, '') ILIKE '%informat%'
        ORDER BY id ASC
        LIMIT 1`
     );
-    if (inf.rows[0]) return inf.rows[0];
+    return any.rows[0] ?? null;
+  } catch (error) {
+    if (isMissingDatabaseObjectError(error)) {
+      return null;
+    }
+    throw error;
   }
-
-  const any = await pool.query<DbCourseRow>(
-    `SELECT id, name, description, is_paid, duration_hours, level, focus, price
-     FROM course
-     ORDER BY id ASC
-     LIMIT 1`
-  );
-  return any.rows[0] ?? null;
 }
 
 async function getModuleById(moduleId: number): Promise<DbModuleRow | null> {
@@ -462,6 +494,9 @@ export function turmasRouter(jwtSecret: string) {
         fases: Number(row?.fases ?? 0),
       });
     } catch (error) {
+      if (isMissingDatabaseObjectError(error)) {
+        return res.json({ cursos: 0, modulos: 0, fases: 0 });
+      }
       console.error("Erro ao buscar stats:", error);
       return res.status(500).json({ message: "Erro ao buscar stats" });
     }
@@ -469,13 +504,14 @@ export function turmasRouter(jwtSecret: string) {
 
   // GET /courses
   router.get("/courses", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
+    const pageRaw = Number(req.query.page ?? 1);
+    const limitRaw = Number(req.query.limit ?? 20);
+    const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+    const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
+
     try {
-      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-      const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
-      const pageRaw = Number(req.query.page ?? 1);
-      const limitRaw = Number(req.query.limit ?? 20);
-      const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
-      const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
       const offset = (page - 1) * limit;
 
       const params: unknown[] = [];
@@ -499,7 +535,10 @@ export function turmasRouter(jwtSecret: string) {
 
       if (!hasPaginationInput) {
         const result = await pool.query<DbCourseRow>(
-          `SELECT id, name, description, is_paid, duration_hours, level, focus, price
+          `SELECT id, name, description, is_paid, duration_hours,
+                  level_difficulty AS level,
+                  paid_focus AS focus,
+                  price
            FROM course
            ${where}
            ORDER BY id ASC`,
@@ -518,7 +557,10 @@ export function turmasRouter(jwtSecret: string) {
 
       const listParams = [...params, limit, offset];
       const result = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid, duration_hours, level, focus, price
+        `SELECT id, name, description, is_paid, duration_hours,
+          level_difficulty AS level,
+          paid_focus AS focus,
+          price
          FROM course
          ${where}
          ORDER BY id ASC
@@ -540,6 +582,22 @@ export function turmasRouter(jwtSecret: string) {
         },
       });
     } catch (error) {
+      if (isMissingDatabaseObjectError(error)) {
+        if (!hasPaginationInput) {
+          return res.json([]);
+        }
+
+        return res.json({
+          items: [],
+          total: 0,
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 1,
+          },
+        });
+      }
       console.error("Erro ao listar cursos:", error);
       return res.status(500).json({ message: "Erro ao listar cursos" });
     }
@@ -569,9 +627,12 @@ export function turmasRouter(jwtSecret: string) {
         const data = parsed.data;
 
         const result = await pool.query<DbCourseRow>(
-          `INSERT INTO course (name, description, is_paid, duration_hours, level, focus, price, created_at, updated_at)
+          `INSERT INTO course (name, description, is_paid, duration_hours, level_difficulty, paid_focus, price, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-           RETURNING id, name, description, is_paid, duration_hours, level, focus, price`,
+           RETURNING id, name, description, is_paid, duration_hours,
+                     level_difficulty AS level,
+                     paid_focus AS focus,
+                     price`,
           [data.nome, data.descricao ?? null, data.is_paid, data.duration_hours ?? null, data.level ?? null, data.focus ?? null, data.price ?? null]
         );
 
@@ -601,6 +662,9 @@ export function turmasRouter(jwtSecret: string) {
           },
         });
       } catch (error) {
+        if (isMissingDatabaseObjectError(error)) {
+          return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
+        }
         console.error("Erro ao criar curso:", error);
         return res.status(500).json({ message: "Erro ao criar curso" });
       }
@@ -638,6 +702,9 @@ export function turmasRouter(jwtSecret: string) {
 
         return res.json({ message: "Curso deletado com sucesso" });
       } catch (error) {
+        if (isMissingDatabaseObjectError(error)) {
+          return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
+        }
         console.error("Erro ao deletar curso:", error);
         return res.status(500).json({ message: "Erro ao deletar curso" });
       }
@@ -891,7 +958,7 @@ export function turmasRouter(jwtSecret: string) {
 
     if (courseIds.length > 0) {
       const r = await pool.query<DbCourseRow>(
-        `SELECT id, name, description, is_paid, duration_hours, level, focus, price
+        `SELECT id, name, description, is_paid, duration_hours, level_difficulty AS level, paid_focus AS focus, price
          FROM course
          WHERE id = ANY($1::int[])`,
         [courseIds]

@@ -89,7 +89,17 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   const [cursoIdSelecionado, setCursoIdSelecionado] = React.useState("");
   const [todosModulosDisponiveis, setTodosModulosDisponiveis] = React.useState<Modulo[]>([]);
   const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
+  const [moduloSelectBusca, setModuloSelectBusca] = React.useState("");
+  const [moduloSelectPagina, setModuloSelectPagina] = React.useState(1);
+  const [moduloSelectTotalPages, setModuloSelectTotalPages] = React.useState(1);
+  const [moduloSelectCarregando, setModuloSelectCarregando] = React.useState(false);
+  const [moduloSelecionadoCache, setModuloSelecionadoCache] = React.useState<Modulo | null>(null);
   const [fasesDisponiveis, setFasesDisponiveis] = React.useState<Fase[]>([]);
+  const [faseSelectBusca, setFaseSelectBusca] = React.useState("");
+  const [faseSelectPagina, setFaseSelectPagina] = React.useState(1);
+  const [faseSelectTotalPages, setFaseSelectTotalPages] = React.useState(1);
+  const [faseSelectCarregando, setFaseSelectCarregando] = React.useState(false);
+  const [faseSelecionadaCache, setFaseSelecionadaCache] = React.useState<Fase | null>(null);
   const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
   const [faseIdSelecionada, setFaseIdSelecionada] = React.useState("");
   const [prazo, setPrazo] = React.useState("");
@@ -123,13 +133,13 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   const createDepsLoadingRef = React.useRef(false);
 
   const moduloSelecionado = React.useMemo(
-    () => modulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? todosModulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? null,
-    [modulosDisponiveis, todosModulosDisponiveis, moduloIdSelecionado]
+    () => modulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? moduloSelecionadoCache ?? todosModulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? null,
+    [moduloSelecionadoCache, modulosDisponiveis, todosModulosDisponiveis, moduloIdSelecionado]
   );
 
   const faseSelecionada = React.useMemo(
-    () => fasesDisponiveis.find((f) => f.id === faseIdSelecionada) ?? null,
-    [fasesDisponiveis, faseIdSelecionada]
+    () => fasesDisponiveis.find((f) => f.id === faseIdSelecionada) ?? faseSelecionadaCache ?? null,
+    [fasesDisponiveis, faseIdSelecionada, faseSelecionadaCache]
   );
 
   const cursoSelecionado = React.useMemo(
@@ -187,8 +197,16 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     if (trocouCurso) {
       setModuloIdSelecionado("");
       setModulosDisponiveis([]);
+      setModuloSelecionadoCache(null);
+      setModuloSelectBusca("");
+      setModuloSelectPagina(1);
+      setModuloSelectTotalPages(1);
       setFaseIdSelecionada("");
       setFasesDisponiveis([]);
+      setFaseSelecionadaCache(null);
+      setFaseSelectBusca("");
+      setFaseSelectPagina(1);
+      setFaseSelectTotalPages(1);
       setMostrarDetalhesCurso(false);
     }
     setCursoIdSelecionado(courseId);
@@ -241,6 +259,10 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     setGabarito("");
     setCursoIdSelecionado("");
     setModuloIdSelecionado("");
+    setModuloSelecionadoCache(null);
+    setModuloSelectBusca("");
+    setModuloSelectPagina(1);
+    setModuloSelectTotalPages(1);
     setFaseIdSelecionada("");
     setMostrarDetalhesCurso(false);
     setPrazo("");
@@ -294,15 +316,32 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     if (!cursoIdSelecionado) {
       setModulosDisponiveis([]);
       setModuloIdSelecionado("");
+      setModuloSelecionadoCache(null);
       setFasesDisponiveis([]);
       setFaseIdSelecionada("");
       return;
     }
-    listarModulosPorCurso(cursoIdSelecionado)
+
+    let ativo = true;
+    setModuloSelectCarregando(true);
+
+    listarModulosPorCurso(cursoIdSelecionado, {
+      page: moduloSelectPagina,
+      limit: 8,
+      q: moduloSelectBusca || undefined,
+    })
       .then((response) => {
+        if (!ativo) return;
+
         const modulos = normalizeListPayload<Modulo>(response as Modulo[] | { items?: Modulo[] });
         setModulosDisponiveis(modulos);
-        setModuloIdSelecionado((prev) => (prev && modulos.some((m) => m.id === prev) ? prev : ""));
+
+        if (!Array.isArray(response)) {
+          setModuloSelectTotalPages(response.pagination.totalPages);
+        } else {
+          setModuloSelectTotalPages(1);
+        }
+
         if (modulos.length > 0) {
           setTodosModulosDisponiveis((prev) => {
             const map = new Map<string, Modulo>();
@@ -312,8 +351,22 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
           });
         }
       })
-      .catch(console.error);
-  }, [cursoIdSelecionado]);
+      .catch(console.error)
+      .finally(() => {
+        if (ativo) setModuloSelectCarregando(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [cursoIdSelecionado, moduloSelectBusca, moduloSelectPagina]);
+
+  React.useEffect(() => {
+    const found = modulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? null;
+    if (found) {
+      setModuloSelecionadoCache(found);
+    }
+  }, [moduloIdSelecionado, modulosDisponiveis]);
 
   React.useEffect(() => {
     if (!cursoSelecionado) return;
@@ -331,16 +384,51 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     if (!moduloIdSelecionado) {
       setFasesDisponiveis([]);
       setFaseIdSelecionada("");
+      setFaseSelecionadaCache(null);
+      setFaseSelectBusca("");
+      setFaseSelectPagina(1);
+      setFaseSelectTotalPages(1);
       return;
     }
-    listarFasesDoModulo(moduloIdSelecionado)
+
+    let ativo = true;
+    setFaseSelectCarregando(true);
+
+    listarFasesDoModulo(moduloIdSelecionado, {
+      page: faseSelectPagina,
+      limit: 8,
+      q: faseSelectBusca || undefined,
+    })
       .then((response) => {
-        const fases = normalizeListPayload<Fase>(response as Fase[] | { items?: Fase[] });
-        setFasesDisponiveis(fases);
-        setFaseIdSelecionada((prev) => (prev && fases.some((f) => f.id === prev) ? prev : ""));
+        if (!ativo) return;
+
+        if (Array.isArray(response)) {
+          setFasesDisponiveis(response);
+          setFaseSelectTotalPages(1);
+          setFaseIdSelecionada((prev) => (prev && response.some((f) => f.id === prev) ? prev : prev));
+          return;
+        }
+
+        setFasesDisponiveis(response.items);
+        setFaseSelectTotalPages(response.pagination.totalPages);
+        setFaseIdSelecionada((prev) => (prev && response.items.some((f) => f.id === prev) ? prev : prev));
       })
-      .catch(console.error);
-  }, [moduloIdSelecionado]);
+      .catch(console.error)
+      .finally(() => {
+        if (ativo) setFaseSelectCarregando(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [faseSelectBusca, faseSelectPagina, moduloIdSelecionado]);
+
+  React.useEffect(() => {
+    const found = fasesDisponiveis.find((f) => f.id === faseIdSelecionada) ?? null;
+    if (found) {
+      setFaseSelecionadaCache(found);
+    }
+  }, [fasesDisponiveis, faseIdSelecionada]);
 
   async function handleSubmit() {
     try {
@@ -467,107 +555,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               {fieldWarnings.descricao && <small className="exFieldWarning">{fieldWarnings.descricao}</small>}
             </div>
 
-            {/* CURSO SELECTOR */}
-            <div className="exInputRow">
-              <div className="exInputGroup">
-                <div className="exCoursesFilterRow">
-                  <input
-                    className="exInput"
-                    value={cursoCardsFiltro}
-                    onChange={(e) => setCursoCardsFiltro(e.target.value)}
-                    placeholder="Filtrar cursos por nome ou descrição"
-                  />
-                  {cursoCardsFiltro.trim() && (
-                    <button type="button" className="exCoursesFilterClearBtn" onClick={() => setCursoCardsFiltro("")}>
-                      Limpar
-                    </button>
-                  )}
-                </div>
-                <div className={`exToggleGroup ${fieldWarnings.curso ? "isWarning" : ""}`}>
-                  {cursosTogglePaginados.map((curso) => {
-                    const cursoCategoria = inferCategoriaFromCourseName(curso.nome);
-                    const isAtivo = curso.id === cursoIdSelecionado;
-                    return (
-                      <label key={curso.id} className={`exToggleOption ${isAtivo ? "active" : ""}`}>
-                        <input
-                          className="exToggleInput"
-                          type="radio"
-                          name="course_id_criar"
-                          value={curso.id}
-                          checked={isAtivo}
-                          onChange={() => handleSelecionarCurso(curso.id)}
-                        />
-                        <span className="exToggleDot" aria-hidden="true" />
-                        <span className="exToggleLabel">
-                          {iconLabel(cursoCategoria === "informatica" ? <Monitor size={14} /> : <Laptop size={14} />, curso.nome)}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {fieldWarnings.curso && <small className="exFieldWarning">{fieldWarnings.curso}</small>}
-                <div className="exCourseCardsActions">
-                  <div className={`exCourseCardsSelected ${cursoSelecionado ? "" : "isEmpty"}`}>
-                    <span className="exCourseCardsSelectedLabel">
-                      {iconLabel(<BookOpen size={13} />, cursoSelecionado ? "Curso selecionado" : "Selecao de curso")}
-                    </span>
-                    <strong className="exCourseCardsSelectedValue">
-                      {cursoSelecionado ? cursoSelecionado.nome : "Selecione um curso para ver detalhes"}
-                    </strong>
-                  </div>
-                  <button type="button" className="exCourseDetailsBtn" onClick={() => setMostrarDetalhesCurso((prev) => !prev)} disabled={!cursoSelecionado}>
-                    {iconLabel(<Eye size={14} />, mostrarDetalhesCurso ? "Ocultar detalhes" : "Ver detalhes")}
-                  </button>
-                </div>
-                {cursosToggleFiltrados.length === 0 && (
-                  <small style={{ color: "#94a3b8", marginTop: "6px" }}>Nenhum curso encontrado no banco.</small>
-                )}
-                <Pagination
-                  currentPage={cursoCardsPagina}
-                  itemsPerPage={cursoCardsItensPorPagina}
-                  totalItems={cursosToggleFiltrados.length}
-                  onPageChange={setCursoCardsPagina}
-                  onItemsPerPageChange={setCursoCardsItensPorPagina}
-                />
-                <ConditionalFieldAnimation isVisible={Boolean(cursoSelecionado && mostrarDetalhesCurso)}>
-                  <div className="exCourseDetailsPanel">
-                    <div className="exCourseDetailsGrid">
-                      <div className="exCourseDetailItem">
-                        <small>Categoria</small>
-                        <strong>{inferCategoriaFromCourseName(cursoSelecionado?.nome) === "informatica" ? "Informática" : "Programação"}</strong>
-                      </div>
-                      <div className="exCourseDetailItem">
-                        <small>Modelo</small>
-                        <strong>{cursoSelecionado?.isPaid ? "Pago" : "Gratuito"}</strong>
-                      </div>
-                      <div className="exCourseDetailItem">
-                        <small>Módulos cadastrados</small>
-                        <strong>{modulosDoCursoSelecionado.length}</strong>
-                      </div>
-                      <div className="exCourseDetailItem">
-                        <small>ID do curso</small>
-                        <strong>{cursoSelecionado?.id}</strong>
-                      </div>
-                    </div>
-                    {cursoSelecionado?.descricao && <p className="exCourseDescription">{cursoSelecionado.descricao}</p>}
-                    {modulosDoCursoSelecionado.length > 0 && (
-                      <div className="exCourseModulesPreview">
-                        <small>Trilha de modulos</small>
-                        <div className="exCourseModulesChips">
-                          {modulosDoCursoSelecionado.slice(0, 5).map((m) => (
-                            <span key={m.id} className="exCourseModuleChip">{m.nome}</span>
-                          ))}
-                          {modulosDoCursoSelecionado.length > 5 && (
-                            <span className="exCourseModuleChip isMore">+{modulosDoCursoSelecionado.length - 5} modulos</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </ConditionalFieldAnimation>
-              </div>
-            </div>
-
             {/* TIPO DE EXERCICIO - Programacao */}
             {categoria === "programacao" && (
               <>
@@ -686,20 +673,105 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               </>
             )}
 
-            {/* MODULO / FASE / PRAZO */}
+            {/* CURSO / MODULO / FASE / PRAZO */}
             <div className="exInputRow">
               <div className="exInputGroup">
-                <span className="exLabel">Curso selecionado *</span>
-                <div className={`exCourseSummary ${cursoSelecionado ? "" : "isEmpty"}`}>
-                  {cursoSelecionado ? (
-                    <>
-                      <strong>{iconLabel(inferCategoriaFromCourseName(cursoSelecionado.nome) === "informatica" ? <Monitor size={14} /> : <Laptop size={14} />, cursoSelecionado.nome)}</strong>
-                      {cursoSelecionado.descricao && <span>{cursoSelecionado.descricao}</span>}
-                    </>
-                  ) : (
-                    <span>Selecione um curso acima para liberar os módulos e fases.</span>
+                <span className="exLabel">Curso *</span>
+                <div className="exCoursesFilterRow">
+                  <input
+                    className="exInput"
+                    value={cursoCardsFiltro}
+                    onChange={(e) => setCursoCardsFiltro(e.target.value)}
+                    placeholder="Filtrar cursos por nome ou descrição"
+                  />
+                  {cursoCardsFiltro.trim() && (
+                    <button type="button" className="exCoursesFilterClearBtn" onClick={() => setCursoCardsFiltro("")}>
+                      Limpar
+                    </button>
                   )}
                 </div>
+                <div className={`exToggleGroup ${fieldWarnings.curso ? "isWarning" : ""}`}>
+                  {cursosTogglePaginados.map((curso) => {
+                    const cursoCategoria = inferCategoriaFromCourseName(curso.nome);
+                    const isAtivo = curso.id === cursoIdSelecionado;
+                    return (
+                      <label key={curso.id} className={`exToggleOption ${isAtivo ? "active" : ""}`}>
+                        <input
+                          className="exToggleInput"
+                          type="radio"
+                          name="course_id_criar"
+                          value={curso.id}
+                          checked={isAtivo}
+                          onChange={() => handleSelecionarCurso(curso.id)}
+                        />
+                        <span className="exToggleDot" aria-hidden="true" />
+                        <span className="exToggleLabel">
+                          {iconLabel(cursoCategoria === "informatica" ? <Monitor size={14} /> : <Laptop size={14} />, curso.nome)}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {fieldWarnings.curso && <small className="exFieldWarning">{fieldWarnings.curso}</small>}
+                <div className="exCourseCardsActions">
+                  <div className={`exCourseCardsSelected ${cursoSelecionado ? "" : "isEmpty"}`}>
+                    <span className="exCourseCardsSelectedLabel">
+                      {iconLabel(<BookOpen size={13} />, cursoSelecionado ? "Curso selecionado" : "Selecao de curso")}
+                    </span>
+                    <strong className="exCourseCardsSelectedValue">
+                      {cursoSelecionado ? cursoSelecionado.nome : "Selecione um curso para ver detalhes"}
+                    </strong>
+                  </div>
+                  <button type="button" className="exCourseDetailsBtn" onClick={() => setMostrarDetalhesCurso((prev) => !prev)} disabled={!cursoSelecionado}>
+                    {iconLabel(<Eye size={14} />, mostrarDetalhesCurso ? "Ocultar detalhes" : "Ver detalhes")}
+                  </button>
+                </div>
+                {cursosToggleFiltrados.length === 0 && (
+                  <small style={{ color: "#94a3b8", marginTop: "6px" }}>Nenhum curso encontrado no banco.</small>
+                )}
+                <Pagination
+                  currentPage={cursoCardsPagina}
+                  itemsPerPage={cursoCardsItensPorPagina}
+                  totalItems={cursosToggleFiltrados.length}
+                  onPageChange={setCursoCardsPagina}
+                  onItemsPerPageChange={setCursoCardsItensPorPagina}
+                />
+                <ConditionalFieldAnimation isVisible={Boolean(cursoSelecionado && mostrarDetalhesCurso)}>
+                  <div className="exCourseDetailsPanel">
+                    <div className="exCourseDetailsGrid">
+                      <div className="exCourseDetailItem">
+                        <small>Categoria</small>
+                        <strong>{inferCategoriaFromCourseName(cursoSelecionado?.nome) === "informatica" ? "Informática" : "Programação"}</strong>
+                      </div>
+                      <div className="exCourseDetailItem">
+                        <small>Modelo</small>
+                        <strong>{cursoSelecionado?.isPaid ? "Pago" : "Gratuito"}</strong>
+                      </div>
+                      <div className="exCourseDetailItem">
+                        <small>Módulos cadastrados</small>
+                        <strong>{modulosDoCursoSelecionado.length}</strong>
+                      </div>
+                      <div className="exCourseDetailItem">
+                        <small>ID do curso</small>
+                        <strong>{cursoSelecionado?.id}</strong>
+                      </div>
+                    </div>
+                    {cursoSelecionado?.descricao && <p className="exCourseDescription">{cursoSelecionado.descricao}</p>}
+                    {modulosDoCursoSelecionado.length > 0 && (
+                      <div className="exCourseModulesPreview">
+                        <small>Trilha de modulos</small>
+                        <div className="exCourseModulesChips">
+                          {modulosDoCursoSelecionado.slice(0, 5).map((m) => (
+                            <span key={m.id} className="exCourseModuleChip">{m.nome}</span>
+                          ))}
+                          {modulosDoCursoSelecionado.length > 5 && (
+                            <span className="exCourseModuleChip isMore">+{modulosDoCursoSelecionado.length - 5} modulos</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </ConditionalFieldAnimation>
               </div>
             </div>
 
@@ -709,12 +781,33 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 <div className={`exFieldWarnWrap ${fieldWarnings.modulo ? "isWarning" : ""}`}>
                   <PaginatedSelect
                     value={moduloIdSelecionado}
-                    onChange={(value) => { setModuloIdSelecionado(value); setFaseIdSelecionada(""); clearFieldWarning("modulo"); clearFieldWarning("fase"); clearFieldWarning("ordem"); }}
+                    onChange={(value) => {
+                      setModuloIdSelecionado(value);
+                      const found = modulosDisponiveis.find((m) => m.id === value) ?? null;
+                      if (found) setModuloSelecionadoCache(found);
+                      setFaseIdSelecionada("");
+                      clearFieldWarning("modulo");
+                      clearFieldWarning("fase");
+                      clearFieldWarning("ordem");
+                    }}
                     options={modulosDisponiveis.map((m) => ({ value: m.id, label: m.nome, meta: m.indexOrder ? `Ordem #${m.indexOrder}` : undefined }))}
+                    selectedOption={moduloSelecionado ? {
+                      value: moduloSelecionado.id,
+                      label: moduloSelecionado.nome,
+                      meta: moduloSelecionado.indexOrder ? `Ordem #${moduloSelecionado.indexOrder}` : undefined,
+                    } : null}
                     placeholder={cursoIdSelecionado ? "Selecione um modulo" : "Selecione um curso primeiro"}
                     disabled={!cursoIdSelecionado}
-                    pageSize={8}
+                    allowPageSizeChange={false}
                     emptyText="Nenhum modulo encontrado"
+                    remote={{
+                      query: moduloSelectBusca,
+                      onQueryChange: setModuloSelectBusca,
+                      page: moduloSelectPagina,
+                      totalPages: moduloSelectTotalPages,
+                      onPageChange: setModuloSelectPagina,
+                      loading: moduloSelectCarregando,
+                    }}
                   />
                 </div>
                 {fieldWarnings.modulo && <small className="exFieldWarning">{fieldWarnings.modulo}</small>}
@@ -725,12 +818,31 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 <div className={`exFieldWarnWrap ${fieldWarnings.fase ? "isWarning" : ""}`}>
                   <PaginatedSelect
                     value={faseIdSelecionada}
-                    onChange={(value) => { setFaseIdSelecionada(value); clearFieldWarning("fase"); clearFieldWarning("ordem"); }}
+                    onChange={(value) => {
+                      setFaseIdSelecionada(value);
+                      const found = fasesDisponiveis.find((f) => f.id === value) ?? null;
+                      if (found) setFaseSelecionadaCache(found);
+                      clearFieldWarning("fase");
+                      clearFieldWarning("ordem");
+                    }}
                     options={fasesDisponiveis.map((f) => ({ value: f.id, label: f.nome, meta: `Semana ${f.weekNumber}` }))}
+                    selectedOption={faseSelecionada ? {
+                      value: faseSelecionada.id,
+                      label: faseSelecionada.nome,
+                      meta: `Semana ${faseSelecionada.weekNumber}`,
+                    } : null}
                     placeholder={moduloIdSelecionado ? "Selecione uma fase" : "Selecione um modulo primeiro"}
                     disabled={!moduloIdSelecionado}
-                    pageSize={8}
+                    allowPageSizeChange={false}
                     emptyText="Nenhuma fase encontrada"
+                    remote={{
+                      query: faseSelectBusca,
+                      onQueryChange: setFaseSelectBusca,
+                      page: faseSelectPagina,
+                      totalPages: faseSelectTotalPages,
+                      onPageChange: setFaseSelectPagina,
+                      loading: faseSelectCarregando,
+                    }}
                   />
                 </div>
                 {fieldWarnings.fase && <small className="exFieldWarning">{fieldWarnings.fase}</small>}
