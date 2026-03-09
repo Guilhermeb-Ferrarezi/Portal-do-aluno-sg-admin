@@ -1148,6 +1148,21 @@
   color: var(--muted);
 }
 
+.exEditAttrModalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.exEditAttrErro {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #fca5a5;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
 .exModalFooterBtn {
   min-width: 160px;
   height: 42px;

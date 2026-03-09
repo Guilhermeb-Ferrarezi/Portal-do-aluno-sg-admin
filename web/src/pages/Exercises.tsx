@@ -628,6 +628,34 @@ export default function ExerciciosPage() {
     exercicio: Exercicio | null;
   }>({ isOpen: false, exercicio: null });
 
+  // Modal de editar atributos (sem mudar turma/curso/módulo/fase)
+  const [modalEditarAtributos, setModalEditarAtributos] = React.useState<{
+    isOpen: boolean;
+    exercicio: Exercicio | null;
+  }>({ isOpen: false, exercicio: null });
+  const [editAttrTitulo, setEditAttrTitulo] = React.useState("");
+  const [editAttrDescricao, setEditAttrDescricao] = React.useState("");
+  const [editAttrPrazo, setEditAttrPrazo] = React.useState("");
+  const [editAttrVideoUrl, setEditAttrVideoUrl] = React.useState("");
+  const [editAttrDifficulty, setEditAttrDifficulty] = React.useState("");
+  const [editAttrIndexOrder, setEditAttrIndexOrder] = React.useState("");
+  const [editAttrPointsRedeem, setEditAttrPointsRedeem] = React.useState("");
+  const [editAttrExercisePeriod, setEditAttrExercisePeriod] = React.useState("");
+  const [editAttrIsFinalExercise, setEditAttrIsFinalExercise] = React.useState(false);
+  const [editAttrIsDailyTask, setEditAttrIsDailyTask] = React.useState(false);
+  const [editAttrComponenteInterativo, setEditAttrComponenteInterativo] = React.useState("escrita");
+  const [editAttrMultiplaQuestoes, setEditAttrMultiplaQuestoes] = React.useState<Array<{
+    pergunta: string;
+    opcoes: Array<{ letter: string; text: string }>;
+    respostaCorreta: string;
+  }>>(() => getDefaultMultiplaQuestoes());
+  const [editAttrPermitirRepeticao, setEditAttrPermitirRepeticao] = React.useState(false);
+  const [editAttrMaxTentativas, setEditAttrMaxTentativas] = React.useState("");
+  const [editAttrPenalidadeTentativa, setEditAttrPenalidadeTentativa] = React.useState("");
+  const [editAttrIntervaloReenvio, setEditAttrIntervaloReenvio] = React.useState("");
+  const [editAttrSaving, setEditAttrSaving] = React.useState(false);
+  const [editAttrErro, setEditAttrErro] = React.useState<string | null>(null);
+
   // Modal de realocar exercício
   const [modalRealocar, setModalRealocar] = React.useState<{
     isOpen: boolean;
@@ -1246,7 +1274,131 @@ export default function ExerciciosPage() {
     if (!modalEditOpcoes.exercicio) return;
     const ex = modalEditOpcoes.exercicio;
     fecharModalEditOpcoes();
-    handleEdit(ex);
+    abrirModalEditarAtributos(ex);
+  }
+
+  function abrirModalEditarAtributos(exercicio: Exercicio) {
+    setEditAttrTitulo(exercicio.titulo);
+    setEditAttrDescricao(exercicio.descricao);
+    setEditAttrPrazo(toDatetimeLocal(exercicio.prazo));
+    setEditAttrVideoUrl(exercicio.videoUrl ?? "");
+    setEditAttrDifficulty(exercicio.difficulty !== null && exercicio.difficulty !== undefined ? String(exercicio.difficulty) : "");
+    setEditAttrIndexOrder(exercicio.indexOrder !== null && exercicio.indexOrder !== undefined ? String(exercicio.indexOrder) : "");
+    setEditAttrPointsRedeem(exercicio.pointsRedeem !== null && exercicio.pointsRedeem !== undefined ? String(exercicio.pointsRedeem) : "");
+    setEditAttrExercisePeriod(toDatetimeLocal(exercicio.exercisePeriod));
+    setEditAttrIsFinalExercise(exercicio.isFinalExercise === true);
+    setEditAttrIsDailyTask(exercicio.isDailyTask === true);
+    setEditAttrPermitirRepeticao(exercicio.permitir_repeticao ?? false);
+    setEditAttrMaxTentativas(exercicio.maxTentativas ? String(exercicio.maxTentativas) : "");
+    setEditAttrPenalidadeTentativa(
+      exercicio.penalidadePorTentativa !== null && exercicio.penalidadePorTentativa !== undefined
+        ? String(exercicio.penalidadePorTentativa) : ""
+    );
+    setEditAttrIntervaloReenvio(exercicio.intervaloReenvio ? String(exercicio.intervaloReenvio) : "");
+
+    if (exercicio.multipla_regras) {
+      setEditAttrComponenteInterativo("multipla");
+      try {
+        const regras = JSON.parse(exercicio.multipla_regras);
+        const questoes = Array.isArray(regras?.Questoes) ? regras.Questoes : [];
+        setEditAttrMultiplaQuestoes(questoes.length > 0 ? questoes : getDefaultMultiplaQuestoes());
+      } catch {
+        setEditAttrComponenteInterativo("escrita");
+        setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
+      }
+    } else {
+      setEditAttrComponenteInterativo("escrita");
+      setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
+    }
+
+    setEditAttrErro(null);
+    setEditAttrSaving(false);
+    setModalEditarAtributos({ isOpen: true, exercicio });
+  }
+
+  function fecharModalEditarAtributos() {
+    setModalEditarAtributos({ isOpen: false, exercicio: null });
+    setEditAttrErro(null);
+  }
+
+  async function confirmarEditarAtributos() {
+    const ex = modalEditarAtributos.exercicio;
+    if (!ex) return;
+
+    const tituloFinal = editAttrTitulo.trim();
+    const descricaoFinal = editAttrDescricao.trim();
+    if (tituloFinal.length < 2) {
+      setEditAttrErro("Título deve ter pelo menos 2 caracteres.");
+      return;
+    }
+    if (descricaoFinal.length < 2) {
+      setEditAttrErro("Descrição deve ter pelo menos 2 caracteres.");
+      return;
+    }
+
+    const ordemNum = editAttrIndexOrder.trim() ? Number(editAttrIndexOrder) : null;
+    if (editAttrIndexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 1)) {
+      setEditAttrErro("Ordem deve ser um número inteiro maior ou igual a 1.");
+      return;
+    }
+    const pontosNum = editAttrPointsRedeem.trim() ? Number(editAttrPointsRedeem) : null;
+    if (editAttrPointsRedeem.trim() && (!Number.isInteger(pontosNum) || Number(pontosNum) < 0)) {
+      setEditAttrErro("Pontos deve ser um número inteiro maior ou igual a 0.");
+      return;
+    }
+    if (editAttrVideoUrl.trim()) {
+      try { new URL(editAttrVideoUrl.trim()); } catch {
+        setEditAttrErro("URL do vídeo inválida.");
+        return;
+      }
+    }
+
+    const tipoSelecionado: "escrita" | "multipla" =
+      editAttrComponenteInterativo === "multipla" ? "multipla" : "escrita";
+    const maxTentativasNum = editAttrMaxTentativas.trim() ? Number(editAttrMaxTentativas) : null;
+    const penalidadeNum = editAttrPenalidadeTentativa.trim() ? Number(editAttrPenalidadeTentativa) : 0;
+    const intervaloNum = editAttrIntervaloReenvio.trim() ? Number(editAttrIntervaloReenvio) : null;
+
+    try {
+      setEditAttrSaving(true);
+      setEditAttrErro(null);
+
+      await atualizarExercicio(ex.id, {
+        titulo: tituloFinal,
+        descricao: descricaoFinal,
+        phase_id: Number(ex.phaseId),
+        modulo: ex.modulo,
+        tema: ex.tema ?? null,
+        prazo: editAttrPrazo ? new Date(editAttrPrazo).toISOString() : null,
+        video_url: editAttrVideoUrl.trim() || null,
+        difficulty: editAttrDifficulty.trim() ? (editAttrDifficulty.trim() as any) : null,
+        index_order: ordemNum,
+        is_final_exercise: editAttrIsFinalExercise,
+        is_daily_task: editAttrIsDailyTask,
+        points_redeem: pontosNum,
+        exercise_period: editAttrExercisePeriod ? new Date(editAttrExercisePeriod).toISOString() : null,
+        publicado: true,
+        published_at: null,
+        categoria: ex.categoria ?? "programacao",
+        tipoExercicio: tipoSelecionado,
+        ...(editAttrComponenteInterativo === "multipla" ? {
+          multipla_regras: JSON.stringify({ Questoes: editAttrMultiplaQuestoes })
+        } : {}),
+        permitir_repeticao: editAttrPermitirRepeticao,
+        max_tentativas: editAttrPermitirRepeticao ? maxTentativasNum : null,
+        penalidade_por_tentativa: editAttrPermitirRepeticao ? penalidadeNum : 0,
+        intervalo_reenvio: editAttrPermitirRepeticao ? intervaloNum : null,
+      });
+
+      setOkMsg("Exercício atualizado com sucesso!");
+      fecharModalEditarAtributos();
+      await load();
+      if (dailyLoaded) await loadDailyTasks();
+    } catch (e) {
+      setEditAttrErro(e instanceof Error ? e.message : "Erro ao atualizar exercício");
+    } finally {
+      setEditAttrSaving(false);
+    }
   }
 
   async function handleEscolherRealocar() {
@@ -3127,6 +3279,266 @@ export default function ExerciciosPage() {
             <small className="exActionChoiceHint">
               Mover o exercício para outra fase, módulo ou curso.
             </small>
+          </div>
+        </Modal>
+
+        {/* MODAL DE EDITAR ATRIBUTOS */}
+        <Modal
+          isOpen={modalEditarAtributos.isOpen}
+          onClose={fecharModalEditarAtributos}
+          title={`Editar: ${modalEditarAtributos.exercicio?.titulo ?? "Exercício"}`}
+          size="md"
+          footer={
+            <>
+              <AnimatedButton
+                className="exModalFooterBtn exModalFooterBtnGhost"
+                onClick={fecharModalEditarAtributos}
+              >
+                Cancelar
+              </AnimatedButton>
+              <AnimatedButton
+                className="exModalFooterBtn exModalFooterBtnPrimary"
+                disabled={editAttrSaving || editAttrTitulo.trim().length < 2}
+                onClick={confirmarEditarAtributos}
+              >
+                {editAttrSaving
+                  ? iconLabel(<Loader2 size={16} />, "Salvando...")
+                  : iconLabel(<Save size={16} />, "Salvar Alterações")}
+              </AnimatedButton>
+            </>
+          }
+        >
+          <div className="exEditAttrModalBody">
+            {editAttrErro && (
+              <div className="exEditAttrErro">{editAttrErro}</div>
+            )}
+
+            <div className="exInputGroup">
+              <span className="exLabel">Título</span>
+              <input
+                className="exInput"
+                value={editAttrTitulo}
+                onChange={(e) => setEditAttrTitulo(e.target.value)}
+                placeholder="Título do exercício"
+              />
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Descrição</span>
+              <textarea
+                className="exInput"
+                value={editAttrDescricao}
+                onChange={(e) => setEditAttrDescricao(e.target.value)}
+                placeholder="Descrição do exercício"
+                rows={3}
+                style={{ resize: "vertical" }}
+              />
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Tipo de componente</span>
+              <div style={{ display: "flex", gap: 12 }}>
+                <AnimatedRadioLabel
+                  checked={editAttrComponenteInterativo === "escrita"}
+                  onClick={() => setEditAttrComponenteInterativo("escrita")}
+                >
+                  {iconLabel(<PenLine size={14} />, "Dissertativo")}
+                </AnimatedRadioLabel>
+                <AnimatedRadioLabel
+                  checked={editAttrComponenteInterativo === "multipla"}
+                  onClick={() => setEditAttrComponenteInterativo("multipla")}
+                >
+                  {iconLabel(<ListChecks size={14} />, "Múltipla Escolha")}
+                </AnimatedRadioLabel>
+              </div>
+            </div>
+
+            {editAttrComponenteInterativo === "multipla" && (
+              <div className="exInputGroup">
+                <span className="exLabel">Questões</span>
+                {editAttrMultiplaQuestoes.map((q, qi) => (
+                  <MultipleChoiceQuestion
+                    key={qi}
+                    questionIndex={qi}
+                    pergunta={q.pergunta}
+                    opcoes={q.opcoes}
+                    respostaCorreta={q.respostaCorreta}
+                    onChangePergunta={(val) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      clone[qi] = { ...clone[qi], pergunta: val };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onChangeOpcao={(oi, val) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      const opcoes = [...clone[qi].opcoes];
+                      opcoes[oi] = { ...opcoes[oi], text: val };
+                      clone[qi] = { ...clone[qi], opcoes };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onChangeCorreta={(val) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      clone[qi] = { ...clone[qi], respostaCorreta: val };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onAddOpcao={() => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      const letters = clone[qi].opcoes.map((o) => o.letter);
+                      const next = String.fromCharCode(65 + letters.length);
+                      clone[qi] = { ...clone[qi], opcoes: [...clone[qi].opcoes, { letter: next, text: "" }] };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onRemoveOpcao={(oi) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      const opcoes = clone[qi].opcoes.filter((_, i) => i !== oi);
+                      clone[qi] = { ...clone[qi], opcoes };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onRemoveQuestao={editAttrMultiplaQuestoes.length > 1 ? () => {
+                      setEditAttrMultiplaQuestoes(editAttrMultiplaQuestoes.filter((_, i) => i !== qi));
+                    } : undefined}
+                  />
+                ))}
+                <AnimatedButton
+                  className="exActionChoiceBtn exActionChoiceBtnSecondary"
+                  style={{ marginTop: 8, alignSelf: "flex-start" }}
+                  onClick={() => setEditAttrMultiplaQuestoes([
+                    ...editAttrMultiplaQuestoes,
+                    { pergunta: "", opcoes: [{ letter: "A", text: "" }, { letter: "B", text: "" }, { letter: "C", text: "" }, { letter: "D", text: "" }], respostaCorreta: "" }
+                  ])}
+                >
+                  + Adicionar Questão
+                </AnimatedButton>
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="exInputGroup">
+                <span className="exLabel">Prazo</span>
+                <input
+                  className="exInput"
+                  type="datetime-local"
+                  value={editAttrPrazo}
+                  onChange={(e) => setEditAttrPrazo(e.target.value)}
+                />
+              </div>
+              <div className="exInputGroup">
+                <span className="exLabel">Dificuldade</span>
+                <AnimatedSelect
+                  className="exSelect"
+                  value={editAttrDifficulty}
+                  onChange={(e) => setEditAttrDifficulty(e.target.value)}
+                >
+                  <option value="">Padrão</option>
+                  <option value="normal">Normal</option>
+                  <option value="lower">Fácil</option>
+                </AnimatedSelect>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="exInputGroup">
+                <span className="exLabel">Ordem</span>
+                <input
+                  className="exInput"
+                  type="number"
+                  min={1}
+                  value={editAttrIndexOrder}
+                  onChange={(e) => setEditAttrIndexOrder(e.target.value)}
+                  placeholder="Ex: 1"
+                />
+              </div>
+              <div className="exInputGroup">
+                <span className="exLabel">Pontos</span>
+                <input
+                  className="exInput"
+                  type="number"
+                  min={0}
+                  value={editAttrPointsRedeem}
+                  onChange={(e) => setEditAttrPointsRedeem(e.target.value)}
+                  placeholder="Ex: 100"
+                />
+              </div>
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">URL do Vídeo</span>
+              <input
+                className="exInput"
+                value={editAttrVideoUrl}
+                onChange={(e) => setEditAttrVideoUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Período do exercício</span>
+              <input
+                className="exInput"
+                type="datetime-local"
+                value={editAttrExercisePeriod}
+                onChange={(e) => setEditAttrExercisePeriod(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <AnimatedToggle
+                  checked={editAttrIsFinalExercise}
+                  onChange={() => setEditAttrIsFinalExercise(!editAttrIsFinalExercise)}
+                />
+                Exercício final
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <AnimatedToggle
+                  checked={editAttrIsDailyTask}
+                  onChange={() => setEditAttrIsDailyTask(!editAttrIsDailyTask)}
+                />
+                Tarefa diária
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <AnimatedToggle
+                  checked={editAttrPermitirRepeticao}
+                  onChange={() => setEditAttrPermitirRepeticao(!editAttrPermitirRepeticao)}
+                />
+                Permitir repetição
+              </label>
+            </div>
+
+            {editAttrPermitirRepeticao && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div className="exInputGroup">
+                  <span className="exLabel">Máx. tentativas</span>
+                  <input
+                    className="exInput"
+                    type="number"
+                    min={1}
+                    value={editAttrMaxTentativas}
+                    onChange={(e) => setEditAttrMaxTentativas(e.target.value)}
+                  />
+                </div>
+                <div className="exInputGroup">
+                  <span className="exLabel">Penalidade (%)</span>
+                  <input
+                    className="exInput"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={editAttrPenalidadeTentativa}
+                    onChange={(e) => setEditAttrPenalidadeTentativa(e.target.value)}
+                  />
+                </div>
+                <div className="exInputGroup">
+                  <span className="exLabel">Intervalo (min)</span>
+                  <input
+                    className="exInput"
+                    type="number"
+                    min={0}
+                    value={editAttrIntervaloReenvio}
+                    onChange={(e) => setEditAttrIntervaloReenvio(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
 
