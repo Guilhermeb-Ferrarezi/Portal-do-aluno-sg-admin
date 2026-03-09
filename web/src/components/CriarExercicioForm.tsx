@@ -864,9 +864,10 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               <div className="exInputGroup">
                 <span className="exLabel">Dificuldade</span>
                 <AnimatedSelect className="exSelect" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-                  <option value="">Selecione</option>
+                  <option value="" disabled >Selecione</option>
                   <option value="normal">Normal</option>
                   <option value="lower">Lower (Recuperação)</option>
+                  <option value="prova_semanal">Prova Semanal</option>
                 </AnimatedSelect>
               </div>
             </div>

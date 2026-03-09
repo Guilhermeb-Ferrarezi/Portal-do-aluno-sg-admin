@@ -97,6 +97,7 @@ export default function EstruturaCursoPage() {
 
   const [carregandoModulos, setCarregandoModulos] = React.useState(false);
   const [carregandoFases, setCarregandoFases] = React.useState(false);
+  const [reordenando, setReordenando] = React.useState(false);
 
   const [filtroFaseId, setFiltroFaseId] = React.useState("");
   const [paginaFases, setPaginaFases] = React.useState(1);
@@ -296,7 +297,9 @@ export default function EstruturaCursoPage() {
   }, [faseIdParaExercicios]);
 
   async function handleReordenarExercicio(id: string, direction: "up" | "down") {
+    if (reordenando) return;
     try {
+      setReordenando(true);
       await reordenarExercicio(id, direction);
       if (faseIdParaExercicios) {
         const updated = await listarExerciciosPorFase(faseIdParaExercicios);
@@ -304,6 +307,8 @@ export default function EstruturaCursoPage() {
       }
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao reordenar exercício" });
+    } finally {
+      setReordenando(false);
     }
   }
 
@@ -421,7 +426,9 @@ export default function EstruturaCursoPage() {
   }
 
   async function handleReordenarModulo(id: string, direction: "up" | "down") {
+    if (reordenando) return;
     try {
+      setReordenando(true);
       await reordenarModulo(id, direction);
       const modsResponse = await listarModulosPorCurso(courseIdSelecionado, {
         page: paginaModulos,
@@ -431,11 +438,15 @@ export default function EstruturaCursoPage() {
       setTotalModulos(modsResponse.total);
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao reordenar módulo" });
+    } finally {
+      setReordenando(false);
     }
   }
 
   async function handleReordenarFase(id: string, direction: "up" | "down") {
+    if (reordenando) return;
     try {
+      setReordenando(true);
       await reordenarFase(id, direction);
       const fasesResponse = await listarFasesDoModulo(moduloIdSelecionado, {
         page: paginaFases,
@@ -445,6 +456,8 @@ export default function EstruturaCursoPage() {
       setTotalFases(fasesResponse.total);
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao reordenar fase" });
+    } finally {
+      setReordenando(false);
     }
   }
 
@@ -620,7 +633,9 @@ export default function EstruturaCursoPage() {
                 <select value={novoCursoNivel} onChange={(e) => setNovoCursoNivel(e.target.value)}>
                   <option value="">Selecione o nível</option>
                   <option value="iniciante">Iniciante</option>
+                  <option value="iniciante-intermediario">Iniciante -&gt; Intermediário</option>
                   <option value="intermediario">Intermediário</option>
+                  <option value="intermediario-avancado">Intermediário -&gt; Avançado</option>
                   <option value="avancado">Avançado</option>
                 </select>
 
@@ -718,18 +733,18 @@ export default function EstruturaCursoPage() {
                     const found = cursoSelectOpcoes.find((curso) => curso.id === value) ?? null;
                     if (found) setCursoSelectSelecionado(found);
                   }}
-                  options={cursoSelectOpcoes.map((curso) => ({
+                  options={cursoSelectOpcoes.filter((curso) => !curso.isPaid).map((curso) => ({
                     value: curso.id,
                     label: curso.nome,
-                    meta: curso.isPaid ? "Pago" : "Gratuito",
+                    meta: "Gratuito",
                   }))}
                   selectedOption={cursoSelectSelecionado ? {
                     value: cursoSelectSelecionado.id,
                     label: cursoSelectSelecionado.nome,
                     meta: cursoSelectSelecionado.isPaid ? "Pago" : "Gratuito",
                   } : null}
-                  placeholder="Selecione um curso"
-                  emptyText="Nenhum curso cadastrado"
+                  placeholder="Selecione um curso gratuito"
+                  emptyText="Nenhum curso gratuito cadastrado"
                   allowPageSizeChange={false}
                   remote={{
                     query: cursoSelectBusca,
@@ -795,7 +810,7 @@ export default function EstruturaCursoPage() {
                           type="button"
                           className="reorderBtn"
                           title="Mover para cima"
-                          disabled={idx === 0 && paginaModulos === 1}
+                          disabled={reordenando || (idx === 0 && paginaModulos === 1)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarModulo(mod.id, "up"); }}
                         >
                           <ChevronUp size={14} />
@@ -804,7 +819,7 @@ export default function EstruturaCursoPage() {
                           type="button"
                           className="reorderBtn"
                           title="Mover para baixo"
-                          disabled={idx === paginaModulosItens.length - 1 && paginaModulos * itensModulos >= totalModulosPaginacao}
+                          disabled={reordenando || (idx === paginaModulosItens.length - 1 && paginaModulos * itensModulos >= totalModulosPaginacao)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarModulo(mod.id, "down"); }}
                         >
                           <ChevronDown size={14} />
@@ -960,7 +975,7 @@ export default function EstruturaCursoPage() {
                           type="button"
                           className="reorderBtn"
                           title="Mover para cima"
-                          disabled={idx === 0 && paginaFases === 1}
+                          disabled={reordenando || (idx === 0 && paginaFases === 1)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarFase(fase.id, "up"); }}
                         >
                           <ChevronUp size={14} />
@@ -969,7 +984,7 @@ export default function EstruturaCursoPage() {
                           type="button"
                           className="reorderBtn"
                           title="Mover para baixo"
-                          disabled={idx === paginaFasesItens.length - 1 && paginaFases * itensFases >= totalFasesPaginacao}
+                          disabled={reordenando || (idx === paginaFasesItens.length - 1 && paginaFases * itensFases >= totalFasesPaginacao)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarFase(fase.id, "down"); }}
                         >
                           <ChevronDown size={14} />
@@ -1016,7 +1031,7 @@ export default function EstruturaCursoPage() {
                               type="button"
                               className="reorderBtn"
                               title="Mover para cima"
-                              disabled={idx === 0}
+                              disabled={reordenando || idx === 0}
                               onClick={(e) => { e.stopPropagation(); handleReordenarExercicio(ex.id, "up"); }}
                             >
                               <ChevronUp size={14} />
@@ -1025,7 +1040,7 @@ export default function EstruturaCursoPage() {
                               type="button"
                               className="reorderBtn"
                               title="Mover para baixo"
-                              disabled={idx === exerciciosFase.length - 1}
+                              disabled={reordenando || idx === exerciciosFase.length - 1}
                               onClick={(e) => { e.stopPropagation(); handleReordenarExercicio(ex.id, "down"); }}
                             >
                               <ChevronDown size={14} />
