@@ -867,6 +867,10 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                   <option value="">Selecione</option>
                   <option value="1">Normal</option>
                   <option value="2">Lower (Recuperação)</option>
+                  <option value="" disabled >Selecione</option>
+                  <option value="normal">Normal</option>
+                  <option value="lower">Lower (Recuperação)</option>
+                  <option value="prova_semanal">Prova Semanal</option>
                 </AnimatedSelect>
               </div>
             </div>

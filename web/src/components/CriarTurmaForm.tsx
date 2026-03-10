@@ -4,7 +4,6 @@ import {
   AnimatedButton,
   AnimatedToast,
   AnimatedSelect,
-  AnimatedToggle,
 } from "./animate-ui";
 import { Loader2, Plus, Search, Check, Users, UserPlus } from "lucide-react";
 import {
@@ -202,20 +201,15 @@ export default function CriarTurmaForm({ onCreated }: CriarTurmaFormProps) {
           </AnimatedSelect>
 
           <span>Módulo Inicial</span>
-          <AnimatedSelect
+          <input
             className="turmaSelect"
-            value={moduloIdSelecionado}
-            onChange={(e) => setModuloIdSelecionado(e.target.value)}
-          >
-            <option value="">Selecione o módulo inicial</option>
-            {modulosCurso.map((mod) => (
-              <option key={mod.id} value={mod.id}>
-                {mod.indexOrder}. {mod.nome}
-              </option>
-            ))}
-          </AnimatedSelect>
+            value={modulosCurso.length > 0 ? `${modulosCurso[0].indexOrder}. ${modulosCurso[0].nome}` : "Nenhum módulo disponível"}
+            readOnly
+            disabled
+            style={{ opacity: 0.7, cursor: "not-allowed" }}
+          />
           <small style={{ fontSize: 12, color: "var(--muted)" }}>
-            Selecione o módulo em que a turma irá iniciar. O primeiro módulo é selecionado automaticamente.
+            A turma sempre inicia no primeiro módulo do curso.
           </small>
 
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 8 }}>
@@ -242,10 +236,17 @@ export default function CriarTurmaForm({ onCreated }: CriarTurmaFormProps) {
               onChange={(e) => setDuracaoSemanas(parseInt(e.target.value) || 12)}
             />
 
-            <span style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
-              <AnimatedToggle checked={cronogramaAtivo} onChange={setCronogramaAtivo} />
-              Ativar Cronograma Automático
-            </span>
+            <button
+              type="button"
+              className={`turmaCronoToggle ${cronogramaAtivo ? "isActive" : ""}`}
+              onClick={() => setCronogramaAtivo((prev) => !prev)}
+              aria-pressed={cronogramaAtivo}
+            >
+              <span className="turmaCronoSwitch" aria-hidden="true">
+                <span className="turmaCronoThumb" />
+              </span>
+              <span className="turmaCronoLabel">Ativar Cronograma Automático</span>
+            </button>
             <small style={{ fontSize: 12, color: "var(--muted)" }}>
               Se ativado, os exercícios serão liberados automaticamente conforme o cronograma
             </small>

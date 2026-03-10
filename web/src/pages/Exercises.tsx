@@ -30,6 +30,7 @@ import {
   MessageSquareText,
   ChevronDown,
   ChevronUp,
+  Check,
 } from "lucide-react";
 import {
   criarExercicio,
@@ -621,6 +622,53 @@ export default function ExerciciosPage() {
     exercicioTitulo: string | null;
   }>({ isOpen: false, exercicioId: null, exercicioTitulo: null });
 
+  // Modal de opções de editar (Editar Exercício / Realocar Exercício)
+  const [modalEditOpcoes, setModalEditOpcoes] = React.useState<{
+    isOpen: boolean;
+    exercicio: Exercicio | null;
+  }>({ isOpen: false, exercicio: null });
+
+  // Modal de editar atributos (sem mudar turma/curso/módulo/fase)
+  const [modalEditarAtributos, setModalEditarAtributos] = React.useState<{
+    isOpen: boolean;
+    exercicio: Exercicio | null;
+  }>({ isOpen: false, exercicio: null });
+  const [editAttrTitulo, setEditAttrTitulo] = React.useState("");
+  const [editAttrDescricao, setEditAttrDescricao] = React.useState("");
+  const [editAttrPrazo, setEditAttrPrazo] = React.useState("");
+  const [editAttrVideoUrl, setEditAttrVideoUrl] = React.useState("");
+  const [editAttrDifficulty, setEditAttrDifficulty] = React.useState("");
+  const [editAttrIndexOrder, setEditAttrIndexOrder] = React.useState("");
+  const [editAttrPointsRedeem, setEditAttrPointsRedeem] = React.useState("");
+  const [editAttrExercisePeriod, setEditAttrExercisePeriod] = React.useState("");
+  const [editAttrIsFinalExercise, setEditAttrIsFinalExercise] = React.useState(false);
+  const [editAttrIsDailyTask, setEditAttrIsDailyTask] = React.useState(false);
+  const [editAttrComponenteInterativo, setEditAttrComponenteInterativo] = React.useState("escrita");
+  const [editAttrMultiplaQuestoes, setEditAttrMultiplaQuestoes] = React.useState<Array<{
+    pergunta: string;
+    opcoes: Array<{ letter: string; text: string }>;
+    respostaCorreta: string;
+  }>>(() => getDefaultMultiplaQuestoes());
+  const [editAttrPermitirRepeticao, setEditAttrPermitirRepeticao] = React.useState(false);
+  const [editAttrMaxTentativas, setEditAttrMaxTentativas] = React.useState("");
+  const [editAttrPenalidadeTentativa, setEditAttrPenalidadeTentativa] = React.useState("");
+  const [editAttrIntervaloReenvio, setEditAttrIntervaloReenvio] = React.useState("");
+  const [editAttrSaving, setEditAttrSaving] = React.useState(false);
+  const [editAttrErro, setEditAttrErro] = React.useState<string | null>(null);
+
+  // Modal de realocar exercício
+  const [modalRealocar, setModalRealocar] = React.useState<{
+    isOpen: boolean;
+    exercicio: Exercicio | null;
+  }>({ isOpen: false, exercicio: null });
+  const [realocCursoId, setRealocCursoId] = React.useState("");
+  const [realocModuloId, setRealocModuloId] = React.useState("");
+  const [realocFaseId, setRealocFaseId] = React.useState("");
+  const [realocCursos, setRealocCursos] = React.useState<Curso[]>([]);
+  const [realocModulos, setRealocModulos] = React.useState<Modulo[]>([]);
+  const [realocFases, setRealocFases] = React.useState<Fase[]>([]);
+  const [realocSaving, setRealocSaving] = React.useState(false);
+
   async function load() {
     try {
       setLoading(true);
@@ -1211,6 +1259,273 @@ export default function ExerciciosPage() {
     // Funao mantida para compatibilidade, mas agora abre o modal
     const exercicio = sourceItems.find((ex) => ex.id === id);
     abrirModalDeletar(id, exercicio?.titulo || "Exercicio");
+  }
+
+  function abrirModalEditOpcoes(exercicio: Exercicio) {
+    setModalEditOpcoes({ isOpen: true, exercicio });
+  }
+
+  function fecharModalEditOpcoes() {
+    setModalEditOpcoes({ isOpen: false, exercicio: null });
+  }
+
+  function handleEscolherEditar() {
+    if (!modalEditOpcoes.exercicio) return;
+    const ex = modalEditOpcoes.exercicio;
+    fecharModalEditOpcoes();
+    abrirModalEditarAtributos(ex);
+  }
+
+  function abrirModalEditarAtributos(exercicio: Exercicio) {
+    setEditAttrTitulo(exercicio.titulo);
+    setEditAttrDescricao(exercicio.descricao);
+    setEditAttrPrazo(toDatetimeLocal(exercicio.prazo));
+    setEditAttrVideoUrl(exercicio.videoUrl ?? "");
+    setEditAttrDifficulty(exercicio.difficulty !== null && exercicio.difficulty !== undefined ? String(exercicio.difficulty) : "");
+    setEditAttrIndexOrder(exercicio.indexOrder !== null && exercicio.indexOrder !== undefined ? String(exercicio.indexOrder) : "");
+    setEditAttrPointsRedeem(exercicio.pointsRedeem !== null && exercicio.pointsRedeem !== undefined ? String(exercicio.pointsRedeem) : "");
+    setEditAttrExercisePeriod(toDatetimeLocal(exercicio.exercisePeriod));
+    setEditAttrIsFinalExercise(exercicio.isFinalExercise === true);
+    setEditAttrIsDailyTask(exercicio.isDailyTask === true);
+    setEditAttrPermitirRepeticao(exercicio.permitir_repeticao ?? false);
+    setEditAttrMaxTentativas(exercicio.maxTentativas ? String(exercicio.maxTentativas) : "");
+    setEditAttrPenalidadeTentativa(
+      exercicio.penalidadePorTentativa !== null && exercicio.penalidadePorTentativa !== undefined
+        ? String(exercicio.penalidadePorTentativa) : ""
+    );
+    setEditAttrIntervaloReenvio(exercicio.intervaloReenvio ? String(exercicio.intervaloReenvio) : "");
+
+    if (exercicio.multipla_regras) {
+      setEditAttrComponenteInterativo("multipla");
+      try {
+        const regras = JSON.parse(exercicio.multipla_regras);
+        const questoes = Array.isArray(regras?.Questoes) ? regras.Questoes : [];
+        setEditAttrMultiplaQuestoes(questoes.length > 0 ? questoes : getDefaultMultiplaQuestoes());
+      } catch {
+        setEditAttrComponenteInterativo("escrita");
+        setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
+      }
+    } else {
+      setEditAttrComponenteInterativo("escrita");
+      setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
+    }
+
+    setEditAttrErro(null);
+    setEditAttrSaving(false);
+    setModalEditarAtributos({ isOpen: true, exercicio });
+  }
+
+  function fecharModalEditarAtributos() {
+    setModalEditarAtributos({ isOpen: false, exercicio: null });
+    setEditAttrErro(null);
+  }
+
+  async function confirmarEditarAtributos() {
+    const ex = modalEditarAtributos.exercicio;
+    if (!ex) return;
+
+    const tituloFinal = editAttrTitulo.trim();
+    const descricaoFinal = editAttrDescricao.trim();
+    if (tituloFinal.length < 2) {
+      setEditAttrErro("Título deve ter pelo menos 2 caracteres.");
+      return;
+    }
+    if (descricaoFinal.length < 2) {
+      setEditAttrErro("Descrição deve ter pelo menos 2 caracteres.");
+      return;
+    }
+
+    const ordemNum = editAttrIndexOrder.trim() ? Number(editAttrIndexOrder) : null;
+    if (editAttrIndexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 1)) {
+      setEditAttrErro("Ordem deve ser um número inteiro maior ou igual a 1.");
+      return;
+    }
+    const pontosNum = editAttrPointsRedeem.trim() ? Number(editAttrPointsRedeem) : null;
+    if (editAttrPointsRedeem.trim() && (!Number.isInteger(pontosNum) || Number(pontosNum) < 0)) {
+      setEditAttrErro("Pontos deve ser um número inteiro maior ou igual a 0.");
+      return;
+    }
+    if (editAttrVideoUrl.trim()) {
+      try { new URL(editAttrVideoUrl.trim()); } catch {
+        setEditAttrErro("URL do vídeo inválida.");
+        return;
+      }
+    }
+
+    const tipoSelecionado: "escrita" | "multipla" =
+      editAttrComponenteInterativo === "multipla" ? "multipla" : "escrita";
+    const maxTentativasNum = editAttrMaxTentativas.trim() ? Number(editAttrMaxTentativas) : null;
+    const penalidadeNum = editAttrPenalidadeTentativa.trim() ? Number(editAttrPenalidadeTentativa) : 0;
+    const intervaloNum = editAttrIntervaloReenvio.trim() ? Number(editAttrIntervaloReenvio) : null;
+
+    try {
+      setEditAttrSaving(true);
+      setEditAttrErro(null);
+
+      await atualizarExercicio(ex.id, {
+        titulo: tituloFinal,
+        descricao: descricaoFinal,
+        phase_id: Number(ex.phaseId),
+        modulo: ex.modulo,
+        tema: ex.tema ?? null,
+        prazo: editAttrPrazo ? new Date(editAttrPrazo).toISOString() : null,
+        video_url: editAttrVideoUrl.trim() || null,
+        difficulty: editAttrDifficulty.trim() ? (editAttrDifficulty.trim() as any) : null,
+        index_order: ordemNum,
+        is_final_exercise: editAttrIsFinalExercise,
+        is_daily_task: editAttrIsDailyTask,
+        points_redeem: pontosNum,
+        exercise_period: editAttrExercisePeriod ? new Date(editAttrExercisePeriod).toISOString() : null,
+        publicado: true,
+        published_at: null,
+        categoria: ex.categoria ?? "programacao",
+        tipoExercicio: tipoSelecionado,
+        ...(editAttrComponenteInterativo === "multipla" ? {
+          multipla_regras: JSON.stringify({ Questoes: editAttrMultiplaQuestoes })
+        } : {}),
+        permitir_repeticao: editAttrPermitirRepeticao,
+        max_tentativas: editAttrPermitirRepeticao ? maxTentativasNum : null,
+        penalidade_por_tentativa: editAttrPermitirRepeticao ? penalidadeNum : 0,
+        intervalo_reenvio: editAttrPermitirRepeticao ? intervaloNum : null,
+      });
+
+      setOkMsg("Exercício atualizado com sucesso!");
+      fecharModalEditarAtributos();
+      await load();
+      if (dailyLoaded) await loadDailyTasks();
+    } catch (e) {
+      setEditAttrErro(e instanceof Error ? e.message : "Erro ao atualizar exercício");
+    } finally {
+      setEditAttrSaving(false);
+    }
+  }
+
+  async function handleEscolherRealocar() {
+    if (!modalEditOpcoes.exercicio) return;
+    const ex = modalEditOpcoes.exercicio;
+    fecharModalEditOpcoes();
+    setModalRealocar({ isOpen: true, exercicio: ex });
+
+    // Load courses for reallocation
+    try {
+      const cursosResult = await listarCursos();
+      const cursos = normalizeListPayload<Curso>(cursosResult as Curso[] | { items?: Curso[] });
+      setRealocCursos(cursos);
+
+      // Pre-select current course/module/phase
+      const origemModulos = todosModulosDisponiveis.length > 0 ? todosModulosDisponiveis : modulosDisponiveis;
+      const moduloNormalizado = (ex.modulo || "").trim().toLowerCase();
+      const moduloEncontrado = origemModulos.find((m) => m.nome.trim().toLowerCase() === moduloNormalizado);
+      const cursoAtual = moduloEncontrado?.courseId ?? "";
+      setRealocCursoId(cursoAtual);
+      if (cursoAtual) {
+        const modsResult = await listarModulosPorCurso(cursoAtual);
+        const mods = normalizeListPayload<Modulo>(modsResult as Modulo[] | { items?: Modulo[] });
+        setRealocModulos(mods);
+        setRealocModuloId(moduloEncontrado?.id ?? "");
+        if (moduloEncontrado?.id) {
+          const fasesResult = await listarFasesDoModulo(moduloEncontrado.id);
+          const fases = normalizeListPayload<Fase>(fasesResult as Fase[] | { items?: Fase[] });
+          setRealocFases(fases);
+          setRealocFaseId(ex.phaseId ? String(ex.phaseId) : "");
+        }
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao carregar dados para realocação");
+    }
+  }
+
+  function fecharModalRealocar() {
+    setModalRealocar({ isOpen: false, exercicio: null });
+    setRealocCursoId("");
+    setRealocModuloId("");
+    setRealocFaseId("");
+    setRealocCursos([]);
+    setRealocModulos([]);
+    setRealocFases([]);
+  }
+
+  async function handleRealocCursoChange(newCursoId: string) {
+    setRealocCursoId(newCursoId);
+    setRealocModuloId("");
+    setRealocFaseId("");
+    setRealocFases([]);
+    if (!newCursoId) {
+      setRealocModulos([]);
+      return;
+    }
+    try {
+      const modsResult = await listarModulosPorCurso(newCursoId);
+      const mods = normalizeListPayload<Modulo>(modsResult as Modulo[] | { items?: Modulo[] });
+      setRealocModulos(mods);
+    } catch {
+      setRealocModulos([]);
+    }
+  }
+
+  async function handleRealocModuloChange(newModuloId: string) {
+    setRealocModuloId(newModuloId);
+    setRealocFaseId("");
+    if (!newModuloId) {
+      setRealocFases([]);
+      return;
+    }
+    try {
+      const fasesResult = await listarFasesDoModulo(newModuloId);
+      const fases = normalizeListPayload<Fase>(fasesResult as Fase[] | { items?: Fase[] });
+      setRealocFases(fases);
+    } catch {
+      setRealocFases([]);
+    }
+  }
+
+  async function confirmarRealocar() {
+    if (!modalRealocar.exercicio || !realocFaseId) return;
+    const ex = modalRealocar.exercicio;
+    try {
+      setRealocSaving(true);
+      if (!ex.prazo) {
+        throw new Error("Este exercício não possui prazo definido. Edite o exercício e defina um prazo antes de realocar.");
+      }
+
+      const moduloSel = realocModulos.find((m) => m.id === realocModuloId);
+      const faseSel = realocFases.find((f) => f.id === realocFaseId);
+      const courseIdNum = Number(realocCursoId);
+      if (!Number.isFinite(courseIdNum) || courseIdNum <= 0) {
+        throw new Error("Selecione um curso válido para realocar o exercício.");
+      }
+
+      await atualizarExercicio(ex.id, {
+        titulo: ex.titulo,
+        descricao: ex.descricao,
+        phase_id: Number(realocFaseId),
+        course_id: courseIdNum,
+        modulo: moduloSel?.nome ?? ex.modulo,
+        tema: faseSel?.nome ?? ex.tema ?? null,
+        prazo: ex.prazo,
+        video_url: ex.videoUrl ?? null,
+        difficulty: (ex.difficulty as any) ?? null,
+        index_order: ex.indexOrder ?? null,
+        is_final_exercise: ex.isFinalExercise ?? false,
+        is_daily_task: ex.isDailyTask ?? false,
+        points_redeem: ex.pointsRedeem ?? null,
+        exercise_period: ex.exercisePeriod ?? null,
+        categoria: ex.categoria ?? "programacao",
+        tipoExercicio: ex.tipoExercicio ?? "escrita",
+        multipla_regras: ex.multipla_regras ?? null,
+        mouse_regras: ex.mouse_regras ?? null,
+        max_tentativas: ex.maxTentativas ?? null,
+        penalidade_por_tentativa: ex.penalidadePorTentativa ?? null,
+        intervalo_reenvio: ex.intervaloReenvio ?? null,
+      });
+      setOkMsg("Exercício realocado com sucesso!");
+      fecharModalRealocar();
+      await load();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao realocar exercício");
+    } finally {
+      setRealocSaving(false);
+    }
   }
 
   // Validacao especial para componentes interativos
@@ -2173,8 +2488,9 @@ export default function ExerciciosPage() {
                       onChange={(e) => setDifficulty(e.target.value)}
                     >
                       <option value="">Selecione</option>
-                      <option value="2">Normal</option>
-                      <option value="1">Lower (Recuperação)</option>
+                      <option value="normal">Normal</option>
+                      <option value="lower">Lower (Recuperação)</option>
+                      <option value="prova_semanal">Prova Semanal</option>
                     </AnimatedSelect>
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       Normal para exercícios regulares. Lower para exercícios de recuperação.
@@ -2805,7 +3121,7 @@ export default function ExerciciosPage() {
                                           className="exerciseEditBtn"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            handleEdit(ex);
+                                            abrirModalEditOpcoes(ex);
                                           }}
                                           title="Editar Exercicio"
                                         >
@@ -2931,6 +3247,375 @@ export default function ExerciciosPage() {
               </ul>
             </div>
           )}
+        </Modal>
+
+        {/* MODAL DE OPCOES DE EDITAR */}
+        <Modal
+          isOpen={modalEditOpcoes.isOpen}
+          onClose={fecharModalEditOpcoes}
+          title={`Editar: ${modalEditOpcoes.exercicio?.titulo ?? "Exercício"}`}
+          size="sm"
+        >
+          <div className="exActionChoiceModal">
+            <p className="exActionChoiceLead">
+              O que deseja fazer com este exercício?
+            </p>
+            <AnimatedButton
+              className="exActionChoiceBtn exActionChoiceBtnPrimary"
+              onClick={handleEscolherEditar}
+            >
+              {iconLabel(<PenLine size={16} />, "Editar Exercício")}
+            </AnimatedButton>
+            <small className="exActionChoiceHint">
+              Alterar título, descrição, tipo, dificuldade e demais atributos.
+            </small>
+            <AnimatedButton
+              className="exActionChoiceBtn exActionChoiceBtnSecondary"
+              onClick={handleEscolherRealocar}
+            >
+              {iconLabel(<RefreshCcw size={16} />, "Realocar Exercício")}
+            </AnimatedButton>
+            <small className="exActionChoiceHint">
+              Mover o exercício para outra fase, módulo ou curso.
+            </small>
+          </div>
+        </Modal>
+
+        {/* MODAL DE EDITAR ATRIBUTOS */}
+        <Modal
+          isOpen={modalEditarAtributos.isOpen}
+          onClose={fecharModalEditarAtributos}
+          title={`Editar: ${modalEditarAtributos.exercicio?.titulo ?? "Exercício"}`}
+          size="md"
+          footer={
+            <>
+              <AnimatedButton
+                className="exModalFooterBtn exModalFooterBtnGhost"
+                onClick={fecharModalEditarAtributos}
+              >
+                Cancelar
+              </AnimatedButton>
+              <AnimatedButton
+                className="exModalFooterBtn exModalFooterBtnPrimary"
+                disabled={editAttrSaving || editAttrTitulo.trim().length < 2}
+                onClick={confirmarEditarAtributos}
+              >
+                {editAttrSaving
+                  ? iconLabel(<Loader2 size={16} />, "Salvando...")
+                  : iconLabel(<Save size={16} />, "Salvar Alterações")}
+              </AnimatedButton>
+            </>
+          }
+        >
+          <div className="exEditAttrModalBody">
+            {editAttrErro && (
+              <div className="exEditAttrErro">{editAttrErro}</div>
+            )}
+
+            <div className="exInputGroup">
+              <span className="exLabel">Título</span>
+              <input
+                className="exInput"
+                value={editAttrTitulo}
+                onChange={(e) => setEditAttrTitulo(e.target.value)}
+                placeholder="Título do exercício"
+              />
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Descrição</span>
+              <textarea
+                className="exInput"
+                value={editAttrDescricao}
+                onChange={(e) => setEditAttrDescricao(e.target.value)}
+                placeholder="Descrição do exercício"
+                rows={3}
+                style={{ resize: "vertical" }}
+              />
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Tipo de componente</span>
+              <div style={{ display: "flex", gap: 12 }}>
+                <AnimatedRadioLabel
+                  checked={editAttrComponenteInterativo === "escrita"}
+                  onClick={() => setEditAttrComponenteInterativo("escrita")}
+                >
+                  {iconLabel(<PenLine size={14} />, "Dissertativo")}
+                </AnimatedRadioLabel>
+                <AnimatedRadioLabel
+                  checked={editAttrComponenteInterativo === "multipla"}
+                  onClick={() => setEditAttrComponenteInterativo("multipla")}
+                >
+                  {iconLabel(<ListChecks size={14} />, "Múltipla Escolha")}
+                </AnimatedRadioLabel>
+              </div>
+            </div>
+
+            {editAttrComponenteInterativo === "multipla" && (
+              <div className="exInputGroup">
+                <span className="exLabel">Questões</span>
+                {editAttrMultiplaQuestoes.map((q, qi) => (
+                  <MultipleChoiceQuestion
+                    key={qi}
+                    questionIndex={qi}
+                    pergunta={q.pergunta}
+                    opcoes={q.opcoes}
+                    respostaCorreta={q.respostaCorreta}
+                    onChangePergunta={(val) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      clone[qi] = { ...clone[qi], pergunta: val };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onChangeOpcao={(oi, val) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      const opcoes = [...clone[qi].opcoes];
+                      opcoes[oi] = { ...opcoes[oi], text: val };
+                      clone[qi] = { ...clone[qi], opcoes };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onChangeCorreta={(val) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      clone[qi] = { ...clone[qi], respostaCorreta: val };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onAddOpcao={() => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      const letters = clone[qi].opcoes.map((o) => o.letter);
+                      const next = String.fromCharCode(65 + letters.length);
+                      clone[qi] = { ...clone[qi], opcoes: [...clone[qi].opcoes, { letter: next, text: "" }] };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onRemoveOpcao={(oi) => {
+                      const clone = [...editAttrMultiplaQuestoes];
+                      const opcoes = clone[qi].opcoes.filter((_, i) => i !== oi);
+                      clone[qi] = { ...clone[qi], opcoes };
+                      setEditAttrMultiplaQuestoes(clone);
+                    }}
+                    onRemoveQuestao={editAttrMultiplaQuestoes.length > 1 ? () => {
+                      setEditAttrMultiplaQuestoes(editAttrMultiplaQuestoes.filter((_, i) => i !== qi));
+                    } : undefined}
+                  />
+                ))}
+                <AnimatedButton
+                  className="exActionChoiceBtn exActionChoiceBtnSecondary"
+                  style={{ marginTop: 8, alignSelf: "flex-start" }}
+                  onClick={() => setEditAttrMultiplaQuestoes([
+                    ...editAttrMultiplaQuestoes,
+                    { pergunta: "", opcoes: [{ letter: "A", text: "" }, { letter: "B", text: "" }, { letter: "C", text: "" }, { letter: "D", text: "" }], respostaCorreta: "" }
+                  ])}
+                >
+                  + Adicionar Questão
+                </AnimatedButton>
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="exInputGroup">
+                <span className="exLabel">Prazo</span>
+                <input
+                  className="exInput"
+                  type="datetime-local"
+                  value={editAttrPrazo}
+                  onChange={(e) => setEditAttrPrazo(e.target.value)}
+                />
+              </div>
+              <div className="exInputGroup">
+                <span className="exLabel">Dificuldade</span>
+                <AnimatedSelect
+                  className="exSelect"
+                  value={editAttrDifficulty}
+                  onChange={(e) => setEditAttrDifficulty(e.target.value)}
+                >
+                  <option value="">Padrão</option>
+                  <option value="normal">Normal</option>
+                  <option value="lower">Fácil</option>
+                </AnimatedSelect>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="exInputGroup">
+                <span className="exLabel">Ordem</span>
+                <input
+                  className="exInput"
+                  type="number"
+                  min={1}
+                  value={editAttrIndexOrder}
+                  onChange={(e) => setEditAttrIndexOrder(e.target.value)}
+                  placeholder="Ex: 1"
+                />
+              </div>
+              <div className="exInputGroup">
+                <span className="exLabel">Pontos</span>
+                <input
+                  className="exInput"
+                  type="number"
+                  min={0}
+                  value={editAttrPointsRedeem}
+                  onChange={(e) => setEditAttrPointsRedeem(e.target.value)}
+                  placeholder="Ex: 100"
+                />
+              </div>
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">URL do Vídeo</span>
+              <input
+                className="exInput"
+                value={editAttrVideoUrl}
+                onChange={(e) => setEditAttrVideoUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Período do exercício</span>
+              <input
+                className="exInput"
+                type="datetime-local"
+                value={editAttrExercisePeriod}
+                onChange={(e) => setEditAttrExercisePeriod(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <AnimatedToggle
+                  checked={editAttrIsFinalExercise}
+                  onChange={() => setEditAttrIsFinalExercise(!editAttrIsFinalExercise)}
+                />
+                Exercício final
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <AnimatedToggle
+                  checked={editAttrIsDailyTask}
+                  onChange={() => setEditAttrIsDailyTask(!editAttrIsDailyTask)}
+                />
+                Tarefa diária
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <AnimatedToggle
+                  checked={editAttrPermitirRepeticao}
+                  onChange={() => setEditAttrPermitirRepeticao(!editAttrPermitirRepeticao)}
+                />
+                Permitir repetição
+              </label>
+            </div>
+
+            {editAttrPermitirRepeticao && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div className="exInputGroup">
+                  <span className="exLabel">Máx. tentativas</span>
+                  <input
+                    className="exInput"
+                    type="number"
+                    min={1}
+                    value={editAttrMaxTentativas}
+                    onChange={(e) => setEditAttrMaxTentativas(e.target.value)}
+                  />
+                </div>
+                <div className="exInputGroup">
+                  <span className="exLabel">Penalidade (%)</span>
+                  <input
+                    className="exInput"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={editAttrPenalidadeTentativa}
+                    onChange={(e) => setEditAttrPenalidadeTentativa(e.target.value)}
+                  />
+                </div>
+                <div className="exInputGroup">
+                  <span className="exLabel">Intervalo (min)</span>
+                  <input
+                    className="exInput"
+                    type="number"
+                    min={0}
+                    value={editAttrIntervaloReenvio}
+                    onChange={(e) => setEditAttrIntervaloReenvio(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+
+        {/* MODAL DE REALOCAR EXERCICIO */}
+        <Modal
+          isOpen={modalRealocar.isOpen}
+          onClose={fecharModalRealocar}
+          title={`Realocar: ${modalRealocar.exercicio?.titulo ?? "Exercício"}`}
+          size="md"
+          footer={
+            <>
+              <AnimatedButton
+                className="exModalFooterBtn exModalFooterBtnGhost"
+                onClick={fecharModalRealocar}
+              >
+                Cancelar
+              </AnimatedButton>
+              <AnimatedButton
+                className="exModalFooterBtn exModalFooterBtnPrimary"
+                disabled={realocSaving || !realocFaseId}
+                onClick={confirmarRealocar}
+              >
+                {realocSaving
+                  ? iconLabel(<Loader2 size={16} />, "Realocando...")
+                  : iconLabel(<Check size={16} />, "Confirmar Realocação")}
+              </AnimatedButton>
+            </>
+          }
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <p style={{ fontSize: 14, color: "var(--muted)", margin: 0 }}>
+              Selecione o novo destino para o exercício.
+            </p>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Curso</span>
+              <AnimatedSelect
+                className="exSelect"
+                value={realocCursoId}
+                onChange={(e) => handleRealocCursoChange(e.target.value)}
+              >
+                <option value="">Selecione um curso</option>
+                {realocCursos.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </AnimatedSelect>
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Módulo</span>
+              <AnimatedSelect
+                className="exSelect"
+                value={realocModuloId}
+                onChange={(e) => handleRealocModuloChange(e.target.value)}
+                disabled={!realocCursoId}
+              >
+                <option value="">{realocCursoId ? "Selecione um módulo" : "Selecione um curso primeiro"}</option>
+                {realocModulos.map((m) => (
+                  <option key={m.id} value={m.id}>{m.indexOrder}. {m.nome}</option>
+                ))}
+              </AnimatedSelect>
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Fase</span>
+              <AnimatedSelect
+                className="exSelect"
+                value={realocFaseId}
+                onChange={(e) => setRealocFaseId(e.target.value)}
+                disabled={!realocModuloId}
+              >
+                <option value="">{realocModuloId ? "Selecione uma fase" : "Selecione um módulo primeiro"}</option>
+                {realocFases.map((f) => (
+                  <option key={f.id} value={f.id}>Semana {f.weekNumber} - {f.nome}</option>
+                ))}
+              </AnimatedSelect>
+            </div>
+          </div>
         </Modal>
       </div >
     </DashboardLayout >
