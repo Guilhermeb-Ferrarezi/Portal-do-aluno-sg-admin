@@ -36,6 +36,7 @@ import {
   type Fase,
   type Turma,
 } from "../services/api";
+import { useToastActions } from "../contexts/ToastContext";
 import "../pages/Exercises.css";
 
 type CategoriaExercicio = "programacao" | "informatica";
@@ -75,6 +76,7 @@ interface CriarExercicioFormProps {
 }
 
 export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProps) {
+  const { addToast } = useToastActions();
   const iconLabel = (icon: React.ReactNode, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       {icon}
@@ -120,7 +122,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   const [anexosAtivo, setAnexosAtivo] = React.useState(false);
   const [anexoArquivo, setAnexoArquivo] = React.useState<File | null>(null);
   const [saving, setSaving] = React.useState(false);
-  const [okMsg, setOkMsg] = React.useState<string | null>(null);
   const [erro, setErro] = React.useState<string | null>(null);
   const [fieldWarnings, setFieldWarnings] = React.useState<Partial<Record<RequiredFieldKey, string>>>({});
   const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
@@ -246,10 +247,36 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     if (!prazo) {
       warnings.prazo = "Prazo obrigatorio.";
     }
-    if (componenteInterativo === "multipla" && multiplaQuestoes.some((q) => !q.pergunta || !q.respostaCorreta || q.opcoes.some((o) => !o.text))) {
-      warnings.multipla = "Complete todas as perguntas, opcoes e resposta correta.";
+    if (componenteInterativo === "multipla" && multiplaQuestoes.some((q) => !q.respostaCorreta || q.opcoes.some((o) => !o.text))) {
+      warnings.multipla = "Complete todas as opcoes e a resposta correta.";
     }
     return warnings;
+  }
+
+  function parseDifficultyValue(value: string) {
+    const normalized = value.trim();
+    if (!normalized) return null;
+
+    const legacyMap: Record<string, number> = {
+      normal: 1,
+      lower: 2,
+      prova_semanal: 3,
+    };
+
+    const mapped = legacyMap[normalized] ?? Number(normalized);
+    if (!Number.isInteger(mapped) || mapped < 1) return null;
+    return mapped;
+  }
+
+  function buildMultiplaQuestoesPayload(
+    questoes: Array<{ pergunta: string; opcoes: Array<{ letter: string; text: string }>; respostaCorreta: string }>,
+    perguntaBase: string
+  ) {
+    const fallbackPergunta = perguntaBase.trim();
+    return questoes.map((questao, index) => ({
+      ...questao,
+      pergunta: fallbackPergunta || `Questão ${index + 1}`,
+    }));
   }
 
   function resetForm() {
@@ -434,13 +461,12 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     try {
       setSaving(true);
       setErro(null);
-      setOkMsg(null);
 
       const gabaritoLimpo = gabarito.trim();
       const descricaoFinal = descricao.trim();
       const tituloFinal = titulo.trim();
       const tipoSelecionado: "escrita" | "multipla" = componenteInterativo === "multipla" ? "multipla" : "escrita";
-      const dificuldadeNum = difficulty.trim() ? Number(difficulty.trim()) : null;
+      const dificuldadeNum = parseDifficultyValue(difficulty);
       const ordemNum = indexOrder.trim() ? Number(indexOrder) : null;
       const pontosNum = pointsRedeem.trim() ? Number(pointsRedeem) : null;
       const videoUrlLimpa = videoUrl.trim();
@@ -459,6 +485,11 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       }
       if (videoUrlLimpa) {
         try { new URL(videoUrlLimpa); } catch { setErro("Video URL invalida."); setSaving(false); return; }
+      }
+      if (difficulty.trim() && dificuldadeNum === null) {
+        setErro("Selecione uma dificuldade valida.");
+        setSaving(false);
+        return;
       }
 
       const moduloNome = moduloSelecionado?.nome?.trim() ?? "";
@@ -493,7 +524,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
         categoria,
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
         ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
-        ...(componenteInterativo === "multipla" ? { multipla_regras: JSON.stringify({ Questoes: multiplaQuestoes }) } : {}),
+        ...(componenteInterativo === "multipla" ? { multipla_regras: JSON.stringify({ Questoes: buildMultiplaQuestoesPayload(multiplaQuestoes, descricaoFinal) }) } : {}),
         permitir_repeticao: false,
         max_tentativas: null,
         penalidade_por_tentativa: 0,
@@ -502,7 +533,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
       const created = await criarExercicio(dados as any);
       const exercicioId = (created as any)?.exercicio?.id ?? null;
-      setOkMsg("Exercicio criado!");
+      addToast("Exercicio criado!", "success", 3000);
 
       if (exercicioId && anexosAtivo && anexoArquivo) {
         await anexarExercicioArquivo(exercicioId, anexoArquivo);
@@ -526,7 +557,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   return (
     <div className="estruturaCard" style={{ gridColumn: "1 / -1" }}>
       <AnimatedToast message={erro} type="error" duration={4000} onClose={() => setErro(null)} />
-      <AnimatedToast message={okMsg} type="success" duration={3000} onClose={() => setOkMsg(null)} />
 
       <FadeInUp duration={0.28}>
         <div className="createExerciseCard">
@@ -577,10 +607,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                           <div key={`prog-q-${qIndex}`} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
                             <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questao {qIndex + 1}</h4>
                             <div style={{ marginBottom: "8px" }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Pergunta:</span>
-                              <input className="exInput" type="text" value={questao.pergunta} onChange={(e) => { const n = [...multiplaQuestoes]; n[qIndex].pergunta = e.target.value; setMultiplaQuestoes(n); }} placeholder="Digite a pergunta" />
-                            </div>
-                            <div style={{ marginBottom: "8px" }}>
                               <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opcoes:</span>
                               {questao.opcoes.map((opcao, oIndex) => (
                                 <input key={`prog-op-${qIndex}-${opcao.letter}`} className="exInput" type="text" value={opcao.text} onChange={(e) => { const n = [...multiplaQuestoes]; n[qIndex].opcoes[oIndex].text = e.target.value; setMultiplaQuestoes(n); }} placeholder={`Opcao ${opcao.letter}`} style={{ marginBottom: "6px" }} />
@@ -605,7 +631,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>{iconLabel(<Eye size={14} />, "Pre-visualizacao:")}</p>
                         {multiplaQuestoes.map((questao, idx) => (
                           <div key={`preview-${idx}`} style={{ marginBottom: "16px" }}>
-                            <MultipleChoiceQuestion question={`Q${idx + 1}: ${questao.pergunta}`} options={questao.opcoes} selectedAnswer="" onAnswer={() => {}} />
+                            <MultipleChoiceQuestion question={`Q${idx + 1}: ${descricao.trim() || "Enunciado do exercício"}`} options={questao.opcoes} selectedAnswer="" onAnswer={() => {}} />
                           </div>
                         ))}
                       </div>
@@ -634,10 +660,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                     {multiplaQuestoes.map((questao, qIndex) => (
                       <div key={`info-q-${qIndex}`} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
                         <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937" }}>Questao {qIndex + 1}</h4>
-                        <div style={{ marginBottom: "12px" }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>Pergunta</span>
-                          <input type="text" placeholder="Digite a pergunta..." value={questao.pergunta} onChange={(e) => { const n = [...multiplaQuestoes]; n[qIndex].pergunta = e.target.value; setMultiplaQuestoes(n); }} style={{ width: "100%", padding: "8px", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "14px", fontFamily: "inherit", boxSizing: "border-box" }} />
-                        </div>
                         {questao.opcoes.map((opcao, oIndex) => (
                           <div key={`info-op-${qIndex}-${opcao.letter}`} style={{ marginBottom: "12px" }}>
                             <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>Opcao {opcao.letter}</label>
@@ -662,10 +684,10 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                         )}
                       </div>
                     ))}
-                    {multiplaQuestoes.length > 0 && multiplaQuestoes[0].pergunta && (
+                    {multiplaQuestoes.length > 0 && descricao.trim() && (
                       <div style={{ background: "var(--card)", border: "2px solid var(--line)", borderRadius: "8px", padding: "16px", marginTop: "16px" }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#0c4a6e", marginTop: 0, marginBottom: "12px" }}>{iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}</p>
-                        <MultipleChoiceQuestion question={`Q1: ${multiplaQuestoes[0].pergunta}`} options={multiplaQuestoes[0].opcoes} onAnswer={() => {}} />
+                        <MultipleChoiceQuestion question={`Q1: ${descricao.trim()}`} options={multiplaQuestoes[0].opcoes} onAnswer={() => {}} />
                       </div>
                     )}
                   </div>
@@ -867,10 +889,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                   <option value="">Selecione</option>
                   <option value="1">Normal</option>
                   <option value="2">Lower (Recuperação)</option>
-                  <option value="" disabled >Selecione</option>
-                  <option value="normal">Normal</option>
-                  <option value="lower">Lower (Recuperação)</option>
-                  <option value="prova_semanal">Prova Semanal</option>
+                  <option value="3">Prova Semanal</option>
                 </AnimatedSelect>
               </div>
             </div>
@@ -888,16 +907,44 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
             <div className="exInputRow">
               <div className="exInputGroup">
-                <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                <div
+                  className={`exStatusToggle ${isFinalExercise ? "isActive" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setIsFinalExercise(!isFinalExercise)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setIsFinalExercise(!isFinalExercise);
+                    }
+                  }}
+                >
                   <AnimatedToggle checked={isFinalExercise} onChange={setIsFinalExercise} />
-                  Exercicio final
-                </span>
+                  <span className="exStatusToggleContent">
+                    <span className="exStatusToggleTitle">Exercicio final</span>
+                    <span className="exStatusToggleDescription">Marque se este for o exercicio de fechamento da fase.</span>
+                  </span>
+                </div>
               </div>
               <div className="exInputGroup">
-                <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                <div
+                  className={`exStatusToggle ${isDailyTask ? "isActive" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setIsDailyTask(!isDailyTask)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setIsDailyTask(!isDailyTask);
+                    }
+                  }}
+                >
                   <AnimatedToggle checked={isDailyTask} onChange={setIsDailyTask} />
-                  Tarefas diárias
-                </span>
+                  <span className="exStatusToggleContent">
+                    <span className="exStatusToggleTitle">Tarefas diárias</span>
+                    <span className="exStatusToggleDescription">Mostra este exercicio na aba de tarefa diaria.</span>
+                  </span>
+                </div>
               </div>
             </div>
 

@@ -7,6 +7,7 @@ import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import PaginatedSelect from "../components/PaginatedSelect";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
+import MultipleChoiceQuestionEditor from "../components/Exercise/MultipleChoiceQuestionEditor";
 import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, ConditionalFieldAnimation, AnimatedSelect, FadeInUp, AnimatedToggle } from "../components/animate-ui";
 import {
   RefreshCcw,
@@ -59,10 +60,12 @@ import {
   type Turma,
   type User,
 } from "../services/api";
+import { useToastActions } from "../contexts/ToastContext";
 import "./Exercises.css";
 
 
 export default function ExerciciosPage() {
+  const { addToast } = useToastActions();
   const navigate = useNavigate();
   const location = useLocation();
   const role = getRole() ?? "aluno";
@@ -186,10 +189,6 @@ export default function ExerciciosPage() {
     opcoes: Array<{ letter: string; text: string }>;
     respostaCorreta: string;
   }>>(() => getDefaultMultiplaQuestoes());
-  const [permitirRepeticao, setPermitirRepeticao] = React.useState(false);
-  const [maxTentativas, setMaxTentativas] = React.useState<string>("");
-  const [penalidadeTentativa, setPenalidadeTentativa] = React.useState<string>("");
-  const [intervaloReenvio, setIntervaloReenvio] = React.useState<string>("");
   const [anexosAtivo, setAnexosAtivo] = React.useState(false);
   const [anexoArquivo, setAnexoArquivo] = React.useState<File | null>(null);
   const [anexoAtual, setAnexoAtual] = React.useState<{ url: string; nome: string } | null>(null);
@@ -399,9 +398,9 @@ export default function ExerciciosPage() {
     }
     if (
       componenteInterativo === "multipla" &&
-      multiplaQuestoes.some((q) => !q.pergunta || !q.respostaCorreta || q.opcoes.some((o) => !o.text))
+      multiplaQuestoes.some((q) => !q.respostaCorreta || q.opcoes.some((o) => !o.text))
     ) {
-      warnings.multipla = "Complete todas as perguntas, opcoes e resposta correta.";
+      warnings.multipla = "Complete todas as opcoes e a resposta correta.";
     }
 
     return warnings;
@@ -432,6 +431,32 @@ export default function ExerciciosPage() {
     }];
   }
 
+  function parseDifficultyValue(value: string) {
+    const normalized = value.trim();
+    if (!normalized) return null;
+
+    const legacyMap: Record<string, number> = {
+      normal: 1,
+      lower: 2,
+      prova_semanal: 3,
+    };
+
+    const mapped = legacyMap[normalized] ?? Number(normalized);
+    if (!Number.isInteger(mapped) || mapped < 1) return null;
+    return mapped;
+  }
+
+  function buildMultiplaQuestoesPayload(
+    questoes: Array<{ pergunta: string; opcoes: Array<{ letter: string; text: string }>; respostaCorreta: string }>,
+    perguntaBase: string
+  ) {
+    const fallbackPergunta = perguntaBase.trim();
+    return questoes.map((questao, index) => ({
+      ...questao,
+      pergunta: fallbackPergunta || `Questão ${index + 1}`,
+    }));
+  }
+
   function resetExerciseFormState(params?: { clearAttachments?: boolean }) {
     setFieldWarnings({});
     setTitulo("");
@@ -451,10 +476,6 @@ export default function ExerciciosPage() {
     setIsDailyTask(false);
     setCategoria("programacao");
     setComponenteInterativo("escrita");
-    setPermitirRepeticao(false);
-    setMaxTentativas("");
-    setPenalidadeTentativa("");
-    setIntervaloReenvio("");
     setMultiplaQuestoes(getDefaultMultiplaQuestoes());
 
     if (params?.clearAttachments) {
@@ -649,10 +670,6 @@ export default function ExerciciosPage() {
     opcoes: Array<{ letter: string; text: string }>;
     respostaCorreta: string;
   }>>(() => getDefaultMultiplaQuestoes());
-  const [editAttrPermitirRepeticao, setEditAttrPermitirRepeticao] = React.useState(false);
-  const [editAttrMaxTentativas, setEditAttrMaxTentativas] = React.useState("");
-  const [editAttrPenalidadeTentativa, setEditAttrPenalidadeTentativa] = React.useState("");
-  const [editAttrIntervaloReenvio, setEditAttrIntervaloReenvio] = React.useState("");
   const [editAttrSaving, setEditAttrSaving] = React.useState(false);
   const [editAttrErro, setEditAttrErro] = React.useState<string | null>(null);
 
@@ -1008,10 +1025,7 @@ export default function ExerciciosPage() {
       const tipoSelecionado: "escrita" | "multipla" =
         componenteInterativo === "multipla" ? "multipla" : "escrita";
 
-      const maxTentativasNum = maxTentativas.trim() ? Number(maxTentativas) : null;
-      const penalidadeNum = penalidadeTentativa.trim() ? Number(penalidadeTentativa) : 0;
-      const intervaloNum = intervaloReenvio.trim() ? Number(intervaloReenvio) : null;
-      const dificuldadeNum = difficulty.trim() ? Number(difficulty.trim()) : null;
+      const dificuldadeNum = parseDifficultyValue(difficulty);
       const ordemNum = indexOrder.trim() ? Number(indexOrder) : null;
       const pontosNum = pointsRedeem.trim() ? Number(pointsRedeem) : null;
       const videoUrlLimpa = videoUrl.trim();
@@ -1037,6 +1051,11 @@ export default function ExerciciosPage() {
           setSaving(false);
           return;
         }
+      }
+      if (difficulty.trim() && dificuldadeNum === null) {
+        setErro("Selecione uma dificuldade valida.");
+        setSaving(false);
+        return;
       }
 
       const moduloNome = moduloSelecionado?.nome?.trim() ?? "";
@@ -1079,12 +1098,12 @@ export default function ExerciciosPage() {
         ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
         ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
         ...(componenteInterativo === "multipla" ? {
-          multipla_regras: JSON.stringify({ Questoes: multiplaQuestoes })
+          multipla_regras: JSON.stringify({ Questoes: buildMultiplaQuestoesPayload(multiplaQuestoes, descricaoFinal) })
         } : {}),
-        permitir_repeticao: permitirRepeticao,
-        max_tentativas: permitirRepeticao ? maxTentativasNum : null,
-        penalidade_por_tentativa: permitirRepeticao ? penalidadeNum : 0,
-        intervalo_reenvio: permitirRepeticao ? intervaloNum : null,
+        permitir_repeticao: false,
+        max_tentativas: null,
+        penalidade_por_tentativa: 0,
+        intervalo_reenvio: null,
       };
 
       let exercicioId = editandoId;
@@ -1097,7 +1116,7 @@ export default function ExerciciosPage() {
         // Criar novo Exercicio
         const created = await criarExercicio(dados);
         exercicioId = (created as any)?.exercicio?.id ?? null;
-        setOkMsg("Exercicio criado!");
+        addToast("Exercicio criado!", "success", 3000);
       }
 
       if (exercicioId) {
@@ -1142,79 +1161,6 @@ export default function ExerciciosPage() {
     } finally {
       setSaving(false);
     }
-  }
-
-  function handleEdit(exercicio: Exercicio) {
-    setFieldWarnings({});
-    setTitulo(exercicio.titulo);
-    setDescricao(exercicio.descricao);
-    setGabarito("");
-    setAnexosAtivo(!!exercicio.anexoUrl);
-    setAnexoArquivo(null);
-    setAnexoAtual(
-      exercicio.anexoUrl ? { url: exercicio.anexoUrl, nome: exercicio.anexoNome || "Anexo" } : null
-    );
-    const moduloNormalizado = (exercicio.modulo || "").trim().toLowerCase();
-    const origemModulos =
-      todosModulosDisponiveis.length > 0 ? todosModulosDisponiveis : modulosDisponiveis;
-    const moduloEncontrado =
-      origemModulos.find((m) => m.nome.trim().toLowerCase() === moduloNormalizado) ??
-      origemModulos.find((m) => m.nome.trim().toLowerCase().includes(moduloNormalizado));
-    setCursoIdSelecionado(moduloEncontrado?.courseId ?? "");
-    setModuloIdSelecionado(moduloEncontrado?.id ?? "");
-    setFaseIdSelecionada(exercicio.phaseId ? String(exercicio.phaseId) : "");
-    setVideoUrl(exercicio.videoUrl ?? "");
-    setDifficulty(exercicio.difficulty !== null && exercicio.difficulty !== undefined ? String(exercicio.difficulty) : "");
-    setIndexOrder(exercicio.indexOrder !== null && exercicio.indexOrder !== undefined ? String(exercicio.indexOrder) : "");
-    setPointsRedeem(
-      exercicio.pointsRedeem !== null && exercicio.pointsRedeem !== undefined
-        ? String(exercicio.pointsRedeem)
-        : ""
-    );
-    setExercisePeriod(toDatetimeLocal(exercicio.exercisePeriod));
-    setIsFinalExercise(exercicio.isFinalExercise === true);
-    setIsDailyTask(exercicio.isDailyTask === true);
-
-    // Converter data de ISO para formato datetime-local
-    setPrazo(toDatetimeLocal(exercicio.prazo));
-
-    // Restaurar categoria
-    setCategoria(exercicio.categoria || "programacao");
-
-    if (exercicio.multipla_regras) {
-      setComponenteInterativo("multipla");
-      try {
-        const regras = JSON.parse(exercicio.multipla_regras);
-        const questoes = Array.isArray(regras?.Questoes) ? regras.Questoes : [];
-        setMultiplaQuestoes(questoes.length > 0 ? questoes : getDefaultMultiplaQuestoes());
-      } catch (e) {
-        console.error("Erro ao parsear multipla_regras:", e);
-        setComponenteInterativo("escrita");
-        setMultiplaQuestoes(getDefaultMultiplaQuestoes());
-      }
-    } else {
-      setComponenteInterativo("escrita");
-      setMultiplaQuestoes(getDefaultMultiplaQuestoes());
-    }
-
-    setPermitirRepeticao(exercicio.permitir_repeticao ?? false);
-    setMaxTentativas(exercicio.maxTentativas ? String(exercicio.maxTentativas) : "");
-    setPenalidadeTentativa(
-      exercicio.penalidadePorTentativa !== null && exercicio.penalidadePorTentativa !== undefined
-        ? String(exercicio.penalidadePorTentativa)
-        : ""
-    );
-    setIntervaloReenvio(exercicio.intervaloReenvio ? String(exercicio.intervaloReenvio) : "");
-
-    setEditandoId(exercicio.id);
-    setOkMsg(null);
-    setErro(null);
-
-    // Scroll ate o formulario
-    setTimeout(() => {
-      const formElement = document.querySelector(".createExerciseCard");
-      formElement?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
   }
 
   function handleCancel() {
@@ -1287,13 +1233,6 @@ export default function ExerciciosPage() {
     setEditAttrExercisePeriod(toDatetimeLocal(exercicio.exercisePeriod));
     setEditAttrIsFinalExercise(exercicio.isFinalExercise === true);
     setEditAttrIsDailyTask(exercicio.isDailyTask === true);
-    setEditAttrPermitirRepeticao(exercicio.permitir_repeticao ?? false);
-    setEditAttrMaxTentativas(exercicio.maxTentativas ? String(exercicio.maxTentativas) : "");
-    setEditAttrPenalidadeTentativa(
-      exercicio.penalidadePorTentativa !== null && exercicio.penalidadePorTentativa !== undefined
-        ? String(exercicio.penalidadePorTentativa) : ""
-    );
-    setEditAttrIntervaloReenvio(exercicio.intervaloReenvio ? String(exercicio.intervaloReenvio) : "");
 
     if (exercicio.multipla_regras) {
       setEditAttrComponenteInterativo("multipla");
@@ -1354,9 +1293,12 @@ export default function ExerciciosPage() {
 
     const tipoSelecionado: "escrita" | "multipla" =
       editAttrComponenteInterativo === "multipla" ? "multipla" : "escrita";
-    const maxTentativasNum = editAttrMaxTentativas.trim() ? Number(editAttrMaxTentativas) : null;
-    const penalidadeNum = editAttrPenalidadeTentativa.trim() ? Number(editAttrPenalidadeTentativa) : 0;
-    const intervaloNum = editAttrIntervaloReenvio.trim() ? Number(editAttrIntervaloReenvio) : null;
+    const difficultyValue = parseDifficultyValue(editAttrDifficulty);
+
+    if (editAttrDifficulty.trim() && difficultyValue === null) {
+      setEditAttrErro("Selecione uma dificuldade valida.");
+      return;
+    }
 
     try {
       setEditAttrSaving(true);
@@ -1370,7 +1312,7 @@ export default function ExerciciosPage() {
         tema: ex.tema ?? null,
         prazo: editAttrPrazo ? new Date(editAttrPrazo).toISOString() : null,
         video_url: editAttrVideoUrl.trim() || null,
-        difficulty: editAttrDifficulty.trim() ? (editAttrDifficulty.trim() as any) : null,
+        difficulty: difficultyValue,
         index_order: ordemNum,
         is_final_exercise: editAttrIsFinalExercise,
         is_daily_task: editAttrIsDailyTask,
@@ -1381,12 +1323,8 @@ export default function ExerciciosPage() {
         categoria: ex.categoria ?? "programacao",
         tipoExercicio: tipoSelecionado,
         ...(editAttrComponenteInterativo === "multipla" ? {
-          multipla_regras: JSON.stringify({ Questoes: editAttrMultiplaQuestoes })
+          multipla_regras: JSON.stringify({ Questoes: buildMultiplaQuestoesPayload(editAttrMultiplaQuestoes, descricaoFinal) })
         } : {}),
-        permitir_repeticao: editAttrPermitirRepeticao,
-        max_tentativas: editAttrPermitirRepeticao ? maxTentativasNum : null,
-        penalidade_por_tentativa: editAttrPermitirRepeticao ? penalidadeNum : 0,
-        intervalo_reenvio: editAttrPermitirRepeticao ? intervaloNum : null,
       });
 
       setOkMsg("Exercício atualizado com sucesso!");
@@ -1537,7 +1475,7 @@ export default function ExerciciosPage() {
     !faseIdSelecionada ||
     (!isInteractiveComponentInformatica && titulo.trim().length < 2) ||
     (!isInteractiveComponentInformatica && descricao.trim().length < 2) ||
-    (componenteInterativo === "multipla" && multiplaQuestoes.some(q => !q.pergunta || !q.respostaCorreta || q.opcoes.some(o => !o.text)));
+    (componenteInterativo === "multipla" && multiplaQuestoes.some(q => !q.respostaCorreta || q.opcoes.some(o => !o.text)));
 
   const sourceItems = activeSection === "tarefa-diaria" ? dailyItems : items;
   const totalItemsSection = activeSection === "tarefa-diaria" ? totalItemsTarefaDiaria : totalItemsLista;
@@ -2007,21 +1945,6 @@ export default function ExerciciosPage() {
                                 <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questao {qIndex + 1}</h4>
 
                                 <div style={{ marginBottom: "8px" }}>
-                                  <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Pergunta:</span>
-                                  <input
-                                    className="exInput"
-                                    type="text"
-                                    value={questao.pergunta}
-                                    onChange={(e) => {
-                                      const naovas = [...multiplaQuestoes];
-                                      naovas[qIndex].pergunta = e.target.value;
-                                      setMultiplaQuestoes(naovas);
-                                    }}
-                                    placeholder="Digite a pergunta"
-                                  />
-                                </div>
-
-                                <div style={{ marginBottom: "8px" }}>
                                   <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opcoes:</span>
                                   {questao.opcoes.map((opcao, oIndex) => (
                                     <input
@@ -2096,7 +2019,7 @@ export default function ExerciciosPage() {
                                 style={{ marginBottom: "16px" }}
                               >
                                 <MultipleChoiceQuestion
-                                  question={`Q${idx + 1}: ${questao.pergunta}`}
+                                  question={`Q${idx + 1}: ${descricao.trim() || "Enunciado do exercício"}`}
                                   options={questao.opcoes}
                                   selectedAnswer=""
                                   onAnswer={() => { }}
@@ -2186,32 +2109,6 @@ export default function ExerciciosPage() {
                               Questao {qIndex + 1}
                             </h4>
 
-                            {/* Campo de pergunta */}
-                            <div style={{ marginBottom: "12px" }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
-                                Pergunta
-                              </span>
-                              <input
-                                type="text"
-                                placeholder="Digite a pergunta..."
-                                value={questao.pergunta}
-                                onChange={(e) => {
-                                  const naovaQuestoes = [...multiplaQuestoes];
-                                  naovaQuestoes[qIndex].pergunta = e.target.value;
-                                  setMultiplaQuestoes(naovaQuestoes);
-                                }}
-                                style={{
-                                  width: "100%",
-                                  padding: "8px",
-                                  border: "1px solid #d1d5db",
-                                  borderRadius: "4px",
-                                  fontSize: "14px",
-                                  fontFamily: "inherit",
-                                  boxSizing: "border-box",
-                                }}
-                              />
-                            </div>
-
                             {/* Campos de opcoes */}
                             {questao.opcoes.map((opcao, oIndex) => (
                               <div key={`info-op-${questao.pergunta}-${opcao.letter}-${opcao.text}`} style={{ marginBottom: "12px" }}>
@@ -2294,7 +2191,7 @@ export default function ExerciciosPage() {
                         {/* Temporariamente desativado: adicionar outra questao */}
 
                         {/* PREVIEW DINAMICO DA PRIMEIRA QUESTAO */}
-                        {multiplaQuestoes.length > 0 && multiplaQuestoes[0].pergunta && (
+                        {multiplaQuestoes.length > 0 && descricao.trim() && (
                           <div style={{
                             background: "var(--card)",
                             border: "2px solid var(--line)",
@@ -2306,7 +2203,7 @@ export default function ExerciciosPage() {
                               {iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}
                             </p>
                             <MultipleChoiceQuestion
-                              question={`Q1: ${multiplaQuestoes[0].pergunta}`}
+                              question={`Q1: ${descricao.trim()}`}
                               options={multiplaQuestoes[0].opcoes}
                               onAnswer={() => { }}
                             />
@@ -2316,62 +2213,6 @@ export default function ExerciciosPage() {
                     </ConditionalFieldAnimation>
                   </>
                 )}
-
-                {/* PERMITIR repeticao - Temporariamente desativado conforme correções.md
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
-                      <AnimatedToggle
-                        checked={permitirRepeticao}
-                        onChange={setPermitirRepeticao}
-                      />
-                      Permitir repeticao
-                    </span>
-                    <small style={{ color: "#666", marginTop: "4px" }}>
-                      Se ativado, alunos podem enviar multiplas respostas
-                    </small>
-                  </div>
-                </div>
-
-                {permitirRepeticao && (
-                  <div className="exInputRow">
-                    <div className="exInputGroup">
-                      <span className="exLabel">Max. Tentativas</span>
-                      <input
-                        className="exInput"
-                        type="number"
-                        min="1"
-                        placeholder="Ilimitado"
-                        value={maxTentativas}
-                        onChange={(e) => setMaxTentativas(e.target.value)}
-                      />
-                    </div>
-                    <div className="exInputGroup">
-                      <span className="exLabel">Penalidade por tentativa (%)</span>
-                      <input
-                        className="exInput"
-                        type="number"
-                        min="0"
-                        max="100"
-                        placeholder="0"
-                        value={penalidadeTentativa}
-                        onChange={(e) => setPenalidadeTentativa(e.target.value)}
-                      />
-                    </div>
-                    <div className="exInputGroup">
-                      <span className="exLabel">Intervalo entre tentativas (min)</span>
-                      <input
-                        className="exInput"
-                        type="number"
-                        min="1"
-                        placeholder="Sem intervalo"
-                        value={intervaloReenvio}
-                        onChange={(e) => setIntervaloReenvio(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-                */}
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
@@ -2488,12 +2329,12 @@ export default function ExerciciosPage() {
                       onChange={(e) => setDifficulty(e.target.value)}
                     >
                       <option value="">Selecione</option>
-                      <option value="normal">Normal</option>
-                      <option value="lower">Lower (Recuperação)</option>
-                      <option value="prova_semanal">Prova Semanal</option>
+                      <option value="1">Normal</option>
+                      <option value="2">Lower (Recuperação)</option>
+                      <option value="3">Prova Semanal</option>
                     </AnimatedSelect>
                     <small style={{ color: "#666", marginTop: "4px" }}>
-                      Normal para exercícios regulares. Lower para exercícios de recuperação.
+                      Escolha um nivel compativel com a validacao da API.
                     </small>
                   </div>
 
@@ -2532,28 +2373,50 @@ export default function ExerciciosPage() {
 
                 <div className="exInputRow">
                   <div className="exInputGroup">
-                    <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                    <div
+                      className={`exStatusToggle ${isFinalExercise ? "isActive" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setIsFinalExercise(!isFinalExercise)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setIsFinalExercise(!isFinalExercise);
+                        }
+                      }}
+                    >
                       <AnimatedToggle
                         checked={isFinalExercise}
                         onChange={setIsFinalExercise}
                       />
-                      Exercicio final
-                    </span>
-                    <small style={{ color: "#666", marginTop: "4px" }}>
-                      Marque se este for o exercicio de fechamento da fase.
-                    </small>
+                      <span className="exStatusToggleContent">
+                        <span className="exStatusToggleTitle">Exercicio final</span>
+                        <span className="exStatusToggleDescription">Marque se este for o exercicio de fechamento da fase.</span>
+                      </span>
+                    </div>
                   </div>
                   <div className="exInputGroup">
-                    <span className="exLabel" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", cursor: "pointer" }}>
+                    <div
+                      className={`exStatusToggle ${isDailyTask ? "isActive" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setIsDailyTask(!isDailyTask)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setIsDailyTask(!isDailyTask);
+                        }
+                      }}
+                    >
                       <AnimatedToggle
                         checked={isDailyTask}
                         onChange={setIsDailyTask}
                       />
-                      Tarefas diárias
-                    </span>
-                    <small style={{ color: "#666", marginTop: "4px" }}>
-                      Mostra este exercicio na aba de tarefa diaria.
-                    </small>
+                      <span className="exStatusToggleContent">
+                        <span className="exStatusToggleTitle">Tarefas diárias</span>
+                        <span className="exStatusToggleDescription">Mostra este exercicio na aba de tarefa diaria.</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -3338,17 +3201,21 @@ export default function ExerciciosPage() {
               <span className="exLabel">Tipo de componente</span>
               <div style={{ display: "flex", gap: 12 }}>
                 <AnimatedRadioLabel
+                  name="editAttrComponenteInterativo"
+                  value="escrita"
                   checked={editAttrComponenteInterativo === "escrita"}
-                  onClick={() => setEditAttrComponenteInterativo("escrita")}
-                >
-                  {iconLabel(<PenLine size={14} />, "Dissertativo")}
-                </AnimatedRadioLabel>
+                  onChange={() => setEditAttrComponenteInterativo("escrita")}
+                  label="Dissertativo"
+                  icon={<PenLine size={14} />}
+                />
                 <AnimatedRadioLabel
+                  name="editAttrComponenteInterativo"
+                  value="multipla"
                   checked={editAttrComponenteInterativo === "multipla"}
-                  onClick={() => setEditAttrComponenteInterativo("multipla")}
-                >
-                  {iconLabel(<ListChecks size={14} />, "Múltipla Escolha")}
-                </AnimatedRadioLabel>
+                  onChange={() => setEditAttrComponenteInterativo("multipla")}
+                  label="Múltipla Escolha"
+                  icon={<ListChecks size={14} />}
+                />
               </div>
             </div>
 
@@ -3356,17 +3223,11 @@ export default function ExerciciosPage() {
               <div className="exInputGroup">
                 <span className="exLabel">Questões</span>
                 {editAttrMultiplaQuestoes.map((q, qi) => (
-                  <MultipleChoiceQuestion
+                  <MultipleChoiceQuestionEditor
                     key={qi}
                     questionIndex={qi}
-                    pergunta={q.pergunta}
                     opcoes={q.opcoes}
                     respostaCorreta={q.respostaCorreta}
-                    onChangePergunta={(val) => {
-                      const clone = [...editAttrMultiplaQuestoes];
-                      clone[qi] = { ...clone[qi], pergunta: val };
-                      setEditAttrMultiplaQuestoes(clone);
-                    }}
                     onChangeOpcao={(oi, val) => {
                       const clone = [...editAttrMultiplaQuestoes];
                       const opcoes = [...clone[qi].opcoes];
@@ -3428,8 +3289,9 @@ export default function ExerciciosPage() {
                   onChange={(e) => setEditAttrDifficulty(e.target.value)}
                 >
                   <option value="">Padrão</option>
-                  <option value="normal">Normal</option>
-                  <option value="lower">Fácil</option>
+                  <option value="1">Normal</option>
+                  <option value="2">Lower (Recuperação)</option>
+                  <option value="3">Prova Semanal</option>
                 </AnimatedSelect>
               </div>
             </div>
@@ -3494,50 +3356,7 @@ export default function ExerciciosPage() {
                 />
                 Tarefa diária
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                <AnimatedToggle
-                  checked={editAttrPermitirRepeticao}
-                  onChange={() => setEditAttrPermitirRepeticao(!editAttrPermitirRepeticao)}
-                />
-                Permitir repetição
-              </label>
             </div>
-
-            {editAttrPermitirRepeticao && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                <div className="exInputGroup">
-                  <span className="exLabel">Máx. tentativas</span>
-                  <input
-                    className="exInput"
-                    type="number"
-                    min={1}
-                    value={editAttrMaxTentativas}
-                    onChange={(e) => setEditAttrMaxTentativas(e.target.value)}
-                  />
-                </div>
-                <div className="exInputGroup">
-                  <span className="exLabel">Penalidade (%)</span>
-                  <input
-                    className="exInput"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={editAttrPenalidadeTentativa}
-                    onChange={(e) => setEditAttrPenalidadeTentativa(e.target.value)}
-                  />
-                </div>
-                <div className="exInputGroup">
-                  <span className="exLabel">Intervalo (min)</span>
-                  <input
-                    className="exInput"
-                    type="number"
-                    min={0}
-                    value={editAttrIntervaloReenvio}
-                    onChange={(e) => setEditAttrIntervaloReenvio(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </Modal>
 

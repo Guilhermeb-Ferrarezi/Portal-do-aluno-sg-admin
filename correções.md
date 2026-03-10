@@ -17,6 +17,11 @@ Implementação: **Código apenas** (sem alterações de schema)
 
 ## Correções Recentes
 
+### Ajuste do toggle compartilhado
+- Refatorado o componente compartilhado `AnimatedToggle` no frontend para evitar conflito com a classe global `.slider` carregada pela tela de perfil
+- Corrigido o artefato visual do círculo escuro recortado no canto do toggle em telas como configurações e exercícios
+- O toggle agora usa implementação isolada, com foco visível, melhor alinhamento do thumb, overflow controlado e comportamento consistente nos estados ativo/inativo
+
 ### Listagem de cursos e turmas
 - Ajustado o fluxo de consulta e retorno dos cursos usados na listagem e nas turmas
 - Mantido o uso direto das colunas `duration_hours`, `level`, `focus` e `price`, já existentes na tabela `course`
