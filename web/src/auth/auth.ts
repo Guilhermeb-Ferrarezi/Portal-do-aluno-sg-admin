@@ -90,9 +90,6 @@ export function getUserId(): string | null {
 }
 
 export function getRole(): Role | null {
-  // compat: remove role legado de versões antigas que persistiam isso no localStorage
-  localStorage.removeItem("role");
-
   const token = getToken();
   if (!token) return null;
 

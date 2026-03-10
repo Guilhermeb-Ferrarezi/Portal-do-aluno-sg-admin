@@ -440,7 +440,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       const descricaoFinal = descricao.trim();
       const tituloFinal = titulo.trim();
       const tipoSelecionado: "escrita" | "multipla" = componenteInterativo === "multipla" ? "multipla" : "escrita";
-      const dificuldadeNum = difficulty.trim() ? difficulty.trim() : null;
+      const dificuldadeNum = difficulty.trim() ? Number(difficulty.trim()) : null;
       const ordemNum = indexOrder.trim() ? Number(indexOrder) : null;
       const pontosNum = pointsRedeem.trim() ? Number(pointsRedeem) : null;
       const videoUrlLimpa = videoUrl.trim();
@@ -865,8 +865,8 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 <span className="exLabel">Dificuldade</span>
                 <AnimatedSelect className="exSelect" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
                   <option value="">Selecione</option>
-                  <option value="normal">Normal</option>
-                  <option value="lower">Lower (Recuperação)</option>
+                  <option value="1">Normal</option>
+                  <option value="2">Lower (Recuperação)</option>
                 </AnimatedSelect>
               </div>
             </div>

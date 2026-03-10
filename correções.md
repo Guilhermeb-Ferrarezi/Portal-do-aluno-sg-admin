@@ -75,6 +75,11 @@ Implementação: **Código apenas** (sem alterações de schema)
 - O arquivo [api/src/routes/turmas.route.ts](api/src/routes/turmas.route.ts) agora funciona tanto com `level` / `focus` quanto com `level_difficulty` / `paid_focus`
 - A compatibilidade foi aplicada na listagem de cursos, busca por curso, curso preferencial, criação de curso e hidratação de cursos nas turmas
 
+### Correção do `difficulty` inválido ao criar exercício
+- Ajustado o envio de `difficulty` no frontend para mandar valores numéricos, como o backend espera
+- O valor `2` representa **Normal** e o valor `1` representa **Lower (Recuperação)**
+- Aplicado em [web/src/components/CriarExercicioForm.tsx](web/src/components/CriarExercicioForm.tsx) e [web/src/pages/Exercises.tsx](web/src/pages/Exercises.tsx)
+
 ---
 
 ## Arquitetura de Acesso

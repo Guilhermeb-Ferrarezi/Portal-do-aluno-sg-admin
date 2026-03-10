@@ -963,14 +963,13 @@ export default function ExerciciosPage() {
       const maxTentativasNum = maxTentativas.trim() ? Number(maxTentativas) : null;
       const penalidadeNum = penalidadeTentativa.trim() ? Number(penalidadeTentativa) : 0;
       const intervaloNum = intervaloReenvio.trim() ? Number(intervaloReenvio) : null;
-      const dificuldadeNum = difficulty.trim() ? difficulty.trim() : null;
+      const dificuldadeNum = difficulty.trim() ? Number(difficulty.trim()) : null;
       const ordemNum = indexOrder.trim() ? Number(indexOrder) : null;
       const pontosNum = pointsRedeem.trim() ? Number(pointsRedeem) : null;
       const videoUrlLimpa = videoUrl.trim();
       const courseIdNum = Number(cursoIdSelecionado);
       const phaseIdNum = Number(faseIdSelecionada);
 
-      /* Dificuldade agora é string: 'normal' ou 'lower' - sem validação numérica */
       if (indexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 1)) {
         setErro("Ordem deve ser um numero inteiro maior ou igual a 1.");
         setSaving(false);
@@ -2174,8 +2173,8 @@ export default function ExerciciosPage() {
                       onChange={(e) => setDifficulty(e.target.value)}
                     >
                       <option value="">Selecione</option>
-                      <option value="normal">Normal</option>
-                      <option value="lower">Lower (Recuperação)</option>
+                      <option value="2">Normal</option>
+                      <option value="1">Lower (Recuperação)</option>
                     </AnimatedSelect>
                     <small style={{ color: "#666", marginTop: "4px" }}>
                       Normal para exercícios regulares. Lower para exercícios de recuperação.
