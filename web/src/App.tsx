@@ -163,6 +163,7 @@ function AppContent() {
             <Route path="/dashboard/estrutura-curso/modulos" element={<EstruturaCursoPage />} />
             <Route path="/dashboard/estrutura-curso/fases" element={<EstruturaCursoPage />} />
             <Route path="/dashboard/estrutura-curso/exercicios" element={<EstruturaCursoPage />} />
+            <Route path="/dashboard/estrutura-curso/conteiners" element={<EstruturaCursoPage />} />
             <Route path="/dashboard/estrutura-curso/turmas" element={<EstruturaCursoPage />} />
             <Route
               path="/dashboard/estrutura-curso"

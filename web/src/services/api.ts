@@ -182,6 +182,8 @@ export type Exercicio = {
     intervaloReenvio?: number | null;
     anexoUrl?: string | null;
     anexoNome?: string | null;
+    containerName?: string | null;
+    containerDay?: number | null;
     createdAt: string;
   turmas?: Turma[];
   alunos?: UserRef[];
@@ -1314,6 +1316,56 @@ export async function reordenarExercicio(id: string, direction: "up" | "down") {
   return apiFetch<{ message: string }>(`/exercicios/${id}/reorder`, {
     method: "PATCH",
     body: JSON.stringify({ direction }),
+  });
+}
+
+// ===== Containers =====
+
+export type ContainerGroup = {
+  name: string;
+  phaseId: string;
+  containerDateTargetInt: number | null;
+  isDailyTask: boolean;
+  exercises: Array<{
+    id: string;
+    containerTaskId: string;
+    title: string;
+    description: string | null;
+    indexOrder: number | null;
+  }>;
+};
+
+export type ContainerExerciseInfo = {
+  name: string;
+  containerDateTargetInt: number | null;
+  phaseId: string;
+};
+
+export async function listarContainersPorFase(phaseId: string) {
+  return apiFetch<ContainerGroup[]>(`/containers/by-phase/${phaseId}`);
+}
+
+export async function criarContainer(dados: {
+  name: string;
+  phase_id: number;
+  exercise_ids: number[];
+  is_daily_task?: boolean;
+  container_date_target_int?: number | null;
+}) {
+  return apiFetch<{ message: string; count: number }>("/containers", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function deletarContainerGroup(dados: {
+  name: string;
+  phase_id: number;
+  container_date_target_int: number | null;
+}) {
+  return apiFetch<{ message: string; deleted: number }>("/containers/group", {
+    method: "DELETE",
+    body: JSON.stringify(dados),
   });
 }
 

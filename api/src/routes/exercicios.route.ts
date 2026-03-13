@@ -64,6 +64,8 @@ type NewExerciseRow = {
   tema?: string | null;
   daily_task_id?: number | null;
   daily_task_name?: string | null;
+  container_name?: string | null;
+  container_day?: number | null;
 };
 
 type ExerciseSchemaInfo = {
@@ -205,6 +207,8 @@ function getNewExerciseSelectFields(
     `${schema.hasExerciseIsFinalExercise ? `COALESCE(${alias}.is_final_exercise, false)` : "false"} AS is_final_exercise`,
     `${schema.hasExercisePointsRedeem ? `${alias}.points_redeem` : "NULL::int AS points_redeem"}`,
     `${schema.hasExerciseExercisePeriod ? `${alias}.exercise_period` : "NULL::timestamptz AS exercise_period"}`,
+    `(SELECT ct.name FROM container_tasks ct WHERE ct.exercise_id = ${alias}.id LIMIT 1) AS container_name`,
+    `(SELECT ct.container_date_target_int FROM container_tasks ct WHERE ct.exercise_id = ${alias}.id LIMIT 1) AS container_day`,
   ];
 
   if (options.includeDailyTaskMeta) {
@@ -268,6 +272,8 @@ function mapNewExerciseRow(row: NewExerciseRow) {
     isFinalExercise: !!row.is_final_exercise,
     pointsRedeem: row.points_redeem ?? null,
     exercisePeriod: row.exercise_period ?? null,
+    containerName: row.container_name ?? null,
+    containerDay: row.container_day ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

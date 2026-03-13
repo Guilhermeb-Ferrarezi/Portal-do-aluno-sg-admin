@@ -19,18 +19,22 @@ import {
   obterEstruturaStats,
   listarExerciciosPorFase,
   reordenarExercicio,
+  listarContainersPorFase,
+  criarContainer,
+  deletarContainerGroup,
   type Curso,
   type Modulo,
   type Fase,
   type ExercicioFase,
+  type ContainerGroup,
 } from "../services/api";
 import { AnimatedButton, AnimatedToast } from "../components/animate-ui";
-import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown, Eye } from "lucide-react";
+import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown, Eye, Package } from "lucide-react";
 import CriarExercicioForm from "../components/CriarExercicioForm";
 import CriarTurmaForm from "../components/CriarTurmaForm";
 import "./EstruturaCurso.css";
 
-type AbaEstrutura = "curso" | "modulo" | "fase" | "exercicios" | "turmas";
+type AbaEstrutura = "curso" | "modulo" | "fase" | "exercicios" | "conteiners" | "turmas";
 type DetalheModalState =
   | { tipo: "curso"; item: Curso }
   | { tipo: "modulo"; item: Modulo }
@@ -109,10 +113,24 @@ export default function EstruturaCursoPage() {
   const [exerciciosFase, setExerciciosFase] = React.useState<ExercicioFase[]>([]);
   const [faseIdParaExercicios, setFaseIdParaExercicios] = React.useState("");
 
+  // Container state
+  const [containers, setContainers] = React.useState<ContainerGroup[]>([]);
+  const [carregandoContainers, setCarregandoContainers] = React.useState(false);
+  const [faseIdParaContainers, setFaseIdParaContainers] = React.useState("");
+  const [exerciciosDispContainer, setExerciciosDispContainer] = React.useState<ExercicioFase[]>([]);
+  const [novoContainerNome, setNovoContainerNome] = React.useState("");
+  const [novoContainerDia, setNovoContainerDia] = React.useState<number | "">(1);
+  const [novoContainerIsDailyTask, setNovoContainerIsDailyTask] = React.useState(false);
+  const [novoContainerExerciseIds, setNovoContainerExerciseIds] = React.useState<string[]>([]);
+  const [criandoContainer, setCriandoContainer] = React.useState(false);
+  const [paginaContainers, setPaginaContainers] = React.useState(1);
+  const [itensContainers, setItensContainers] = React.useState(5);
+
   const abaAtiva: AbaEstrutura = React.useMemo(() => {
     if (location.pathname.endsWith("/modulos")) return "modulo";
     if (location.pathname.endsWith("/fases")) return "fase";
     if (location.pathname.endsWith("/exercicios")) return "exercicios";
+    if (location.pathname.endsWith("/conteiners")) return "conteiners";
     if (location.pathname.endsWith("/turmas")) return "turmas";
     return "curso";
   }, [location.pathname]);
@@ -121,6 +139,7 @@ export default function EstruturaCursoPage() {
     if (aba === "modulo") return "/dashboard/estrutura-curso/modulos";
     if (aba === "fase") return "/dashboard/estrutura-curso/fases";
     if (aba === "exercicios") return "/dashboard/estrutura-curso/exercicios";
+    if (aba === "conteiners") return "/dashboard/estrutura-curso/conteiners";
     if (aba === "turmas") return "/dashboard/estrutura-curso/turmas";
     return "/dashboard/estrutura-curso/cursos";
   };
@@ -312,6 +331,112 @@ export default function EstruturaCursoPage() {
     }
   }
 
+  // Container effects
+  React.useEffect(() => {
+    if (!faseIdParaContainers) {
+      setContainers([]);
+      setExerciciosDispContainer([]);
+      setPaginaContainers(1);
+      return;
+    }
+    setCarregandoContainers(true);
+    Promise.all([
+      listarContainersPorFase(faseIdParaContainers),
+      listarExerciciosPorFase(faseIdParaContainers),
+    ])
+      .then(([c, e]) => { setContainers(c); setExerciciosDispContainer(e); })
+      .catch(() => { setContainers([]); setExerciciosDispContainer([]); })
+      .finally(() => setCarregandoContainers(false));
+  }, [faseIdParaContainers]);
+
+  React.useEffect(() => {
+    setPaginaContainers(1);
+  }, [faseIdParaContainers, itensContainers]);
+
+  React.useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(containers.length / itensContainers));
+    if (paginaContainers > totalPages) {
+      setPaginaContainers(totalPages);
+    }
+  }, [containers.length, itensContainers, paginaContainers]);
+
+  function handleReordenarNovoContainerExercise(id: string, direction: "up" | "down") {
+    setNovoContainerExerciseIds((prev) => {
+      const currentIndex = prev.findIndex((itemId) => itemId === id);
+      if (currentIndex === -1) return prev;
+
+      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+
+      const next = [...prev];
+      [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+      return next;
+    });
+  }
+
+  async function handleCriarContainer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!faseIdParaContainers || !novoContainerNome.trim() || novoContainerExerciseIds.length === 0) {
+      setToastMsg({ type: "error", msg: "Preencha nome, selecione fase e exercícios" });
+      return;
+    }
+    try {
+      setCriandoContainer(true);
+      await criarContainer({
+        name: novoContainerNome.trim(),
+        phase_id: Number(faseIdParaContainers),
+        exercise_ids: novoContainerExerciseIds.map(Number),
+        is_daily_task: novoContainerIsDailyTask,
+        container_date_target_int: novoContainerDia || null,
+      });
+      setNovoContainerNome("");
+      setNovoContainerDia(1);
+      setNovoContainerExerciseIds([]);
+      setNovoContainerIsDailyTask(false);
+      setToastMsg({ type: "success", msg: "Container criado com sucesso!" });
+      const updated = await listarContainersPorFase(faseIdParaContainers);
+      setContainers(updated);
+    } catch (err) {
+      setToastMsg({ type: "error", msg: err instanceof Error ? err.message : "Erro ao criar container" });
+    } finally {
+      setCriandoContainer(false);
+    }
+  }
+
+  async function handleDeletarContainer(container: ContainerGroup) {
+    if (!window.confirm(`Deletar container "${container.name}"${container.containerDateTargetInt ? ` (Dia ${container.containerDateTargetInt})` : ""}?`)) return;
+    try {
+      await deletarContainerGroup({
+        name: container.name,
+        phase_id: Number(container.phaseId),
+        container_date_target_int: container.containerDateTargetInt,
+      });
+      setToastMsg({ type: "success", msg: "Container deletado" });
+      const updated = await listarContainersPorFase(faseIdParaContainers);
+      setContainers(updated);
+    } catch (err) {
+      setToastMsg({ type: "error", msg: err instanceof Error ? err.message : "Erro ao deletar container" });
+    }
+  }
+
+  async function handleReordenarExercicioContainer(exerciseId: string, direction: "up" | "down") {
+    if (reordenando || !faseIdParaContainers) return;
+    try {
+      setReordenando(true);
+      await reordenarExercicio(exerciseId, direction);
+      const [updatedContainers, updatedExercises] = await Promise.all([
+        listarContainersPorFase(faseIdParaContainers),
+        listarExerciciosPorFase(faseIdParaContainers),
+      ]);
+      setContainers(updatedContainers);
+      setExerciciosDispContainer(updatedExercises);
+    } catch (e) {
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao reordenar exercício do container" });
+    } finally {
+      setReordenando(false);
+    }
+  }
+
   async function handleCriarCurso(e: React.FormEvent) {
     e.preventDefault();
     if (!novoCursoNome.trim()) {
@@ -488,6 +613,22 @@ export default function EstruturaCursoPage() {
   const totalCursosPaginacao = filtroCursoId ? cursosFiltrados.length : totalCursos;
   const totalModulosPaginacao = filtroModuloId ? modulosFiltrados.length : totalModulos;
   const totalFasesPaginacao = filtroFaseId ? fasesFiltradas.length : totalFases;
+  const totalContainersPaginacao = containers.length;
+  const containersPaginados = React.useMemo(() => {
+    const start = (paginaContainers - 1) * itensContainers;
+    return containers.slice(start, start + itensContainers);
+  }, [containers, itensContainers, paginaContainers]);
+  const exerciciosDispContainerMap = React.useMemo(
+    () => new Map(exerciciosDispContainer.map((ex) => [ex.id, ex])),
+    [exerciciosDispContainer]
+  );
+  const exerciciosSelecionadosContainer = React.useMemo(
+    () =>
+      novoContainerExerciseIds
+        .map((id) => exerciciosDispContainerMap.get(id))
+        .filter((ex): ex is ExercicioFase => Boolean(ex)),
+    [exerciciosDispContainerMap, novoContainerExerciseIds]
+  );
 
   const cursoSelecionado = React.useMemo(
     () => cursos.find((curso) => curso.id === courseIdSelecionado) || null,
@@ -583,6 +724,9 @@ export default function EstruturaCursoPage() {
           </button>
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "exercicios" ? "active" : ""}`} onClick={() => navigate(rotaAba("exercicios"))}>
             <PenLine size={16} /> Exercícios
+          </button>
+          <button type="button" className={`estruturaTabBtn ${abaAtiva === "conteiners" ? "active" : ""}`} onClick={() => navigate(rotaAba("conteiners"))}>
+            <Package size={16} /> Contêiners
           </button>
           <button type="button" className={`estruturaTabBtn ${abaAtiva === "turmas" ? "active" : ""}`} onClick={() => navigate(rotaAba("turmas"))}>
             <School size={16} /> Turmas
@@ -1063,6 +1207,262 @@ export default function EstruturaCursoPage() {
         {abaAtiva === "exercicios" && (
           <div className="estruturaGrid">
             <CriarExercicioForm />
+          </div>
+        )}
+
+        {abaAtiva === "conteiners" && (
+          <div className="estruturaGrid">
+            <div className="estruturaCard">
+              <div className="estruturaCardHead">
+                <h2>Criar Container</h2>
+                <p>Agrupe exercícios em um container dentro de uma fase.</p>
+              </div>
+              <form onSubmit={handleCriarContainer} className="estruturaForm">
+                <span>Curso *</span>
+                <PaginatedSelect
+                  value={courseIdSelecionado}
+                  onChange={(value) => {
+                    setCourseIdSelecionado(value);
+                    const found = cursoSelectOpcoes.find((c) => c.id === value) ?? null;
+                    if (found) setCursoSelectSelecionado(found);
+                    setFaseIdParaContainers("");
+                  }}
+                  options={cursoSelectOpcoes.map((curso) => ({
+                    value: curso.id,
+                    label: curso.nome,
+                    meta: curso.isPaid ? "Pago" : "Gratuito",
+                  }))}
+                  selectedOption={cursoSelectSelecionado ? {
+                    value: cursoSelectSelecionado.id,
+                    label: cursoSelectSelecionado.nome,
+                    meta: cursoSelectSelecionado.isPaid ? "Pago" : "Gratuito",
+                  } : null}
+                  placeholder="Selecione um curso"
+                  emptyText="Nenhum curso cadastrado"
+                  allowPageSizeChange={false}
+                  remote={{
+                    query: cursoSelectBusca,
+                    onQueryChange: setCursoSelectBusca,
+                    page: cursoSelectPagina,
+                    totalPages: cursoSelectTotalPages,
+                    onPageChange: setCursoSelectPagina,
+                    loading: cursoSelectCarregando,
+                  }}
+                />
+
+                <span>Módulo *</span>
+                <PaginatedSelect
+                  value={moduloIdSelecionado}
+                  onChange={(value) => {
+                    setModuloIdSelecionado(value);
+                    const found = moduloSelectOpcoes.find((m) => m.id === value) ?? null;
+                    if (found) setModuloSelectSelecionado(found);
+                    setFaseIdParaContainers("");
+                  }}
+                  options={moduloSelectOpcoes.map((mod) => ({
+                    value: mod.id,
+                    label: mod.nome,
+                    meta: `Ordem #${mod.indexOrder}`,
+                  }))}
+                  selectedOption={moduloSelectSelecionado ? {
+                    value: moduloSelectSelecionado.id,
+                    label: moduloSelectSelecionado.nome,
+                    meta: `Ordem #${moduloSelectSelecionado.indexOrder}`,
+                  } : null}
+                  placeholder={courseIdSelecionado ? "Selecione um módulo" : "Selecione um curso primeiro"}
+                  disabled={!courseIdSelecionado}
+                  allowPageSizeChange={false}
+                  emptyText="Nenhum módulo cadastrado para este curso"
+                  remote={{
+                    query: moduloSelectBusca,
+                    onQueryChange: setModuloSelectBusca,
+                    page: moduloSelectPagina,
+                    totalPages: moduloSelectTotalPages,
+                    onPageChange: setModuloSelectPagina,
+                    loading: moduloSelectCarregando,
+                  }}
+                />
+
+                <span>Fase *</span>
+                <PaginatedSelect
+                  value={faseIdParaContainers}
+                  onChange={setFaseIdParaContainers}
+                  options={fasesModulo.map((f) => ({
+                    value: f.id,
+                    label: f.nome,
+                    meta: `Semana ${f.weekNumber}`,
+                  }))}
+                  placeholder={moduloIdSelecionado ? "Selecione uma fase" : "Selecione um módulo primeiro"}
+                  disabled={!moduloIdSelecionado}
+                  emptyText="Nenhuma fase para selecionar"
+                />
+
+                <span>Nome do Container *</span>
+                <input value={novoContainerNome} onChange={(e) => setNovoContainerNome(e.target.value)} placeholder="Ex: FlexBox e Alinhamento" />
+
+                <span>Dia Alvo</span>
+                <input type="number" min={1} value={novoContainerDia} onChange={(e) => setNovoContainerDia(e.target.value ? Number(e.target.value) : "")} placeholder="Número do dia" />
+
+                <label className="containerSwitchRow">
+                  <input type="checkbox" checked={novoContainerIsDailyTask} onChange={(e) => setNovoContainerIsDailyTask(e.target.checked)} />
+                  <span>Tarefa Diária</span>
+                </label>
+
+                <span>Exercícios *</span>
+                {!faseIdParaContainers ? (
+                  <div className="viewerEmpty">Selecione uma fase para ver exercícios.</div>
+                ) : exerciciosDispContainer.length === 0 ? (
+                  <div className="viewerEmpty">Nenhum exercício nesta fase.</div>
+                ) : (
+                  <div className="containerExerciseList">
+                    {exerciciosDispContainer.map((ex) => {
+                      const selecionado = novoContainerExerciseIds.includes(ex.id);
+                      return (
+                      <label key={ex.id} className={`containerExerciseOption ${selecionado ? "isSelected" : ""}`}>
+                        <input
+                          className="containerExerciseInput"
+                          type="checkbox"
+                          checked={selecionado}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNovoContainerExerciseIds((prev) => [...prev, ex.id]);
+                            } else {
+                              setNovoContainerExerciseIds((prev) => prev.filter((id) => id !== ex.id));
+                            }
+                          }}
+                        />
+                        <span className="containerExerciseCheck" aria-hidden="true" />
+                        <span className="containerExerciseTitle">{ex.titulo}</span>
+                        <span className="viewerItemMeta">#{ex.indexOrder}</span>
+                      </label>
+                    );
+                    })}
+                  </div>
+                )}
+
+                {exerciciosSelecionadosContainer.length > 0 && (
+                  <div className="containerSelectedWrap">
+                    <div className="containerSelectedHead">
+                      Ordem dos exercícios no container
+                    </div>
+                    <div className="containerSelectedList">
+                      {exerciciosSelecionadosContainer.map((ex, idx) => (
+                        <div key={ex.id} className="containerSelectedItem">
+                          <div className="reorderBtns containerReorderBtns">
+                            <button
+                              type="button"
+                              className="reorderBtn"
+                              title="Mover para cima"
+                              disabled={idx === 0}
+                              onClick={() => handleReordenarNovoContainerExercise(ex.id, "up")}
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="reorderBtn"
+                              title="Mover para baixo"
+                              disabled={idx === exerciciosSelecionadosContainer.length - 1}
+                              onClick={() => handleReordenarNovoContainerExercise(ex.id, "down")}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
+                          <div className="containerSelectedInfo">
+                            <span className="containerSelectedTitle">{ex.titulo}</span>
+                            <span className="viewerItemMeta">Posição #{idx + 1}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoContainer || !faseIdParaContainers || novoContainerExerciseIds.length === 0}>
+                  {criandoContainer ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar Container</>}
+                </AnimatedButton>
+              </form>
+            </div>
+
+            <div className="estruturaCard">
+              <div className="estruturaCardHead">
+                <h2>Containers da Fase</h2>
+                <p>Containers agrupando exercícios da fase selecionada.</p>
+              </div>
+              {!faseIdParaContainers ? (
+                <div className="viewerEmpty">Selecione uma fase para ver containers.</div>
+              ) : carregandoContainers ? (
+                <div className="estruturaLoadingCursos" role="status" aria-live="polite">
+                  <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                  <span>Carregando containers...</span>
+                </div>
+              ) : containers.length === 0 ? (
+                <div className="viewerEmpty">Nenhum container encontrado para esta fase.</div>
+              ) : (
+                <>
+                <div className="containerGroupList">
+                  {containersPaginados.map((container, i) => (
+                    <div key={`${container.name}-${container.containerDateTargetInt}-${i}`} className="containerGroupCard">
+                      <div className="containerGroupHeader">
+                        <div className="containerGroupInfo">
+                          <strong>{container.name}</strong>
+                          {container.containerDateTargetInt != null && (
+                            <span className="containerDayBadge">Dia {container.containerDateTargetInt}</span>
+                          )}
+                          {container.isDailyTask && (
+                            <span className="containerDailyBadge">Tarefa Diária</span>
+                          )}
+                        </div>
+                        <button type="button" className="containerDeleteBtn" onClick={() => handleDeletarContainer(container)} title="Deletar container">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <div className="containerGroupExercises">
+                        {container.exercises.map((ex, idx) => (
+                          <div key={ex.containerTaskId} className="containerExerciseItem">
+                            <div className="reorderBtns containerReorderBtns">
+                              <button
+                                type="button"
+                                className="reorderBtn"
+                                title="Mover para cima"
+                                disabled={reordenando || idx === 0}
+                                onClick={() => handleReordenarExercicioContainer(ex.id, "up")}
+                              >
+                                <ChevronUp size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="reorderBtn"
+                                title="Mover para baixo"
+                                disabled={reordenando || idx === container.exercises.length - 1}
+                                onClick={() => handleReordenarExercicioContainer(ex.id, "down")}
+                              >
+                                <ChevronDown size={14} />
+                              </button>
+                            </div>
+                            <div className="containerExerciseItemInfo">
+                              <span className="viewerItemTitle">{ex.title}</span>
+                              <span className="viewerItemMeta">#{ex.indexOrder ?? "-"}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="containerGroupFooter">
+                        {container.exercises.length} exercício{container.exercises.length !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Pagination
+                  currentPage={paginaContainers}
+                  itemsPerPage={itensContainers}
+                  totalItems={totalContainersPaginacao}
+                  onPageChange={setPaginaContainers}
+                  onItemsPerPageChange={setItensContainers}
+                />
+                </>
+              )}
+            </div>
           </div>
         )}
 

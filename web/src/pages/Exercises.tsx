@@ -2969,6 +2969,11 @@ export default function ExerciciosPage() {
                                       <span className={`exerciseTypePill ${tipoInfo.className}`}>{tipoInfo.label}</span>
                                       <span className="exerciseModulePill">{ex.modulo}</span>
                                       <span className="exercisePhasePill">{ex.tema?.trim() ? ex.tema : "Sem fase"}</span>
+                                      {ex.containerName && (
+                                        <span className="exerciseContainerPill">
+                                          {ex.containerName}{ex.containerDay ? ` (Dia ${ex.containerDay})` : ""}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="exerciseMetaAndActions">
