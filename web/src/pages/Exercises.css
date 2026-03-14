@@ -2133,6 +2133,7 @@ input[type="datetime-local"].exInput::-webkit-calendar-picker-indicator:hover {
   color: #f8fafc;
   display: -webkit-box;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

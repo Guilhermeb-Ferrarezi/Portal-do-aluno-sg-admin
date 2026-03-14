@@ -47,6 +47,13 @@ const deleteGroupSchema = z.object({
   container_date_target_int: z.coerce.number().int().nullable(),
 });
 
+const addExercisesToGroupSchema = z.object({
+  name: z.string().min(1),
+  phase_id: z.coerce.number().int().positive(),
+  container_date_target_int: z.coerce.number().int().nullable(),
+  exercise_ids: z.array(z.coerce.number().int().positive()).min(1, "Selecione pelo menos um exercício"),
+});
+
 function groupRows(rows: DbContainerTaskRow[]): ContainerGroupResponse[] {
   const map = new Map<string, ContainerGroupResponse>();
 
@@ -221,6 +228,123 @@ export function containersRouter(jwtSecret: string) {
     } catch (error) {
       console.error("Erro ao deletar container:", error);
       return res.status(500).json({ message: "Erro ao deletar container" });
+    }
+  });
+
+  // POST /containers/group/add-exercises
+  router.post("/containers/group/add-exercises", auth, adminOnly, async (req: AuthRequest, res) => {
+    try {
+      const parsed = addExercisesToGroupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Dados inválidos" });
+      }
+
+      const data = parsed.data;
+      const uniqueExerciseIds = Array.from(new Set(data.exercise_ids));
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const groupResult = await client.query<{
+          is_daily_task: boolean;
+        }>(
+          `SELECT is_daily_task
+           FROM container_tasks
+           WHERE name = $1 AND phase_id = $2
+             AND (container_date_target_int = $3 OR ($3::int IS NULL AND container_date_target_int IS NULL))
+           LIMIT 1`,
+          [data.name, data.phase_id, data.container_date_target_int]
+        );
+
+        if (groupResult.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return res.status(404).json({ message: "Container não encontrado" });
+        }
+
+        const validExercisesInPhase = await client.query<{ id: number }>(
+          `SELECT id
+           FROM exercise
+           WHERE phase_id = $1
+             AND id = ANY($2::int[])`,
+          [data.phase_id, uniqueExerciseIds]
+        );
+
+        if (validExercisesInPhase.rowCount !== uniqueExerciseIds.length) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "Um ou mais exercícios não pertencem à fase do container" });
+        }
+
+        const duplicateInSameGroup = await client.query<{ exercise_id: number }>(
+          `SELECT exercise_id
+           FROM container_tasks
+           WHERE phase_id = $1
+             AND name = $2
+             AND (container_date_target_int = $3 OR ($3::int IS NULL AND container_date_target_int IS NULL))
+             AND exercise_id = ANY($4::int[])`,
+          [data.phase_id, data.name, data.container_date_target_int, uniqueExerciseIds]
+        );
+
+        if ((duplicateInSameGroup.rowCount ?? 0) > 0) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "Um ou mais exercícios já estão neste container" });
+        }
+
+        const alreadyInAnotherContainer = await client.query<{ exercise_id: number }>(
+          `SELECT exercise_id
+           FROM container_tasks
+           WHERE phase_id = $1
+             AND exercise_id = ANY($2::int[])
+             AND NOT (
+               name = $3
+               AND (container_date_target_int = $4 OR ($4::int IS NULL AND container_date_target_int IS NULL))
+             )`,
+          [data.phase_id, uniqueExerciseIds, data.name, data.container_date_target_int]
+        );
+
+        if ((alreadyInAnotherContainer.rowCount ?? 0) > 0) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "Um ou mais exercícios já pertencem a outro container nesta fase" });
+        }
+
+        const isDailyTask = groupResult.rows[0].is_daily_task;
+        for (const exerciseId of uniqueExerciseIds) {
+          await client.query(
+            `INSERT INTO container_tasks (name, exercise_id, phase_id, is_daily_task, container_date_target_int, created_at)
+             VALUES ($1, $2, $3, $4, $5, NOW())`,
+            [data.name, exerciseId, data.phase_id, isDailyTask, data.container_date_target_int]
+          );
+        }
+
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      logActivity({
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "update",
+        entityType: "container",
+        entityId: data.name,
+        metadata: {
+          phase_id: data.phase_id,
+          added_exercises: uniqueExerciseIds.length,
+          container_date_target_int: data.container_date_target_int,
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+      return res.json({
+        message: "Exercícios adicionados ao container",
+        count: uniqueExerciseIds.length,
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar exercícios no container:", error);
+      return res.status(500).json({ message: "Erro ao adicionar exercícios no container" });
     }
   });
 
