@@ -21,6 +21,7 @@ import {
   reordenarExercicio,
   listarContainersPorFase,
   criarContainer,
+  adicionarExerciciosAoContainer,
   deletarContainerGroup,
   type Curso,
   type Modulo,
@@ -125,6 +126,9 @@ export default function EstruturaCursoPage() {
   const [criandoContainer, setCriandoContainer] = React.useState(false);
   const [paginaContainers, setPaginaContainers] = React.useState(1);
   const [itensContainers, setItensContainers] = React.useState(5);
+  const [containerEditorKey, setContainerEditorKey] = React.useState<string | null>(null);
+  const [containerEditorExerciseIds, setContainerEditorExerciseIds] = React.useState<string[]>([]);
+  const [salvandoContainerEditor, setSalvandoContainerEditor] = React.useState(false);
 
   const abaAtiva: AbaEstrutura = React.useMemo(() => {
     if (location.pathname.endsWith("/modulos")) return "modulo";
@@ -337,6 +341,8 @@ export default function EstruturaCursoPage() {
       setContainers([]);
       setExerciciosDispContainer([]);
       setPaginaContainers(1);
+      setContainerEditorKey(null);
+      setContainerEditorExerciseIds([]);
       return;
     }
     setCarregandoContainers(true);
@@ -416,6 +422,58 @@ export default function EstruturaCursoPage() {
       setContainers(updated);
     } catch (err) {
       setToastMsg({ type: "error", msg: err instanceof Error ? err.message : "Erro ao deletar container" });
+    }
+  }
+
+  function getContainerGroupKey(container: ContainerGroup) {
+    return `${container.phaseId}|${container.name}|${container.containerDateTargetInt ?? "null"}`;
+  }
+
+  const containerEditorSelecionado = React.useMemo(
+    () => containers.find((container) => getContainerGroupKey(container) === containerEditorKey) ?? null,
+    [containers, containerEditorKey]
+  );
+
+  function handleToggleContainerEditorGlobal() {
+    if (containerEditorKey) {
+      setContainerEditorKey(null);
+      setContainerEditorExerciseIds([]);
+      return;
+    }
+
+    const primeiroContainer = containers[0];
+    if (!primeiroContainer) return;
+    setContainerEditorKey(getContainerGroupKey(primeiroContainer));
+  }
+
+  async function handleAdicionarExerciciosNoContainer() {
+    if (!containerEditorSelecionado) {
+      setToastMsg({ type: "error", msg: "Selecione um container para adicionar exercícios" });
+      return;
+    }
+
+    if (containerEditorExerciseIds.length === 0) {
+      setToastMsg({ type: "error", msg: "Selecione ao menos um exercício para adicionar" });
+      return;
+    }
+
+    try {
+      setSalvandoContainerEditor(true);
+      await adicionarExerciciosAoContainer({
+        name: containerEditorSelecionado.name,
+        phase_id: Number(containerEditorSelecionado.phaseId),
+        container_date_target_int: containerEditorSelecionado.containerDateTargetInt,
+        exercise_ids: containerEditorExerciseIds.map(Number),
+      });
+
+      const updated = await listarContainersPorFase(containerEditorSelecionado.phaseId);
+      setContainers(updated);
+      setContainerEditorExerciseIds([]);
+      setToastMsg({ type: "success", msg: "Exercícios adicionados ao container" });
+    } catch (err) {
+      setToastMsg({ type: "error", msg: err instanceof Error ? err.message : "Erro ao adicionar exercícios no container" });
+    } finally {
+      setSalvandoContainerEditor(false);
     }
   }
 
@@ -629,6 +687,15 @@ export default function EstruturaCursoPage() {
         .filter((ex): ex is ExercicioFase => Boolean(ex)),
     [exerciciosDispContainerMap, novoContainerExerciseIds]
   );
+  const exerciciosAlocadosEmContainers = React.useMemo(() => {
+    const alocados = new Set<string>();
+    for (const container of containers) {
+      for (const ex of container.exercises) {
+        alocados.add(ex.id);
+      }
+    }
+    return alocados;
+  }, [containers]);
 
   const cursoSelecionado = React.useMemo(
     () => cursos.find((curso) => curso.id === courseIdSelecionado) || null,
@@ -1400,6 +1467,89 @@ export default function EstruturaCursoPage() {
                 <div className="viewerEmpty">Nenhum container encontrado para esta fase.</div>
               ) : (
                 <>
+                <div className="containerHeaderActions" style={{ marginBottom: 10 }}>
+                  <button
+                    type="button"
+                    className="containerActionBtn"
+                    onClick={handleToggleContainerEditorGlobal}
+                    disabled={containers.length === 0}
+                  >
+                    <Plus size={14} />
+                    {containerEditorKey ? "Fechar" : "Adicionar exercícios"}
+                  </button>
+                </div>
+
+                {containerEditorKey && (
+                  <div className="containerAddPanel">
+                    <div className="containerSelectedHead">Adicionar novos exercícios</div>
+
+                    <span style={{ display: "block", marginBottom: 8, fontSize: "0.82rem", color: "var(--muted)" }}>
+                      Container de destino
+                    </span>
+                    <select
+                      value={containerEditorKey}
+                      onChange={(e) => {
+                        setContainerEditorKey(e.target.value);
+                        setContainerEditorExerciseIds([]);
+                      }}
+                      style={{ width: "100%", marginBottom: 10 }}
+                    >
+                      {containers.map((container, idx) => {
+                        const key = getContainerGroupKey(container);
+                        return (
+                          <option key={`${key}-${idx}`} value={key}>
+                            {container.name}
+                            {container.containerDateTargetInt != null ? ` (Dia ${container.containerDateTargetInt})` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {exerciciosDispContainer.filter((ex) => !exerciciosAlocadosEmContainers.has(ex.id)).length === 0 ? (
+                      <div className="viewerEmpty">Todos os exercícios da fase já estão em containers.</div>
+                    ) : (
+                      <>
+                        <div className="containerExerciseList">
+                          {exerciciosDispContainer
+                            .filter((ex) => !exerciciosAlocadosEmContainers.has(ex.id))
+                            .map((ex) => {
+                              const selecionado = containerEditorExerciseIds.includes(ex.id);
+                              return (
+                                <label key={`global-add-${ex.id}`} className={`containerExerciseOption ${selecionado ? "isSelected" : ""}`}>
+                                  <input
+                                    className="containerExerciseInput"
+                                    type="checkbox"
+                                    checked={selecionado}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setContainerEditorExerciseIds((prev) => [...prev, ex.id]);
+                                      } else {
+                                        setContainerEditorExerciseIds((prev) => prev.filter((id) => id !== ex.id));
+                                      }
+                                    }}
+                                  />
+                                  <span className="containerExerciseCheck" aria-hidden="true" />
+                                  <span className="containerExerciseTitle">{ex.titulo}</span>
+                                  <span className="viewerItemMeta">#{ex.indexOrder}</span>
+                                </label>
+                              );
+                            })}
+                        </div>
+                        <div className="containerAddActions">
+                          <AnimatedButton
+                            type="button"
+                            className="estruturaSubmitBtn"
+                            disabled={salvandoContainerEditor || containerEditorExerciseIds.length === 0}
+                            onClick={handleAdicionarExerciciosNoContainer}
+                          >
+                            {salvandoContainerEditor ? <><Loader2 size={16} /> Salvando...</> : <><Plus size={16} /> Adicionar selecionados</>}
+                          </AnimatedButton>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <div className="containerGroupList">
                   {containersPaginados.map((container, i) => (
                     <div key={`${container.name}-${container.containerDateTargetInt}-${i}`} className="containerGroupCard">
@@ -1413,10 +1563,13 @@ export default function EstruturaCursoPage() {
                             <span className="containerDailyBadge">Tarefa Diária</span>
                           )}
                         </div>
-                        <button type="button" className="containerDeleteBtn" onClick={() => handleDeletarContainer(container)} title="Deletar container">
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="containerHeaderActions">
+                          <button type="button" className="containerDeleteBtn" onClick={() => handleDeletarContainer(container)} title="Deletar container">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
+
                       <div className="containerGroupExercises">
                         {container.exercises.map((ex, idx) => (
                           <div key={ex.containerTaskId} className="containerExerciseItem">

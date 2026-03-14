@@ -1369,6 +1369,18 @@ export async function deletarContainerGroup(dados: {
   });
 }
 
+export async function adicionarExerciciosAoContainer(dados: {
+  name: string;
+  phase_id: number;
+  container_date_target_int: number | null;
+  exercise_ids: number[];
+}) {
+  return apiFetch<{ message: string; count: number }>("/containers/group/add-exercises", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
+}
+
 export async function obterVideoaula(id: string) {
   return apiFetch<Videoaula>(`/videoaulas/${id}`);
 }

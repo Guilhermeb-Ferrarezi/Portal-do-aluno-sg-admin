@@ -1028,6 +1028,32 @@
   margin-bottom: 10px;
 }
 
+.containerHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.containerActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--line) 54%, transparent);
+  background: color-mix(in srgb, var(--background-secondary) 74%, var(--card) 26%);
+  color: var(--foreground);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.containerActionBtn:hover {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--line));
+  background: color-mix(in srgb, var(--primary) 12%, var(--card));
+}
+
 .containerGroupInfo {
   display: flex;
   align-items: center;
@@ -1090,6 +1116,18 @@
   gap: 4px;
   padding-left: 10px;
   border-left: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.containerAddPanel {
+  margin-bottom: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--background-secondary) 72%, var(--card) 28%);
+  padding: 10px;
+}
+
+.containerAddActions {
+  margin-top: 10px;
 }
 
 .containerExerciseItem {
