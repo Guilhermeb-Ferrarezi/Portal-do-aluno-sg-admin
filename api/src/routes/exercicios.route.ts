@@ -66,6 +66,7 @@ type NewExerciseRow = {
   daily_task_name?: string | null;
   container_name?: string | null;
   container_day?: number | null;
+  container_is_daily_task?: boolean | null;
 };
 
 type ExerciseSchemaInfo = {
@@ -209,6 +210,7 @@ function getNewExerciseSelectFields(
     `${schema.hasExerciseExercisePeriod ? `${alias}.exercise_period` : "NULL::timestamptz AS exercise_period"}`,
     `(SELECT ct.name FROM container_tasks ct WHERE ct.exercise_id = ${alias}.id LIMIT 1) AS container_name`,
     `(SELECT ct.container_date_target_int FROM container_tasks ct WHERE ct.exercise_id = ${alias}.id LIMIT 1) AS container_day`,
+    `(SELECT ct.is_daily_task FROM container_tasks ct WHERE ct.exercise_id = ${alias}.id LIMIT 1) AS container_is_daily_task`,
   ];
 
   if (options.includeDailyTaskMeta) {
@@ -244,6 +246,7 @@ function getNewExerciseReturningFields(schema: ExerciseSchemaInfo) {
 }
 
 function mapNewExerciseRow(row: NewExerciseRow) {
+  const isDailyTask = !!row.is_daily_task || !!row.container_is_daily_task;
   return {
     id: String(row.id),
     titulo: row.title,
@@ -254,7 +257,7 @@ function mapNewExerciseRow(row: NewExerciseRow) {
     prazo: row.term_at ?? null,
     publishedAt: null,
     publicado: true,
-    isDailyTask: !!row.is_daily_task,
+    isDailyTask,
     tipoExercicio: mapTypeExerciseToTipoExercicio(row.type_exercise),
     categoria: "programacao",
     mouse_regras: null,
@@ -283,7 +286,15 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
   const params: any[] = [];
   const where: string[] = [];
   if (schema.hasExerciseIsDailyTask) {
-    where.push("COALESCE(e.is_daily_task, false) = false");
+    where.push(`(
+      COALESCE(e.is_daily_task, false) = false
+      AND NOT EXISTS (
+        SELECT 1
+        FROM container_tasks ct
+        WHERE ct.exercise_id = e.id
+          AND COALESCE(ct.is_daily_task, false) = true
+      )
+    )`);
   }
   if (isAluno) {
     params.push(userId);
@@ -337,7 +348,15 @@ async function listDailyTasksFromNewExerciseSchema(
   const params: any[] = [];
   const where: string[] = [];
   if (schema.hasExerciseIsDailyTask) {
-    where.push("COALESCE(e.is_daily_task, false) = true");
+    where.push(`(
+      COALESCE(e.is_daily_task, false) = true
+      OR EXISTS (
+        SELECT 1
+        FROM container_tasks ct
+        WHERE ct.exercise_id = e.id
+          AND COALESCE(ct.is_daily_task, false) = true
+      )
+    )`);
   } else {
     where.push(
       "(LOWER(COALESCE(e.title, '')) LIKE 'dia %' OR LOWER(COALESCE(p.name, '')) LIKE '%tarefa diaria%')"
@@ -385,6 +404,7 @@ async function listDailyTasksFromNewExerciseSchema(
     tema: row.tema ?? row.daily_task_name ?? null,
     dailyTaskId: row.daily_task_id != null ? String(row.daily_task_id) : null,
     dailyTaskName: row.daily_task_name ?? null,
+    isDailyTask: !!row.is_daily_task || !!row.container_is_daily_task,
   }));
 }
 
@@ -1358,7 +1378,7 @@ export function exerciciosRouter(jwtSecret: string) {
         const difficultyValue = difficulty ?? 1;
         const indexOrderValue = index_order ?? 1;
         const pointsRedeemValue = points_redeem ?? 0;
-        const exercisePeriodValue = exercise_period ?? prazo;
+        const exercisePeriodValue = exercise_period ?? new Date();
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
@@ -1649,7 +1669,7 @@ export function exerciciosRouter(jwtSecret: string) {
         const difficultyValue = difficulty ?? 1;
         const indexOrderValue = index_order ?? 1;
         const pointsRedeemValue = points_redeem ?? 0;
-        const exercisePeriodValue = exercise_period ?? prazo;
+        const exercisePeriodValue = exercise_period ?? new Date();
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
@@ -2098,6 +2118,7 @@ export function exerciciosRouter(jwtSecret: string) {
         if (schema.hasExercise) {
           const result = await pool.query(
             `SELECT e.id, e.title, e.description, e.index_order, e.difficulty, e.phase_id,
+                    ${schema.hasExerciseIsDailyTask ? "COALESCE(e.is_daily_task, false)" : "false"} AS is_daily_task,
                     e.created_at, e.updated_at
              FROM exercise e
              WHERE e.phase_id = $1
@@ -2111,6 +2132,7 @@ export function exerciciosRouter(jwtSecret: string) {
             descricao: row.description ?? "",
             indexOrder: row.index_order ?? 0,
             difficulty: row.difficulty ?? null,
+            isDailyTask: !!row.is_daily_task,
             phaseId: String(row.phase_id),
             createdAt: row.created_at,
             updatedAt: row.updated_at,

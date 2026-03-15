@@ -190,7 +190,7 @@ export default function CriarTurmaForm({ onCreated }: CriarTurmaFormProps) {
             value={courseIdSelecionado}
             onChange={(e) => setCourseIdSelecionado(e.target.value)}
           >
-            <option value="">Selecione um curso</option>
+            <option value="" disabled>Selecione um curso</option>
             {cursos
               .filter((c) => !c.isPaid)
               .map((c) => (

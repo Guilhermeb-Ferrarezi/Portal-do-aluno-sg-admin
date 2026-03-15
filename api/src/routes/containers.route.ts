@@ -6,6 +6,8 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
 
+const CONTAINER_BLOCKED_DIFFICULTIES = [2, 3] as const;
+
 type DbContainerTaskRow = {
   id: number;
   name: string | null;
@@ -45,12 +47,14 @@ const deleteGroupSchema = z.object({
   name: z.string().min(1),
   phase_id: z.coerce.number().int().positive(),
   container_date_target_int: z.coerce.number().int().nullable(),
+  is_daily_task: z.boolean(),
 });
 
 const addExercisesToGroupSchema = z.object({
   name: z.string().min(1),
   phase_id: z.coerce.number().int().positive(),
   container_date_target_int: z.coerce.number().int().nullable(),
+  is_daily_task: z.boolean(),
   exercise_ids: z.array(z.coerce.number().int().positive()).min(1, "Selecione pelo menos um exercício"),
 });
 
@@ -58,7 +62,7 @@ function groupRows(rows: DbContainerTaskRow[]): ContainerGroupResponse[] {
   const map = new Map<string, ContainerGroupResponse>();
 
   for (const row of rows) {
-    const key = `${row.name ?? ""}|${row.container_date_target_int ?? "null"}`;
+    const key = `${row.name ?? ""}|${row.container_date_target_int ?? "null"}|${row.is_daily_task ? "daily" : "normal"}`;
 
     if (!map.has(key)) {
       map.set(key, {
@@ -161,6 +165,21 @@ export function containersRouter(jwtSecret: string) {
       try {
         await client.query("BEGIN");
 
+        const blockedDifficultyResult = await client.query<{ id: number }>(
+          `SELECT id
+           FROM exercise
+           WHERE phase_id = $1
+             AND id = ANY($2::int[])
+             AND difficulty = ANY($3::int[])
+           LIMIT 1`,
+          [data.phase_id, data.exercise_ids, CONTAINER_BLOCKED_DIFFICULTIES]
+        );
+
+        if ((blockedDifficultyResult.rowCount ?? 0) > 0) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "Lower e Prova Semanal não podem ser adicionados em container" });
+        }
+
         for (const exerciseId of data.exercise_ids) {
           await client.query(
             `INSERT INTO container_tasks (name, exercise_id, phase_id, is_daily_task, container_date_target_int, created_at)
@@ -210,8 +229,9 @@ export function containersRouter(jwtSecret: string) {
       const result = await pool.query(
         `DELETE FROM container_tasks
          WHERE name = $1 AND phase_id = $2
-           AND (container_date_target_int = $3 OR ($3::int IS NULL AND container_date_target_int IS NULL))`,
-        [data.name, data.phase_id, data.container_date_target_int]
+           AND COALESCE(is_daily_task, false) = $3
+           AND (container_date_target_int = $4 OR ($4::int IS NULL AND container_date_target_int IS NULL))`,
+        [data.name, data.phase_id, data.is_daily_task, data.container_date_target_int]
       );
 
       logActivity({
@@ -252,9 +272,10 @@ export function containersRouter(jwtSecret: string) {
           `SELECT is_daily_task
            FROM container_tasks
            WHERE name = $1 AND phase_id = $2
-             AND (container_date_target_int = $3 OR ($3::int IS NULL AND container_date_target_int IS NULL))
+             AND COALESCE(is_daily_task, false) = $3
+             AND (container_date_target_int = $4 OR ($4::int IS NULL AND container_date_target_int IS NULL))
            LIMIT 1`,
-          [data.name, data.phase_id, data.container_date_target_int]
+          [data.name, data.phase_id, data.is_daily_task, data.container_date_target_int]
         );
 
         if (groupResult.rowCount === 0) {
@@ -275,14 +296,30 @@ export function containersRouter(jwtSecret: string) {
           return res.status(400).json({ message: "Um ou mais exercícios não pertencem à fase do container" });
         }
 
+        const blockedDifficultyResult = await client.query<{ id: number }>(
+          `SELECT id
+           FROM exercise
+           WHERE phase_id = $1
+             AND id = ANY($2::int[])
+             AND difficulty = ANY($3::int[])
+           LIMIT 1`,
+          [data.phase_id, uniqueExerciseIds, CONTAINER_BLOCKED_DIFFICULTIES]
+        );
+
+        if ((blockedDifficultyResult.rowCount ?? 0) > 0) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "Lower e Prova Semanal não podem ser adicionados em container" });
+        }
+
         const duplicateInSameGroup = await client.query<{ exercise_id: number }>(
           `SELECT exercise_id
            FROM container_tasks
            WHERE phase_id = $1
              AND name = $2
-             AND (container_date_target_int = $3 OR ($3::int IS NULL AND container_date_target_int IS NULL))
-             AND exercise_id = ANY($4::int[])`,
-          [data.phase_id, data.name, data.container_date_target_int, uniqueExerciseIds]
+             AND COALESCE(is_daily_task, false) = $3
+             AND (container_date_target_int = $4 OR ($4::int IS NULL AND container_date_target_int IS NULL))
+             AND exercise_id = ANY($5::int[])`,
+          [data.phase_id, data.name, data.is_daily_task, data.container_date_target_int, uniqueExerciseIds]
         );
 
         if ((duplicateInSameGroup.rowCount ?? 0) > 0) {
@@ -297,9 +334,10 @@ export function containersRouter(jwtSecret: string) {
              AND exercise_id = ANY($2::int[])
              AND NOT (
                name = $3
-               AND (container_date_target_int = $4 OR ($4::int IS NULL AND container_date_target_int IS NULL))
+               AND COALESCE(is_daily_task, false) = $4
+               AND (container_date_target_int = $5 OR ($5::int IS NULL AND container_date_target_int IS NULL))
              )`,
-          [data.phase_id, uniqueExerciseIds, data.name, data.container_date_target_int]
+          [data.phase_id, uniqueExerciseIds, data.name, data.is_daily_task, data.container_date_target_int]
         );
 
         if ((alreadyInAnotherContainer.rowCount ?? 0) > 0) {

@@ -1,4 +1,6 @@
-import { Trash2 } from "lucide-react";
+import React from "react";
+import { X, Trash2 } from "lucide-react";
+import ConfirmModal from "../ConfirmModal";
 import "./ExerciseComponents.css";
 
 export type Option = {
@@ -29,6 +31,7 @@ export default function MultipleChoiceQuestionEditor({
   onRemoveQuestao,
   disabled = false,
 }: MultipleChoiceQuestionEditorProps) {
+  const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
   return (
     <div
       className="mcqEditorContainer"
@@ -40,8 +43,33 @@ export default function MultipleChoiceQuestionEditor({
         marginBottom: "16px",
       }}
     >
-      <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937" }}>
-        Questão {questionIndex + 1}
+      <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>Questão {questionIndex + 1}</span>
+        {onRemoveQuestao && (
+          <button
+            type="button"
+            onClick={() => setShowConfirmDelete(true)}
+            disabled={disabled}
+            title="Remover questão"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "24px",
+              height: "24px",
+              padding: 0,
+              background: "#fecaca",
+              color: "#991b1b",
+              border: "1px solid #fca5a5",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: 600,
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
       </h4>
 
       {/* Campos de opções */}
@@ -134,27 +162,22 @@ export default function MultipleChoiceQuestionEditor({
             + Opção
           </button>
         )}
-        {onRemoveQuestao && (
-          <button
-            type="button"
-            onClick={onRemoveQuestao}
-            disabled={disabled}
-            style={{
-              padding: "6px 12px",
-              background: "#fecaca",
-              color: "#991b1b",
-              border: "1px solid #fca5a5",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontWeight: 500,
-            }}
-          >
-            <Trash2 size={14} style={{ marginRight: "4px" }} />
-            Remover
-          </button>
-        )}
       </div>
+
+      {/* Modal de confirmação */}
+      <ConfirmModal
+        isOpen={showConfirmDelete}
+        title="Remover questão"
+        message="Tem certeza que deseja remover esta questão?"
+        confirmText="Remover"
+        cancelText="Cancelar"
+        danger={true}
+        onConfirm={() => {
+          setShowConfirmDelete(false);
+          onRemoveQuestao?.();
+        }}
+        onCancel={() => setShowConfirmDelete(false)}
+      />
     </div>
   );
 }

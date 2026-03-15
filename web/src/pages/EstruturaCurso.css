@@ -125,6 +125,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  align-items: stretch;
+}
+
+.estruturaGridTopAligned {
   align-items: start;
 }
 
@@ -1009,6 +1013,17 @@
   margin-top: 10px;
 }
 
+.containerGroupListScrollable {
+  max-height: clamp(420px, 58vh, 680px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.containerPhaseListCard {
+  display: flex;
+  flex-direction: column;
+}
+
 .containerGroupCard {
   background: color-mix(in srgb, var(--card) 92%, var(--background) 8%);
   border: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
@@ -1159,4 +1174,8 @@
   font-size: 0.78rem;
   color: var(--muted);
   font-weight: 500;
+}
+
+.containerListCard {
+  align-self: start;
 }

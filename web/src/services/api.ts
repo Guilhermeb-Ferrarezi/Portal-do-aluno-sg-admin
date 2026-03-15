@@ -1303,6 +1303,7 @@ export type ExercicioFase = {
   descricao: string;
   indexOrder: number;
   difficulty: number | null;
+  isDailyTask: boolean;
   phaseId: string;
   createdAt: string;
   updatedAt: string;
@@ -1362,6 +1363,7 @@ export async function deletarContainerGroup(dados: {
   name: string;
   phase_id: number;
   container_date_target_int: number | null;
+  is_daily_task: boolean;
 }) {
   return apiFetch<{ message: string; deleted: number }>("/containers/group", {
     method: "DELETE",
@@ -1373,11 +1375,18 @@ export async function adicionarExerciciosAoContainer(dados: {
   name: string;
   phase_id: number;
   container_date_target_int: number | null;
+  is_daily_task: boolean;
   exercise_ids: number[];
 }) {
   return apiFetch<{ message: string; count: number }>("/containers/group/add-exercises", {
     method: "POST",
     body: JSON.stringify(dados),
+  });
+}
+
+export async function removerExercicioDoContainer(containerTaskId: string) {
+  return apiFetch<{ message: string }>(`/containers/${containerTaskId}`, {
+    method: "DELETE",
   });
 }
 

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import PaginatedSelect from "../components/PaginatedSelect";
 import {
   listarCursos,
@@ -22,6 +23,7 @@ import {
   listarContainersPorFase,
   criarContainer,
   adicionarExerciciosAoContainer,
+  removerExercicioDoContainer,
   deletarContainerGroup,
   type Curso,
   type Modulo,
@@ -30,16 +32,22 @@ import {
   type ContainerGroup,
 } from "../services/api";
 import { AnimatedButton, AnimatedToast } from "../components/animate-ui";
-import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown, Eye, Package } from "lucide-react";
+import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown, Eye, Package, RefreshCw } from "lucide-react";
 import CriarExercicioForm from "../components/CriarExercicioForm";
 import CriarTurmaForm from "../components/CriarTurmaForm";
 import "./EstruturaCurso.css";
 
 type AbaEstrutura = "curso" | "modulo" | "fase" | "exercicios" | "conteiners" | "turmas";
+type AbaTipoContainer = "normal" | "daily";
 type DetalheModalState =
   | { tipo: "curso"; item: Curso }
   | { tipo: "modulo"; item: Modulo }
   | { tipo: "fase"; item: Fase }
+  | null;
+
+type ContainerConfirmState =
+  | { tipo: "delete-container"; container: ContainerGroup }
+  | { tipo: "remove-exercise"; containerTaskId: string; exerciseTitle: string }
   | null;
 
 export default function EstruturaCursoPage() {
@@ -126,9 +134,16 @@ export default function EstruturaCursoPage() {
   const [criandoContainer, setCriandoContainer] = React.useState(false);
   const [paginaContainers, setPaginaContainers] = React.useState(1);
   const [itensContainers, setItensContainers] = React.useState(5);
+  const [abaTipoContainer, setAbaTipoContainer] = React.useState<AbaTipoContainer>("normal");
   const [containerEditorKey, setContainerEditorKey] = React.useState<string | null>(null);
   const [containerEditorExerciseIds, setContainerEditorExerciseIds] = React.useState<string[]>([]);
   const [salvandoContainerEditor, setSalvandoContainerEditor] = React.useState(false);
+  const [atualizandoContainers, setAtualizandoContainers] = React.useState(false);
+  const [containerConfirmState, setContainerConfirmState] = React.useState<ContainerConfirmState>(null);
+  const [processandoContainerConfirm, setProcessandoContainerConfirm] = React.useState(false);
+
+  const CONTAINER_BLOCKED_DIFFICULTIES = React.useMemo(() => new Set([2, 3]), []);
+  const CONTAINER_BLOCKED_MESSAGE = "Lower e Prova Semanal não podem ser adicionados em container";
 
   const abaAtiva: AbaEstrutura = React.useMemo(() => {
     if (location.pathname.endsWith("/modulos")) return "modulo";
@@ -335,6 +350,39 @@ export default function EstruturaCursoPage() {
     }
   }
 
+  const refreshContainersData = React.useCallback(async (phaseId: string, options?: { showLoading?: boolean; silent?: boolean }) => {
+    const { showLoading = false, silent = false } = options ?? {};
+
+    if (showLoading) {
+      setCarregandoContainers(true);
+    } else {
+      setAtualizandoContainers(true);
+    }
+
+    try {
+      const [updatedContainers, updatedExercises] = await Promise.all([
+        listarContainersPorFase(phaseId),
+        listarExerciciosPorFase(phaseId),
+      ]);
+      setContainers(updatedContainers);
+      setExerciciosDispContainer(updatedExercises);
+    } catch (e) {
+      if (showLoading) {
+        setContainers([]);
+        setExerciciosDispContainer([]);
+      }
+      if (!silent) {
+        setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao atualizar containers" });
+      }
+    } finally {
+      if (showLoading) {
+        setCarregandoContainers(false);
+      } else {
+        setAtualizandoContainers(false);
+      }
+    }
+  }, []);
+
   // Container effects
   React.useEffect(() => {
     if (!faseIdParaContainers) {
@@ -345,26 +393,22 @@ export default function EstruturaCursoPage() {
       setContainerEditorExerciseIds([]);
       return;
     }
-    setCarregandoContainers(true);
-    Promise.all([
-      listarContainersPorFase(faseIdParaContainers),
-      listarExerciciosPorFase(faseIdParaContainers),
-    ])
-      .then(([c, e]) => { setContainers(c); setExerciciosDispContainer(e); })
-      .catch(() => { setContainers([]); setExerciciosDispContainer([]); })
-      .finally(() => setCarregandoContainers(false));
-  }, [faseIdParaContainers]);
+    void refreshContainersData(faseIdParaContainers, { showLoading: true, silent: true });
+  }, [faseIdParaContainers, refreshContainersData]);
 
   React.useEffect(() => {
     setPaginaContainers(1);
-  }, [faseIdParaContainers, itensContainers]);
+  }, [abaTipoContainer, faseIdParaContainers, itensContainers]);
 
   React.useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(containers.length / itensContainers));
+    const totalContainersFiltrados = containers.filter((container) =>
+      abaTipoContainer === "daily" ? container.isDailyTask : !container.isDailyTask
+    ).length;
+    const totalPages = Math.max(1, Math.ceil(totalContainersFiltrados / itensContainers));
     if (paginaContainers > totalPages) {
       setPaginaContainers(totalPages);
     }
-  }, [containers.length, itensContainers, paginaContainers]);
+  }, [abaTipoContainer, containers, itensContainers, paginaContainers]);
 
   function handleReordenarNovoContainerExercise(id: string, direction: "up" | "down") {
     setNovoContainerExerciseIds((prev) => {
@@ -388,10 +432,30 @@ export default function EstruturaCursoPage() {
     }
     try {
       setCriandoContainer(true);
+      const exerciseIdsPermitidos = novoContainerExerciseIds
+        .map((id) => exerciciosDispContainer.find((ex) => ex.id === id))
+        .filter(
+          (ex): ex is ExercicioFase => {
+            if (!ex) return false;
+            return !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1);
+          }
+        )
+        .map((ex) => Number(ex.id));
+
+      if (exerciseIdsPermitidos.length !== novoContainerExerciseIds.length) {
+        setToastMsg({ type: "error", msg: CONTAINER_BLOCKED_MESSAGE });
+        return;
+      }
+
+      if (exerciseIdsPermitidos.length === 0) {
+        setToastMsg({ type: "error", msg: CONTAINER_BLOCKED_MESSAGE });
+        return;
+      }
+
       await criarContainer({
         name: novoContainerNome.trim(),
         phase_id: Number(faseIdParaContainers),
-        exercise_ids: novoContainerExerciseIds.map(Number),
+        exercise_ids: exerciseIdsPermitidos,
         is_daily_task: novoContainerIsDailyTask,
         container_date_target_int: novoContainerDia || null,
       });
@@ -409,30 +473,70 @@ export default function EstruturaCursoPage() {
     }
   }
 
-  async function handleDeletarContainer(container: ContainerGroup) {
-    if (!window.confirm(`Deletar container "${container.name}"${container.containerDateTargetInt ? ` (Dia ${container.containerDateTargetInt})` : ""}?`)) return;
+  function handleDeletarContainer(container: ContainerGroup) {
+    setContainerConfirmState({ tipo: "delete-container", container });
+  }
+
+  async function handleConfirmContainerAction() {
+    if (!containerConfirmState || !faseIdParaContainers) return;
+
     try {
-      await deletarContainerGroup({
-        name: container.name,
-        phase_id: Number(container.phaseId),
-        container_date_target_int: container.containerDateTargetInt,
-      });
-      setToastMsg({ type: "success", msg: "Container deletado" });
-      const updated = await listarContainersPorFase(faseIdParaContainers);
-      setContainers(updated);
+      setProcessandoContainerConfirm(true);
+
+      if (containerConfirmState.tipo === "delete-container") {
+        const { container } = containerConfirmState;
+        await deletarContainerGroup({
+          name: container.name,
+          phase_id: Number(container.phaseId),
+          container_date_target_int: container.containerDateTargetInt,
+          is_daily_task: container.isDailyTask,
+        });
+        setToastMsg({ type: "success", msg: "Container deletado" });
+      } else {
+        await removerExercicioDoContainer(containerConfirmState.containerTaskId);
+        setToastMsg({ type: "success", msg: "Exercício removido do container" });
+      }
+
+      await refreshContainersData(faseIdParaContainers, { silent: true });
+      setContainerConfirmState(null);
     } catch (err) {
-      setToastMsg({ type: "error", msg: err instanceof Error ? err.message : "Erro ao deletar container" });
+      setToastMsg({
+        type: "error",
+        msg: err instanceof Error
+          ? err.message
+          : containerConfirmState.tipo === "delete-container"
+            ? "Erro ao deletar container"
+            : "Erro ao remover exercício do container",
+      });
+    } finally {
+      setProcessandoContainerConfirm(false);
     }
   }
 
   function getContainerGroupKey(container: ContainerGroup) {
-    return `${container.phaseId}|${container.name}|${container.containerDateTargetInt ?? "null"}`;
+    return `${container.phaseId}|${container.name}|${container.containerDateTargetInt ?? "null"}|${container.isDailyTask ? "daily" : "normal"}`;
   }
+
+  const containersFiltradosPorTipo = React.useMemo(
+    () => containers.filter((container) => (abaTipoContainer === "daily" ? container.isDailyTask : !container.isDailyTask)),
+    [abaTipoContainer, containers]
+  );
 
   const containerEditorSelecionado = React.useMemo(
     () => containers.find((container) => getContainerGroupKey(container) === containerEditorKey) ?? null,
     [containers, containerEditorKey]
   );
+
+  React.useEffect(() => {
+    if (!containerEditorKey) return;
+    const existeNaAba = containersFiltradosPorTipo.some(
+      (container) => getContainerGroupKey(container) === containerEditorKey
+    );
+    if (!existeNaAba) {
+      setContainerEditorKey(null);
+      setContainerEditorExerciseIds([]);
+    }
+  }, [containerEditorKey, containersFiltradosPorTipo]);
 
   function handleToggleContainerEditorGlobal() {
     if (containerEditorKey) {
@@ -441,7 +545,7 @@ export default function EstruturaCursoPage() {
       return;
     }
 
-    const primeiroContainer = containers[0];
+    const primeiroContainer = containersFiltradosPorTipo[0];
     if (!primeiroContainer) return;
     setContainerEditorKey(getContainerGroupKey(primeiroContainer));
   }
@@ -459,11 +563,32 @@ export default function EstruturaCursoPage() {
 
     try {
       setSalvandoContainerEditor(true);
+      const exerciseIdsPermitidos = containerEditorExerciseIds
+        .map((id) => exerciciosDispContainer.find((ex) => ex.id === id))
+        .filter(
+          (ex): ex is ExercicioFase => {
+            if (!ex) return false;
+            return !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1);
+          }
+        )
+        .map((ex) => Number(ex.id));
+
+      if (exerciseIdsPermitidos.length !== containerEditorExerciseIds.length) {
+        setToastMsg({ type: "error", msg: CONTAINER_BLOCKED_MESSAGE });
+        return;
+      }
+
+      if (exerciseIdsPermitidos.length === 0) {
+        setToastMsg({ type: "error", msg: CONTAINER_BLOCKED_MESSAGE });
+        return;
+      }
+
       await adicionarExerciciosAoContainer({
         name: containerEditorSelecionado.name,
         phase_id: Number(containerEditorSelecionado.phaseId),
         container_date_target_int: containerEditorSelecionado.containerDateTargetInt,
-        exercise_ids: containerEditorExerciseIds.map(Number),
+        is_daily_task: containerEditorSelecionado.isDailyTask,
+        exercise_ids: exerciseIdsPermitidos,
       });
 
       const updated = await listarContainersPorFase(containerEditorSelecionado.phaseId);
@@ -493,6 +618,11 @@ export default function EstruturaCursoPage() {
     } finally {
       setReordenando(false);
     }
+  }
+
+  function handleRemoveExercicioFromContainer(containerTaskId: string, exerciseTitle: string) {
+    if (reordenando || !faseIdParaContainers) return;
+    setContainerConfirmState({ tipo: "remove-exercise", containerTaskId, exerciseTitle });
   }
 
   async function handleCriarCurso(e: React.FormEvent) {
@@ -671,22 +801,11 @@ export default function EstruturaCursoPage() {
   const totalCursosPaginacao = filtroCursoId ? cursosFiltrados.length : totalCursos;
   const totalModulosPaginacao = filtroModuloId ? modulosFiltrados.length : totalModulos;
   const totalFasesPaginacao = filtroFaseId ? fasesFiltradas.length : totalFases;
-  const totalContainersPaginacao = containers.length;
+  const totalContainersPaginacao = containersFiltradosPorTipo.length;
   const containersPaginados = React.useMemo(() => {
     const start = (paginaContainers - 1) * itensContainers;
-    return containers.slice(start, start + itensContainers);
-  }, [containers, itensContainers, paginaContainers]);
-  const exerciciosDispContainerMap = React.useMemo(
-    () => new Map(exerciciosDispContainer.map((ex) => [ex.id, ex])),
-    [exerciciosDispContainer]
-  );
-  const exerciciosSelecionadosContainer = React.useMemo(
-    () =>
-      novoContainerExerciseIds
-        .map((id) => exerciciosDispContainerMap.get(id))
-        .filter((ex): ex is ExercicioFase => Boolean(ex)),
-    [exerciciosDispContainerMap, novoContainerExerciseIds]
-  );
+    return containersFiltradosPorTipo.slice(start, start + itensContainers);
+  }, [containersFiltradosPorTipo, itensContainers, paginaContainers]);
   const exerciciosAlocadosEmContainers = React.useMemo(() => {
     const alocados = new Set<string>();
     for (const container of containers) {
@@ -696,6 +815,53 @@ export default function EstruturaCursoPage() {
     }
     return alocados;
   }, [containers]);
+  const exerciciosFiltradosNovoContainer = React.useMemo(
+    () => exerciciosDispContainer.filter((ex) => (novoContainerIsDailyTask ? ex.isDailyTask === true : ex.isDailyTask !== true)),
+    [exerciciosDispContainer, novoContainerIsDailyTask]
+  );
+  const exerciciosPermitidosNovoContainer = React.useMemo(
+    () => exerciciosFiltradosNovoContainer.filter((ex) => !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1)),
+    [CONTAINER_BLOCKED_DIFFICULTIES, exerciciosFiltradosNovoContainer]
+  );
+  const exerciciosFiltradosParaAbaContainer = React.useMemo(
+    () => exerciciosDispContainer.filter((ex) => (abaTipoContainer === "daily" ? ex.isDailyTask === true : ex.isDailyTask !== true)),
+    [abaTipoContainer, exerciciosDispContainer]
+  );
+  const exerciciosPermitidosContainerEditor = React.useMemo(
+    () => exerciciosFiltradosParaAbaContainer.filter((ex) => !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1)),
+    [CONTAINER_BLOCKED_DIFFICULTIES, exerciciosFiltradosParaAbaContainer]
+  );
+  const exerciciosPermitidosNaoAlocados = React.useMemo(
+    () => exerciciosPermitidosContainerEditor.filter((ex) => !exerciciosAlocadosEmContainers.has(ex.id)),
+    [exerciciosAlocadosEmContainers, exerciciosPermitidosContainerEditor]
+  );
+  const exerciciosDispContainerMap = React.useMemo(
+    () => new Map(exerciciosPermitidosNovoContainer.map((ex) => [ex.id, ex])),
+    [exerciciosPermitidosNovoContainer]
+  );
+  const exerciciosSelecionadosContainer = React.useMemo(
+    () =>
+      novoContainerExerciseIds
+        .map((id) => exerciciosDispContainerMap.get(id))
+        .filter((ex): ex is ExercicioFase => Boolean(ex)),
+    [exerciciosDispContainerMap, novoContainerExerciseIds]
+  );
+
+  React.useEffect(() => {
+    const exerciciosPermitidosIds = new Set(exerciciosPermitidosNovoContainer.map((ex) => ex.id));
+    setNovoContainerExerciseIds((prev) => {
+      const next = prev.filter((id) => exerciciosPermitidosIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [exerciciosPermitidosNovoContainer]);
+
+  React.useEffect(() => {
+    const exerciciosPermitidosIds = new Set(exerciciosPermitidosNaoAlocados.map((ex) => ex.id));
+    setContainerEditorExerciseIds((prev) => {
+      const next = prev.filter((id) => exerciciosPermitidosIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [exerciciosPermitidosNaoAlocados]);
 
   const cursoSelecionado = React.useMemo(
     () => cursos.find((curso) => curso.id === courseIdSelecionado) || null,
@@ -817,7 +983,7 @@ export default function EstruturaCursoPage() {
 
         {abaAtiva === "curso" && (
           <div className="estruturaGrid">
-            <div className="estruturaCard">
+            <div className="estruturaCard containerPhaseListCard">
               <div className="estruturaCardHead">
                 <h2>Criar Curso</h2>
                 <p>Formulário de criação de curso.</p>
@@ -1278,7 +1444,7 @@ export default function EstruturaCursoPage() {
         )}
 
         {abaAtiva === "conteiners" && (
-          <div className="estruturaGrid">
+          <div className="estruturaGrid estruturaGridTopAligned">
             <div className="estruturaCard">
               <div className="estruturaCardHead">
                 <h2>Criar Container</h2>
@@ -1378,11 +1544,11 @@ export default function EstruturaCursoPage() {
                 <span>Exercícios *</span>
                 {!faseIdParaContainers ? (
                   <div className="viewerEmpty">Selecione uma fase para ver exercícios.</div>
-                ) : exerciciosDispContainer.length === 0 ? (
+                ) : exerciciosPermitidosNovoContainer.length === 0 ? (
                   <div className="viewerEmpty">Nenhum exercício nesta fase.</div>
                 ) : (
                   <div className="containerExerciseList">
-                    {exerciciosDispContainer.map((ex) => {
+                    {exerciciosPermitidosNovoContainer.map((ex) => {
                       const selecionado = novoContainerExerciseIds.includes(ex.id);
                       return (
                       <label key={ex.id} className={`containerExerciseOption ${selecionado ? "isSelected" : ""}`}>
@@ -1451,7 +1617,7 @@ export default function EstruturaCursoPage() {
               </form>
             </div>
 
-            <div className="estruturaCard">
+            <div className="estruturaCard containerListCard">
               <div className="estruturaCardHead">
                 <h2>Containers da Fase</h2>
                 <p>Containers agrupando exercícios da fase selecionada.</p>
@@ -1467,19 +1633,66 @@ export default function EstruturaCursoPage() {
                 <div className="viewerEmpty">Nenhum container encontrado para esta fase.</div>
               ) : (
                 <>
+                <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="containerActionBtn"
+                    aria-pressed={abaTipoContainer === "normal"}
+                    onClick={() => setAbaTipoContainer("normal")}
+                    style={abaTipoContainer === "normal" ? {
+                      borderColor: "color-mix(in srgb, var(--primary) 44%, var(--line))",
+                      background: "color-mix(in srgb, var(--primary) 12%, var(--card))",
+                    } : undefined}
+                  >
+                    Containers Normais
+                  </button>
+                  <button
+                    type="button"
+                    className="containerActionBtn"
+                    aria-pressed={abaTipoContainer === "daily"}
+                    onClick={() => setAbaTipoContainer("daily")}
+                    style={abaTipoContainer === "daily" ? {
+                      borderColor: "color-mix(in srgb, var(--primary) 44%, var(--line))",
+                      background: "color-mix(in srgb, var(--primary) 12%, var(--card))",
+                    } : undefined}
+                  >
+                    Containers de Tarefa Diária
+                  </button>
+                </div>
+
                 <div className="containerHeaderActions" style={{ marginBottom: 10 }}>
                   <button
                     type="button"
                     className="containerActionBtn"
+                    onClick={() => {
+                      if (!faseIdParaContainers) return;
+                      void refreshContainersData(faseIdParaContainers, { silent: false });
+                    }}
+                    disabled={!faseIdParaContainers || carregandoContainers || atualizandoContainers}
+                  >
+                    {atualizandoContainers ? <Loader2 size={14} className="estruturaLoadingCursosIcon" /> : <RefreshCw size={14} />}
+                    Atualizar
+                  </button>
+                  <button
+                    type="button"
+                    className="containerActionBtn"
                     onClick={handleToggleContainerEditorGlobal}
-                    disabled={containers.length === 0}
+                    disabled={containersFiltradosPorTipo.length === 0 || atualizandoContainers}
                   >
                     <Plus size={14} />
                     {containerEditorKey ? "Fechar" : "Adicionar exercícios"}
                   </button>
                 </div>
 
-                {containerEditorKey && (
+                {containersFiltradosPorTipo.length === 0 && (
+                  <div className="viewerEmpty" style={{ marginBottom: 10 }}>
+                    {abaTipoContainer === "daily"
+                      ? "Nenhum container de tarefa diária encontrado para esta fase."
+                      : "Nenhum container normal encontrado para esta fase."}
+                  </div>
+                )}
+
+                {containerEditorKey && containersFiltradosPorTipo.length > 0 && (
                   <div className="containerAddPanel">
                     <div className="containerSelectedHead">Adicionar novos exercícios</div>
 
@@ -1494,7 +1707,7 @@ export default function EstruturaCursoPage() {
                       }}
                       style={{ width: "100%", marginBottom: 10 }}
                     >
-                      {containers.map((container, idx) => {
+                      {containersFiltradosPorTipo.map((container, idx) => {
                         const key = getContainerGroupKey(container);
                         return (
                           <option key={`${key}-${idx}`} value={key}>
@@ -1505,14 +1718,12 @@ export default function EstruturaCursoPage() {
                       })}
                     </select>
 
-                    {exerciciosDispContainer.filter((ex) => !exerciciosAlocadosEmContainers.has(ex.id)).length === 0 ? (
+                    {exerciciosPermitidosNaoAlocados.length === 0 ? (
                       <div className="viewerEmpty">Todos os exercícios da fase já estão em containers.</div>
                     ) : (
                       <>
                         <div className="containerExerciseList">
-                          {exerciciosDispContainer
-                            .filter((ex) => !exerciciosAlocadosEmContainers.has(ex.id))
-                            .map((ex) => {
+                          {exerciciosPermitidosNaoAlocados.map((ex) => {
                               const selecionado = containerEditorExerciseIds.includes(ex.id);
                               return (
                                 <label key={`global-add-${ex.id}`} className={`containerExerciseOption ${selecionado ? "isSelected" : ""}`}>
@@ -1550,62 +1761,74 @@ export default function EstruturaCursoPage() {
                   </div>
                 )}
 
-                <div className="containerGroupList">
-                  {containersPaginados.map((container, i) => (
-                    <div key={`${container.name}-${container.containerDateTargetInt}-${i}`} className="containerGroupCard">
-                      <div className="containerGroupHeader">
-                        <div className="containerGroupInfo">
-                          <strong>{container.name}</strong>
-                          {container.containerDateTargetInt != null && (
-                            <span className="containerDayBadge">Dia {container.containerDateTargetInt}</span>
-                          )}
-                          {container.isDailyTask && (
-                            <span className="containerDailyBadge">Tarefa Diária</span>
-                          )}
-                        </div>
-                        <div className="containerHeaderActions">
-                          <button type="button" className="containerDeleteBtn" onClick={() => handleDeletarContainer(container)} title="Deletar container">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="containerGroupExercises">
-                        {container.exercises.map((ex, idx) => (
-                          <div key={ex.containerTaskId} className="containerExerciseItem">
-                            <div className="reorderBtns containerReorderBtns">
-                              <button
-                                type="button"
-                                className="reorderBtn"
-                                title="Mover para cima"
-                                disabled={reordenando || idx === 0}
-                                onClick={() => handleReordenarExercicioContainer(ex.id, "up")}
-                              >
-                                <ChevronUp size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className="reorderBtn"
-                                title="Mover para baixo"
-                                disabled={reordenando || idx === container.exercises.length - 1}
-                                onClick={() => handleReordenarExercicioContainer(ex.id, "down")}
-                              >
-                                <ChevronDown size={14} />
-                              </button>
-                            </div>
-                            <div className="containerExerciseItemInfo">
-                              <span className="viewerItemTitle">{ex.title}</span>
-                              <span className="viewerItemMeta">#{ex.indexOrder ?? "-"}</span>
-                            </div>
+                {containersFiltradosPorTipo.length > 0 && (
+                  <div className="containerGroupList containerGroupListScrollable">
+                    {containersPaginados.map((container, i) => (
+                      <div key={`${container.name}-${container.containerDateTargetInt}-${i}`} className="containerGroupCard">
+                        <div className="containerGroupHeader">
+                          <div className="containerGroupInfo">
+                            <strong>{container.name}</strong>
+                            {container.containerDateTargetInt != null && (
+                              <span className="containerDayBadge">Dia {container.containerDateTargetInt}</span>
+                            )}
+                            {container.isDailyTask && (
+                              <span className="containerDailyBadge">Tarefa Diária</span>
+                            )}
                           </div>
-                        ))}
+                          <div className="containerHeaderActions">
+                            <button type="button" className="containerDeleteBtn" onClick={() => handleDeletarContainer(container)} title="Deletar container">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="containerGroupExercises">
+                          {container.exercises.map((ex, idx) => (
+                            <div key={ex.containerTaskId} className="containerExerciseItem">
+                              <div className="reorderBtns containerReorderBtns">
+                                <button
+                                  type="button"
+                                  className="reorderBtn"
+                                  title="Mover para cima"
+                                  disabled={reordenando || idx === 0}
+                                  onClick={() => handleReordenarExercicioContainer(ex.id, "up")}
+                                >
+                                  <ChevronUp size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="reorderBtn"
+                                  title="Mover para baixo"
+                                  disabled={reordenando || idx === container.exercises.length - 1}
+                                  onClick={() => handleReordenarExercicioContainer(ex.id, "down")}
+                                >
+                                  <ChevronDown size={14} />
+                                </button>
+                              </div>
+                              <div className="containerExerciseItemInfo">
+                                <span className="viewerItemTitle">{ex.title}</span>
+                                <span className="viewerItemMeta">#{ex.indexOrder ?? "-"}</span>
+                              </div>
+                              <button
+                                type="button"
+                                className="reorderBtn"
+                                title="Remover exercício do container"
+                                disabled={reordenando}
+                                onClick={() => handleRemoveExercicioFromContainer(ex.containerTaskId, ex.title)}
+                                style={{ color: "#dc2626", borderColor: "#fca5a5", flexShrink: 0 }}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="containerGroupFooter">
+                          {container.exercises.length} exercício{container.exercises.length !== 1 ? "s" : ""}
+                        </div>
                       </div>
-                      <div className="containerGroupFooter">
-                        {container.exercises.length} exercício{container.exercises.length !== 1 ? "s" : ""}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
                 <Pagination
                   currentPage={paginaContainers}
                   itemsPerPage={itensContainers}
@@ -1624,6 +1847,29 @@ export default function EstruturaCursoPage() {
             <CriarTurmaForm />
           </div>
         )}
+
+        <ConfirmDialog
+          isOpen={!!containerConfirmState}
+          onClose={() => {
+            if (processandoContainerConfirm) return;
+            setContainerConfirmState(null);
+          }}
+          onConfirm={handleConfirmContainerAction}
+          title={
+            containerConfirmState?.tipo === "delete-container"
+              ? "Deletar Container"
+              : "Remover Exercício"
+          }
+          message={
+            containerConfirmState?.tipo === "delete-container"
+              ? `Tem certeza que deseja deletar o container "${containerConfirmState.container.name}"${containerConfirmState.container.containerDateTargetInt != null ? ` (Dia ${containerConfirmState.container.containerDateTargetInt})` : ""}? Esta ação não pode ser desfeita.`
+              : `Tem certeza que deseja remover o exercício "${containerConfirmState?.exerciseTitle ?? ""}" do container?`
+          }
+          confirmText={containerConfirmState?.tipo === "delete-container" ? "Deletar" : "Remover"}
+          cancelText="Cancelar"
+          isLoading={processandoContainerConfirm}
+          isDangerous
+        />
 
         <Modal
           isOpen={!!detalheModal}

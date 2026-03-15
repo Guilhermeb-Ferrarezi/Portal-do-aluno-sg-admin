@@ -6,7 +6,6 @@ import {
   ScaleIn,
   AnimatedRadioLabel,
   AnimatedButton,
-  AnimatedToast,
   ConditionalFieldAnimation,
   AnimatedSelect,
   FadeInUp,
@@ -20,17 +19,20 @@ import {
   Trash2,
   Eye,
   Sparkles,
-  Lightbulb,
   BookOpen,
 } from "lucide-react";
 import {
   criarExercicio,
+  listarExerciciosPorFase,
+  listarContainersPorFase,
+  adicionarExerciciosAoContainer,
   listarCursos,
   listarModulos,
   listarModulosPorCurso,
   listarFasesDoModulo,
   listarTurmas,
   anexarExercicioArquivo,
+  type ContainerGroup,
   type Curso,
   type Modulo,
   type Fase,
@@ -41,6 +43,8 @@ import "../pages/Exercises.css";
 
 type CategoriaExercicio = "programacao" | "informatica";
 type RequiredFieldKey = "titulo" | "descricao" | "curso" | "modulo" | "fase" | "prazo" | "multipla" | "ordem";
+const CONTAINER_BLOCKED_DIFFICULTIES = new Set([2, 3]);
+const CONTAINER_BLOCKED_MESSAGE = "Lower e Prova Semanal não podem ser adicionados em container.";
 
 function inferCategoriaFromCourseName(courseName: string | null | undefined): CategoriaExercicio {
   const normalized = (courseName ?? "").toLowerCase();
@@ -109,7 +113,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   const [difficulty, setDifficulty] = React.useState("");
   const [indexOrder, setIndexOrder] = React.useState("");
   const [pointsRedeem, setPointsRedeem] = React.useState("");
-  const [exercisePeriod, setExercisePeriod] = React.useState("");
   const [isFinalExercise, setIsFinalExercise] = React.useState(false);
   const [isDailyTask, setIsDailyTask] = React.useState(false);
   const [categoria, setCategoria] = React.useState<CategoriaExercicio>("programacao");
@@ -122,13 +125,16 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   const [anexosAtivo, setAnexosAtivo] = React.useState(false);
   const [anexoArquivo, setAnexoArquivo] = React.useState<File | null>(null);
   const [saving, setSaving] = React.useState(false);
-  const [erro, setErro] = React.useState<string | null>(null);
   const [fieldWarnings, setFieldWarnings] = React.useState<Partial<Record<RequiredFieldKey, string>>>({});
   const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
   const [cursoCardsFiltro, setCursoCardsFiltro] = React.useState("");
   const [cursoCardsPagina, setCursoCardsPagina] = React.useState(1);
   const [cursoCardsItensPorPagina, setCursoCardsItensPorPagina] = React.useState(5);
   const [mostrarDetalhesCurso, setMostrarDetalhesCurso] = React.useState(false);
+  const [containersDaFase, setContainersDaFase] = React.useState<ContainerGroup[]>([]);
+  const [carregandoContainersFase, setCarregandoContainersFase] = React.useState(false);
+  const [adicionarEmContainer, setAdicionarEmContainer] = React.useState(false);
+  const [containerSelecionadoKey, setContainerSelecionadoKey] = React.useState("");
 
   const createDepsLoadedRef = React.useRef(false);
   const createDepsLoadingRef = React.useRef(false);
@@ -187,6 +193,26 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       delete next[field];
       return next;
     });
+  }
+
+  function showErrorToast(message: string, duration = 4000) {
+    addToast(message, "error", duration);
+  }
+
+  async function getNextAvailableIndex(phaseId: string) {
+    const exerciciosDaFase = await listarExerciciosPorFase(phaseId);
+    const usedIndexes = new Set(
+      exerciciosDaFase
+        .map((ex) => Number(ex.indexOrder))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    );
+
+    let nextIndex = 1;
+    while (usedIndexes.has(nextIndex)) {
+      nextIndex += 1;
+    }
+
+    return nextIndex;
   }
 
   function handleSelecionarCurso(courseId: string) {
@@ -268,6 +294,38 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     return mapped;
   }
 
+  function getContainerGroupKey(container: ContainerGroup) {
+    return `${container.name}__${container.containerDateTargetInt ?? "null"}__${container.isDailyTask ? "daily" : "normal"}`;
+  }
+
+  const dificuldadeBloqueadaParaContainer = React.useMemo(() => {
+    const dificuldadeSelecionada = parseDifficultyValue(difficulty);
+    return dificuldadeSelecionada !== null && CONTAINER_BLOCKED_DIFFICULTIES.has(dificuldadeSelecionada);
+  }, [difficulty]);
+
+  const containerSelecionado = React.useMemo(
+    () => containersDaFase.find((container) => getContainerGroupKey(container) === containerSelecionadoKey) ?? null,
+    [containerSelecionadoKey, containersDaFase]
+  );
+
+  const isDailyTaskForcadoPorContainer = containerSelecionado?.isDailyTask === true;
+  const isDailyTaskEfetivo = isDailyTask || isDailyTaskForcadoPorContainer;
+
+  const opcoesDificuldade = React.useMemo(() => {
+    const opcoes = [
+      { value: "", label: "Selecione" },
+      { value: "1", label: "Normal" },
+      { value: "2", label: "Lower (Recuperação)" },
+      { value: "3", label: "Prova Semanal" },
+    ];
+
+    if (adicionarEmContainer) {
+      return opcoes.filter((opcao) => opcao.value === "1");
+    }
+
+    return opcoes;
+  }, [adicionarEmContainer]);
+
   function buildMultiplaQuestoesPayload(
     questoes: Array<{ pergunta: string; opcoes: Array<{ letter: string; text: string }>; respostaCorreta: string }>,
     perguntaBase: string
@@ -297,12 +355,14 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     setDifficulty("");
     setIndexOrder("");
     setPointsRedeem("");
-    setExercisePeriod("");
     setIsFinalExercise(false);
     setIsDailyTask(false);
     setCategoria("programacao");
     setComponenteInterativo("escrita");
     setMultiplaQuestoes(getDefaultMultiplaQuestoes());
+    setContainersDaFase([]);
+    setAdicionarEmContainer(false);
+    setContainerSelecionadoKey("");
     setAnexosAtivo(false);
     setAnexoArquivo(null);
   }
@@ -457,10 +517,66 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     }
   }, [fasesDisponiveis, faseIdSelecionada]);
 
+  React.useEffect(() => {
+    if (!faseIdSelecionada) {
+      setContainersDaFase([]);
+      setAdicionarEmContainer(false);
+      setContainerSelecionadoKey("");
+      return;
+    }
+
+    let ativo = true;
+    setCarregandoContainersFase(true);
+
+    listarContainersPorFase(faseIdSelecionada)
+      .then((resultado) => {
+        if (!ativo) return;
+        setContainersDaFase(resultado);
+      })
+      .catch(() => {
+        if (!ativo) return;
+        setContainersDaFase([]);
+      })
+      .finally(() => {
+        if (ativo) setCarregandoContainersFase(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [faseIdSelecionada]);
+
+  React.useEffect(() => {
+    if (!adicionarEmContainer || !dificuldadeBloqueadaParaContainer) return;
+    setAdicionarEmContainer(false);
+    setContainerSelecionadoKey("");
+    showErrorToast(CONTAINER_BLOCKED_MESSAGE);
+  }, [adicionarEmContainer, dificuldadeBloqueadaParaContainer]);
+
+  React.useEffect(() => {
+    if (!adicionarEmContainer) return;
+    if (difficulty !== "1") {
+      setDifficulty("1");
+    }
+  }, [adicionarEmContainer, difficulty]);
+
+  React.useEffect(() => {
+    if (!containerSelecionado) return;
+    if (containerSelecionado.isDailyTask !== isDailyTask) {
+      setIsDailyTask(containerSelecionado.isDailyTask);
+    }
+  }, [containerSelecionado, isDailyTask]);
+
+  function handleChangeIsDailyTask(nextValue: boolean) {
+    if (isDailyTaskForcadoPorContainer && !nextValue) {
+      return;
+    }
+    setIsDailyTask(nextValue);
+  }
+
   async function handleSubmit() {
     try {
       setSaving(true);
-      setErro(null);
 
       const gabaritoLimpo = gabarito.trim();
       const descricaoFinal = descricao.trim();
@@ -474,20 +590,20 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       const phaseIdNum = Number(faseIdSelecionada);
 
       if (indexOrder.trim() && (!Number.isInteger(ordemNum) || Number(ordemNum) < 1)) {
-        setErro("Ordem deve ser um numero inteiro maior ou igual a 1.");
+        showErrorToast("Ordem deve ser um numero inteiro maior ou igual a 1.");
         setSaving(false);
         return;
       }
       if (pointsRedeem.trim() && (!Number.isInteger(pontosNum) || Number(pontosNum) < 0)) {
-        setErro("Pontos deve ser um numero inteiro maior ou igual a 0.");
+        showErrorToast("Pontos deve ser um numero inteiro maior ou igual a 0.");
         setSaving(false);
         return;
       }
       if (videoUrlLimpa) {
-        try { new URL(videoUrlLimpa); } catch { setErro("Video URL invalida."); setSaving(false); return; }
+        try { new URL(videoUrlLimpa); } catch { showErrorToast("Video URL invalida."); setSaving(false); return; }
       }
       if (difficulty.trim() && dificuldadeNum === null) {
-        setErro("Selecione uma dificuldade valida.");
+        showErrorToast("Selecione uma dificuldade valida.");
         setSaving(false);
         return;
       }
@@ -498,11 +614,46 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
       if (Object.keys(requiredWarnings).length > 0) {
         setFieldWarnings(requiredWarnings);
-        setErro("Preencha os campos obrigatorios em destaque.");
+        showErrorToast("Preencha os campos obrigatorios em destaque.");
         setSaving(false);
         return;
       }
       setFieldWarnings({});
+
+      let containerParaAdicionar: ContainerGroup | null = null;
+      if (adicionarEmContainer) {
+        if (CONTAINER_BLOCKED_DIFFICULTIES.has(dificuldadeNum ?? 1)) {
+          showErrorToast(CONTAINER_BLOCKED_MESSAGE);
+          setSaving(false);
+          return;
+        }
+
+        if (!containerSelecionadoKey) {
+          showErrorToast("Selecione um container para adicionar o exercício.");
+          setSaving(false);
+          return;
+        }
+
+        containerParaAdicionar = containersDaFase.find((container) => getContainerGroupKey(container) === containerSelecionadoKey) ?? null;
+        if (!containerParaAdicionar) {
+          showErrorToast("Container selecionado não encontrado para esta fase.");
+          setSaving(false);
+          return;
+        }
+      }
+
+      let ordemFinal = ordemNum;
+      if (ordemFinal === null) {
+        try {
+          ordemFinal = await getNextAvailableIndex(faseIdSelecionada);
+        } catch {
+          showErrorToast("Nao foi possivel calcular a proxima ordem disponivel para esta fase.");
+          setSaving(false);
+          return;
+        }
+      }
+
+      const exercisePeriodIso = new Date().toISOString();
 
       const dados: Record<string, unknown> = {
         titulo: tituloFinal,
@@ -514,11 +665,11 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
         prazo: prazo ? new Date(prazo).toISOString() : null,
         video_url: videoUrlLimpa || null,
         difficulty: dificuldadeNum,
-        index_order: ordemNum,
+        index_order: ordemFinal,
         is_final_exercise: isFinalExercise,
-        is_daily_task: isDailyTask,
+        is_daily_task: isDailyTaskEfetivo,
         points_redeem: pontosNum,
-        exercise_period: exercisePeriod ? new Date(exercisePeriod).toISOString() : null,
+        exercise_period: exercisePeriodIso,
         publicado: true,
         published_at: null,
         categoria,
@@ -535,6 +686,26 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       const exercicioId = (created as any)?.exercicio?.id ?? null;
       addToast("Exercicio criado!", "success", 3000);
 
+      if (exercicioId && containerParaAdicionar) {
+        const exercicioIdNumero = Number(exercicioId);
+        if (!Number.isFinite(exercicioIdNumero) || exercicioIdNumero <= 0) {
+          addToast("Exercicio criado, mas não foi possível adicionar no container automaticamente.", "error", 3500);
+        } else {
+          try {
+            await adicionarExerciciosAoContainer({
+              name: containerParaAdicionar.name,
+              phase_id: Number(containerParaAdicionar.phaseId),
+              container_date_target_int: containerParaAdicionar.containerDateTargetInt,
+              is_daily_task: containerParaAdicionar.isDailyTask,
+              exercise_ids: [exercicioIdNumero],
+            });
+            addToast("Exercicio adicionado ao container!", "success", 3000);
+          } catch {
+            addToast("Exercicio criado, mas houve erro ao adicionar no container.", "error", 3500);
+          }
+        }
+      }
+
       if (exercicioId && anexosAtivo && anexoArquivo) {
         await anexarExercicioArquivo(exercicioId, anexoArquivo);
       }
@@ -546,7 +717,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       if (message.toLowerCase().includes("index disponivel") || message.toLowerCase().includes("menor ordem")) {
         setFieldWarnings((prev) => ({ ...prev, ordem: message }));
       }
-      setErro(message);
+      showErrorToast(message);
     } finally {
       setSaving(false);
     }
@@ -556,8 +727,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
   return (
     <div className="estruturaCard" style={{ gridColumn: "1 / -1" }}>
-      <AnimatedToast message={erro} type="error" duration={4000} onClose={() => setErro(null)} />
-
       <FadeInUp duration={0.28}>
         <div className="createExerciseCard">
           <h2 className="exFormTitle">Criar novo exercicio</h2>
@@ -885,12 +1054,30 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               </div>
               <div className="exInputGroup">
                 <span className="exLabel">Dificuldade</span>
-                <AnimatedSelect className="exSelect" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-                  <option value="">Selecione</option>
-                  <option value="1">Normal</option>
-                  <option value="2">Lower (Recuperação)</option>
-                  <option value="3">Prova Semanal</option>
+                <AnimatedSelect
+                  className="exSelect"
+                  value={difficulty}
+                  onChange={(e) => {
+                    const proximaDificuldade = e.target.value;
+                    const proximaDificuldadeNum = parseDifficultyValue(proximaDificuldade);
+                    if (adicionarEmContainer && proximaDificuldadeNum !== null && CONTAINER_BLOCKED_DIFFICULTIES.has(proximaDificuldadeNum)) {
+                      showErrorToast(CONTAINER_BLOCKED_MESSAGE);
+                      return;
+                    }
+                    setDifficulty(proximaDificuldade);
+                  }}
+                >
+                  {opcoesDificuldade.map((opcao) => (
+                    <option key={opcao.value || "empty"} value={opcao.value}>
+                      {opcao.label}
+                    </option>
+                  ))}
                 </AnimatedSelect>
+                {adicionarEmContainer && (
+                  <small style={{ color: "#64748b", marginTop: "4px" }}>
+                    Com container ativo, somente a dificuldade normal pode ser usada.
+                  </small>
+                )}
               </div>
             </div>
 
@@ -899,9 +1086,130 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 <span className="exLabel">Pontos de resgate</span>
                 <input className="exInput" type="number" min="0" placeholder="0" value={pointsRedeem} onChange={(e) => setPointsRedeem(e.target.value)} />
               </div>
-              <div className="exInputGroup">
-                <span className="exLabel">Periodo do exercicio</span>
-                <input className="exInput" type="datetime-local" value={exercisePeriod} onChange={(e) => setExercisePeriod(e.target.value)} />
+            </div>
+
+            <div className="exInputGroup">
+              <span className="exLabel">Container (opcional)</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  cursor: !faseIdSelecionada || containersDaFase.length === 0 || carregandoContainersFase ? "not-allowed" : "pointer",
+                  opacity: !faseIdSelecionada || containersDaFase.length === 0 || carregandoContainersFase ? 0.6 : 1,
+                  transition: "all 0.2s",
+                  padding: "12px 14px",
+                  backgroundColor: "var(--card)",
+                  border: "1px solid color-mix(in srgb, var(--line) 40%, transparent)",
+                  borderRadius: 8,
+                }}>
+                  <AnimatedToggle
+                    checked={adicionarEmContainer}
+                    onChange={(checked) => {
+                      if (checked && dificuldadeBloqueadaParaContainer) {
+                        showErrorToast(CONTAINER_BLOCKED_MESSAGE);
+                        return;
+                      }
+                      setAdicionarEmContainer(checked);
+                      if (!checked) setContainerSelecionadoKey("");
+                    }}
+                    disabled={!faseIdSelecionada || containersDaFase.length === 0 || carregandoContainersFase}
+                  />
+                  <span style={{ fontWeight: 500, fontSize: "0.95rem", color: "var(--foreground)", userSelect: "none" }}>Adicionar a um container</span>
+                </label>
+
+                {adicionarEmContainer && (
+                  <>
+                    <AnimatedSelect
+                      className="exSelect"
+                      value={containerSelecionadoKey}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setContainerSelecionadoKey(value);
+                        const container = containersDaFase.find((item) => getContainerGroupKey(item) === value) ?? null;
+                        if (container && container.isDailyTask !== isDailyTask) {
+                          setIsDailyTask(container.isDailyTask);
+                        }
+                      }}
+                    >
+                      <option value="" disabled>Selecione o container</option>
+                      {containersDaFase.map((container, idx) => {
+                        const key = `${container.name}__${container.containerDateTargetInt ?? "null"}__${idx}`;
+                        const value = getContainerGroupKey(container);
+                        return (
+                          <option key={key} value={value}>
+                            {container.name}
+                            {container.containerDateTargetInt != null ? ` (Dia ${container.containerDateTargetInt})` : ""}
+                            {container.isDailyTask ? " • Tarefa Diária" : ""}
+                          </option>
+                        );
+                      })}
+                    </AnimatedSelect>
+
+                    {containerSelecionadoKey && (() => {
+                      if (!containerSelecionado || containerSelecionado.exercises.length === 0) {
+                        return <small style={{ color: "#64748b" }}>Nenhum exercício neste container.</small>;
+                      }
+
+                      return (
+                        <div style={{
+                          marginTop: 8,
+                          padding: "10px 12px",
+                          backgroundColor: "var(--card)",
+                          borderRadius: 8,
+                          border: "1px solid color-mix(in srgb, var(--line) 40%, transparent)",
+                        }}>
+                          <div style={{
+                            fontSize: "0.78rem",
+                            fontWeight: 600,
+                            color: "var(--muted)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            marginBottom: 8,
+                          }}>
+                            {containerSelecionado.exercises.length} exercício{containerSelecionado.exercises.length !== 1 ? "s" : ""} neste container
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {containerSelecionado.exercises.map((exercise) => (
+                              <div
+                                key={exercise.containerTaskId}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 10,
+                                  padding: "8px 10px",
+                                  backgroundColor: "color-mix(in srgb, var(--background-secondary) 60%, transparent)",
+                                  border: "1px solid color-mix(in srgb, var(--line) 30%, transparent)",
+                                  borderRadius: 6,
+                                  fontSize: "0.85rem",
+                                }}
+                              >
+                                <span style={{
+                                  fontWeight: 700,
+                                  color: "var(--primary)",
+                                  fontSize: "0.8rem",
+                                  minWidth: 28,
+                                  flexShrink: 0,
+                                }}>#{exercise.indexOrder ?? "?"}</span>
+                                <span style={{ flex: 1, color: "var(--foreground)" }}>{exercise.title}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+
+                {!faseIdSelecionada && (
+                  <small style={{ color: "#64748b" }}>Selecione uma fase para carregar os containers.</small>
+                )}
+                {faseIdSelecionada && carregandoContainersFase && (
+                  <small style={{ color: "#64748b" }}>Carregando containers da fase...</small>
+                )}
+                {faseIdSelecionada && !carregandoContainersFase && containersDaFase.length === 0 && (
+                  <small style={{ color: "#64748b" }}>Nenhum container encontrado para esta fase.</small>
+                )}
               </div>
             </div>
 
@@ -928,21 +1236,25 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               </div>
               <div className="exInputGroup">
                 <div
-                  className={`exStatusToggle ${isDailyTask ? "isActive" : ""}`}
+                  className={`exStatusToggle ${isDailyTaskEfetivo ? "isActive" : ""}`}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setIsDailyTask(!isDailyTask)}
+                  onClick={() => handleChangeIsDailyTask(!isDailyTaskEfetivo)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setIsDailyTask(!isDailyTask);
+                      handleChangeIsDailyTask(!isDailyTaskEfetivo);
                     }
                   }}
                 >
-                  <AnimatedToggle checked={isDailyTask} onChange={setIsDailyTask} />
+                  <AnimatedToggle checked={isDailyTaskEfetivo} onChange={handleChangeIsDailyTask} />
                   <span className="exStatusToggleContent">
                     <span className="exStatusToggleTitle">Tarefas diárias</span>
-                    <span className="exStatusToggleDescription">Mostra este exercicio na aba de tarefa diaria.</span>
+                    <span className="exStatusToggleDescription">
+                      {isDailyTaskForcadoPorContainer
+                        ? "Ligado automaticamente porque o container selecionado e de tarefa diaria."
+                        : "Mostra este exercicio na aba de tarefa diaria."}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -954,9 +1266,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               </AnimatedButton>
             </div>
 
-            <div className="exFormnaote">
-              {iconLabel(<Lightbulb size={16} />, "Exercicios podem ser publicados para turmas, alunos especificos ou para todos.")}
-            </div>
+ 
           </div>
         </div>
       </FadeInUp>
