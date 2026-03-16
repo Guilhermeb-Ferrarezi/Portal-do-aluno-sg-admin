@@ -47,7 +47,7 @@ export default function ConfirmDialog({
             disabled={isLoading}
           >
             {isLoading ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span className="confirm-dialog-loading">
                 <Loader2 size={16} /> Processando...
               </span>
             ) : (

@@ -3,13 +3,14 @@
   font-size: 15px;
   line-height: 1.6;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .confirm-dialog-actions {
-  display: flex;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .confirm-dialog-actions .btn-cancel,
@@ -21,15 +22,14 @@
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  min-width: 0;
+  width: 100%;
 }
 
 .confirm-dialog-actions .btn-cancel {
   background: var(--background-secondary);
   color: var(--text);
   border: 1px solid var(--line);
-  flex: 1;
-  min-width: 100px;
 }
 
 .confirm-dialog-actions .btn-cancel:hover {
@@ -39,8 +39,6 @@
 .confirm-dialog-actions .btn-confirm {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
-  flex: 1;
-  min-width: 100px;
 }
 
 .confirm-dialog-actions .btn-confirm:hover:not(:disabled) {
@@ -61,13 +59,33 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 600px) {
+.confirm-dialog-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
   .confirm-dialog-actions {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
-  .confirm-dialog-actions button {
-    width: 100%;
-    flex: none;
+  .confirm-dialog-actions .btn-cancel,
+  .confirm-dialog-actions .btn-confirm {
+    white-space: normal;
+  }
+
+  .confirm-dialog-loading {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .confirm-dialog-actions .btn-cancel,
+  .confirm-dialog-actions .btn-confirm {
+    padding-inline: 14px;
+    font-size: 13px;
   }
 }

@@ -505,12 +505,15 @@
   font-weight: 500;
   font-family: "JetBrains Mono", monospace;
   color: var(--text);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .viewerItemMeta {
   font-size: 14px;
   color: var(--text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .viewerItemRow {
@@ -563,6 +566,7 @@
   border: 1px dashed color-mix(in srgb, var(--line) 56%, transparent);
   border-radius: 10px;
   padding: 10px;
+  overflow-wrap: anywhere;
 }
 
 .estruturaSelectedInfo {
@@ -952,6 +956,9 @@
 .containerExerciseTitle {
   color: var(--foreground);
   font-weight: 500;
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
 }
 
 .containerSelectedWrap {
@@ -1001,9 +1008,7 @@
   color: var(--foreground);
   font-size: 0.86rem;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .containerGroupList {
@@ -1041,12 +1046,14 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  gap: 10px;
 }
 
 .containerHeaderActions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .containerActionBtn {
@@ -1079,6 +1086,7 @@
 .containerGroupInfo strong {
   font-size: 0.95rem;
   color: var(--foreground);
+  overflow-wrap: anywhere;
 }
 
 .containerDayBadge {
@@ -1178,4 +1186,72 @@
 
 .containerListCard {
   align-self: start;
+}
+
+@media (max-width: 768px) {
+  .viewerItem {
+    align-items: flex-start;
+  }
+
+  .viewerItemMeta {
+    white-space: normal;
+    text-align: right;
+  }
+
+  .containerExerciseOption,
+  .containerExerciseItem,
+  .containerSelectedItem {
+    align-items: flex-start;
+  }
+
+  .containerExerciseOption {
+    flex-wrap: wrap;
+  }
+
+  .containerExerciseOption .viewerItemMeta {
+    width: 100%;
+    padding-left: 28px;
+    text-align: left;
+  }
+
+  .containerGroupHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .containerGroupHeader .containerHeaderActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .containerHeaderActions {
+    width: 100%;
+  }
+
+  .containerActionBtn {
+    flex: 1 1 180px;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .containerExerciseItemInfo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .containerExerciseItemInfo .viewerItemMeta {
+    text-align: left;
+  }
+}
+
+@media (max-width: 540px) {
+  .containerActionBtn {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .containerSelectedInfo,
+  .containerExerciseItemInfo {
+    width: 100%;
+  }
 }

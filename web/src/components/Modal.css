@@ -130,6 +130,39 @@
   }
 }
 
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 24px);
+    border-radius: 14px;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .modal-close-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .modal-body {
+    padding: 14px 16px;
+  }
+
+  .modal-footer {
+    padding: 14px 16px;
+  }
+}
+
 /* ===== SCROLLBAR STYLING ===== */
 .modal-body::-webkit-scrollbar {
   width: 8px;
