@@ -7,6 +7,7 @@ import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
 
 const CONTAINER_BLOCKED_DIFFICULTIES = [2, 3] as const;
+const CONTAINER_BLOCKED_TYPE_EXERCISES = [3] as const;
 
 type DbContainerTaskRow = {
   id: number;
@@ -170,14 +171,17 @@ export function containersRouter(jwtSecret: string) {
            FROM exercise
            WHERE phase_id = $1
              AND id = ANY($2::int[])
-             AND difficulty = ANY($3::int[])
+             AND (
+               difficulty = ANY($3::int[])
+               OR type_exercise = ANY($4::int[])
+             )
            LIMIT 1`,
-          [data.phase_id, data.exercise_ids, CONTAINER_BLOCKED_DIFFICULTIES]
+          [data.phase_id, data.exercise_ids, CONTAINER_BLOCKED_DIFFICULTIES, CONTAINER_BLOCKED_TYPE_EXERCISES]
         );
 
         if ((blockedDifficultyResult.rowCount ?? 0) > 0) {
           await client.query("ROLLBACK");
-          return res.status(400).json({ message: "Lower e Prova Semanal não podem ser adicionados em container" });
+          return res.status(400).json({ message: "Lower, Prova Semanal e type_exercise 3 não podem ser adicionados em container" });
         }
 
         for (const exerciseId of data.exercise_ids) {
@@ -301,14 +305,17 @@ export function containersRouter(jwtSecret: string) {
            FROM exercise
            WHERE phase_id = $1
              AND id = ANY($2::int[])
-             AND difficulty = ANY($3::int[])
+             AND (
+               difficulty = ANY($3::int[])
+               OR type_exercise = ANY($4::int[])
+             )
            LIMIT 1`,
-          [data.phase_id, uniqueExerciseIds, CONTAINER_BLOCKED_DIFFICULTIES]
+          [data.phase_id, uniqueExerciseIds, CONTAINER_BLOCKED_DIFFICULTIES, CONTAINER_BLOCKED_TYPE_EXERCISES]
         );
 
         if ((blockedDifficultyResult.rowCount ?? 0) > 0) {
           await client.query("ROLLBACK");
-          return res.status(400).json({ message: "Lower e Prova Semanal não podem ser adicionados em container" });
+          return res.status(400).json({ message: "Lower, Prova Semanal e type_exercise 3 não podem ser adicionados em container" });
         }
 
         const duplicateInSameGroup = await client.query<{ exercise_id: number }>(

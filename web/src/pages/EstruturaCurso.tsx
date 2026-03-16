@@ -143,7 +143,15 @@ export default function EstruturaCursoPage() {
   const [processandoContainerConfirm, setProcessandoContainerConfirm] = React.useState(false);
 
   const CONTAINER_BLOCKED_DIFFICULTIES = React.useMemo(() => new Set([2, 3]), []);
-  const CONTAINER_BLOCKED_MESSAGE = "Lower e Prova Semanal não podem ser adicionados em container";
+  const CONTAINER_BLOCKED_TYPE_EXERCISES = React.useMemo(() => new Set([3]), []);
+  const CONTAINER_BLOCKED_MESSAGE = "Lower, Prova Semanal e exercícios com type_exercise 3 não podem ser adicionados em container";
+
+  const isContainerExerciseAllowed = React.useCallback(
+    (exercicio: ExercicioFase) =>
+      !CONTAINER_BLOCKED_DIFFICULTIES.has(exercicio.difficulty ?? 1) &&
+      !CONTAINER_BLOCKED_TYPE_EXERCISES.has(exercicio.typeExercise ?? -1),
+    [CONTAINER_BLOCKED_DIFFICULTIES, CONTAINER_BLOCKED_TYPE_EXERCISES]
+  );
 
   const abaAtiva: AbaEstrutura = React.useMemo(() => {
     if (location.pathname.endsWith("/modulos")) return "modulo";
@@ -362,7 +370,7 @@ export default function EstruturaCursoPage() {
     try {
       const [updatedContainers, updatedExercises] = await Promise.all([
         listarContainersPorFase(phaseId),
-        listarExerciciosPorFase(phaseId),
+        listarExerciciosPorFase(phaseId, { difficulty: 1 }),
       ]);
       setContainers(updatedContainers);
       setExerciciosDispContainer(updatedExercises);
@@ -437,7 +445,7 @@ export default function EstruturaCursoPage() {
         .filter(
           (ex): ex is ExercicioFase => {
             if (!ex) return false;
-            return !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1);
+            return isContainerExerciseAllowed(ex);
           }
         )
         .map((ex) => Number(ex.id));
@@ -568,7 +576,7 @@ export default function EstruturaCursoPage() {
         .filter(
           (ex): ex is ExercicioFase => {
             if (!ex) return false;
-            return !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1);
+            return isContainerExerciseAllowed(ex);
           }
         )
         .map((ex) => Number(ex.id));
@@ -609,7 +617,7 @@ export default function EstruturaCursoPage() {
       await reordenarExercicio(exerciseId, direction);
       const [updatedContainers, updatedExercises] = await Promise.all([
         listarContainersPorFase(faseIdParaContainers),
-        listarExerciciosPorFase(faseIdParaContainers),
+        listarExerciciosPorFase(faseIdParaContainers, { difficulty: 1 }),
       ]);
       setContainers(updatedContainers);
       setExerciciosDispContainer(updatedExercises);
@@ -820,16 +828,16 @@ export default function EstruturaCursoPage() {
     [exerciciosDispContainer, novoContainerIsDailyTask]
   );
   const exerciciosPermitidosNovoContainer = React.useMemo(
-    () => exerciciosFiltradosNovoContainer.filter((ex) => !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1)),
-    [CONTAINER_BLOCKED_DIFFICULTIES, exerciciosFiltradosNovoContainer]
+    () => exerciciosFiltradosNovoContainer.filter(isContainerExerciseAllowed),
+    [exerciciosFiltradosNovoContainer, isContainerExerciseAllowed]
   );
   const exerciciosFiltradosParaAbaContainer = React.useMemo(
     () => exerciciosDispContainer.filter((ex) => (abaTipoContainer === "daily" ? ex.isDailyTask === true : ex.isDailyTask !== true)),
     [abaTipoContainer, exerciciosDispContainer]
   );
   const exerciciosPermitidosContainerEditor = React.useMemo(
-    () => exerciciosFiltradosParaAbaContainer.filter((ex) => !CONTAINER_BLOCKED_DIFFICULTIES.has(ex.difficulty ?? 1)),
-    [CONTAINER_BLOCKED_DIFFICULTIES, exerciciosFiltradosParaAbaContainer]
+    () => exerciciosFiltradosParaAbaContainer.filter(isContainerExerciseAllowed),
+    [exerciciosFiltradosParaAbaContainer, isContainerExerciseAllowed]
   );
   const exerciciosPermitidosNaoAlocados = React.useMemo(
     () => exerciciosPermitidosContainerEditor.filter((ex) => !exerciciosAlocadosEmContainers.has(ex.id)),

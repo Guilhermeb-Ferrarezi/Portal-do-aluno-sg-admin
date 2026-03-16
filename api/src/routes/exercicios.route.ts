@@ -474,7 +474,7 @@ const upload = multer({
       cb(null, true);
       return;
     }
-    cb(new Error("Tipo de arquivo nÃ£o permitido"));
+    cb(new Error("Tipo de arquivo não permitido"));
   },
 });
 
@@ -482,11 +482,11 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
   const texto = `${titulo} ${descricao}`.toLowerCase();
 
   const palavrasCodigo = [
-    "cÃ³digo",
+    "código",
     "codigo",
     "programar",
     "implementar",
-    "funÃ§Ã£o",
+    "função",
     "funcao",
     "algoritmo",
     "script",
@@ -498,7 +498,7 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
     "let",
     "var",
     "criar um programa",
-    "escrever um cÃ³digo",
+    "escrever um código",
     "escrever codigo",
     "looping",
     "mostra",
@@ -507,11 +507,11 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
     "repetindo",
     "lista",
     "percorrendo",
-    "nÃºmero",
+    "número",
     "numero",
     "programa",
-    "aÃ§Ã£o",
-    "aÃ§ao",
+    "ação",
+    "açao",
     "acao",
     "log",
     "()" ,
@@ -524,36 +524,36 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
   ];
 
   const palavrasTexto = [
-    "dissertaÃ§Ã£o",
+    "dissertação",
     "dissertacao",
-    "redaÃ§Ã£o",
+    "redação",
     "redacao",
     "escrever sobre",
     "descrever",
     "explicar",
     "argumento",
-    "opiniÃ£o",
+    "opinião",
     "opiniao",
-    "anÃ¡lise",
+    "análise",
     "analise",
     "resumo",
     "resenha",
     "texto",
-    "redaÃ§Ã£o",
+    "redação",
   ];
 
-  // Verificar se contÃ©m tipos especiais (mouse ou mÃºltipla escolha)
+  // Verificar se contém tipos especiais (mouse ou múltipla escolha)
   if (titulo.includes("Mouse") || descricao.includes("mouse") || titulo.includes("mouse")) {
     return "texto"; // Mouse exercises armazenam regras em mouse_regras
   }
   if (
-    titulo.includes("MÃºltipla Escolha") ||
+    titulo.includes("Múltipla Escolha") ||
     titulo.includes("multipla escolha") ||
-    titulo.includes("pergunta mÃºltipla") ||
-    descricao.includes("mÃºltipla escolha") ||
+    titulo.includes("pergunta múltipla") ||
+    descricao.includes("múltipla escolha") ||
     descricao.includes("multipla escolha")
   ) {
-    return "texto"; // MÃºltipla escolha exercises armazenam regras em multipla_regras
+    return "texto"; // Múltipla escolha exercises armazenam regras em multipla_regras
   }
 
   const scoreCodigo = palavrasCodigo.filter((p) => texto.includes(p)).length;
@@ -562,16 +562,16 @@ function detectarTipoExercicio(titulo: string, descricao: string): TipoExercicio
   if (scoreCodigo > scoreTexto) return "codigo";
   if (scoreTexto > scoreCodigo) return "texto";
 
-  // Default: se tem sÃ­mbolos de cÃ³digo, considera cÃ³digo
+  // Default: se tem símbolos de código, considera código
   if (/[{}<>=;()\[\]]/.test(texto)) return "codigo";
 
-  return "texto"; // fallback padrÃ£o
+  return "texto"; // fallback padrão
 }
 
 const createSchema = z.object({
-  titulo: z.string().min(2, "TÃ­tulo obrigatÃ³rio"),
-  descricao: z.string().min(2, "DescriÃ§Ã£o obrigatÃ³ria"),
-  modulo: z.string().min(1, "MÃ³dulo obrigatÃ³rio"),
+  titulo: z.string().min(2, "Título obrigatório"),
+  descricao: z.string().min(2, "Descrição obrigatória"),
+  modulo: z.string().min(1, "Módulo obrigatório"),
   tema: z.string().optional().nullable(),
   prazo: z.coerce.date().optional().nullable(),
   publicado: z.boolean().optional(),
@@ -765,7 +765,7 @@ function parseIdArray(value: unknown): string[] {
 export function exerciciosRouter(jwtSecret: string) {
   const router = Router();
 
-  // GET /exercicios - Listar todos os exercÃ­cios pÃºblicos
+  // GET /exercicios - Listar todos os exercícios públicos
   router.get("/exercicios", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
@@ -986,7 +986,7 @@ export function exerciciosRouter(jwtSecret: string) {
       },
     });
   });
-// GET /exercicios/daily-tasks - Lista somente tarefas diÃ¡rias do banco
+// GET /exercicios/daily-tasks - Lista somente tarefas diárias do banco
   router.get("/exercicios/daily-tasks", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
@@ -1223,7 +1223,7 @@ export function exerciciosRouter(jwtSecret: string) {
       },
     });
   });
-// GET /exercicios/:id - Pegar detalhes de um exercÃ­cio especÃ­fico
+// GET /exercicios/:id - Pegar detalhes de um exercício específico
   router.get("/exercicios/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
     const isAluno = req.user?.role === "aluno";
@@ -1231,7 +1231,7 @@ export function exerciciosRouter(jwtSecret: string) {
 
     if (!schema.hasExercicios) {
       const mapped = await getFromNewExerciseSchema(String(id), req.user?.sub, isAluno, schema);
-      if (!mapped) return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
+      if (!mapped) return res.status(404).json({ message: "Exercício não encontrado" });
       return res.json(mapped);
     }
 
@@ -1239,7 +1239,7 @@ export function exerciciosRouter(jwtSecret: string) {
     const conditions: string[] = [
       "e.id = $1",
     ];
-    // Alunos sÃ³ veem exercÃ­cios publicados e com published_at no passado
+    // Alunos só veem exercícios publicados e com published_at no passado
     if (isAluno) {
       conditions.push("e.publicado = true");
       conditions.push("(e.published_at IS NULL OR e.published_at <= NOW())");
@@ -1299,7 +1299,7 @@ export function exerciciosRouter(jwtSecret: string) {
     );
 
     if (r.rows.length === 0) {
-      return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
+      return res.status(404).json({ message: "Exercício não encontrado" });
     }
 
     const row = r.rows[0];
@@ -1332,7 +1332,7 @@ export function exerciciosRouter(jwtSecret: string) {
     });
   });
 
-  // Protegido: sÃ³ admin/professor cria
+  // Protegido: só admin/professor cria
   router.post(
     "/exercicios",
     authGuard(jwtSecret),
@@ -1504,18 +1504,18 @@ export function exerciciosRouter(jwtSecret: string) {
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados invÃ¡lidos",
+          message: "Dados inválidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
 
       const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio } = parsed.data;
 
-      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrÃ¡rio detectar automaticamente
+      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
       const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
-      // Se tem published_at, publicado deve ser false atÃ© que a data chegue
+      // Se tem published_at, publicado deve ser false até que a data chegue
       const shouldPublish = published_at ? false : (publicado ?? true);
 
       const created = await pool.query<ExercicioRow>(
@@ -1588,7 +1588,7 @@ export function exerciciosRouter(jwtSecret: string) {
       }).catch((err) => console.error("activity log error:", err));
 
         return res.status(201).json({
-        message: "ExercÃ­cio criado!",
+        message: "Exercício criado!",
         exercicio: {
           id: row.id,
           titulo: row.titulo,
@@ -1616,7 +1616,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: sÃ³ admin/professor pode atualizar
+  // Protegido: só admin/professor pode atualizar
   router.put(
     "/exercicios/:id",
     authGuard(jwtSecret),
@@ -1793,24 +1793,24 @@ export function exerciciosRouter(jwtSecret: string) {
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados invÃ¡lidos",
+          message: "Dados inválidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
 
-      // Verificar se exercÃ­cio existe
+      // Verificar se exercício existe
       const checkExercicio = await pool.query<ExercicioRow>(
         `SELECT id, anexo_url FROM exercicios WHERE id = $1`,
         [id]
       );
 
       if (checkExercicio.rows.length === 0) {
-        return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
+        return res.status(404).json({ message: "Exercício não encontrado" });
       }
 
       const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, published_at } = parsed.data;
 
-      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrÃ¡rio detectar automaticamente
+      // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
       const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
@@ -1904,7 +1904,7 @@ export function exerciciosRouter(jwtSecret: string) {
       }).catch((err) => console.error("activity log error:", err));
 
       return res.json({
-        message: "ExercÃ­cio atualizado!",
+        message: "Exercício atualizado!",
         exercicio: {
           id: row.id,
           titulo: row.titulo,
@@ -1933,7 +1933,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: anexar arquivo ao exercÃ­cio
+  // Protegido: anexar arquivo ao exercício
   router.post(
     "/exercicios/:id/anexo",
     authGuard(jwtSecret),
@@ -1944,7 +1944,7 @@ export function exerciciosRouter(jwtSecret: string) {
       const file = req.file;
 
       if (!file) {
-        return res.status(400).json({ message: "Arquivo Ã© obrigatÃ³rio" });
+        return res.status(400).json({ message: "Arquivo é obrigatório" });
       }
 
       const check = await pool.query<ExercicioRow>(
@@ -1953,7 +1953,7 @@ export function exerciciosRouter(jwtSecret: string) {
       );
 
       if (check.rows.length === 0) {
-        return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
+        return res.status(404).json({ message: "Exercício não encontrado" });
       }
 
       const existing = check.rows[0];
@@ -1982,7 +1982,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: remover anexo do exercÃ­cio
+  // Protegido: remover anexo do exercício
   router.delete(
     "/exercicios/:id/anexo",
     authGuard(jwtSecret),
@@ -1996,7 +1996,7 @@ export function exerciciosRouter(jwtSecret: string) {
       );
 
       if (check.rows.length === 0) {
-        return res.status(404).json({ message: "ExercÃ­cio nÃ£o encontrado" });
+        return res.status(404).json({ message: "Exercício não encontrado" });
       }
 
       const existing = check.rows[0];
@@ -2015,7 +2015,7 @@ export function exerciciosRouter(jwtSecret: string) {
     }
   );
 
-  // Protegido: sÃ³ admin/professor pode deletar
+  // Protegido: só admin/professor pode deletar
   router.delete(
     "/exercicios/:id",
     authGuard(jwtSecret),
@@ -2113,17 +2113,41 @@ export function exerciciosRouter(jwtSecret: string) {
           return res.status(400).json({ message: "ID de fase inválido" });
         }
 
+        const rawDifficulty =
+          typeof req.query.difficulty === "string" ? req.query.difficulty.trim() : "";
+        let difficulty: number | null = null;
+        if (rawDifficulty.length > 0) {
+          const parsedDifficulty = Number(rawDifficulty);
+          if (!Number.isInteger(parsedDifficulty) || parsedDifficulty < 1) {
+            return res.status(400).json({ message: "Dificuldade inválida" });
+          }
+          difficulty = parsedDifficulty;
+        }
+
         const schema = await getExerciseSchemaInfo();
 
         if (schema.hasExercise) {
+          const params: number[] = [phaseId];
+          const where = ["e.phase_id = $1"];
+
+          if (difficulty !== null && schema.hasExerciseDifficulty) {
+            params.push(difficulty);
+            where.push(`COALESCE(e.difficulty, 1) = $${params.length}`);
+          } else if (difficulty !== null && difficulty !== 1) {
+            return res.json([]);
+          }
+
           const result = await pool.query(
-            `SELECT e.id, e.title, e.description, e.index_order, e.difficulty, e.phase_id,
+            `SELECT e.id, e.title, e.description, e.index_order,
+                    e.type_exercise,
+                    ${schema.hasExerciseDifficulty ? "e.difficulty" : "NULL::int AS difficulty"},
+                    e.phase_id,
                     ${schema.hasExerciseIsDailyTask ? "COALESCE(e.is_daily_task, false)" : "false"} AS is_daily_task,
                     e.created_at, e.updated_at
              FROM exercise e
-             WHERE e.phase_id = $1
+             WHERE ${where.join(" AND ")}
              ORDER BY e.index_order ASC, e.created_at ASC`,
-            [phaseId]
+            params
           );
 
           return res.json(result.rows.map((row: any) => ({
@@ -2132,6 +2156,7 @@ export function exerciciosRouter(jwtSecret: string) {
             descricao: row.description ?? "",
             indexOrder: row.index_order ?? 0,
             difficulty: row.difficulty ?? null,
+            typeExercise: row.type_exercise ?? null,
             isDailyTask: !!row.is_daily_task,
             phaseId: String(row.phase_id),
             createdAt: row.created_at,
@@ -2211,5 +2236,4 @@ export function exerciciosRouter(jwtSecret: string) {
 
   return router;
 }
-
 

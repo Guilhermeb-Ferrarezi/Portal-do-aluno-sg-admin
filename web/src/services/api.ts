@@ -1303,14 +1303,24 @@ export type ExercicioFase = {
   descricao: string;
   indexOrder: number;
   difficulty: number | null;
+  typeExercise: number | null;
   isDailyTask: boolean;
   phaseId: string;
   createdAt: string;
   updatedAt: string;
 };
 
-export async function listarExerciciosPorFase(phaseId: string) {
-  return apiFetch<ExercicioFase[]>(`/exercicios/by-phase/${phaseId}`);
+export async function listarExerciciosPorFase(
+  phaseId: string,
+  options: { difficulty?: number } = {}
+) {
+  const params = new URLSearchParams();
+  if (options.difficulty != null) {
+    params.set("difficulty", String(options.difficulty));
+  }
+
+  const query = params.toString();
+  return apiFetch<ExercicioFase[]>(`/exercicios/by-phase/${phaseId}${query ? `?${query}` : ""}`);
 }
 
 export async function reordenarExercicio(id: string, direction: "up" | "down") {
