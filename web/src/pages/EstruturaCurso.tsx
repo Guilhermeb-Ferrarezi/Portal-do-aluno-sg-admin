@@ -142,9 +142,9 @@ export default function EstruturaCursoPage() {
   const [containerConfirmState, setContainerConfirmState] = React.useState<ContainerConfirmState>(null);
   const [processandoContainerConfirm, setProcessandoContainerConfirm] = React.useState(false);
 
-  const CONTAINER_BLOCKED_DIFFICULTIES = React.useMemo(() => new Set([2, 3]), []);
+  const CONTAINER_BLOCKED_DIFFICULTIES = React.useMemo(() => new Set([2, 3, 4]), []);
   const CONTAINER_BLOCKED_TYPE_EXERCISES = React.useMemo(() => new Set([3]), []);
-  const CONTAINER_BLOCKED_MESSAGE = "Lower, Prova Semanal e exercícios com type_exercise 3 não podem ser adicionados em container";
+  const CONTAINER_BLOCKED_MESSAGE = "Lower, Prova Semanal, exercícios com dificuldade 4 e exercícios com type_exercise 3 não podem ser adicionados em container";
 
   const isContainerExerciseAllowed = React.useCallback(
     (exercicio: ExercicioFase) =>

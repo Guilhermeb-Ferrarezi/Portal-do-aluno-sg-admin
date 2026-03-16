@@ -6,7 +6,7 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
 
-const CONTAINER_BLOCKED_DIFFICULTIES = [2, 3] as const;
+const CONTAINER_BLOCKED_DIFFICULTIES = [2, 3, 4] as const;
 const CONTAINER_BLOCKED_TYPE_EXERCISES = [3] as const;
 
 type DbContainerTaskRow = {
@@ -181,7 +181,7 @@ export function containersRouter(jwtSecret: string) {
 
         if ((blockedDifficultyResult.rowCount ?? 0) > 0) {
           await client.query("ROLLBACK");
-          return res.status(400).json({ message: "Lower, Prova Semanal e type_exercise 3 não podem ser adicionados em container" });
+          return res.status(400).json({ message: "Lower, Prova Semanal, dificuldade 4 e type_exercise 3 não podem ser adicionados em container" });
         }
 
         for (const exerciseId of data.exercise_ids) {
@@ -315,7 +315,7 @@ export function containersRouter(jwtSecret: string) {
 
         if ((blockedDifficultyResult.rowCount ?? 0) > 0) {
           await client.query("ROLLBACK");
-          return res.status(400).json({ message: "Lower, Prova Semanal e type_exercise 3 não podem ser adicionados em container" });
+          return res.status(400).json({ message: "Lower, Prova Semanal, dificuldade 4 e type_exercise 3 não podem ser adicionados em container" });
         }
 
         const duplicateInSameGroup = await client.query<{ exercise_id: number }>(
