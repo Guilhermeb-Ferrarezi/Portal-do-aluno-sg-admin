@@ -12,9 +12,14 @@ type PresenceClientMessage = {
   type?: string;
 };
 
+type PresenceSocket = WebSocket & {
+  lastActivityAt?: number;
+};
+
 const WS_PATHS = new Set(["/ws/presence", "/api/ws/presence"]);
 const HEARTBEAT_PERSIST_INTERVAL_MS = 25_000;
 const PROXY_KEEPALIVE_INTERVAL_MS = 20_000;
+const SOCKET_STALE_TIMEOUT_MS = 70_000;
 
 const socketsByUserId = new Map<string, Set<WebSocket>>();
 const socketUserIds = new WeakMap<WebSocket, string>();
@@ -110,16 +115,25 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
   const wss = new WebSocketServer({ noServer: true });
 
   const keepAliveIntervalId = setInterval(() => {
+    const now = Date.now();
+
     for (const sockets of socketsByUserId.values()) {
       for (const ws of sockets) {
         if (ws.readyState !== WebSocket.OPEN) {
           continue;
         }
 
+        const presenceSocket = ws as PresenceSocket;
+        const lastActivityAt = presenceSocket.lastActivityAt ?? 0;
+        if (now - lastActivityAt > SOCKET_STALE_TIMEOUT_MS) {
+          ws.terminate();
+          continue;
+        }
+
         try {
           ws.ping();
         } catch {
-          // ignore keepalive failures; close/error handlers will clean up
+          ws.terminate();
         }
       }
     }
@@ -130,6 +144,8 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
   });
 
   wss.on("connection", async (ws: WebSocket, _request: IncomingMessage, user: AuthUser) => {
+    const presenceSocket = ws as PresenceSocket;
+    presenceSocket.lastActivityAt = Date.now();
     registerSocket(user.sub, ws);
 
     try {
@@ -159,7 +175,12 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
       });
     }
 
+    ws.on("pong", () => {
+      presenceSocket.lastActivityAt = Date.now();
+    });
+
     ws.on("message", async (raw: RawData) => {
+      presenceSocket.lastActivityAt = Date.now();
       let payload: PresenceClientMessage | null = null;
 
       try {

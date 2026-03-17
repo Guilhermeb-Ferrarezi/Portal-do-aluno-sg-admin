@@ -158,13 +158,18 @@ export default function AdminUsersPage() {
     }
 
     return subscribeToPresence((message) => {
+      if (message.type === "presence:reset") {
+        void carregarUsuarios();
+        return;
+      }
+
       if (message.type !== "presence:update" && message.type !== "presence:hello") {
         return;
       }
 
       applyPresenceState(message.userId, message.isOnline, message.lastSeenAt);
     });
-  }, [applyPresenceState]);
+  }, [applyPresenceState, carregarUsuarios]);
 
   const abrirEditar = (usuario: User) => {
     setEditandoUsuario(usuario);

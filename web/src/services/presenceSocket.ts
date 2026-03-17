@@ -4,6 +4,7 @@ import { API_BASE_URL } from "./api";
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
   | { type: "presence:update"; userId: string; isOnline: boolean; lastSeenAt: string }
+  | { type: "presence:reset" }
   | { type: "presence:error"; message: string };
 
 type PresenceListener = (message: PresenceSocketMessage) => void;
@@ -35,6 +36,16 @@ function notify(message: PresenceSocketMessage) {
 
   for (const listener of listeners) {
     listener(message);
+  }
+}
+
+function clearPresenceState(shouldNotify = false) {
+  if (latestPresenceByUserId.size === 0) return;
+
+  latestPresenceByUserId.clear();
+
+  if (shouldNotify) {
+    notify({ type: "presence:reset" });
   }
 }
 
@@ -109,6 +120,7 @@ export function connectPresenceSocket() {
 
   socket.addEventListener("open", () => {
     clearHeartbeat();
+    clearPresenceState(true);
     sendHeartbeat();
     heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
   });
@@ -124,6 +136,7 @@ export function connectPresenceSocket() {
 
   socket.addEventListener("close", () => {
     clearHeartbeat();
+    clearPresenceState(true);
     socket = null;
     scheduleReconnect();
   });
@@ -137,6 +150,7 @@ export function disconnectPresenceSocket() {
   shouldRun = false;
   clearReconnect();
   clearHeartbeat();
+  clearPresenceState(true);
 
   if (socket) {
     const current = socket;
