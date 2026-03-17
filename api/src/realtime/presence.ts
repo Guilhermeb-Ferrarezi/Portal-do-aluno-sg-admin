@@ -14,10 +14,12 @@ type PresenceClientMessage = {
 
 const WS_PATHS = new Set(["/ws/presence", "/api/ws/presence"]);
 const HEARTBEAT_PERSIST_INTERVAL_MS = 25_000;
+const PROXY_KEEPALIVE_INTERVAL_MS = 20_000;
 
 const socketsByUserId = new Map<string, Set<WebSocket>>();
 const socketUserIds = new WeakMap<WebSocket, string>();
 const lastPersistByUserId = new Map<string, number>();
+const lastSeenAtByUserId = new Map<string, string>();
 
 function safeSend(ws: WebSocket, message: PresenceServerMessage) {
   if (ws.readyState !== WebSocket.OPEN) return;
@@ -49,7 +51,9 @@ async function persistLastSeen(userId: string, force = false) {
     [Number(userId)]
   );
 
-  return result.rows[0]?.last_seen_at ?? new Date(now).toISOString();
+  const lastSeenAt = result.rows[0]?.last_seen_at ?? new Date(now).toISOString();
+  lastSeenAtByUserId.set(userId, lastSeenAt);
+  return lastSeenAt;
 }
 
 function registerSocket(userId: string, ws: WebSocket) {
@@ -98,8 +102,32 @@ function isPresencePath(pathname: string) {
   return WS_PATHS.has(pathname);
 }
 
+function getKnownLastSeenAt(userId: string) {
+  return lastSeenAtByUserId.get(userId) ?? new Date().toISOString();
+}
+
 export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: string) {
   const wss = new WebSocketServer({ noServer: true });
+
+  const keepAliveIntervalId = setInterval(() => {
+    for (const sockets of socketsByUserId.values()) {
+      for (const ws of sockets) {
+        if (ws.readyState !== WebSocket.OPEN) {
+          continue;
+        }
+
+        try {
+          ws.ping();
+        } catch {
+          // ignore keepalive failures; close/error handlers will clean up
+        }
+      }
+    }
+  }, PROXY_KEEPALIVE_INTERVAL_MS);
+
+  server.on("close", () => {
+    clearInterval(keepAliveIntervalId);
+  });
 
   wss.on("connection", async (ws: WebSocket, _request: IncomingMessage, user: AuthUser) => {
     registerSocket(user.sub, ws);
@@ -108,12 +136,14 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
       const lastSeenAt =
         (await persistLastSeen(user.sub, true)) ?? new Date().toISOString();
 
-      safeSend(ws, {
-        type: "presence:hello",
-        userId: user.sub,
-        isOnline: true,
-        lastSeenAt,
-      });
+      for (const onlineUserId of socketsByUserId.keys()) {
+        safeSend(ws, {
+          type: "presence:hello",
+          userId: onlineUserId,
+          isOnline: true,
+          lastSeenAt: onlineUserId === user.sub ? lastSeenAt : getKnownLastSeenAt(onlineUserId),
+        });
+      }
 
       broadcast({
         type: "presence:update",
