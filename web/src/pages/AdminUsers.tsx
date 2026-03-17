@@ -153,6 +153,16 @@ export default function AdminUsersPage() {
   }, [carregarUsuarios]);
 
   React.useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void carregarUsuarios();
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [carregarUsuarios]);
+
+  React.useEffect(() => {
     for (const presence of getPresenceSnapshot()) {
       applyPresenceState(presence.userId, presence.isOnline, presence.lastSeenAt);
     }

@@ -57,3 +57,17 @@
 - `docker compose ps` com `api`, `db` e `web` em execucao; `api` saudavel
 - `GET http://localhost:3001/api/health` -> `{"ok":true}`
 - `GET http://localhost:8080` -> `200`
+
+## Fallback de presenca para producao
+
+- Adicionei um heartbeat HTTP autenticado em `api/src/routes/presence.ts` para atualizar `last_seen_at` mesmo quando o websocket estiver instavel no ambiente de producao.
+- Extraí a persistencia de presenca para `api/src/presence/presenceStore.ts`, reutilizada pelo WS e pelo novo endpoint HTTP.
+- O frontend em `web/src/services/presenceSocket.ts` agora envia heartbeat HTTP imediatamente ao iniciar a presenca e continua enviando em intervalo, mesmo durante reconexao do websocket.
+- A pagina `web/src/pages/AdminUsers.tsx` ganhou polling a cada 30 segundos para refletir o status vindo do banco mesmo sem evento realtime.
+- Nao houve alteracao de tabela, coluna ou migracao de banco.
+
+## Validacao do fallback de presenca
+
+- `api`: `npm run build`
+- `web`: `npm run build`
+- `web`: `npm run lint`

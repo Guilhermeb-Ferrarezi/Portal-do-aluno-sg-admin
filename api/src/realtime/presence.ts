@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
-import { pool } from "../db";
 import { authenticateToken, type AuthUser } from "../middlewares/auth";
+import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
 
 type PresenceServerMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -17,14 +17,11 @@ type PresenceSocket = WebSocket & {
 };
 
 const WS_PATHS = new Set(["/ws/presence", "/api/ws/presence"]);
-const HEARTBEAT_PERSIST_INTERVAL_MS = 25_000;
 const PROXY_KEEPALIVE_INTERVAL_MS = 20_000;
 const SOCKET_STALE_TIMEOUT_MS = 70_000;
 
 const socketsByUserId = new Map<string, Set<WebSocket>>();
 const socketUserIds = new WeakMap<WebSocket, string>();
-const lastPersistByUserId = new Map<string, number>();
-const lastSeenAtByUserId = new Map<string, string>();
 
 function safeSend(ws: WebSocket, message: PresenceServerMessage) {
   if (ws.readyState !== WebSocket.OPEN) return;
@@ -37,28 +34,6 @@ function broadcast(message: PresenceServerMessage) {
       safeSend(ws, message);
     }
   }
-}
-
-async function persistLastSeen(userId: string, force = false) {
-  const now = Date.now();
-  const lastPersist = lastPersistByUserId.get(userId) ?? 0;
-  if (!force && now - lastPersist < HEARTBEAT_PERSIST_INTERVAL_MS) {
-    return null;
-  }
-
-  lastPersistByUserId.set(userId, now);
-
-  const result = await pool.query<{ last_seen_at: string | null }>(
-    `UPDATE "user"
-     SET last_seen_at = NOW(), updated_at = NOW()
-     WHERE id = $1
-     RETURNING last_seen_at`,
-    [Number(userId)]
-  );
-
-  const lastSeenAt = result.rows[0]?.last_seen_at ?? new Date(now).toISOString();
-  lastSeenAtByUserId.set(userId, lastSeenAt);
-  return lastSeenAt;
 }
 
 function registerSocket(userId: string, ws: WebSocket) {
@@ -107,10 +82,6 @@ function isPresencePath(pathname: string) {
   return WS_PATHS.has(pathname);
 }
 
-function getKnownLastSeenAt(userId: string) {
-  return lastSeenAtByUserId.get(userId) ?? new Date().toISOString();
-}
-
 export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: string) {
   const wss = new WebSocketServer({ noServer: true });
 
@@ -150,7 +121,7 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
 
     try {
       const lastSeenAt =
-        (await persistLastSeen(user.sub, true)) ?? new Date().toISOString();
+        (await persistUserLastSeen(user.sub, true)) ?? new Date().toISOString();
 
       for (const onlineUserId of socketsByUserId.keys()) {
         safeSend(ws, {
@@ -195,7 +166,7 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
       }
 
       try {
-        await persistLastSeen(user.sub, false);
+        await persistUserLastSeen(user.sub, false);
       } catch (error) {
         console.error("presence heartbeat error:", error);
       }
@@ -208,7 +179,7 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
 
       try {
         const lastSeenAt =
-          (await persistLastSeen(userId, true)) ?? new Date().toISOString();
+          (await persistUserLastSeen(userId, true)) ?? new Date().toISOString();
 
         broadcast({
           type: "presence:update",

@@ -1,5 +1,5 @@
-import { getToken, isLoggedIn } from "../auth/auth";
-import { API_BASE_URL } from "./api";
+import { getToken, getUserId, isLoggedIn } from "../auth/auth";
+import { API_BASE_URL, sendPresenceHeartbeat } from "./api";
 
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -24,6 +24,7 @@ let socket: WebSocket | null = null;
 let heartbeatIntervalId: number | null = null;
 let reconnectTimeoutId: number | null = null;
 let shouldRun = false;
+let apiHeartbeatInFlight = false;
 
 function notify(message: PresenceSocketMessage) {
   if (message.type === "presence:hello" || message.type === "presence:update") {
@@ -53,6 +54,28 @@ function clearHeartbeat() {
   if (heartbeatIntervalId !== null) {
     window.clearInterval(heartbeatIntervalId);
     heartbeatIntervalId = null;
+  }
+}
+
+async function sendApiHeartbeat() {
+  if (!shouldRun || !isLoggedIn() || apiHeartbeatInFlight) return;
+
+  apiHeartbeatInFlight = true;
+  try {
+    const response = await sendPresenceHeartbeat();
+    const currentUserId = getUserId();
+    if (currentUserId) {
+      notify({
+        type: "presence:update",
+        userId: currentUserId,
+        isOnline: true,
+        lastSeenAt: response.lastSeenAt,
+      });
+    }
+  } catch {
+    // keep websocket presence best-effort
+  } finally {
+    apiHeartbeatInFlight = false;
   }
 }
 
@@ -91,8 +114,11 @@ function buildPresenceUrl(token: string) {
 }
 
 function sendHeartbeat() {
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify({ type: "presence:heartbeat" }));
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "presence:heartbeat" }));
+  }
+
+  void sendApiHeartbeat();
 }
 
 function scheduleReconnect() {
@@ -110,6 +136,12 @@ export function connectPresenceSocket() {
   const token = getToken();
   if (!token) return;
 
+  if (heartbeatIntervalId === null) {
+    heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+  }
+
+  sendHeartbeat();
+
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return;
   }
@@ -119,10 +151,8 @@ export function connectPresenceSocket() {
   socket = new WebSocket(buildPresenceUrl(token));
 
   socket.addEventListener("open", () => {
-    clearHeartbeat();
     clearPresenceState(true);
     sendHeartbeat();
-    heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
   });
 
   socket.addEventListener("message", (event) => {
@@ -135,7 +165,6 @@ export function connectPresenceSocket() {
   });
 
   socket.addEventListener("close", () => {
-    clearHeartbeat();
     clearPresenceState(true);
     socket = null;
     scheduleReconnect();

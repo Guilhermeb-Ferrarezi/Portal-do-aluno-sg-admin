@@ -124,6 +124,12 @@ export async function logoutWithServer() {
   }
 }
 
+export async function sendPresenceHeartbeat() {
+  return apiFetch<{ ok: boolean; lastSeenAt: string }>("/presence/heartbeat", {
+    method: "POST",
+  });
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}) {
   const headers = await buildJsonHeaders(options.headers);
   const res = await fetch(`${API_BASE_URL}${path}`, {
