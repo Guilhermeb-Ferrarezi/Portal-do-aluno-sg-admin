@@ -7,6 +7,7 @@ import { ToastProvider } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
 import { getToken, getTokenExpiryMs, isTokenExpired, onAuthChanged } from "./auth/auth";
 import { logoutWithServer } from "./services/api";
+import { connectPresenceSocket, disconnectPresenceSocket } from "./services/presenceSocket";
 
 const Login = React.lazy(() => import("./components/Login/Login"));
 const Dashboard = React.lazy(() => import("./components/Dashboard/Dashboard"));
@@ -82,6 +83,7 @@ function AppContent() {
     const syncAuth = () => {
       const token = getToken();
       if (!token) {
+        disconnectPresenceSocket();
         clearExpiryTimer();
         return;
       }
@@ -91,6 +93,7 @@ function AppContent() {
         return;
       }
 
+      connectPresenceSocket();
       scheduleExpiry();
     };
 
@@ -110,6 +113,7 @@ function AppContent() {
     window.addEventListener("storage", handleStorage);
     return () => {
       clearExpiryTimer();
+      disconnectPresenceSocket();
       window.removeEventListener("storage", handleStorage);
       unsubscribe();
     };

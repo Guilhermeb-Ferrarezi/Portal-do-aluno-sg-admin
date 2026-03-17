@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createServer } from "http";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -15,6 +16,7 @@ import { activityLogsRouter } from "./routes/activityLogs";
 import { badgesRouter } from "./routes/badges";
 import { containersRouter } from "./routes/containers.route";
 import { initializeDatabaseTables } from "./db/migrations";
+import { setupPresenceWebSocketServer } from "./realtime/presence";
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -74,6 +76,7 @@ const refreshTokenExpiresIn = resolveRefreshTokenExpiresIn(env);
 const allowedOrigins = resolveAllowedOrigins(env);
 
 const app = express();
+const server = createServer(app);
 app.set("trust proxy", 1);
 
 app.use(helmet());
@@ -183,8 +186,9 @@ app.use(
 (async () => {
   // Inicializar banco de dados
   await initializeDatabaseTables();
+  setupPresenceWebSocketServer(server, env.JWT_SECRET);
 
-  app.listen(env.PORT, "0.0.0.0", () => {
+  server.listen(env.PORT, "0.0.0.0", () => {
     console.log(`API rodando na porta ${env.PORT}`);
   });
 })();

@@ -827,6 +827,8 @@ export type User = {
   profilePictureUrl?: string | null;
   coverPictureUrl?: string | null;
   role: Role;
+  lastSeenAt?: string | null;
+  isOnline?: boolean;
 };
 
 export type UserMe = User & {

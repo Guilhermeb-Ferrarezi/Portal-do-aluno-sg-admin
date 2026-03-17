@@ -13,6 +13,7 @@ import {
   deletarUsuario,
   type User,
 } from "../services/api";
+import { getPresenceSnapshot, subscribeToPresence } from "../services/presenceSocket";
 import "./AdminUsers.css";
 import {
   GraduationCap,
@@ -46,6 +47,50 @@ export default function AdminUsersPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
   const [totalItems, setTotalItems] = React.useState(0);
+  const lastSeenFormatter = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }),
+    []
+  );
+
+  const applyPresenceState = React.useCallback((userId: string, isOnline: boolean, lastSeenAt: string) => {
+    setUsuarios((current) =>
+      current.map((usuario) =>
+        usuario.id === userId
+          ? {
+              ...usuario,
+              isOnline,
+              lastSeenAt,
+            }
+          : usuario
+      )
+    );
+  }, []);
+
+  const mergePresenceSnapshot = React.useCallback((items: User[]) => {
+    const snapshot = new Map(
+      getPresenceSnapshot().map((presence) => [
+        presence.userId,
+        presence,
+      ])
+    );
+
+    return items.map((usuario) => {
+      const currentPresence = snapshot.get(usuario.id);
+      if (!currentPresence) {
+        return usuario;
+      }
+
+      return {
+        ...usuario,
+        isOnline: currentPresence.isOnline,
+        lastSeenAt: currentPresence.lastSeenAt,
+      };
+    });
+  }, []);
 
   const roleLabel = (role: string) => {
     const baseStyle = { display: "inline-flex", alignItems: "center", gap: 6 };
@@ -90,7 +135,7 @@ export default function AdminUsersPage() {
         limit: itemsPerPage,
       });
 
-      setUsuarios(response.items);
+      setUsuarios(mergePresenceSnapshot(response.items));
       setTotalItems(response.total);
 
       if (currentPage > response.pagination.totalPages) {
@@ -101,11 +146,25 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [busca, currentPage, filtroTipo, itemsPerPage]);
+  }, [busca, currentPage, filtroTipo, itemsPerPage, mergePresenceSnapshot]);
 
   React.useEffect(() => {
     void carregarUsuarios();
   }, [carregarUsuarios]);
+
+  React.useEffect(() => {
+    for (const presence of getPresenceSnapshot()) {
+      applyPresenceState(presence.userId, presence.isOnline, presence.lastSeenAt);
+    }
+
+    return subscribeToPresence((message) => {
+      if (message.type !== "presence:update" && message.type !== "presence:hello") {
+        return;
+      }
+
+      applyPresenceState(message.userId, message.isOnline, message.lastSeenAt);
+    });
+  }, [applyPresenceState]);
 
   const abrirEditar = (usuario: User) => {
     setEditandoUsuario(usuario);
@@ -266,40 +325,56 @@ export default function AdminUsersPage() {
                         <th>Nome</th>
                         <th>Usuario</th>
                         <th>Tipo</th>
+                        <th>Status</th>
                         <th>Acoes</th>
                       </tr>
                     </thead>
                     <tbody>
                       {usuarios.map((usuario, idx) => (
-                        <FadeInUp key={usuario.id} duration={0.28} delay={0.16 + idx * 0.04}>
-                          <tr className="userRow">
-                            <td data-label="Nome">{usuario.nome}</td>
-                            <td data-label="Usuario" className="usuarioCell">
-                              {usuario.email ?? usuario.usuario}
-                            </td>
-                            <td data-label="Tipo">
-                              <span className={`roleTag role-${usuario.role}`}>
-                                {roleLabel(usuario.role)}
+                        <tr
+                          key={usuario.id}
+                          className="userRow userRowAnimated"
+                          style={{ animationDelay: `${0.16 + idx * 0.04}s` }}
+                        >
+                          <td data-label="Nome">{usuario.nome}</td>
+                          <td data-label="Usuario" className="usuarioCell">
+                            {usuario.email ?? usuario.usuario}
+                          </td>
+                          <td data-label="Tipo">
+                            <span className={`roleTag role-${usuario.role}`}>
+                              {roleLabel(usuario.role)}
+                            </span>
+                          </td>
+                          <td data-label="Status">
+                            <div className="presenceCell">
+                              <span className={`presenceBadge ${usuario.isOnline ? "isOnline" : "isOffline"}`}>
+                                <span className="presenceDot" />
+                                {usuario.isOnline ? "Online" : "Offline"}
                               </span>
-                            </td>
-                            <td data-label="Acoes" className="actionCell">
-                              <AnimatedButton
-                                className="btnEdit"
-                                onClick={() => abrirEditar(usuario)}
-                                title="Editar usuario"
-                              >
-                                <Pencil size={16} />
-                              </AnimatedButton>
-                              <AnimatedButton
-                                className="btnDelete"
-                                onClick={() => setUsuarioDeletar(usuario)}
-                                title="Deletar usuario"
-                              >
-                                <Trash2 size={16} />
-                              </AnimatedButton>
-                            </td>
-                          </tr>
-                        </FadeInUp>
+                              <small className="presenceMeta">
+                                {usuario.lastSeenAt
+                                  ? `Visto em ${lastSeenFormatter.format(new Date(usuario.lastSeenAt))}`
+                                  : "Sem atividade recente"}
+                              </small>
+                            </div>
+                          </td>
+                          <td data-label="Acoes" className="actionCell">
+                            <AnimatedButton
+                              className="btnEdit"
+                              onClick={() => abrirEditar(usuario)}
+                              title="Editar usuario"
+                            >
+                              <Pencil size={16} />
+                            </AnimatedButton>
+                            <AnimatedButton
+                              className="btnDelete"
+                              onClick={() => setUsuarioDeletar(usuario)}
+                              title="Deletar usuario"
+                            >
+                              <Trash2 size={16} />
+                            </AnimatedButton>
+                          </td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>

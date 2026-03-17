@@ -22,6 +22,8 @@ type DbUserRow = {
   profile_picture_url: string | null;
   cover_photo_url: string | null;
   created_at: string;
+  last_seen_at?: string | null;
+  is_online?: boolean;
 };
 
 const passwordSchema = z.string().min(6, "Senha muito curta");
@@ -122,6 +124,8 @@ function mapUserRow(u: DbUserRow) {
     role: toRole(u.role),
     ativo: true,
     createdAt: u.created_at,
+    lastSeenAt: u.last_seen_at ?? null,
+    isOnline: u.is_online ?? false,
   };
 }
 
@@ -131,7 +135,9 @@ export function usersRouter(jwtSecret: string) {
   router.get("/users/me", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const userId = Number(req.user!.sub);
     const r = await pool.query<DbUserRow>(
-      `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at
+      `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at,
+              last_seen_at,
+              COALESCE(last_seen_at >= NOW() - INTERVAL '90 seconds', false) AS is_online
        FROM "user"
        WHERE id = $1
        LIMIT 1`,
@@ -152,6 +158,8 @@ export function usersRouter(jwtSecret: string) {
       role: toRole(u.role),
       ativo: true,
       createdAt: u.created_at,
+      lastSeenAt: u.last_seen_at ?? null,
+      isOnline: u.is_online ?? false,
     });
   });
 
@@ -185,7 +193,9 @@ export function usersRouter(jwtSecret: string) {
 
       if (!hasPaginationInput) {
         const r = await pool.query<DbUserRow>(
-          `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at
+          `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at,
+                  last_seen_at,
+                  COALESCE(last_seen_at >= NOW() - INTERVAL '90 seconds', false) AS is_online
            FROM "user"
            ${where}
            ORDER BY created_at DESC
@@ -206,7 +216,9 @@ export function usersRouter(jwtSecret: string) {
       const listParams = [...params, limit, offset];
 
       const r = await pool.query<DbUserRow>(
-        `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at
+        `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at,
+                last_seen_at,
+                COALESCE(last_seen_at >= NOW() - INTERVAL '90 seconds', false) AS is_online
          FROM "user"
          ${where}
          ORDER BY created_at DESC

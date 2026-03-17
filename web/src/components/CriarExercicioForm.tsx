@@ -1046,12 +1046,12 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               </div>
             </div>
 
-            <div className="exInputRow">
-              <div className="exInputGroup">
+             <div className="exInputRow">
+              {/*<div className="exInputGroup">
                 <span className="exLabel">Video URL</span>
-                <input className="exInput" type="url" placeholder="https://..." value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} />
+                <input className="exInput" type="url" placeholder="https://..." value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} /> 
                 <small style={{ color: "#666", marginTop: "4px" }}>Link opcional de apoio para este exercicio.</small>
-              </div>
+              </div> */} 
               <div className="exInputGroup">
                 <span className="exLabel">Dificuldade</span>
                 <AnimatedSelect
