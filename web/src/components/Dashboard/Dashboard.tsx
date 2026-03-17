@@ -167,8 +167,9 @@ export default function Dashboard() {
         if (!active) return;
         setErro(e instanceof Error ? e.message : "Erro ao carregar dados do dashboard");
       } finally {
-        if (!active) return;
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     })();
 

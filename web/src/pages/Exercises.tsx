@@ -1019,8 +1019,8 @@ export default function ExerciciosPage() {
 
       const gabaritoLimpo = gabarito.trim();
 
-      let descricaoFinal = descricao.trim();
-      let tituloFinal = titulo.trim();
+      const descricaoFinal = descricao.trim();
+      const tituloFinal = titulo.trim();
 
       const tipoSelecionado: "escrita" | "multipla" =
         componenteInterativo === "multipla" ? "multipla" : "escrita";
@@ -1044,8 +1044,7 @@ export default function ExerciciosPage() {
       }
       if (videoUrlLimpa) {
         try {
-          // eslint-disable-next-line no-new
-          new URL(videoUrlLimpa);
+          void new URL(videoUrlLimpa);
         } catch {
           setErro("Video URL invalida.");
           setSaving(false);
@@ -2292,7 +2291,7 @@ export default function ExerciciosPage() {
                   </div>
 
                   <div className="exInputGroup">
-                    <span className="exLabel">Prazo *</span>
+                    <span className="exLabel">Prazo (Valido apenas nas tarefas diarias) *</span>
                     <input
                       className={`exInput ${fieldWarnings.prazo ? "isWarning" : ""}`}
                       type="datetime-local"

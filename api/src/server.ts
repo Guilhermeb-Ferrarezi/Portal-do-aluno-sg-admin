@@ -19,15 +19,59 @@ import { initializeDatabaseTables } from "./db/migrations";
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   JWT_SECRET: z.string().min(10),
-  JWT_EXPIRES_IN: z.string().default("24h"),
-  REFRESH_TOKEN_EXPIRES_IN: z.string().default("30d"),
-  CORS_ORIGIN: z
-    .string()
-    .default("http://localhost:5173,https://painel-portaldoaluno.santos-tech.com"),
+  JWT_EXPIRES_IN: z.string().optional(),
+  REFRESH_TOKEN_EXPIRES_IN: z.string().optional(),
+  CORS_ORIGIN: z.string().optional(),
+  ACCESS_TOKEN_TTL_MINUTES: z.string().optional(),
+  REFRESH_TOKEN_TTL_DAYS: z.string().optional(),
+  ALLOWED_ORIGINS: z.string().optional(),
+  IA_SG_ALLOWED_ORIGINS: z.string().optional(),
 });
 
+function resolveJwtExpiresIn(env: z.infer<typeof envSchema>) {
+  const explicit = env.JWT_EXPIRES_IN?.trim();
+  if (explicit) return explicit;
+
+  const legacyMinutes = Number(env.ACCESS_TOKEN_TTL_MINUTES);
+  if (Number.isFinite(legacyMinutes) && legacyMinutes > 0) {
+    return `${Math.floor(legacyMinutes)}m`;
+  }
+
+  return "24h";
+}
+
+function resolveRefreshTokenExpiresIn(env: z.infer<typeof envSchema>) {
+  const explicit = env.REFRESH_TOKEN_EXPIRES_IN?.trim();
+  if (explicit) return explicit;
+
+  const legacyDays = Number(env.REFRESH_TOKEN_TTL_DAYS);
+  if (Number.isFinite(legacyDays) && legacyDays > 0) {
+    return `${Math.floor(legacyDays)}d`;
+  }
+
+  return "30d";
+}
+
+function resolveAllowedOrigins(env: z.infer<typeof envSchema>) {
+  const rawOrigins =
+    [
+      env.CORS_ORIGIN,
+      env.ALLOWED_ORIGINS,
+      env.IA_SG_ALLOWED_ORIGINS,
+      "http://localhost:5173,https://painel-portaldoaluno.santos-tech.com",
+    ].find((value) => typeof value === "string" && value.trim().length > 0) ??
+    "http://localhost:5173,https://painel-portaldoaluno.santos-tech.com";
+
+  return rawOrigins
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 const env = envSchema.parse(process.env);
-const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+const jwtExpiresIn = resolveJwtExpiresIn(env);
+const refreshTokenExpiresIn = resolveRefreshTokenExpiresIn(env);
+const allowedOrigins = resolveAllowedOrigins(env);
 
 const app = express();
 app.set("trust proxy", 1);
@@ -66,7 +110,7 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use(
   "/auth",
   loginLimiter,
-  authRouter(env.JWT_SECRET, env.JWT_EXPIRES_IN, env.REFRESH_TOKEN_EXPIRES_IN)
+  authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn)
 );
 app.use(usersRouter(env.JWT_SECRET));
 app.use(exerciciosRouter(env.JWT_SECRET));
@@ -82,7 +126,7 @@ app.use(containersRouter(env.JWT_SECRET));
 app.use(
   "/api/auth",
   loginLimiter,
-  authRouter(env.JWT_SECRET, env.JWT_EXPIRES_IN, env.REFRESH_TOKEN_EXPIRES_IN)
+  authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn)
 );
 app.use("/api", usersRouter(env.JWT_SECRET));
 // (se usersRouter registra /users, vira /api/users)

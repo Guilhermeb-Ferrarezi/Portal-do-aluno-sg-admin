@@ -1040,7 +1040,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               </div>
 
               <div className="exInputGroup">
-                <span className="exLabel">Prazo *</span>
+                <span className="exLabel">Prazo (Valido apenas nas tarefas diarias) *</span>
                 <input className={`exInput ${fieldWarnings.prazo ? "isWarning" : ""}`} type="datetime-local" value={prazo} onChange={(e) => { setPrazo(e.target.value); clearFieldWarning("prazo"); }} />
                 {fieldWarnings.prazo && <small className="exFieldWarning">{fieldWarnings.prazo}</small>}
               </div>

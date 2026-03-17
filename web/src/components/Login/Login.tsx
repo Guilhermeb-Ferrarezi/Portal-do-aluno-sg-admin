@@ -247,8 +247,9 @@ export default function Login() {
 
       dispatch({ type: "set_erro", value: err instanceof Error ? err.message : "Erro desconhecido" });
     } finally {
-      if (!mountedRef.current) return;
-      dispatch({ type: "set_loading", value: false });
+      if (mountedRef.current) {
+        dispatch({ type: "set_loading", value: false });
+      }
     }
   }
 

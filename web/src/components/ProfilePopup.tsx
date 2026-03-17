@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, m } from "framer-motion";
 import { Settings, User, Shield } from "lucide-react";
@@ -38,7 +38,7 @@ export default function ProfilePopup({
   const popupRef = useRef<HTMLDivElement>(null);
   const [userInfo, setUserInfo] = useState<UserMe | null>(null);
   const [position, setPosition] = useState({ bottom: 0, left: 0 });
-  const [coverState, setCoverState] = useState({ positionY: 50, zoom: 100 });
+  const [coverStateVersion, refreshCoverState] = useReducer((value: number) => value + 1, 0);
 
   useEffect(() => {
     obterUsuarioAtual().then(setUserInfo).catch(console.error);
@@ -78,16 +78,16 @@ export default function ProfilePopup({
   const color = roleBadgeColor(role);
   const effectiveProfilePicture = profilePictureUrl || userInfo?.profilePictureUrl || "";
   const effectiveCoverPicture = userInfo?.coverPictureUrl || "";
-  const coverPositionY = coverState.positionY;
-  const coverZoom = coverState.zoom;
   const coverUserKey = userInfo?.id ?? userInfo?.email ?? userInfo?.usuario ?? null;
-
-  useEffect(() => {
-    setCoverState({
+  const coverState = useMemo(
+    () => ({
       positionY: getCoverPositionY(coverUserKey),
       zoom: getCoverZoom(coverUserKey),
-    });
-  }, [coverUserKey]);
+    }),
+    [coverUserKey, coverStateVersion]
+  );
+  const coverPositionY = coverState.positionY;
+  const coverZoom = coverState.zoom;
 
   useEffect(() => {
     const onCoverPositionChange = (event: Event) => {
@@ -97,10 +97,7 @@ export default function ProfilePopup({
       const next = Number(custom.detail.positionY);
       const nextZoom = Number(custom.detail.zoom);
       if (!Number.isFinite(next) && !Number.isFinite(nextZoom)) return;
-      setCoverState((prev) => ({
-        positionY: Number.isFinite(next) ? Math.max(0, Math.min(100, next)) : prev.positionY,
-        zoom: Number.isFinite(nextZoom) ? Math.max(100, Math.min(220, nextZoom)) : prev.zoom,
-      }));
+      refreshCoverState();
     };
 
     const onStorage = (event: StorageEvent) => {
@@ -108,10 +105,7 @@ export default function ProfilePopup({
       const expectedKey = `${COVER_POSITION_KEY_PREFIX}:${coverUserKey}`;
       const expectedZoomKey = `${COVER_ZOOM_KEY_PREFIX}:${coverUserKey}`;
       if (event.key !== expectedKey && event.key !== expectedZoomKey) return;
-      setCoverState({
-        positionY: getCoverPositionY(coverUserKey),
-        zoom: getCoverZoom(coverUserKey),
-      });
+      refreshCoverState();
     };
 
     window.addEventListener(COVER_POSITION_EVENT, onCoverPositionChange as EventListener);

@@ -6,7 +6,7 @@ import crypto from "crypto";
 import { pool } from "../db";
 import { logActivity } from "../utils/activityLog";
 
-export type Role = 2 | 3;
+export type Role = 1 | 2 | 3;
 
 type DbUserRow = {
   id: number;
@@ -96,7 +96,7 @@ function parseDurationToMs(value: string, fallbackMs: number) {
 }
 
 function isValidRole(role: number): role is Role {
-  return role === 2 || role === 3;
+  return role === 1 || role === 2 || role === 3;
 }
 
 export function authRouter(
