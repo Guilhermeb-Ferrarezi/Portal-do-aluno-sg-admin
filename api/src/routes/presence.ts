@@ -1,9 +1,24 @@
 import { Router } from "express";
 import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
+import { issuePresenceSocketTicket } from "../realtime/presenceTickets";
 
 export function presenceRouter(jwtSecret: string) {
   const router = Router();
+
+  router.post("/presence/socket-ticket", authGuard(jwtSecret), (req: AuthRequest, res) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: "Token ausente" });
+    }
+
+    const ticket = issuePresenceSocketTicket(user);
+
+    return res.json({
+      ok: true,
+      ...ticket,
+    });
+  });
 
   router.post("/presence/heartbeat", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     try {

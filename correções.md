@@ -71,3 +71,69 @@
 - `api`: `npm run build`
 - `web`: `npm run build`
 - `web`: `npm run lint`
+
+## Remocao do reload automatico em users
+
+- Removi o polling de 30 segundos em `web/src/pages/AdminUsers.tsx`, entao a tela de usuarios nao recarrega mais sozinha por intervalo.
+- A listagem continua recarregando apenas nos fluxos normais da pagina, como carga inicial, busca, filtros, paginacao e acoes manuais do usuario.
+- Nao houve alteracao de tabela, coluna ou migracao de banco.
+
+## Validacao da remocao do reload automatico
+
+- `api`: `npm run build`
+- `web`: `npm run lint`
+- `web`: `npm run build`
+- `deploy_and_push.bat` executado em modo de teste, sem commit nem push
+- `docker compose ps` com `api` saudavel, `web` em execucao e `db` saudavel
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
+## Endurecimento da autenticacao do WS de presenca
+
+- Removi o envio do JWT na URL do websocket de presenca.
+- O backend agora emite um ticket efemero e descartavel em `api/src/routes/presence.ts`, consumido apenas no handshake do WS.
+- O upgrade do websocket em `api/src/realtime/presence.ts` passou a aceitar ticket via `Sec-WebSocket-Protocol`, rejeita `Origin` fora da allowlist e nao usa mais `?token=`.
+- O frontend em `web/src/services/presenceSocket.ts` agora solicita o ticket autenticado via API antes de abrir o socket e conecta sem expor o JWT na URL.
+- Adicionei `api/src/realtime/presenceTickets.ts` para controlar expiracao curta e uso unico dos tickets.
+- Fiz um ajuste seguro de tipagem em `api/src/routes/submissoes.route.ts` para normalizar `req.params.exercicioId` e destravar o build atual da API.
+- Nao houve alteracao de tabela, coluna ou migracao de banco.
+
+## Validacao do endurecimento do WS
+
+- `api`: `npm run build`
+- `web`: `npm run build`
+
+## Remocao da dependencia da tabela submissoes
+
+- Confirmei no banco atual que `public.submissoes` nao existe mais e que o fluxo ativo usa a tabela `answer`.
+- Adicionei `api/src/db/legacySubmissoes.ts` para detectar em runtime se a tabela legada ainda existe antes de qualquer query antiga.
+- `api/src/routes/submissoes.route.ts` agora bloqueia escrita/correcao do fluxo legado com `410` quando `submissoes` nao existe e, nas leituras, entrega um retorno compativel a partir de `answer` em vez de consultar a tabela removida.
+- `api/src/routes/exercicios.route.ts` agora so tenta apagar arquivos e registros de `submissoes` ao deletar exercicio se a tabela legada realmente existir.
+- `web/src/pages/ExerciseDetail.tsx` foi ajustado para ficar no fluxo de `answers`, sem depender do import legado que apontava para `submissoes`.
+- Nao houve alteracao de tabela, coluna ou migracao de banco.
+
+## Validacao da remocao da dependencia de submissoes
+
+- `api`: `npm run build`
+- `web`: `npm run build`
+- `web`: `npm run lint`
+- `deploy_and_push.bat` executado em modo de teste, abortado antes de qualquer commit ou push
+- `docker compose ps` com `api` saudavel, `web` em execucao e `db` saudavel
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
+## Atualizacao da tela de usuarios so por websocket
+
+- Removi o recarregamento da lista de usuarios quando o socket de presenca reseta em `web/src/pages/AdminUsers.tsx`.
+- A tela agora atualiza o status online/offline localmente so pelos eventos `presence:hello` e `presence:update` do websocket.
+- Quando o WS cai ou reconecta, os usuarios visiveis sao marcados como offline localmente ate o servidor reenviar o snapshot de presenca.
+- Nao houve alteracao de tabela, coluna ou migracao de banco.
+
+## Validacao da tela de usuarios por websocket
+
+- `web`: `npm run build`
+- `web`: `npm run lint`
+- `deploy_and_push.bat` executado em modo de teste, abortado antes de qualquer commit ou push
+- `docker compose ps` com `api` saudavel, `web` em execucao e `db` saudavel
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`

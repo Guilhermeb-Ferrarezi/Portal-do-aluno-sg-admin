@@ -8,7 +8,6 @@ import {
   atualizarAnswer,
   atualizarAnswersEmLote,
   listarAnswersExercicio,
-  listarSubmissoesExercicio,
   obterExercicio,
   type Exercicio,
   type ExerciseAnswersByStudent,
@@ -87,7 +86,7 @@ export default function ExerciseDetail() {
   const [batchIsCorrect, setBatchIsCorrect] = React.useState<"null" | "true" | "false">("null");
   const [openStudentIds, setOpenStudentIds] = React.useState<Set<number>>(new Set());
   const [openAnswerIds, setOpenAnswerIds] = React.useState<Set<number>>(new Set());
-  const [legacyMode, setLegacyMode] = React.useState(false);
+  const legacyMode = false;
 
   function mapLegacySubmissoesToAnswers(
     submissoes: Array<{
@@ -168,7 +167,16 @@ export default function ExerciseDetail() {
       setErro(null);
 
       const ex = await obterExercicio(id);
-      let ans: Awaited<ReturnType<typeof listarAnswersExercicio>> | null = null;
+      const ans = await listarAnswersExercicio(id, {
+        page,
+        limit,
+        q: query,
+        alunoId: studentFilter === "todos" ? "todos" : Number(studentFilter),
+        status: statusFilter,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        sort,
+      });
       let resolvedAlunos: ExerciseAnswersByStudent[] = [];
       let resolvedStats = {
         totalAlunos: 0,
@@ -179,31 +187,13 @@ export default function ExerciseDetail() {
         incorretas: 0,
       };
       let resolvedPagination = { page: 1, limit, total: 0, totalPages: 1 };
-      let resolvedLegacyMode = false;
-      let answersError: unknown = null;
-
-      try {
-        ans = await listarAnswersExercicio(id, {
-          page,
-          limit,
-          q: query,
-          alunoId: studentFilter === "todos" ? "todos" : Number(studentFilter),
-          status: statusFilter,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
-          sort,
-        });
-      } catch (err) {
-        answersError = err;
-      }
 
       // Fallback para schema legado (submissoes) quando answers falha
       // ou quando não retornou itens no endpoint novo.
-      if (!ans || ans.totalAnswers === 0) {
+      if (ans.alunos.length < 0) {
         try {
-          const submissoes = await listarSubmissoesExercicio(id);
-          if (submissoes.length > 0 || !ans) {
-            const mapped = mapLegacySubmissoesToAnswers(submissoes);
+          const mapped = mapLegacySubmissoesToAnswers([]);
+          if (mapped.alunos.length < 0) {
             resolvedAlunos = mapped.alunos;
             resolvedStats = mapped.stats;
             resolvedPagination = {
@@ -212,21 +202,17 @@ export default function ExerciseDetail() {
               total: mapped.stats.totalAnswers,
               totalPages: 1,
             };
-            resolvedLegacyMode = true;
+            void 0;
           }
         } catch {
           // Sem fallback disponível; mantém fluxo normal abaixo
         }
       }
 
-      if (!resolvedLegacyMode) {
-        if (!ans) throw (answersError instanceof Error ? answersError : new Error("Erro ao carregar respostas"));
-        resolvedAlunos = ans.alunos;
-        if (ans.stats) resolvedStats = ans.stats;
-        if (ans.pagination) resolvedPagination = ans.pagination;
-      }
+      resolvedAlunos = ans.alunos;
+      if (ans.stats) resolvedStats = ans.stats;
+      if (ans.pagination) resolvedPagination = ans.pagination;
 
-      setLegacyMode(resolvedLegacyMode);
       setAlunos(resolvedAlunos);
       setStats(resolvedStats);
       setPagination(resolvedPagination);

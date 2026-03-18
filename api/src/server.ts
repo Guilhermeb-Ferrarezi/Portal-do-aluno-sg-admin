@@ -189,7 +189,7 @@ app.use(
 (async () => {
   // Inicializar banco de dados
   await initializeDatabaseTables();
-  setupPresenceWebSocketServer(server, env.JWT_SECRET);
+  setupPresenceWebSocketServer(server, env.JWT_SECRET, allowedOrigins);
 
   server.listen(env.PORT, "0.0.0.0", () => {
     console.log(`API rodando na porta ${env.PORT}`);

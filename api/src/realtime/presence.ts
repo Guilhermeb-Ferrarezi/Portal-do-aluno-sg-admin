@@ -2,6 +2,7 @@ import type { IncomingMessage, Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
 import { authenticateToken, type AuthUser } from "../middlewares/auth";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
+import { consumePresenceSocketTicket } from "./presenceTickets";
 
 type PresenceServerMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -19,6 +20,8 @@ type PresenceSocket = WebSocket & {
 const WS_PATHS = new Set(["/ws/presence", "/api/ws/presence"]);
 const PROXY_KEEPALIVE_INTERVAL_MS = 20_000;
 const SOCKET_STALE_TIMEOUT_MS = 70_000;
+const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
+const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
 const socketsByUserId = new Map<string, Set<WebSocket>>();
 const socketUserIds = new WeakMap<WebSocket, string>();
@@ -63,13 +66,7 @@ function unregisterSocket(ws: WebSocket) {
   return userId;
 }
 
-function extractToken(request: IncomingMessage) {
-  const url = new URL(request.url ?? "/", "http://localhost");
-  const tokenFromQuery = url.searchParams.get("token");
-  if (tokenFromQuery && tokenFromQuery.trim()) {
-    return tokenFromQuery.trim();
-  }
-
+function extractBearerToken(request: IncomingMessage) {
   const authHeader = request.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.slice(7);
@@ -78,12 +75,79 @@ function extractToken(request: IncomingMessage) {
   return null;
 }
 
+function extractRequestedProtocols(request: IncomingMessage) {
+  const header = request.headers["sec-websocket-protocol"];
+  const rawValue = Array.isArray(header) ? header.join(",") : header ?? "";
+
+  return rawValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function extractPresenceTicket(request: IncomingMessage) {
+  const requestedProtocols = extractRequestedProtocols(request);
+  const ticketProtocol = requestedProtocols.find((protocol) =>
+    protocol.startsWith(PRESENCE_WS_TICKET_PREFIX)
+  );
+
+  if (!ticketProtocol) {
+    return null;
+  }
+
+  if (!requestedProtocols.includes(PRESENCE_WS_PROTOCOL)) {
+    return null;
+  }
+
+  const ticket = ticketProtocol.slice(PRESENCE_WS_TICKET_PREFIX.length).trim();
+  return ticket || null;
+}
+
 function isPresencePath(pathname: string) {
   return WS_PATHS.has(pathname);
 }
 
-export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: string) {
-  const wss = new WebSocketServer({ noServer: true });
+function isAllowedOrigin(origin: string | undefined, allowedOrigins: Set<string>) {
+  if (!origin) {
+    return true;
+  }
+
+  return allowedOrigins.has(origin);
+}
+
+async function authenticatePresenceRequest(request: IncomingMessage, jwtSecret: string) {
+  const ticket = extractPresenceTicket(request);
+  if (ticket) {
+    return consumePresenceSocketTicket(ticket);
+  }
+
+  const token = extractBearerToken(request);
+  if (!token) {
+    return null;
+  }
+
+  return authenticateToken(token, jwtSecret);
+}
+
+export function setupPresenceWebSocketServer(
+  server: HttpServer,
+  jwtSecret: string,
+  allowedOrigins: string[]
+) {
+  const normalizedAllowedOrigins = new Set(
+    allowedOrigins.map((origin) => origin.trim()).filter(Boolean)
+  );
+
+  const wss = new WebSocketServer({
+    noServer: true,
+    handleProtocols(protocols) {
+      if (protocols.has(PRESENCE_WS_PROTOCOL)) {
+        return PRESENCE_WS_PROTOCOL;
+      }
+
+      return false;
+    },
+  });
 
   const keepAliveIntervalId = setInterval(() => {
     const now = Date.now();
@@ -205,14 +269,13 @@ export function setupPresenceWebSocketServer(server: HttpServer, jwtSecret: stri
         return;
       }
 
-      const token = extractToken(request);
-      if (!token) {
-        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      if (!isAllowedOrigin(request.headers.origin, normalizedAllowedOrigins)) {
+        socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
         socket.destroy();
         return;
       }
 
-      const user = await authenticateToken(token, jwtSecret);
+      const user = await authenticatePresenceRequest(request, jwtSecret);
       if (!user) {
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();

@@ -130,6 +130,15 @@ export async function sendPresenceHeartbeat() {
   });
 }
 
+export async function createPresenceSocketTicket() {
+  return apiFetch<{ ok: boolean; ticket: string; expiresAt: string }>(
+    "/presence/socket-ticket",
+    {
+      method: "POST",
+    }
+  );
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}) {
   const headers = await buildJsonHeaders(options.headers);
   const res = await fetch(`${API_BASE_URL}${path}`, {

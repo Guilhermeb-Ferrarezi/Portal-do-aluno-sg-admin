@@ -1,5 +1,5 @@
-import { getToken, getUserId, isLoggedIn } from "../auth/auth";
-import { API_BASE_URL, sendPresenceHeartbeat } from "./api";
+import { getUserId, isLoggedIn } from "../auth/auth";
+import { API_BASE_URL, createPresenceSocketTicket, sendPresenceHeartbeat } from "./api";
 
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -16,6 +16,8 @@ type PresenceState = {
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const RECONNECT_DELAY_MS = 3_000;
+const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
+const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
 const listeners = new Set<PresenceListener>();
 const latestPresenceByUserId = new Map<string, PresenceState>();
@@ -25,6 +27,7 @@ let heartbeatIntervalId: number | null = null;
 let reconnectTimeoutId: number | null = null;
 let shouldRun = false;
 let apiHeartbeatInFlight = false;
+let connectionAttemptId = 0;
 
 function notify(message: PresenceSocketMessage) {
   if (message.type === "presence:hello" || message.type === "presence:update") {
@@ -86,12 +89,10 @@ function clearReconnect() {
   }
 }
 
-function buildPresenceUrl(token: string) {
+function buildPresenceUrl() {
   const explicitWsUrl = import.meta.env.VITE_WS_URL as string | undefined;
   if (explicitWsUrl && explicitWsUrl.trim()) {
-    const url = new URL(explicitWsUrl.trim());
-    url.searchParams.set("token", token);
-    return url.toString();
+    return explicitWsUrl.trim();
   }
 
   const hasAbsoluteApiUrl = /^https?:\/\//i.test(API_BASE_URL);
@@ -108,9 +109,7 @@ function buildPresenceUrl(token: string) {
     ? apiUrl.pathname.slice(0, -4)
     : apiUrl.pathname;
   const wsPath = `${basePath}/ws/presence`.replace(/\/{2,}/g, "/");
-  const url = new URL(`${protocol}//${apiUrl.host}${wsPath}`);
-  url.searchParams.set("token", token);
-  return url.toString();
+  return `${protocol}//${apiUrl.host}${wsPath}`;
 }
 
 function sendHeartbeat() {
@@ -133,9 +132,6 @@ function scheduleReconnect() {
 export function connectPresenceSocket() {
   shouldRun = true;
 
-  const token = getToken();
-  if (!token) return;
-
   if (heartbeatIntervalId === null) {
     heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
   }
@@ -146,37 +142,78 @@ export function connectPresenceSocket() {
     return;
   }
 
+  const attemptId = ++connectionAttemptId;
+  void openPresenceSocket(attemptId);
+}
+
+async function openPresenceSocket(attemptId: number) {
   clearReconnect();
 
-  socket = new WebSocket(buildPresenceUrl(token));
+  if (!shouldRun || !isLoggedIn()) {
+    return;
+  }
 
-  socket.addEventListener("open", () => {
-    clearPresenceState(true);
-    sendHeartbeat();
-  });
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
 
-  socket.addEventListener("message", (event) => {
-    try {
-      const message = JSON.parse(event.data) as PresenceSocketMessage;
-      notify(message);
-    } catch {
-      // ignore malformed payloads
+  try {
+    const { ticket } = await createPresenceSocketTicket();
+
+    if (!shouldRun || !isLoggedIn() || attemptId !== connectionAttemptId) {
+      return;
     }
-  });
 
-  socket.addEventListener("close", () => {
-    clearPresenceState(true);
-    socket = null;
+    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    const nextSocket = new WebSocket(buildPresenceUrl(), [
+      PRESENCE_WS_PROTOCOL,
+      `${PRESENCE_WS_TICKET_PREFIX}${ticket}`,
+    ]);
+
+    socket = nextSocket;
+
+    nextSocket.addEventListener("open", () => {
+      if (socket !== nextSocket) return;
+
+      clearPresenceState(true);
+      sendHeartbeat();
+    });
+
+    nextSocket.addEventListener("message", (event) => {
+      if (socket !== nextSocket) return;
+
+      try {
+        const message = JSON.parse(event.data) as PresenceSocketMessage;
+        notify(message);
+      } catch {
+        // ignore malformed payloads
+      }
+    });
+
+    nextSocket.addEventListener("close", () => {
+      if (socket === nextSocket) {
+        socket = null;
+      }
+
+      clearPresenceState(true);
+      scheduleReconnect();
+    });
+
+    nextSocket.addEventListener("error", () => {
+      if (socket !== nextSocket) return;
+      nextSocket.close();
+    });
+  } catch {
     scheduleReconnect();
-  });
-
-  socket.addEventListener("error", () => {
-    socket?.close();
-  });
+  }
 }
 
 export function disconnectPresenceSocket() {
   shouldRun = false;
+  connectionAttemptId += 1;
   clearReconnect();
   clearHeartbeat();
   clearPresenceState(true);

@@ -70,6 +70,15 @@ export default function AdminUsersPage() {
     );
   }, []);
 
+  const clearVisiblePresenceState = React.useCallback(() => {
+    setUsuarios((current) =>
+      current.map((usuario) => ({
+        ...usuario,
+        isOnline: false,
+      }))
+    );
+  }, []);
+
   const mergePresenceSnapshot = React.useCallback((items: User[]) => {
     const snapshot = new Map(
       getPresenceSnapshot().map((presence) => [
@@ -153,23 +162,13 @@ export default function AdminUsersPage() {
   }, [carregarUsuarios]);
 
   React.useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      void carregarUsuarios();
-    }, 30_000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [carregarUsuarios]);
-
-  React.useEffect(() => {
     for (const presence of getPresenceSnapshot()) {
       applyPresenceState(presence.userId, presence.isOnline, presence.lastSeenAt);
     }
 
     return subscribeToPresence((message) => {
       if (message.type === "presence:reset") {
-        void carregarUsuarios();
+        clearVisiblePresenceState();
         return;
       }
 
@@ -179,7 +178,7 @@ export default function AdminUsersPage() {
 
       applyPresenceState(message.userId, message.isOnline, message.lastSeenAt);
     });
-  }, [applyPresenceState, carregarUsuarios]);
+  }, [applyPresenceState, clearVisiblePresenceState]);
 
   const abrirEditar = (usuario: User) => {
     setEditandoUsuario(usuario);
