@@ -1,5 +1,5 @@
 import { isLoggedIn } from "../auth/auth";
-import { API_BASE_URL, createPresenceSocketTicket } from "./api";
+import { API_BASE_URL, createPresenceSocketTicket, sendPresenceHeartbeat } from "./api";
 
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -26,6 +26,7 @@ let socket: WebSocket | null = null;
 let heartbeatIntervalId: number | null = null;
 let reconnectTimeoutId: number | null = null;
 let shouldRun = false;
+let apiHeartbeatInFlight = false;
 let connectionAttemptId = 0;
 
 function notify(message: PresenceSocketMessage) {
@@ -66,6 +67,19 @@ function clearReconnect() {
   }
 }
 
+async function sendApiHeartbeat() {
+  if (!shouldRun || !isLoggedIn() || apiHeartbeatInFlight) return;
+
+  apiHeartbeatInFlight = true;
+  try {
+    await sendPresenceHeartbeat();
+  } catch {
+    // keep presence best-effort when HTTP heartbeat fails
+  } finally {
+    apiHeartbeatInFlight = false;
+  }
+}
+
 function buildPresenceUrl() {
   const explicitWsUrl = import.meta.env.VITE_WS_URL as string | undefined;
   if (explicitWsUrl && explicitWsUrl.trim()) {
@@ -95,6 +109,11 @@ function sendWsHeartbeat() {
   }
 }
 
+function sendHeartbeat() {
+  sendWsHeartbeat();
+  void sendApiHeartbeat();
+}
+
 function scheduleReconnect() {
   clearReconnect();
   if (!shouldRun || !isLoggedIn()) return;
@@ -106,6 +125,12 @@ function scheduleReconnect() {
 
 export function connectPresenceSocket() {
   shouldRun = true;
+
+  if (heartbeatIntervalId === null) {
+    heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+  }
+
+  sendHeartbeat();
 
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return;
@@ -147,12 +172,8 @@ async function openPresenceSocket(attemptId: number) {
     nextSocket.addEventListener("open", () => {
       if (socket !== nextSocket) return;
 
-      clearPresenceState(true);
-
-      // WS connected — start WS-only heartbeat, no more HTTP requests
-      clearHeartbeat();
-      sendWsHeartbeat();
-      heartbeatIntervalId = window.setInterval(sendWsHeartbeat, HEARTBEAT_INTERVAL_MS);
+      clearPresenceState();
+      sendHeartbeat();
     });
 
     nextSocket.addEventListener("message", (event) => {
@@ -171,7 +192,6 @@ async function openPresenceSocket(attemptId: number) {
         socket = null;
       }
 
-      clearPresenceState(true);
       scheduleReconnect();
     });
 
