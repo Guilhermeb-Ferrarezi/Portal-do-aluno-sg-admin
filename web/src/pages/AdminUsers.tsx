@@ -28,6 +28,22 @@ import {
   X,
 } from "lucide-react";
 
+const PRESENCE_STALE_AFTER_MS = 90_000;
+const PRESENCE_RENDER_TICK_MS = 15_000;
+
+function getPresenceTimestamp(lastSeenAt?: string | null) {
+  if (!lastSeenAt) return null;
+  const parsed = Date.parse(lastSeenAt);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isPresenceStillOnline(isOnline: boolean | undefined, lastSeenAt?: string | null, now = Date.now()) {
+  if (!isOnline) return false;
+  const timestamp = getPresenceTimestamp(lastSeenAt);
+  if (timestamp === null) return false;
+  return now - timestamp <= PRESENCE_STALE_AFTER_MS;
+}
+
 export default function AdminUsersPage() {
   const [usuarios, setUsuarios] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -53,6 +69,7 @@ export default function AdminUsersPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
   const [totalItems, setTotalItems] = React.useState(0);
+  const [presenceNow, setPresenceNow] = React.useState(() => Date.now());
   const hasLoadedUsersRef = React.useRef(false);
   const lastSeenFormatter = React.useMemo(
     () =>
@@ -138,6 +155,16 @@ export default function AdminUsersPage() {
     }, 3000);
     return () => clearTimeout(timer);
   }, [feedback]);
+
+  React.useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setPresenceNow(Date.now());
+    }, PRESENCE_RENDER_TICK_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const carregarUsuarios = React.useCallback(async () => {
     const keepVisibleContent = hasLoadedUsersRef.current;
@@ -380,50 +407,62 @@ export default function AdminUsersPage() {
                     </thead>
                     <tbody>
                       {usuarios.map((usuario, idx) => (
-                        <tr
-                          key={usuario.id}
-                          className="userRow userRowAnimated"
-                          style={{ animationDelay: `${0.16 + idx * 0.04}s` }}
-                        >
-                          <td data-label="Nome">{usuario.nome}</td>
-                          <td data-label="Usuario" className="usuarioCell">
-                            {usuario.email ?? usuario.usuario}
-                          </td>
-                          <td data-label="Tipo">
-                            <span className={`roleTag role-${usuario.role}`}>
-                              {roleLabel(usuario.role)}
-                            </span>
-                          </td>
-                          <td data-label="Status">
-                            <div className="presenceCell">
-                              <span className={`presenceBadge ${usuario.isOnline ? "isOnline" : "isOffline"}`}>
-                                <span className="presenceDot" />
-                                {usuario.isOnline ? "Online" : "Offline"}
-                              </span>
-                              <small className="presenceMeta">
-                                {usuario.lastSeenAt
-                                  ? `Visto em ${lastSeenFormatter.format(new Date(usuario.lastSeenAt))}`
-                                  : "Sem atividade recente"}
-                              </small>
-                            </div>
-                          </td>
-                          <td data-label="Acoes" className="actionCell">
-                            <AnimatedButton
-                              className="btnEdit"
-                              onClick={() => abrirEditar(usuario)}
-                              title="Editar usuario"
+                        (() => {
+                          const isEffectivelyOnline = isPresenceStillOnline(
+                            usuario.isOnline,
+                            usuario.lastSeenAt,
+                            presenceNow
+                          );
+
+                          return (
+                            <tr
+                              key={usuario.id}
+                              className="userRow userRowAnimated"
+                              style={{ animationDelay: `${0.16 + idx * 0.04}s` }}
                             >
-                              <Pencil size={16} />
-                            </AnimatedButton>
-                            <AnimatedButton
-                              className="btnDelete"
-                              onClick={() => setUsuarioDeletar(usuario)}
-                              title="Deletar usuario"
-                            >
-                              <Trash2 size={16} />
-                            </AnimatedButton>
-                          </td>
-                        </tr>
+                              <td data-label="Nome">{usuario.nome}</td>
+                              <td data-label="Usuario" className="usuarioCell">
+                                {usuario.email ?? usuario.usuario}
+                              </td>
+                              <td data-label="Tipo">
+                                <span className={`roleTag role-${usuario.role}`}>
+                                  {roleLabel(usuario.role)}
+                                </span>
+                              </td>
+                              <td data-label="Status">
+                                <div className="presenceCell">
+                                  <span className={`presenceBadge ${isEffectivelyOnline ? "isOnline" : "isOffline"}`}>
+                                    <span className="presenceDot" />
+                                    {isEffectivelyOnline ? "Online" : "Offline"}
+                                  </span>
+                                  <small className="presenceMeta">
+                                    {isEffectivelyOnline
+                                      ? "Ativo agora"
+                                      : usuario.lastSeenAt
+                                        ? `Visto em ${lastSeenFormatter.format(new Date(usuario.lastSeenAt))}`
+                                        : "Sem atividade recente"}
+                                  </small>
+                                </div>
+                              </td>
+                              <td data-label="Acoes" className="actionCell">
+                                <AnimatedButton
+                                  className="btnEdit"
+                                  onClick={() => abrirEditar(usuario)}
+                                  title="Editar usuario"
+                                >
+                                  <Pencil size={16} />
+                                </AnimatedButton>
+                                <AnimatedButton
+                                  className="btnDelete"
+                                  onClick={() => setUsuarioDeletar(usuario)}
+                                  title="Deletar usuario"
+                                >
+                                  <Trash2 size={16} />
+                                </AnimatedButton>
+                              </td>
+                            </tr>
+                          );
+                        })()
                       ))}
                     </tbody>
                   </table>

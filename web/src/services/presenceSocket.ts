@@ -172,7 +172,7 @@ async function openPresenceSocket(attemptId: number) {
     nextSocket.addEventListener("open", () => {
       if (socket !== nextSocket) return;
 
-      clearPresenceState();
+      clearPresenceState(true);
       sendHeartbeat();
     });
 
