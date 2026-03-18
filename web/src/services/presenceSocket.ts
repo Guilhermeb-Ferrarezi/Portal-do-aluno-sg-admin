@@ -1,5 +1,5 @@
-import { getUserId, isLoggedIn } from "../auth/auth";
-import { API_BASE_URL, createPresenceSocketTicket, sendPresenceHeartbeat } from "./api";
+import { isLoggedIn } from "../auth/auth";
+import { API_BASE_URL, createPresenceSocketTicket } from "./api";
 
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -15,7 +15,7 @@ type PresenceState = {
 };
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const RECONNECT_DELAY_MS = 3_000;
+const RECONNECT_DELAY_MS = 5_000;
 const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
 const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
@@ -26,7 +26,6 @@ let socket: WebSocket | null = null;
 let heartbeatIntervalId: number | null = null;
 let reconnectTimeoutId: number | null = null;
 let shouldRun = false;
-let apiHeartbeatInFlight = false;
 let connectionAttemptId = 0;
 
 function notify(message: PresenceSocketMessage) {
@@ -60,28 +59,6 @@ function clearHeartbeat() {
   }
 }
 
-async function sendApiHeartbeat() {
-  if (!shouldRun || !isLoggedIn() || apiHeartbeatInFlight) return;
-
-  apiHeartbeatInFlight = true;
-  try {
-    const response = await sendPresenceHeartbeat();
-    const currentUserId = getUserId();
-    if (currentUserId) {
-      notify({
-        type: "presence:update",
-        userId: currentUserId,
-        isOnline: true,
-        lastSeenAt: response.lastSeenAt,
-      });
-    }
-  } catch {
-    // keep websocket presence best-effort
-  } finally {
-    apiHeartbeatInFlight = false;
-  }
-}
-
 function clearReconnect() {
   if (reconnectTimeoutId !== null) {
     window.clearTimeout(reconnectTimeoutId);
@@ -112,12 +89,10 @@ function buildPresenceUrl() {
   return `${protocol}//${apiUrl.host}${wsPath}`;
 }
 
-function sendHeartbeat() {
+function sendWsHeartbeat() {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: "presence:heartbeat" }));
   }
-
-  void sendApiHeartbeat();
 }
 
 function scheduleReconnect() {
@@ -131,12 +106,6 @@ function scheduleReconnect() {
 
 export function connectPresenceSocket() {
   shouldRun = true;
-
-  if (heartbeatIntervalId === null) {
-    heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
-  }
-
-  sendHeartbeat();
 
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return;
@@ -179,7 +148,11 @@ async function openPresenceSocket(attemptId: number) {
       if (socket !== nextSocket) return;
 
       clearPresenceState(true);
-      sendHeartbeat();
+
+      // WS connected — start WS-only heartbeat, no more HTTP requests
+      clearHeartbeat();
+      sendWsHeartbeat();
+      heartbeatIntervalId = window.setInterval(sendWsHeartbeat, HEARTBEAT_INTERVAL_MS);
     });
 
     nextSocket.addEventListener("message", (event) => {

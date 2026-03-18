@@ -116,12 +116,63 @@ function isPresencePath(pathname: string) {
   return WS_PATHS.has(pathname);
 }
 
-function isAllowedOrigin(origin: string | undefined, allowedOrigins: Set<string>) {
+function normalizeOrigin(origin: string) {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return null;
+  }
+}
+
+function isLoopbackHostname(hostname: string) {
+  const normalizedHostname = hostname.toLowerCase();
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "127.0.0.1" ||
+    normalizedHostname === "0.0.0.0" ||
+    normalizedHostname === "::1" ||
+    normalizedHostname === "[::1]"
+  );
+}
+
+function shouldAllowLoopbackOrigins(allowedOrigins: Set<string>) {
+  for (const allowedOrigin of allowedOrigins) {
+    const normalizedOrigin = normalizeOrigin(allowedOrigin);
+    if (!normalizedOrigin) {
+      continue;
+    }
+
+    if (isLoopbackHostname(new URL(normalizedOrigin).hostname)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isAllowedOrigin(
+  origin: string | undefined,
+  allowedOrigins: Set<string>,
+  allowAnyLoopbackOrigin: boolean
+) {
   if (!origin) {
     return true;
   }
 
-  return allowedOrigins.has(origin);
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (!normalizedOrigin) {
+    return false;
+  }
+
+  if (allowedOrigins.has(normalizedOrigin)) {
+    return true;
+  }
+
+  if (!allowAnyLoopbackOrigin) {
+    return false;
+  }
+
+  return isLoopbackHostname(new URL(normalizedOrigin).hostname);
 }
 
 async function authenticatePresenceRequest(request: IncomingMessage, jwtSecret: string) {
@@ -144,8 +195,11 @@ export function setupPresenceWebSocketServer(
   allowedOrigins: string[]
 ) {
   const normalizedAllowedOrigins = new Set(
-    allowedOrigins.map((origin) => origin.trim()).filter(Boolean)
+    allowedOrigins
+      .map((origin) => normalizeOrigin(origin.trim()))
+      .filter((origin): origin is string => Boolean(origin))
   );
+  const allowAnyLoopbackOrigin = shouldAllowLoopbackOrigins(normalizedAllowedOrigins);
 
   const wss = new WebSocketServer({
     noServer: true,
@@ -271,7 +325,7 @@ export function setupPresenceWebSocketServer(
         return;
       }
 
-      if (!isAllowedOrigin(request.headers.origin, normalizedAllowedOrigins)) {
+      if (!isAllowedOrigin(request.headers.origin, normalizedAllowedOrigins, allowAnyLoopbackOrigin)) {
         socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
         socket.destroy();
         return;
