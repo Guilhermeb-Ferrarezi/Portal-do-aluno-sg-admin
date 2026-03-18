@@ -76,6 +76,15 @@ const jwtExpiresIn = resolveJwtExpiresIn(env);
 const refreshTokenExpiresIn = resolveRefreshTokenExpiresIn(env);
 const allowedOrigins = resolveAllowedOrigins(env);
 
+function shouldSkipApiLimiter(path: string) {
+  return (
+    path === "/presence/socket-ticket" ||
+    path === "/presence/heartbeat" ||
+    path === "/api/presence/socket-ticket" ||
+    path === "/api/presence/heartbeat"
+  );
+}
+
 const app = express();
 const server = createServer(app);
 app.set("trust proxy", 1);
@@ -96,6 +105,7 @@ const apiLimiter = rateLimit({
   limit: 300,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skip: (req) => shouldSkipApiLimiter(req.path),
 });
 
 const loginLimiter = rateLimit({
