@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
+import { broadcastPresenceUpdate } from "../realtime/presence";
 import { issuePresenceSocketTicket } from "../realtime/presenceTickets";
 
 export function presenceRouter(jwtSecret: string) {
@@ -23,7 +24,12 @@ export function presenceRouter(jwtSecret: string) {
   router.post("/presence/heartbeat", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     try {
       const userId = req.user!.sub;
-      const lastSeenAt = (await persistUserLastSeen(userId, false)) ?? getKnownLastSeenAt(userId);
+      const persistedLastSeenAt = await persistUserLastSeen(userId, false);
+      const lastSeenAt = persistedLastSeenAt ?? getKnownLastSeenAt(userId);
+
+      if (persistedLastSeenAt) {
+        broadcastPresenceUpdate(userId, true, persistedLastSeenAt);
+      }
 
       return res.json({
         ok: true,

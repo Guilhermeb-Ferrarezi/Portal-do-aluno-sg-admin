@@ -137,3 +137,17 @@
 - `docker compose ps` com `api` saudavel, `web` em execucao e `db` saudavel
 - `GET http://localhost:3001/api/health` -> `{"ok":true}`
 - `GET http://localhost:8080` -> `200`
+
+## Broadcast de presenca tambem nos heartbeats
+
+- Identifiquei que o backend so emitia `presence:update` ao conectar e desconectar o websocket.
+- Nos heartbeats, ele atualizava `last_seen_at` no banco, mas nao notificava os outros clientes conectados, entao a tela de usuarios podia ficar sem refletir a atividade mais recente em tempo real.
+- `api/src/realtime/presence.ts` agora faz broadcast de `presence:update` tambem quando um heartbeat do websocket realmente persiste um novo `last_seen_at`.
+- `api/src/routes/presence.ts` agora faz o mesmo no fallback HTTP de presenca, para que os observadores recebam atualizacao mesmo quando a persistencia vier dessa rota.
+- Nao houve alteracao de tabela, coluna ou migracao de banco.
+
+## Validacao do broadcast de presenca nos heartbeats
+
+- `api`: `npm run build`
+- `web`: `npm run build`
+- `web`: `npm run lint`

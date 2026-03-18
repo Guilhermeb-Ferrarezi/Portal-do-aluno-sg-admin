@@ -39,6 +39,15 @@ function broadcast(message: PresenceServerMessage) {
   }
 }
 
+export function broadcastPresenceUpdate(userId: string, isOnline: boolean, lastSeenAt: string) {
+  broadcast({
+    type: "presence:update",
+    userId,
+    isOnline,
+    lastSeenAt,
+  });
+}
+
 function registerSocket(userId: string, ws: WebSocket) {
   const sockets = socketsByUserId.get(userId);
   if (sockets) {
@@ -196,12 +205,7 @@ export function setupPresenceWebSocketServer(
         });
       }
 
-      broadcast({
-        type: "presence:update",
-        userId: user.sub,
-        isOnline: true,
-        lastSeenAt,
-      });
+      broadcastPresenceUpdate(user.sub, true, lastSeenAt);
     } catch (error) {
       console.error("presence connect error:", error);
       safeSend(ws, {
@@ -230,7 +234,10 @@ export function setupPresenceWebSocketServer(
       }
 
       try {
-        await persistUserLastSeen(user.sub, false);
+        const lastSeenAt = await persistUserLastSeen(user.sub, false);
+        if (lastSeenAt) {
+          broadcastPresenceUpdate(user.sub, true, lastSeenAt);
+        }
       } catch (error) {
         console.error("presence heartbeat error:", error);
       }
@@ -245,12 +252,7 @@ export function setupPresenceWebSocketServer(
         const lastSeenAt =
           (await persistUserLastSeen(userId, true)) ?? new Date().toISOString();
 
-        broadcast({
-          type: "presence:update",
-          userId,
-          isOnline: false,
-          lastSeenAt,
-        });
+        broadcastPresenceUpdate(userId, false, lastSeenAt);
       } catch (error) {
         console.error("presence disconnect error:", error);
       }
