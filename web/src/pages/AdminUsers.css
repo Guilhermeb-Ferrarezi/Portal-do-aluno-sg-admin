@@ -138,6 +138,52 @@
   background: var(--input-bg-focus);
 }
 
+.usersRefreshButton {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid rgba(var(--primary-rgb), 0.16);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(var(--primary-rgb), 0.14), rgba(var(--primary-rgb), 0.06)),
+    var(--card);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transition:
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.usersRefreshButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(var(--primary-rgb), 0.28);
+  box-shadow: 0 14px 28px rgba(var(--primary-rgb), 0.16);
+}
+
+.usersRefreshButton:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.spinIcon {
+  animation: adminUsersSpin 0.9s linear infinite;
+}
+
+@keyframes adminUsersSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* TABELA DE USUÁRIOS */
 .usersTableContainer {
   overflow-x: auto;
@@ -456,6 +502,77 @@
   margin-top: 24px;
 }
 
+.editModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+}
+
+.editModalHint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.editModalActions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.editModalButton {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+}
+
+.editModalButton:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.editModalButtonSecondary {
+  background: color-mix(in srgb, var(--background-secondary) 84%, var(--card) 16%);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.editModalButtonSecondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+.editModalButtonPrimary {
+  background: linear-gradient(135deg, var(--red), var(--primary-dark));
+  color: white;
+  box-shadow: 0 12px 24px rgba(var(--primary-rgb), 0.24);
+}
+
+.editModalButtonPrimary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(var(--primary-rgb), 0.32);
+}
+
 .btnCancel,
 .btnConfirm {
   flex: 1;
@@ -517,7 +634,7 @@
 
   .filterRow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 210px;
+    grid-template-columns: minmax(0, 1fr) 210px auto;
     gap: 10px;
     align-items: stretch;
   }
@@ -527,7 +644,8 @@
   }
 
   .searchInput,
-  .filterSelect {
+  .filterSelect,
+  .usersRefreshButton {
     min-height: 44px;
   }
 
@@ -609,7 +727,8 @@
   }
 
   .searchBox,
-  .filterSelect {
+  .filterSelect,
+  .usersRefreshButton {
     width: 100%;
     margin: 0;
   }
@@ -688,8 +807,23 @@
 
   .searchInput,
   .filterSelect,
-  .formInput {
+  .formInput,
+  .usersRefreshButton {
     min-height: 48px;
+  }
+
+  .editModalFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editModalActions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .editModalButton {
+    flex: 1;
   }
 }
 
@@ -712,5 +846,10 @@
     min-width: 36px;
     min-height: 34px;
     padding: 6px 10px;
+  }
+
+  .usersRefreshButton,
+  .editModalButton {
+    width: 100%;
   }
 }

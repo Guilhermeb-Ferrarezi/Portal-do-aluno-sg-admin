@@ -22,11 +22,16 @@ import {
   Pencil,
   Trash2,
   Search,
+  RefreshCcw,
+  Loader2,
+  Save,
+  X,
 } from "lucide-react";
 
 export default function AdminUsersPage() {
   const [usuarios, setUsuarios] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
   const [filtroTipo, setFiltroTipo] = React.useState<"todos" | "aluno" | "professor" | "admin">("todos");
   const [busca, setBusca] = React.useState("");
@@ -35,6 +40,7 @@ export default function AdminUsersPage() {
   const [editNome, setEditNome] = React.useState("");
   const [editEmail, setEditEmail] = React.useState("");
   const [editarAberto, setEditarAberto] = React.useState(false);
+  const [salvandoEdicao, setSalvandoEdicao] = React.useState(false);
 
   const [usuarioDeletar, setUsuarioDeletar] = React.useState<User | null>(null);
   const [deletando, setDeletando] = React.useState(false);
@@ -47,6 +53,7 @@ export default function AdminUsersPage() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
   const [totalItems, setTotalItems] = React.useState(0);
+  const hasLoadedUsersRef = React.useRef(false);
   const lastSeenFormatter = React.useMemo(
     () =>
       new Intl.DateTimeFormat("pt-BR", {
@@ -133,8 +140,15 @@ export default function AdminUsersPage() {
   }, [feedback]);
 
   const carregarUsuarios = React.useCallback(async () => {
+    const keepVisibleContent = hasLoadedUsersRef.current;
+
     try {
-      setLoading(true);
+      if (keepVisibleContent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       setErro(null);
 
       const response = await listarUsuariosPaginado({
@@ -146,6 +160,7 @@ export default function AdminUsersPage() {
 
       setUsuarios(mergePresenceSnapshot(response.items));
       setTotalItems(response.total);
+      hasLoadedUsersRef.current = true;
 
       if (currentPage > response.pagination.totalPages) {
         setCurrentPage(response.pagination.totalPages);
@@ -153,7 +168,11 @@ export default function AdminUsersPage() {
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao carregar usuarios");
     } finally {
-      setLoading(false);
+      if (keepVisibleContent) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [busca, currentPage, filtroTipo, itemsPerPage, mergePresenceSnapshot]);
 
@@ -206,6 +225,7 @@ export default function AdminUsersPage() {
     }
 
     try {
+      setSalvandoEdicao(true);
       await atualizarUsuario(editandoUsuario.id, {
         nome: editNome.trim(),
         email: editEmail.trim(),
@@ -222,6 +242,8 @@ export default function AdminUsersPage() {
         tipo: "erro",
         mensagem: err instanceof Error ? err.message : "Erro ao atualizar usuario",
       });
+    } finally {
+      setSalvandoEdicao(false);
     }
   };
 
@@ -319,6 +341,19 @@ export default function AdminUsersPage() {
                   <option value="professor">Professores</option>
                   <option value="admin">Admins</option>
                 </AnimatedSelect>
+
+                <button
+                  type="button"
+                  className="usersRefreshButton"
+                  onClick={() => {
+                    void carregarUsuarios();
+                  }}
+                  disabled={refreshing}
+                  title="Atualizar usuarios"
+                >
+                  {refreshing ? <Loader2 size={16} className="spinIcon" /> : <RefreshCcw size={16} />}
+                  <span>{refreshing ? "Atualizando..." : "Atualizar usuarios"}</span>
+                </button>
               </div>
             </div>
           </FadeInUp>
@@ -409,17 +444,36 @@ export default function AdminUsersPage() {
 
           <Modal
             isOpen={editarAberto && !!editandoUsuario}
-            onClose={fecharEditar}
+            onClose={salvandoEdicao ? () => undefined : fecharEditar}
             title="Editar Usuario"
             size="sm"
+            closeOnEscape={!salvandoEdicao}
+            closeOnBackdropClick={!salvandoEdicao}
             footer={(
-              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-                <AnimatedButton onClick={fecharEditar}>
-                  Cancelar
-                </AnimatedButton>
-                <AnimatedButton onClick={salvarEdicao}>
-                  Salvar Alteracoes
-                </AnimatedButton>
+              <div className="editModalFooter">
+                <div className="editModalHint">Confira os dados antes de salvar.</div>
+                <div className="editModalActions">
+                  <button
+                    type="button"
+                    className="editModalButton editModalButtonSecondary"
+                    onClick={fecharEditar}
+                    disabled={salvandoEdicao}
+                  >
+                    <X size={16} />
+                    <span>Cancelar</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="editModalButton editModalButtonPrimary"
+                    onClick={() => {
+                      void salvarEdicao();
+                    }}
+                    disabled={salvandoEdicao}
+                  >
+                    {salvandoEdicao ? <Loader2 size={16} className="spinIcon" /> : <Save size={16} />}
+                    <span>{salvandoEdicao ? "Salvando..." : "Salvar alteracoes"}</span>
+                  </button>
+                </div>
               </div>
             )}
           >
