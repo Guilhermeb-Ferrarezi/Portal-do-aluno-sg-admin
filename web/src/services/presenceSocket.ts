@@ -31,6 +31,7 @@ let shouldRun = false;
 let connectionAttemptId = 0;
 let isConnected = false;
 let reconnectAttempts = 0;
+let connectionStableTimeoutId: number | null = null;
 
 function log(...args: unknown[]) {
   console.log("[Presence]", ...args);
@@ -68,6 +69,7 @@ function clearHeartbeat() {
     heartbeatIntervalId = null;
   }
 }
+
 
 function clearReconnect() {
   if (reconnectTimeoutId !== null) {
@@ -224,13 +226,24 @@ async function openPresenceSocket(attemptId: number) {
 
       log("WebSocket connected!");
       isConnected = true;
-      reconnectAttempts = 0;
       clearPresenceState(true);
 
       if (heartbeatIntervalId !== null) {
         window.clearInterval(heartbeatIntervalId);
       }
       heartbeatIntervalId = window.setInterval(runHeartbeatCycle, HEARTBEAT_INTERVAL_MS);
+
+      // Only reset reconnect attempts after connection is stable for 5 seconds
+      if (connectionStableTimeoutId !== null) {
+        window.clearTimeout(connectionStableTimeoutId);
+      }
+      connectionStableTimeoutId = window.setTimeout(() => {
+        if (isConnected && socket === nextSocket) {
+          log("Connection stable, resetting reconnect attempts");
+          reconnectAttempts = 0;
+        }
+        connectionStableTimeoutId = null;
+      }, 5000);
 
       // Send initial heartbeat
       sendWsHeartbeat();
@@ -267,6 +280,11 @@ async function openPresenceSocket(attemptId: number) {
 
       log("WebSocket closed:", event.code, event.reason, "wasClean:", event.wasClean);
 
+      if (connectionStableTimeoutId !== null) {
+        window.clearTimeout(connectionStableTimeoutId);
+        connectionStableTimeoutId = null;
+      }
+
       if (heartbeatIntervalId !== null) {
         window.clearInterval(heartbeatIntervalId);
         heartbeatIntervalId = null;
@@ -290,8 +308,15 @@ export function disconnectPresenceSocket() {
   shouldRun = false;
   isConnected = false;
   connectionAttemptId += 1;
+  reconnectAttempts = 0;
   clearReconnect();
   clearHeartbeat();
+
+  if (connectionStableTimeoutId !== null) {
+    window.clearTimeout(connectionStableTimeoutId);
+    connectionStableTimeoutId = null;
+  }
+
   clearPresenceState(true);
 
   if (socket) {

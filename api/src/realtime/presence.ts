@@ -244,6 +244,7 @@ export function setupPresenceWebSocketServer(
   });
 
   wss.on("connection", async (ws: WebSocket, _request: IncomingMessage, user: AuthUser) => {
+    console.log("[Presence] Connection established for user:", user.sub);
     const presenceSocket = ws as PresenceSocket;
     presenceSocket.lastActivityAt = Date.now();
     registerSocket(user.sub, ws);
@@ -251,6 +252,8 @@ export function setupPresenceWebSocketServer(
     try {
       const lastSeenAt =
         (await persistUserLastSeen(user.sub, true)) ?? new Date().toISOString();
+
+      console.log("[Presence] Sending hello to user:", user.sub, "online users count:", socketsByUserId.size);
 
       for (const onlineUserId of socketsByUserId.keys()) {
         safeSend(ws, {
@@ -262,8 +265,9 @@ export function setupPresenceWebSocketServer(
       }
 
       broadcastPresenceUpdate(user.sub, true, lastSeenAt);
+      console.log("[Presence] Connection handler completed for user:", user.sub);
     } catch (error) {
-      console.error("presence connect error:", error);
+      console.error("[Presence] Connect error for user:", user.sub, error);
       safeSend(ws, {
         type: "presence:error",
         message: "Nao foi possivel iniciar a presenca.",
@@ -304,6 +308,7 @@ export function setupPresenceWebSocketServer(
     });
 
     ws.on("close", async () => {
+      console.log("[Presence] WebSocket closed for user:", user.sub);
       const userId = unregisterSocket(ws);
       if (!userId) return;
       if (socketsByUserId.has(userId)) return;
@@ -324,14 +329,18 @@ export function setupPresenceWebSocketServer(
   });
 
   server.on("upgrade", async (request, socket, head) => {
+    const url = new URL(request.url ?? "/", "http://localhost");
+    console.log("[Presence] Upgrade request for:", url.pathname, "origin:", request.headers.origin);
+
     try {
-      const url = new URL(request.url ?? "/", "http://localhost");
       if (!isPresencePath(url.pathname)) {
+        console.log("[Presence] Rejecting: not a presence path");
         socket.destroy();
         return;
       }
 
       if (!isAllowedOrigin(request.headers.origin, normalizedAllowedOrigins, allowAnyLoopbackOrigin)) {
+        console.log("[Presence] Rejecting: origin not allowed:", request.headers.origin);
         socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
         socket.destroy();
         return;
@@ -339,16 +348,19 @@ export function setupPresenceWebSocketServer(
 
       const user = await authenticatePresenceRequest(request, jwtSecret);
       if (!user) {
+        console.log("[Presence] Rejecting: authentication failed");
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();
         return;
       }
 
+      console.log("[Presence] Upgrade successful for user:", user.sub);
+
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request, user);
       });
     } catch (error) {
-      console.error("presence upgrade error:", error);
+      console.error("[Presence] Upgrade error:", error);
       socket.destroy();
     }
   });
