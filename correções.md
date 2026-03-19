@@ -1,3 +1,23 @@
+# Correcao 2026-03-19 (Presence ws-first com fallback HTTP)
+
+## Objetivo
+
+Parar de disparar `POST /presence/heartbeat` continuamente enquanto o WebSocket de presence estiver saudavel.
+
+## Mudancas
+
+- Cliente de presence (`web/src/services/presenceSocket.ts`) agora usa WebSocket como canal principal.
+- Enquanto o socket estiver `OPEN`, o ciclo de heartbeat envia apenas `presence:heartbeat` pelo proprio WS.
+- O heartbeat HTTP passa a rodar somente quando nao houver socket aberto.
+- Depois de 4 fechamentos rapidos do socket em menos de 5 segundos, o cliente entra em modo HTTP-only por 5 minutos.
+- Ao fim do cooldown, o cliente tenta reabrir o WebSocket automaticamente.
+
+## Efeito esperado
+
+- Menos trafego HTTP desnecessario quando o WebSocket estiver normal.
+- Menos loop de reconexao agressivo quando o proxy matar o socket cedo demais.
+- Presenca continua funcionando via HTTP quando o WS estiver instavel.
+
 # Correcao 2026-03-19 (WebSocket reconnect loop em producao)
 
 ## Problema
