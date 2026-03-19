@@ -124,8 +124,7 @@ function sendWsHeartbeat() {
 }
 
 async function runHeartbeatCycle() {
-  // Prune stale presence data
-  const now = Date.now();
+  // Prune stale presence dat
   for (const [userId, state] of latestPresenceByUserId.entries()) {
     if (!isFreshPresence(state.isOnline, state.lastSeenAt)) {
       latestPresenceByUserId.delete(userId);
