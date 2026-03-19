@@ -71,10 +71,75 @@ function resolveAllowedOrigins(env: z.infer<typeof envSchema>) {
     .filter(Boolean);
 }
 
+function normalizeOrigin(origin: string) {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return null;
+  }
+}
+
+function isLoopbackHostname(hostname: string) {
+  const normalizedHostname = hostname.toLowerCase();
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "127.0.0.1" ||
+    normalizedHostname === "0.0.0.0" ||
+    normalizedHostname === "::1" ||
+    normalizedHostname === "[::1]"
+  );
+}
+
+function shouldAllowLoopbackOrigins(allowedOrigins: Set<string>) {
+  for (const allowedOrigin of allowedOrigins) {
+    const normalizedOrigin = normalizeOrigin(allowedOrigin);
+    if (!normalizedOrigin) {
+      continue;
+    }
+
+    if (isLoopbackHostname(new URL(normalizedOrigin).hostname)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isAllowedCorsOrigin(
+  origin: string | undefined,
+  allowedOrigins: Set<string>,
+  allowAnyLoopbackOrigin: boolean
+) {
+  if (!origin) {
+    return true;
+  }
+
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (!normalizedOrigin) {
+    return false;
+  }
+
+  if (allowedOrigins.has(normalizedOrigin)) {
+    return true;
+  }
+
+  if (!allowAnyLoopbackOrigin) {
+    return false;
+  }
+
+  return isLoopbackHostname(new URL(normalizedOrigin).hostname);
+}
+
 const env = envSchema.parse(process.env);
 const jwtExpiresIn = resolveJwtExpiresIn(env);
 const refreshTokenExpiresIn = resolveRefreshTokenExpiresIn(env);
 const allowedOrigins = resolveAllowedOrigins(env);
+const normalizedAllowedOrigins = new Set(
+  allowedOrigins
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter((origin): origin is string => Boolean(origin))
+);
+const allowAnyLoopbackOrigin = shouldAllowLoopbackOrigins(normalizedAllowedOrigins);
 
 function shouldSkipApiLimiter(path: string) {
   return (
@@ -93,7 +158,12 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin(origin, callback) {
+      callback(
+        null,
+        isAllowedCorsOrigin(origin, normalizedAllowedOrigins, allowAnyLoopbackOrigin)
+      );
+    },
     credentials: true,
   })
 );

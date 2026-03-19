@@ -322,7 +322,9 @@ export default function Login() {
             <button
               type="button"
               className="login-link-btn"
-              onClick={() => console.log("Esqueci senha")}
+              onClick={() => {
+                /* console.log("Esqueci senha") */
+              }}
               disabled={loading}
             >
               Esqueci minha senha

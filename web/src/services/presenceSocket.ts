@@ -33,11 +33,13 @@ let isConnected = false;
 let reconnectAttempts = 0;
 
 function log(...args: unknown[]) {
-  console.log("[Presence]", ...args);
+  void args;
+  // console.log("[Presence]", ...args);
 }
 
 function notify(message: PresenceSocketMessage) {
   if (message.type === "presence:hello" || message.type === "presence:update") {
+    log(`Updating presence for user ${message.userId}: isOnline=${message.isOnline}`);
     latestPresenceByUserId.set(message.userId, {
       userId: message.userId,
       isOnline: message.isOnline,
@@ -45,6 +47,7 @@ function notify(message: PresenceSocketMessage) {
     });
   }
 
+  log(`Notifying ${listeners.size} listeners of ${message.type}`);
   for (const listener of listeners) {
     listener(message);
   }

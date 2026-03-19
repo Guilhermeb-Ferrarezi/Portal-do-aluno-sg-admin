@@ -81,8 +81,12 @@ export default function AdminUsersPage() {
   );
 
   const applyPresenceState = React.useCallback((userId: string, isOnline: boolean, lastSeenAt: string) => {
-    setUsuarios((current) =>
-      current.map((usuario) =>
+    // console.log("[AdminUsers] applyPresenceState called with userId:", userId, "isOnline:", isOnline, "lastSeenAt:", lastSeenAt);
+    setUsuarios((current) => {
+      const userFound = current.some((u) => u.id === userId);
+      void userFound;
+      // console.log("[AdminUsers] User found in list:", userFound, "User IDs in list:", current.map(u => u.id));
+      return current.map((usuario) =>
         usuario.id === userId
           ? {
               ...usuario,
@@ -90,8 +94,8 @@ export default function AdminUsersPage() {
               lastSeenAt,
             }
           : usuario
-      )
-    );
+      );
+    });
   }, []);
 
   const clearVisiblePresenceState = React.useCallback(() => {
@@ -208,11 +212,14 @@ export default function AdminUsersPage() {
   }, [carregarUsuarios]);
 
   React.useEffect(() => {
-    for (const presence of getPresenceSnapshot()) {
+    const snapshot = getPresenceSnapshot();
+    // console.log("[AdminUsers] Initial presence snapshot:", snapshot);
+    for (const presence of snapshot) {
       applyPresenceState(presence.userId, presence.isOnline, presence.lastSeenAt);
     }
 
-    return subscribeToPresence((message) => {
+    const unsubscribe = subscribeToPresence((message) => {
+      // console.log("[AdminUsers] Received presence message:", message.type, message);
       if (message.type === "presence:reset") {
         clearVisiblePresenceState();
         return;
@@ -222,8 +229,11 @@ export default function AdminUsersPage() {
         return;
       }
 
+      // console.log("[AdminUsers] Applying presence state for user:", message.userId, "isOnline:", message.isOnline);
       applyPresenceState(message.userId, message.isOnline, message.lastSeenAt);
     });
+
+    return unsubscribe;
   }, [applyPresenceState, clearVisiblePresenceState]);
 
   const abrirEditar = (usuario: User) => {
