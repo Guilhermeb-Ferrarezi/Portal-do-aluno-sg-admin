@@ -62,3 +62,25 @@
 ## Pendencias observadas
 
 - `web`: `npm run lint` continua com 18 warnings antigos de hooks/fast-refresh fora desta task, sem novos erros.
+
+# Correcao 2026-03-18 (WebSocket Presenca)
+
+## Ajustes aplicados
+
+- Servidor agora envia mensagem `{ type: "ping" }` a nivel de aplicacao a cada 25s alem do `ws.ping()` de protocolo, garantindo que dados trafeguem pela conexao mesmo quando proxies (Cloudflare, Nginx, etc.) interceptam ping/pong de protocolo.
+- Cliente responde com `{ type: "pong" }` ao receber o ping do servidor, mantendo a conexao ativa.
+- Stale timeout do servidor aumentado de 70s para 90s para tolerar maior latencia antes de considerar o socket morto.
+- Servidor agora usa `ws.close()` com codigo de aplicacao (4000/4001) ao invés de `ws.terminate()`, evitando desconexoes 1005 ("No Status Rcvd").
+- Heartbeat do cliente reduzido de 30s para 25s para manter trafego mais frequente pelo proxy.
+- Delay de reconexao do cliente reduzido de 5s para 3s para recuperacao mais rapida em caso de queda.
+
+## Arquivos alterados
+
+- `api/src/realtime/presence.ts` — keepalive com ping de aplicacao, stale timeout, close limpo
+- `web/src/services/presenceSocket.ts` — resposta ao ping do servidor, intervalos ajustados
+
+## Validacao executada
+
+- `api`: `npx tsc --noEmit` sem erros
+- `web`: `npx tsc --noEmit` sem erros
+- Docker nao estava rodando para teste completo de deploy

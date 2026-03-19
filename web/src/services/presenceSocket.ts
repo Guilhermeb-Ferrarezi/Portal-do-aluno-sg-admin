@@ -5,7 +5,8 @@ type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
   | { type: "presence:update"; userId: string; isOnline: boolean; lastSeenAt: string }
   | { type: "presence:reset" }
-  | { type: "presence:error"; message: string };
+  | { type: "presence:error"; message: string }
+  | { type: "ping" };
 
 type PresenceListener = (message: PresenceSocketMessage) => void;
 type PresenceState = {
@@ -14,8 +15,8 @@ type PresenceState = {
   lastSeenAt: string;
 };
 
-const HEARTBEAT_INTERVAL_MS = 30_000;
-const RECONNECT_DELAY_MS = 5_000;
+const HEARTBEAT_INTERVAL_MS = 25_000;
+const RECONNECT_DELAY_MS = 3_000;
 const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
 const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
@@ -164,6 +165,14 @@ async function openPresenceSocket(attemptId: number) {
 
       try {
         const message = JSON.parse(event.data) as PresenceSocketMessage;
+
+        if (message.type === "ping") {
+          if (nextSocket.readyState === WebSocket.OPEN) {
+            nextSocket.send(JSON.stringify({ type: "pong" }));
+          }
+          return;
+        }
+
         notify(message);
       } catch {
         // ignore malformed payloads

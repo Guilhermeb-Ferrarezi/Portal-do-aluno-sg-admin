@@ -7,7 +7,8 @@ import { consumePresenceSocketTicket } from "./presenceTickets";
 type PresenceServerMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
   | { type: "presence:update"; userId: string; isOnline: boolean; lastSeenAt: string }
-  | { type: "presence:error"; message: string };
+  | { type: "presence:error"; message: string }
+  | { type: "ping" };
 
 type PresenceClientMessage = {
   type?: string;
@@ -18,8 +19,8 @@ type PresenceSocket = WebSocket & {
 };
 
 const WS_PATHS = new Set(["/ws/presence", "/api/ws/presence"]);
-const PROXY_KEEPALIVE_INTERVAL_MS = 20_000;
-const SOCKET_STALE_TIMEOUT_MS = 70_000;
+const PROXY_KEEPALIVE_INTERVAL_MS = 25_000;
+const SOCKET_STALE_TIMEOUT_MS = 90_000;
 const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
 const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
@@ -224,14 +225,15 @@ export function setupPresenceWebSocketServer(
         const presenceSocket = ws as PresenceSocket;
         const lastActivityAt = presenceSocket.lastActivityAt ?? 0;
         if (now - lastActivityAt > SOCKET_STALE_TIMEOUT_MS) {
-          ws.terminate();
+          ws.close(4000, "stale");
           continue;
         }
 
         try {
+          safeSend(ws, { type: "ping" });
           ws.ping();
         } catch {
-          ws.terminate();
+          ws.close(4001, "ping failed");
         }
       }
     }
@@ -280,6 +282,10 @@ export function setupPresenceWebSocketServer(
         payload = JSON.parse(raw.toString()) as PresenceClientMessage;
       } catch {
         safeSend(ws, { type: "presence:error", message: "Mensagem invalida." });
+        return;
+      }
+
+      if (payload?.type === "pong") {
         return;
       }
 
