@@ -1,5 +1,5 @@
 import { isLoggedIn } from "../auth/auth";
-import { API_BASE_URL, createPresenceSocketTicket } from "./api";
+import { API_BASE_URL, createPresenceSocketTicket, apiFetch } from "./api";
 
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -17,6 +17,7 @@ type PresenceState = {
 
 const HEARTBEAT_INTERVAL_MS = 25_000;
 const RECONNECT_DELAY_MS = 3_000;
+const PRESENCE_STALE_AFTER_MS = 90_000;
 const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
 const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
@@ -28,6 +29,12 @@ let heartbeatIntervalId: number | null = null;
 let reconnectTimeoutId: number | null = null;
 let shouldRun = false;
 let connectionAttemptId = 0;
+let isConnected = false;
+let reconnectAttempts = 0;
+
+function log(...args: unknown[]) {
+  console.log("[Presence]", ...args);
+}
 
 function notify(message: PresenceSocketMessage) {
   if (message.type === "presence:hello" || message.type === "presence:update") {
@@ -90,29 +97,78 @@ function buildPresenceUrl() {
   return `${protocol}//${apiUrl.host}${wsPath}`;
 }
 
+function isFreshPresence(isOnline: boolean, lastSeenAt: string) {
+  if (!isOnline) return false;
+  const timestamp = Date.parse(lastSeenAt);
+  if (!Number.isFinite(timestamp)) return false;
+  return Date.now() - timestamp <= PRESENCE_STALE_AFTER_MS;
+}
+
+async function sendHttpHeartbeat(): Promise<string | null> {
+  try {
+    const response = await apiFetch<{ ok: boolean; lastSeenAt?: string }>(
+      "/presence/heartbeat",
+      { method: "POST" }
+    );
+    return response.lastSeenAt ?? null;
+  } catch (error) {
+    log("HTTP heartbeat failed:", error);
+    return null;
+  }
+}
+
 function sendWsHeartbeat() {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: "presence:heartbeat" }));
   }
 }
 
-function sendHeartbeat() {
-  sendWsHeartbeat();
+async function runHeartbeatCycle() {
+  // Prune stale presence data
+  const now = Date.now();
+  for (const [userId, state] of latestPresenceByUserId.entries()) {
+    if (!isFreshPresence(state.isOnline, state.lastSeenAt)) {
+      latestPresenceByUserId.delete(userId);
+      notify({ type: "presence:update", userId, isOnline: false, lastSeenAt: state.lastSeenAt });
+    }
+  }
+
+  // Send WebSocket heartbeat if connected
+  if (isConnected && socket && socket.readyState === WebSocket.OPEN) {
+    sendWsHeartbeat();
+  } else {
+    // Fallback to HTTP heartbeat if WebSocket is not connected
+    const lastSeenAt = await sendHttpHeartbeat();
+    if (lastSeenAt) {
+      log("HTTP heartbeat sent, lastSeenAt:", lastSeenAt);
+    }
+  }
 }
 
 function scheduleReconnect() {
   clearReconnect();
   if (!shouldRun || !isLoggedIn()) return;
 
+  // Don't reconnect if already connected
+  if (isConnected) {
+    log("Already connected, skipping reconnect");
+    return;
+  }
+
+  reconnectAttempts++;
+  const delay = Math.min(RECONNECT_DELAY_MS * Math.pow(1.5, Math.min(reconnectAttempts, 10)), 30000);
+  log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts})`);
+
   reconnectTimeoutId = window.setTimeout(() => {
     connectPresenceSocket();
-  }, RECONNECT_DELAY_MS);
+  }, delay);
 }
 
 export function connectPresenceSocket() {
   shouldRun = true;
 
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    log("Socket already open or connecting, skipping");
     return;
   }
 
@@ -124,25 +180,33 @@ async function openPresenceSocket(attemptId: number) {
   clearReconnect();
 
   if (!shouldRun || !isLoggedIn()) {
+    log("Should not run or not logged in, aborting");
     return;
   }
 
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    log("Socket already exists and is open/connecting");
     return;
   }
 
+  const wsUrl = buildPresenceUrl();
+  log("Connecting to WebSocket:", wsUrl);
+
   try {
     const { ticket } = await createPresenceSocketTicket();
+    log("Got ticket:", ticket?.substring(0, 20) + "...");
 
     if (!shouldRun || !isLoggedIn() || attemptId !== connectionAttemptId) {
+      log("Aborting: conditions changed");
       return;
     }
 
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+      log("Socket already connected while waiting for ticket");
       return;
     }
 
-    const nextSocket = new WebSocket(buildPresenceUrl(), [
+    const nextSocket = new WebSocket(wsUrl, [
       PRESENCE_WS_PROTOCOL,
       `${PRESENCE_WS_TICKET_PREFIX}${ticket}`,
     ]);
@@ -152,12 +216,18 @@ async function openPresenceSocket(attemptId: number) {
     nextSocket.addEventListener("open", () => {
       if (socket !== nextSocket) return;
 
+      log("WebSocket connected!");
+      isConnected = true;
+      reconnectAttempts = 0;
       clearPresenceState(true);
+
       if (heartbeatIntervalId !== null) {
         window.clearInterval(heartbeatIntervalId);
       }
-      heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
-      sendHeartbeat();
+      heartbeatIntervalId = window.setInterval(runHeartbeatCycle, HEARTBEAT_INTERVAL_MS);
+
+      // Send initial heartbeat
+      sendWsHeartbeat();
     });
 
     nextSocket.addEventListener("message", (event) => {
@@ -173,16 +243,23 @@ async function openPresenceSocket(attemptId: number) {
           return;
         }
 
+        if (message.type === "presence:hello" || message.type === "presence:update") {
+          log(`Received ${message.type}:`, message.userId, message.isOnline);
+        }
+
         notify(message);
       } catch {
         // ignore malformed payloads
       }
     });
 
-    nextSocket.addEventListener("close", () => {
+    nextSocket.addEventListener("close", (event) => {
       if (socket === nextSocket) {
         socket = null;
+        isConnected = false;
       }
+
+      log("WebSocket closed:", event.code, event.reason);
 
       if (heartbeatIntervalId !== null) {
         window.clearInterval(heartbeatIntervalId);
@@ -192,17 +269,21 @@ async function openPresenceSocket(attemptId: number) {
       scheduleReconnect();
     });
 
-    nextSocket.addEventListener("error", () => {
+    nextSocket.addEventListener("error", (error) => {
       if (socket !== nextSocket) return;
+      log("WebSocket error:", error);
       nextSocket.close();
     });
-  } catch {
+  } catch (error) {
+    log("Failed to open socket:", error);
     scheduleReconnect();
   }
 }
 
 export function disconnectPresenceSocket() {
+  log("Disconnecting...");
   shouldRun = false;
+  isConnected = false;
   connectionAttemptId += 1;
   clearReconnect();
   clearHeartbeat();
@@ -224,4 +305,8 @@ export function subscribeToPresence(listener: PresenceListener) {
   return () => {
     listeners.delete(listener);
   };
+}
+
+export function isPresenceConnected() {
+  return isConnected;
 }
