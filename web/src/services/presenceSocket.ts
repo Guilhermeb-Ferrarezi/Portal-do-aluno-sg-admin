@@ -33,8 +33,7 @@ let isConnected = false;
 let reconnectAttempts = 0;
 
 function log(...args: unknown[]) {
-  void args;
-  // console.log("[Presence]", ...args);
+  console.log("[Presence]", ...args);
 }
 
 function notify(message: PresenceSocketMessage) {
@@ -149,7 +148,10 @@ async function runHeartbeatCycle() {
 
 function scheduleReconnect() {
   clearReconnect();
-  if (!shouldRun || !isLoggedIn()) return;
+  if (!shouldRun || !isLoggedIn()) {
+    log("Not reconnecting: shouldRun=", shouldRun, "isLoggedIn=", isLoggedIn());
+    return;
+  }
 
   // Don't reconnect if already connected
   if (isConnected) {
@@ -167,6 +169,7 @@ function scheduleReconnect() {
 }
 
 export function connectPresenceSocket() {
+  log("connectPresenceSocket called, current socket:", socket?.readyState, "shouldRun:", shouldRun);
   shouldRun = true;
 
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
@@ -175,6 +178,7 @@ export function connectPresenceSocket() {
   }
 
   const attemptId = ++connectionAttemptId;
+  log("Starting connection attempt:", attemptId);
   void openPresenceSocket(attemptId);
 }
 
@@ -261,7 +265,7 @@ async function openPresenceSocket(attemptId: number) {
         isConnected = false;
       }
 
-      log("WebSocket closed:", event.code, event.reason);
+      log("WebSocket closed:", event.code, event.reason, "wasClean:", event.wasClean);
 
       if (heartbeatIntervalId !== null) {
         window.clearInterval(heartbeatIntervalId);
@@ -271,10 +275,9 @@ async function openPresenceSocket(attemptId: number) {
       scheduleReconnect();
     });
 
-    nextSocket.addEventListener("error", (error) => {
-      if (socket !== nextSocket) return;
-      log("WebSocket error:", error);
-      nextSocket.close();
+    nextSocket.addEventListener("error", (event) => {
+      log("WebSocket error event:", event);
+      // Don't close here - let the close event handle it
     });
   } catch (error) {
     log("Failed to open socket:", error);
