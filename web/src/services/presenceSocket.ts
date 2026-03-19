@@ -20,6 +20,9 @@ const RECONNECT_DELAY_MS = 3_000;
 const PRESENCE_STALE_AFTER_MS = 90_000;
 const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
 const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
+const IMMEDIATE_CLOSE_THRESHOLD_MS = 5_000;
+const IMMEDIATE_CLOSE_MAX_STRIKES = 4;
+const HTTP_ONLY_RETRY_WS_INTERVAL_MS = 5 * 60_000;
 
 const listeners = new Set<PresenceListener>();
 const latestPresenceByUserId = new Map<string, PresenceState>();
@@ -32,6 +35,10 @@ let connectionAttemptId = 0;
 let isConnected = false;
 let reconnectAttempts = 0;
 let connectionStableTimeoutId: number | null = null;
+let connectionOpenedAt = 0;
+let immediateCloseStrikes = 0;
+let httpOnlyMode = false;
+let httpOnlyRetryTimeoutId: number | null = null;
 
 function log(...args: unknown[]) {
   console.log("[Presence]", ...args);
@@ -148,6 +155,33 @@ async function runHeartbeatCycle() {
   }
 }
 
+function startHttpOnlyMode() {
+  if (httpOnlyMode) return;
+  httpOnlyMode = true;
+  log("Switching to HTTP-only mode (WebSocket keeps failing immediately). Will retry WS in", HTTP_ONLY_RETRY_WS_INTERVAL_MS / 1000, "s");
+
+  clearReconnect();
+
+  // Start HTTP heartbeat loop
+  if (heartbeatIntervalId === null) {
+    heartbeatIntervalId = window.setInterval(runHeartbeatCycle, HEARTBEAT_INTERVAL_MS);
+  }
+
+  // Schedule a retry of WebSocket later
+  if (httpOnlyRetryTimeoutId !== null) {
+    window.clearTimeout(httpOnlyRetryTimeoutId);
+  }
+  httpOnlyRetryTimeoutId = window.setTimeout(() => {
+    httpOnlyRetryTimeoutId = null;
+    if (!shouldRun || !isLoggedIn()) return;
+    log("Retrying WebSocket connection after HTTP-only fallback period");
+    httpOnlyMode = false;
+    immediateCloseStrikes = 0;
+    reconnectAttempts = 0;
+    connectPresenceSocket();
+  }, HTTP_ONLY_RETRY_WS_INTERVAL_MS);
+}
+
 function scheduleReconnect() {
   clearReconnect();
   if (!shouldRun || !isLoggedIn()) {
@@ -161,6 +195,16 @@ function scheduleReconnect() {
     return;
   }
 
+  // Detect immediate close pattern (connection lasted < 5s)
+  if (connectionOpenedAt > 0 && Date.now() - connectionOpenedAt < IMMEDIATE_CLOSE_THRESHOLD_MS) {
+    immediateCloseStrikes++;
+    log(`Immediate close detected (strike ${immediateCloseStrikes}/${IMMEDIATE_CLOSE_MAX_STRIKES})`);
+    if (immediateCloseStrikes >= IMMEDIATE_CLOSE_MAX_STRIKES) {
+      startHttpOnlyMode();
+      return;
+    }
+  }
+
   reconnectAttempts++;
   const delay = Math.min(RECONNECT_DELAY_MS * Math.pow(1.5, Math.min(reconnectAttempts, 10)), 30000);
   log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts})`);
@@ -171,8 +215,13 @@ function scheduleReconnect() {
 }
 
 export function connectPresenceSocket() {
-  log("connectPresenceSocket called, current socket:", socket?.readyState, "shouldRun:", shouldRun);
+  log("connectPresenceSocket called, current socket:", socket?.readyState, "shouldRun:", shouldRun, "httpOnlyMode:", httpOnlyMode);
   shouldRun = true;
+
+  if (httpOnlyMode) {
+    log("In HTTP-only mode, skipping WebSocket connection");
+    return;
+  }
 
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     log("Socket already open or connecting, skipping");
@@ -226,6 +275,7 @@ async function openPresenceSocket(attemptId: number) {
 
       log("WebSocket connected!");
       isConnected = true;
+      connectionOpenedAt = Date.now();
       clearPresenceState(true);
 
       if (heartbeatIntervalId !== null) {
@@ -241,6 +291,7 @@ async function openPresenceSocket(attemptId: number) {
         if (isConnected && socket === nextSocket) {
           log("Connection stable, resetting reconnect attempts");
           reconnectAttempts = 0;
+          immediateCloseStrikes = 0;
         }
         connectionStableTimeoutId = null;
       }, 5000);
@@ -273,12 +324,13 @@ async function openPresenceSocket(attemptId: number) {
     });
 
     nextSocket.addEventListener("close", (event) => {
+      const duration = connectionOpenedAt > 0 ? Date.now() - connectionOpenedAt : -1;
       if (socket === nextSocket) {
         socket = null;
         isConnected = false;
       }
 
-      log("WebSocket closed:", event.code, event.reason, "wasClean:", event.wasClean);
+      log("WebSocket closed:", event.code, event.reason, "wasClean:", event.wasClean, "duration:", duration + "ms");
 
       if (connectionStableTimeoutId !== null) {
         window.clearTimeout(connectionStableTimeoutId);
@@ -309,8 +361,16 @@ export function disconnectPresenceSocket() {
   isConnected = false;
   connectionAttemptId += 1;
   reconnectAttempts = 0;
+  immediateCloseStrikes = 0;
+  httpOnlyMode = false;
+  connectionOpenedAt = 0;
   clearReconnect();
   clearHeartbeat();
+
+  if (httpOnlyRetryTimeoutId !== null) {
+    window.clearTimeout(httpOnlyRetryTimeoutId);
+    httpOnlyRetryTimeoutId = null;
+  }
 
   if (connectionStableTimeoutId !== null) {
     window.clearTimeout(connectionStableTimeoutId);

@@ -249,6 +249,10 @@ export function setupPresenceWebSocketServer(
     presenceSocket.lastActivityAt = Date.now();
     registerSocket(user.sub, ws);
 
+    // Send immediate ping so data flows through proxies right away
+    // (prevents reverse proxies from closing idle-looking connections)
+    safeSend(ws, { type: "ping" });
+
     try {
       const lastSeenAt =
         (await persistUserLastSeen(user.sub, true)) ?? new Date().toISOString();

@@ -1,3 +1,28 @@
+# Correcao 2026-03-19 (WebSocket reconnect loop em producao)
+
+## Problema
+
+WebSocket de presenca conecta em producao mas fecha imediatamente com code 1005 (no close frame) + wasClean: true, causando loop de reconexao infinito. Localmente funciona normalmente. Causa provavel: proxy externo (nginx host-level ou Cloudflare) que nao mantem a conexao WebSocket aberta.
+
+## Ajustes aplicados
+
+- **Servidor**: envia `{ type: "ping" }` imediatamente ao aceitar conexao WebSocket, ANTES de qualquer trabalho async (DB query). Isso forca dados a fluir pelo proxy o mais rapido possivel.
+- **Cliente**: detecta padrao de "close imediato" (conexao durou < 5s). Apos 4 closes imediatos consecutivos, entra em modo HTTP-only (heartbeat via POST) e para de tentar WebSocket por 5 minutos.
+- **Cliente**: apos periodo de fallback HTTP-only, tenta reconectar WebSocket novamente automaticamente.
+- **Cliente**: log de close agora mostra duracao da conexao para diagnostico.
+
+## Arquivos alterados
+
+- `api/src/realtime/presence.ts` — ping imediato no connection handler
+- `web/src/services/presenceSocket.ts` — deteccao de immediate close, fallback HTTP-only, retry automatico
+
+## Investigacao pendente
+
+O problema raiz provavelmente esta no proxy externo (fora do Docker). Verificar:
+1. Se ha um nginx host-level no servidor que termina TLS e faz proxy para Docker — precisa ter `proxy_http_version 1.1`, `proxy_set_header Upgrade $http_upgrade`, `proxy_set_header Connection "upgrade"` e `proxy_read_timeout 3600s` na rota `/ws/`.
+2. Se o dominio `painel-portaldoaluno.santos-tech.com` passa por Cloudflare proxy (nuvem laranja) — verificar se WebSocket esta habilitado no dashboard Cloudflare.
+3. Se ha Cloudflare Tunnel (cloudflared) — verificar config do tunnel para WebSocket.
+
 # Correcao 2026-03-17
 
 ## Ajustes aplicados
