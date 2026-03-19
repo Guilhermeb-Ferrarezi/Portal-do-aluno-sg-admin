@@ -2,26 +2,45 @@
 
 ## Problema
 
-WebSocket de presenca conecta em producao mas fecha imediatamente com code 1005 (no close frame) + wasClean: true, causando loop de reconexao infinito. Localmente funciona normalmente. Causa provavel: proxy externo (nginx host-level ou Cloudflare) que nao mantem a conexao WebSocket aberta.
+Em producao, WebSocket de presenca conecta com sucesso (101 Switching Protocols) mas fecha imediatamente com **code 1005** (no close frame) + **wasClean: true**, causando loop de reconexao infinito durante ~30s ate dar erro. Localmente funciona normalmente. Causa raiz: **proxy externo** (nginx host-level ou similiar fora do Docker) nao mantem a conexao WebSocket aberta corretamente, provavelmente porque nao recebe dados rapidamente o suficiente na conexao.
+
+## Contexto
+
+Portal Willian Backend proxifica as requisicoes de `/presence` para Portal-do-aluno, mas nao faz WebSocket direto. O Frontend de Portal Willian tenta conectar ao WebSocket de Portal-do-aluno. Isso sugere que ambos projetos compartilham o mesmo proxy externo no host. Se Portal Willian consegue usar WebSocket normalmente, significa:
+1. O proxy **suporta** WebSocket (nao esta bloqueando em nivel de protocolo)
+2. O problema eh especifico da configuracao do Portal-do-aluno (roteamento, timeouts, ou como o servidor responde no upgrade)
 
 ## Ajustes aplicados
 
-- **Servidor**: envia `{ type: "ping" }` imediatamente ao aceitar conexao WebSocket, ANTES de qualquer trabalho async (DB query). Isso forca dados a fluir pelo proxy o mais rapido possivel.
-- **Cliente**: detecta padrao de "close imediato" (conexao durou < 5s). Apos 4 closes imediatos consecutivos, entra em modo HTTP-only (heartbeat via POST) e para de tentar WebSocket por 5 minutos.
-- **Cliente**: apos periodo de fallback HTTP-only, tenta reconectar WebSocket novamente automaticamente.
-- **Cliente**: log de close agora mostra duracao da conexao para diagnostico.
+- **Servidor** (`api/src/realtime/presence.ts`): envia `{ type: "ping" }` **imediatamente** ao aceitar conexao, ANTES de qualquer work async (DB query). Forca dados a fluir pelo proxy o mais rapido possivel, evitando que o proxy ache a conexao "idle".
+- **Cliente** (`web/src/services/presenceSocket.ts`): detecta pattern de "immediate close" (conexao durou < 5s). Apos 4 strikes, entra em **HTTP-only mode** (heartbeat via POST) e para de tentar WebSocket por 5 minutos, evitando loop infinito. Depois retenta automaticamente.
+- **Cliente**: log de close mostra duracao da conexao para diagnostico futuro.
 
 ## Arquivos alterados
 
-- `api/src/realtime/presence.ts` — ping imediato no connection handler
-- `web/src/services/presenceSocket.ts` — deteccao de immediate close, fallback HTTP-only, retry automatico
+- `api/src/realtime/presence.ts` — ping imediato em `wss.on("connection")`
+- `web/src/services/presenceSocket.ts` — constantes: `IMMEDIATE_CLOSE_THRESHOLD_MS=5000`, `IMMEDIATE_CLOSE_MAX_STRIKES=4`, `HTTP_ONLY_RETRY_WS_INTERVAL_MS=300000`; funcoes: `startHttpOnlyMode()`, deteccao em `scheduleReconnect()`, check em `connectPresenceSocket()`
 
-## Investigacao pendente
+## Teste e validacao
 
-O problema raiz provavelmente esta no proxy externo (fora do Docker). Verificar:
-1. Se ha um nginx host-level no servidor que termina TLS e faz proxy para Docker — precisa ter `proxy_http_version 1.1`, `proxy_set_header Upgrade $http_upgrade`, `proxy_set_header Connection "upgrade"` e `proxy_read_timeout 3600s` na rota `/ws/`.
-2. Se o dominio `painel-portaldoaluno.santos-tech.com` passa por Cloudflare proxy (nuvem laranja) — verificar se WebSocket esta habilitado no dashboard Cloudflare.
-3. Se ha Cloudflare Tunnel (cloudflared) — verificar config do tunnel para WebSocket.
+- API: `npm run build` — OK
+- Web: `npm run build` — OK, warnings de assets conhecidos
+- TypeScript check: `npx tsc --noEmit` — OK
+
+## Investigacao se problema persistir
+
+Se o WebSocket continuar caindo em producao mesmo apos deploy, verificar:
+1. **Nginx host-level** (proxy TLS externo): precisa ter em `/ws/` location:
+   ```nginx
+   proxy_http_version 1.1;
+   proxy_set_header Upgrade $http_upgrade;
+   proxy_set_header Connection "upgrade";
+   proxy_read_timeout 3600s;
+   proxy_send_timeout 3600s;
+   ```
+2. **Cloudflare**: se o dominio passa por proxy Cloudflare (nuvem laranja), verificar se WebSocket esta habilitado em `Network` settings.
+3. **Cloudflare Tunnel**: se usa `cloudflared`, verificar `config.yml` tem entrada para `/ws/` com `protocol: websocket`.
+4. **Load balancer/WAF**: se ha um WAF ou load balancer na frente, pode estar blocando ou resetando conexoes WebSocket.
 
 # Correcao 2026-03-17
 
