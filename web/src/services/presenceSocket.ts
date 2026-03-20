@@ -106,10 +106,9 @@ function buildPresenceUrl() {
 
   const apiUrl = new URL(apiBase, window.location.origin);
   const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
-  const basePath = apiUrl.pathname.endsWith("/api")
-    ? apiUrl.pathname.slice(0, -4)
-    : apiUrl.pathname;
-  const wsPath = `${basePath}/ws/presence`.replace(/\/{2,}/g, "/");
+  const basePath = apiUrl.pathname.replace(/\/$/, "");
+  const apiPath = basePath.endsWith("/api") ? basePath : `${basePath}/api`;
+  const wsPath = `${apiPath}/ws/presence`.replace(/\/{2,}/g, "/");
   return `${protocol}//${apiUrl.host}${wsPath}`;
 }
 

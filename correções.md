@@ -31,6 +31,7 @@ Reduzir casos em que o `GET /ws/presence` sobe com `101 Switching Protocols` em 
 ## Ajuste complementar
 
 - O `web/nginx.conf` voltou a resolver `api:3000` via `resolver 127.0.0.11` e `set $api_upstream`, evitando erro de boot `host not found in upstream "api:3000"` em ambientes onde o DNS do Docker ainda nao respondeu no parse inicial do Nginx.
+- O cliente de presence do painel (`web/src/services/presenceSocket.ts`) passou a derivar o socket padrao em `/api/ws/presence`, aproveitando o mesmo prefixo `/api` que ja funciona em producao e evitando depender da rota separada `/ws/` no container `web`.
 
 ## Efeito esperado
 
