@@ -28,6 +28,10 @@ Reduzir casos em que o `GET /ws/presence` sobe com `101 Switching Protocols` em 
 - As rotas `/api/` e `/ws/` receberam `proxy_socket_keepalive on`, `proxy_next_upstream off`, `proxy_read_timeout` e `proxy_send_timeout` altos.
 - A rota `/ws/` tambem passou a ter `proxy_request_buffering off`.
 
+## Ajuste complementar
+
+- O `web/nginx.conf` voltou a resolver `api:3000` via `resolver 127.0.0.11` e `set $api_upstream`, evitando erro de boot `host not found in upstream "api:3000"` em ambientes onde o DNS do Docker ainda nao respondeu no parse inicial do Nginx.
+
 ## Efeito esperado
 
 - Menos fechamentos prematuros de WebSocket em producao por comportamento do Nginx no caminho entre web e api.
