@@ -77,6 +77,16 @@ function unregisterSocket(ws: WebSocket) {
 }
 
 function extractBearerToken(request: IncomingMessage) {
+  try {
+    const url = new URL(request.url ?? "/", "http://localhost");
+    const queryToken = url.searchParams.get("token")?.trim();
+    if (queryToken) {
+      return queryToken;
+    }
+  } catch {
+    // ignore malformed URL
+  }
+
   const authHeader = request.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.slice(7);
@@ -95,7 +105,22 @@ function extractRequestedProtocols(request: IncomingMessage) {
     .filter(Boolean);
 }
 
+function extractPresenceTicketFromQuery(request: IncomingMessage) {
+  try {
+    const url = new URL(request.url ?? "/", "http://localhost");
+    const ticket = url.searchParams.get("ticket")?.trim();
+    return ticket || null;
+  } catch {
+    return null;
+  }
+}
+
 function extractPresenceTicket(request: IncomingMessage) {
+  const queryTicket = extractPresenceTicketFromQuery(request);
+  if (queryTicket) {
+    return queryTicket;
+  }
+
   const requestedProtocols = extractRequestedProtocols(request);
   const ticketProtocol = requestedProtocols.find((protocol) =>
     protocol.startsWith(PRESENCE_WS_TICKET_PREFIX)

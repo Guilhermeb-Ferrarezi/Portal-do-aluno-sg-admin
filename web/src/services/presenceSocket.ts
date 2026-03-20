@@ -1,5 +1,5 @@
 import { getUserId, isLoggedIn } from "../auth/auth";
-import { API_BASE_URL, createPresenceSocketTicket, sendPresenceHeartbeat } from "./api";
+import { API_BASE_URL, createPresenceSocketTicket } from "./api";
 
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -19,9 +19,6 @@ const HEARTBEAT_INTERVAL_MS = 25_000;
 const RECONNECT_BASE_MS = 29_000;
 const RECONNECT_MAX_MS = 30_000;
 const PRESENCE_STALE_AFTER_MS = 90_000;
-const IMMEDIATE_CLOSE_WINDOW_MS = 5_000;
-const IMMEDIATE_CLOSE_STRIKES_LIMIT = 4;
-const HTTP_ONLY_COOLDOWN_MS = 5 * 60_000;
 const PRESENCE_WS_PROTOCOL = "portal-aluno-presence.v1";
 const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
@@ -36,10 +33,6 @@ let connectionAttemptId = 0;
 let isConnected = false;
 let reconnectAttempts = 0;
 let openSocketInFlight: Promise<void> | null = null;
-let fallbackUntil = 0;
-let fallbackTimeoutId: number | null = null;
-let immediateCloseStrikes = 0;
-let socketAttemptStartedAt = 0;
 
 function log(...args: unknown[]) {
   void args;
@@ -95,43 +88,6 @@ function clearReconnect() {
     window.clearTimeout(reconnectTimeoutId);
     reconnectTimeoutId = null;
   }
-}
-
-function clearFallbackTimer() {
-  if (fallbackTimeoutId !== null) {
-    window.clearTimeout(fallbackTimeoutId);
-    fallbackTimeoutId = null;
-  }
-}
-
-function isHttpOnlyFallbackActive(now = Date.now()) {
-  return fallbackUntil > now;
-}
-
-function resetFallbackState() {
-  fallbackUntil = 0;
-  immediateCloseStrikes = 0;
-  clearFallbackTimer();
-}
-
-function scheduleFallbackExit() {
-  clearFallbackTimer();
-  if (!shouldRun || !isHttpOnlyFallbackActive()) return;
-
-  fallbackTimeoutId = window.setTimeout(() => {
-    fallbackTimeoutId = null;
-    if (!isHttpOnlyFallbackActive()) {
-      resetFallbackState();
-    }
-    if (!shouldRun) return;
-    void openPresenceSocket();
-  }, Math.max(0, fallbackUntil - Date.now()));
-}
-
-function enterHttpOnlyFallback() {
-  fallbackUntil = Date.now() + HTTP_ONLY_COOLDOWN_MS;
-  clearReconnect();
-  scheduleFallbackExit();
 }
 
 function buildPresenceUrl() {
@@ -190,16 +146,6 @@ function pruneStalePresence() {
   }
 }
 
-async function sendHttpHeartbeat(): Promise<string | null> {
-  try {
-    const response = await sendPresenceHeartbeat();
-    return response.lastSeenAt ?? null;
-  } catch (error) {
-    log("HTTP heartbeat failed:", error);
-    return null;
-  }
-}
-
 function hasOpenSocket() {
   return socket?.readyState === WebSocket.OPEN;
 }
@@ -233,26 +179,15 @@ function sendWsHeartbeat() {
 async function runHeartbeatCycle() {
   pruneStalePresence();
 
-  if (hasOpenSocket()) {
-    sendWsHeartbeat();
-    return;
-  }
+  if (!hasOpenSocket()) return;
 
-  const lastSeenAt = await sendHttpHeartbeat();
-  if (lastSeenAt) {
-    markCurrentUserOnline(lastSeenAt);
-  }
+  sendWsHeartbeat();
 }
 
 function scheduleReconnect() {
   clearReconnect();
   if (!shouldRun || !isLoggedIn()) return;
   if (hasOpenSocket() || isSocketConnecting()) return;
-
-  if (isHttpOnlyFallbackActive()) {
-    scheduleFallbackExit();
-    return;
-  }
 
   const delay = Math.min(RECONNECT_BASE_MS * 2 ** reconnectAttempts, RECONNECT_MAX_MS);
   reconnectAttempts += 1;
@@ -273,9 +208,6 @@ export function connectPresenceSocket() {
     }, HEARTBEAT_INTERVAL_MS);
   }
 
-  if (isHttpOnlyFallbackActive()) {
-    void runHeartbeatCycle();
-  }
   void openPresenceSocket();
 }
 
@@ -297,11 +229,6 @@ async function openPresenceSocketInternal() {
   clearReconnect();
 
   if (!shouldRun || !isLoggedIn()) {
-    return;
-  }
-
-  if (isHttpOnlyFallbackActive()) {
-    scheduleFallbackExit();
     return;
   }
 
@@ -336,15 +263,12 @@ async function openPresenceSocketInternal() {
       `${PRESENCE_WS_TICKET_PREFIX}${ticket}`,
     ]);
 
-    socketAttemptStartedAt = Date.now();
     socket = nextSocket;
 
     nextSocket.addEventListener("open", () => {
       if (socket !== nextSocket) return;
 
       clearReconnect();
-      fallbackUntil = 0;
-      clearFallbackTimer();
       isConnected = true;
       reconnectAttempts = 0;
       clearPresenceState(true);
@@ -377,22 +301,7 @@ async function openPresenceSocketInternal() {
         isConnected = false;
       }
 
-      const connectedForMs =
-        socketAttemptStartedAt > 0 ? Date.now() - socketAttemptStartedAt : Infinity;
-      socketAttemptStartedAt = 0;
-
       log("WebSocket closed:", event.code, event.reason, "wasClean:", event.wasClean);
-
-      if (connectedForMs < IMMEDIATE_CLOSE_WINDOW_MS) {
-        immediateCloseStrikes += 1;
-      } else {
-        immediateCloseStrikes = 0;
-      }
-
-      if (immediateCloseStrikes >= IMMEDIATE_CLOSE_STRIKES_LIMIT) {
-        enterHttpOnlyFallback();
-        return;
-      }
 
       scheduleReconnect();
     });
@@ -415,8 +324,6 @@ export function disconnectPresenceSocket() {
   isConnected = false;
   connectionAttemptId += 1;
   reconnectAttempts = 0;
-  socketAttemptStartedAt = 0;
-  resetFallbackState();
   clearReconnect();
   clearHeartbeat();
   clearPresenceState(true);

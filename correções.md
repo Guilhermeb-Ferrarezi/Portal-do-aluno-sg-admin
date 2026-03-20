@@ -1,3 +1,58 @@
+# Correcao 2026-03-19 (Proxy interno de presence para o Portal Willian)
+
+## Objetivo
+
+Permitir que o `Portal willian/api` obtenha `socket-ticket` e atualize presence no `Portal-gui/api` sem depender de JWTs assinados pela mesma chave.
+
+## Mudancas
+
+- O backend do painel (`api/src/routes/presence.ts`) agora aceita autenticacao interna por `X-Presence-Proxy-Secret` so nas rotas de presence.
+- O backend do `Portal willian/api` (`Controllers/PresenceController.cs`) passou a enviar `userId`, `usuario` e `roleId` para o painel usando esse segredo compartilhado.
+- As envs dos dois projetos ganharam o segredo `PRESENCE_PROXY_SECRET` / `PortalPainel__PresenceProxySecret`.
+
+## Efeito esperado
+
+- `POST /api/presence/socket-ticket` no `Portal willian/api` deixa de retornar `502 Bad Gateway` por `401` do painel.
+- O `Portal willian/web` passa a receber tickets validos emitidos pelo `Portal-gui/api`, permitindo abrir o WebSocket de presence sem polling HTTP.
+
+# Correcao 2026-03-19 (Presence ticket por query string para o Portal Willian)
+
+## Objetivo
+
+Evitar `401 Unauthorized` no WebSocket de presence do `Portal willian` quando o ticket nao era aproveitado corretamente no upgrade do socket.
+
+## Mudancas
+
+- O backend de presence (`api/src/realtime/presence.ts`) agora aceita o ticket de socket tambem via query string `?ticket=...`.
+- O backend tambem aceita `?token=...` no upgrade como fallback local para autenticacao, quando o ticket nao for suficiente.
+- O cliente do `Portal willian` (`web/src/composables/usePresence.ts`) passou a abrir o WS com o ticket na URL e manter apenas o protocolo principal `portal-aluno-presence.v1`.
+- No ambiente loopback (`127.0.0.1`/`localhost`), o cliente do `Portal willian` tambem envia o token na query do WS.
+- O fluxo antigo por subprotocolo continua aceito no backend para nao quebrar os clientes que ja estavam funcionando.
+
+## Efeito esperado
+
+- O `Portal willian` local deixa de receber `401` no `ws://127.0.0.1:3005/ws/presence`.
+- O loop de `socket-ticket` por falha de autenticacao no upgrade some quando o ambiente local estiver reiniciado.
+
+# Correcao 2026-03-19 (Presence 100% via WebSocket para last_seen_at)
+
+## Objetivo
+
+Parar de usar `POST /presence/heartbeat` como fallback continuo para atualizar `last_seen_at` e manter esse fluxo somente pelo WebSocket de presence.
+
+## Mudancas
+
+- Cliente de presence do painel (`web/src/services/presenceSocket.ts`) nao envia mais heartbeat HTTP.
+- Quando o socket esta `OPEN`, o cliente continua enviando `presence:heartbeat` pelo proprio WS.
+- Quando o socket cai, o cliente apenas agenda reconexao do WebSocket e nao faz mais `POST /presence/heartbeat` nesse intervalo.
+- O fluxo do `Portal willan/web` recebeu o mesmo ajuste em `src/composables/usePresence.ts`, mantendo o comportamento alinhado entre os portais.
+
+## Efeito esperado
+
+- `last_seen_at` passa a ser atualizado so pelo canal WS.
+- O painel de rede deixa de acumular `POST /presence/heartbeat` periodicos enquanto a sessao estiver ativa.
+- Em caso de queda do WS, o cliente tenta reconectar e nao troca automaticamente para polling HTTP.
+
 # Correcao 2026-03-19 (Presence ws-first com fallback HTTP)
 
 ## Objetivo

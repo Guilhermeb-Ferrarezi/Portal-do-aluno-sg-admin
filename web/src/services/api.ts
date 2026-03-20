@@ -124,12 +124,6 @@ export async function logoutWithServer() {
   }
 }
 
-export async function sendPresenceHeartbeat() {
-  return apiFetch<{ ok: boolean; lastSeenAt: string }>("/presence/heartbeat", {
-    method: "POST",
-  });
-}
-
 export async function createPresenceSocketTicket() {
   return apiFetch<{ ok: boolean; ticket: string; expiresAt: string }>(
     "/presence/socket-ticket",

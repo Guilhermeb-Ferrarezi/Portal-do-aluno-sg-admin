@@ -22,6 +22,7 @@ import { setupPresenceWebSocketServer } from "./realtime/presence";
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   JWT_SECRET: z.string().min(10),
+  PRESENCE_PROXY_SECRET: z.string().min(10).optional(),
   JWT_EXPIRES_IN: z.string().optional(),
   REFRESH_TOKEN_EXPIRES_IN: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
@@ -205,7 +206,7 @@ app.use(videoaulasRouter(env.JWT_SECRET));
 app.use(activityLogsRouter(env.JWT_SECRET));
 app.use(badgesRouter(env.JWT_SECRET));
 app.use(containersRouter(env.JWT_SECRET));
-app.use(presenceRouter(env.JWT_SECRET));
+app.use(presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
 
 // ===== ROTAS COM /api (pra prod/proxy) =====
 app.use(
@@ -228,7 +229,7 @@ app.use("/api", videoaulasRouter(env.JWT_SECRET));
 app.use("/api", activityLogsRouter(env.JWT_SECRET));
 app.use("/api", badgesRouter(env.JWT_SECRET));
 app.use("/api", containersRouter(env.JWT_SECRET));
-app.use("/api", presenceRouter(env.JWT_SECRET));
+app.use("/api", presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
 
 // handler de 404
 app.use((req, res) => {
