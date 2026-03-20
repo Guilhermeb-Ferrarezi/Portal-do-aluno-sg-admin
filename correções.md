@@ -1,3 +1,40 @@
+# Correcao 2026-03-20 (Ticket de presence vinculado ao cliente)
+
+## Objetivo
+
+Reduzir replay de `socket-ticket` em que um terceiro intercepta o ticket e tenta abrir o WebSocket de presence a partir de outro cliente.
+
+## Mudancas
+
+- O `Portal-gui/api` passou a salvar no ticket um fingerprint curto do cliente (`ip` e `user-agent`) em `api/src/realtime/presenceTickets.ts`.
+- No upgrade do WebSocket, o painel agora compara o fingerprint atual com o fingerprint gravado no ticket antes de aceitar a conexao.
+- A rota `POST /presence/socket-ticket` do painel passou a capturar esse fingerprint no momento da emissao.
+- O `Portal willan/api` passou a repassar `X-Presence-Client-Ip` e `X-Presence-Client-User-Agent` do navegador ao solicitar o ticket ao painel, preservando a validacao mesmo com proxy interno.
+- O fingerprint de IP agora normaliza aliases locais como `127.0.0.1` e `::1` para o mesmo valor de loopback, e tolera a troca entre enderecos privados locais e IP da bridge do Docker sem quebrar o ambiente local.
+
+## Efeito esperado
+
+- Alterar manualmente a conexao no Burp com um ticket de outra sessao deixa de ser suficiente para forcar um falso `online` quando o cliente origem for diferente.
+- O fluxo legitimo continua funcionando para o painel e para o portal do Willian.
+
+# Correcao 2026-03-19 (Escopo de visibilidade da presence no WebSocket)
+
+## Objetivo
+
+Evitar que qualquer cliente autenticado descubra pelo WebSocket os IDs reais de outros usuarios e o roster completo de quem esta online.
+
+## Mudancas
+
+- O backend de presence (`api/src/realtime/presence.ts`) agora guarda os metadados do usuario autenticado por socket.
+- Mensagens `presence:hello` e `presence:update` deixaram de ser broadcastadas para toda conexao indiscriminadamente.
+- Conexoes `admin` continuam recebendo a lista completa para alimentar a tela de gerenciamento de usuarios.
+- Conexoes comuns passam a receber apenas o proprio estado de presence, sem lista global de usuarios online.
+
+## Efeito esperado
+
+- Um aluno ou professor autenticado nao consegue mais inferir pelo WebSocket quem mais esta online nem os IDs reais desses usuarios.
+- A tela `AdminUsers` continua funcionando para admins, com status online/offline em tempo real.
+
 # Correcao 2026-03-19 (Proxy interno de presence para o Portal Willian)
 
 ## Objetivo

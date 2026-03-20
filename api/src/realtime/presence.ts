@@ -2,6 +2,7 @@ import type { IncomingMessage, Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
 import { authenticateToken, type AuthUser } from "../middlewares/auth";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
+import { extractPresenceClientFingerprint } from "./presenceClientFingerprint";
 import { consumePresenceSocketTicket } from "./presenceTickets";
 
 type PresenceServerMessage =
@@ -26,15 +27,33 @@ const PRESENCE_WS_TICKET_PREFIX = "presence-ticket.";
 
 const socketsByUserId = new Map<string, Set<WebSocket>>();
 const socketUserIds = new WeakMap<WebSocket, string>();
+const socketUsers = new WeakMap<WebSocket, AuthUser>();
 
 function safeSend(ws: WebSocket, message: PresenceServerMessage) {
   if (ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify(message));
 }
 
-function broadcast(message: PresenceServerMessage) {
+function isPresenceRosterViewer(user: AuthUser) {
+  return user.roleId === 3;
+}
+
+function canReceivePresenceForUser(user: AuthUser, targetUserId: string) {
+  return isPresenceRosterViewer(user) || user.sub === targetUserId;
+}
+
+function broadcast(message: PresenceServerMessage, targetUserId?: string) {
   for (const sockets of socketsByUserId.values()) {
     for (const ws of sockets) {
+      const user = socketUsers.get(ws);
+      if (!user) {
+        continue;
+      }
+
+      if (targetUserId && !canReceivePresenceForUser(user, targetUserId)) {
+        continue;
+      }
+
       safeSend(ws, message);
     }
   }
@@ -46,10 +65,11 @@ export function broadcastPresenceUpdate(userId: string, isOnline: boolean, lastS
     userId,
     isOnline,
     lastSeenAt,
-  });
+  }, userId);
 }
 
-function registerSocket(userId: string, ws: WebSocket) {
+function registerSocket(user: AuthUser, ws: WebSocket) {
+  const userId = user.sub;
   const sockets = socketsByUserId.get(userId);
   if (sockets) {
     sockets.add(ws);
@@ -58,6 +78,7 @@ function registerSocket(userId: string, ws: WebSocket) {
   }
 
   socketUserIds.set(ws, userId);
+  socketUsers.set(ws, user);
 }
 
 function unregisterSocket(ws: WebSocket) {
@@ -65,6 +86,7 @@ function unregisterSocket(ws: WebSocket) {
   if (!userId) return null;
 
   socketUserIds.delete(ws);
+  socketUsers.delete(ws);
   const sockets = socketsByUserId.get(userId);
   if (!sockets) return userId;
 
@@ -204,7 +226,7 @@ function isAllowedOrigin(
 async function authenticatePresenceRequest(request: IncomingMessage, jwtSecret: string) {
   const ticket = extractPresenceTicket(request);
   if (ticket) {
-    return consumePresenceSocketTicket(ticket);
+    return consumePresenceSocketTicket(ticket, extractPresenceClientFingerprint(request));
   }
 
   const token = extractBearerToken(request);
@@ -272,7 +294,7 @@ export function setupPresenceWebSocketServer(
     console.log("[Presence] Connection established for user:", user.sub);
     const presenceSocket = ws as PresenceSocket;
     presenceSocket.lastActivityAt = Date.now();
-    registerSocket(user.sub, ws);
+    registerSocket(user, ws);
 
     // Send immediate ping so data flows through proxies right away
     // (prevents reverse proxies from closing idle-looking connections)
@@ -282,9 +304,11 @@ export function setupPresenceWebSocketServer(
       const lastSeenAt =
         (await persistUserLastSeen(user.sub, true)) ?? new Date().toISOString();
 
-      console.log("[Presence] Sending hello to user:", user.sub, "online users count:", socketsByUserId.size);
+      const canViewRoster = isPresenceRosterViewer(user);
+      const visibleUserIds = canViewRoster ? Array.from(socketsByUserId.keys()) : [user.sub];
+      console.log("[Presence] Sending hello to user:", user.sub, "visible users count:", visibleUserIds.length);
 
-      for (const onlineUserId of socketsByUserId.keys()) {
+      for (const onlineUserId of visibleUserIds) {
         safeSend(ws, {
           type: "presence:hello",
           userId: onlineUserId,

@@ -7,6 +7,7 @@ import {
   type NumericRole,
 } from "../middlewares/auth";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
+import { extractPresenceClientFingerprint } from "../realtime/presenceClientFingerprint";
 import { broadcastPresenceUpdate } from "../realtime/presence";
 import { issuePresenceSocketTicket } from "../realtime/presenceTickets";
 
@@ -35,16 +36,20 @@ function toLegacyRole(roleId: NumericRole): LegacyRole {
   return "admin";
 }
 
+function hasValidPresenceProxySecret(req: AuthRequest, presenceProxySecret: string | undefined) {
+  if (!presenceProxySecret) {
+    return false;
+  }
+
+  const providedSecret = req.header("x-presence-proxy-secret")?.trim();
+  return Boolean(providedSecret && providedSecret === presenceProxySecret);
+}
+
 function resolveTrustedProxyUser(
   req: AuthRequest,
   presenceProxySecret: string | undefined
 ): AuthUser | null {
-  if (!presenceProxySecret) {
-    return null;
-  }
-
-  const providedSecret = req.header("x-presence-proxy-secret")?.trim();
-  if (!providedSecret || providedSecret !== presenceProxySecret) {
+  if (!hasValidPresenceProxySecret(req, presenceProxySecret)) {
     return null;
   }
 
@@ -100,7 +105,19 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
       return res.status(401).json({ message: "Token ausente" });
     }
 
-    const ticket = issuePresenceSocketTicket(user);
+    const trustedProxyRequest = hasValidPresenceProxySecret(req, presenceProxySecret);
+    const ticket = issuePresenceSocketTicket(
+      user,
+      extractPresenceClientFingerprint(
+        req,
+        trustedProxyRequest
+          ? {
+              ip: req.header("x-presence-client-ip") ?? undefined,
+              userAgent: req.header("x-presence-client-user-agent") ?? undefined,
+            }
+          : undefined
+      )
+    );
 
     return res.json({
       ok: true,

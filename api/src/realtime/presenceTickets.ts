@@ -1,11 +1,16 @@
 import { randomBytes } from "crypto";
 import type { AuthUser } from "../middlewares/auth";
+import {
+  isMatchingPresenceClientFingerprint,
+  type PresenceClientFingerprint,
+} from "./presenceClientFingerprint";
 
 const PRESENCE_SOCKET_TICKET_TTL_MS = 30_000;
 
 type PresenceSocketTicketRecord = {
   user: AuthUser;
   expiresAt: number;
+  fingerprint: PresenceClientFingerprint;
 };
 
 const tickets = new Map<string, PresenceSocketTicketRecord>();
@@ -18,7 +23,7 @@ function cleanupExpiredTickets(now = Date.now()) {
   }
 }
 
-export function issuePresenceSocketTicket(user: AuthUser) {
+export function issuePresenceSocketTicket(user: AuthUser, fingerprint: PresenceClientFingerprint) {
   cleanupExpiredTickets();
 
   const ticket = randomBytes(32).toString("base64url");
@@ -27,6 +32,7 @@ export function issuePresenceSocketTicket(user: AuthUser) {
   tickets.set(ticket, {
     user,
     expiresAt,
+    fingerprint,
   });
 
   return {
@@ -35,7 +41,7 @@ export function issuePresenceSocketTicket(user: AuthUser) {
   };
 }
 
-export function consumePresenceSocketTicket(ticket: string) {
+export function consumePresenceSocketTicket(ticket: string, fingerprint: PresenceClientFingerprint) {
   cleanupExpiredTickets();
 
   const normalizedTicket = ticket.trim();
@@ -48,11 +54,16 @@ export function consumePresenceSocketTicket(ticket: string) {
     return null;
   }
 
-  tickets.delete(normalizedTicket);
-
   if (record.expiresAt <= Date.now()) {
+    tickets.delete(normalizedTicket);
     return null;
   }
+
+  if (!isMatchingPresenceClientFingerprint(record.fingerprint, fingerprint)) {
+    return null;
+  }
+
+  tickets.delete(normalizedTicket);
 
   return record.user;
 }
