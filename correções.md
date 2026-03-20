@@ -15,6 +15,24 @@ Permitir que o `Portal willian/api` obtenha `socket-ticket` e atualize presence 
 - `POST /api/presence/socket-ticket` no `Portal willian/api` deixa de retornar `502 Bad Gateway` por `401` do painel.
 - O `Portal willian/web` passa a receber tickets validos emitidos pelo `Portal-gui/api`, permitindo abrir o WebSocket de presence sem polling HTTP.
 
+# Correcao 2026-03-19 (Hardening do Nginx para WebSocket em producao)
+
+## Objetivo
+
+Reduzir casos em que o `GET /ws/presence` sobe com `101 Switching Protocols` em producao, mas a conexao fecha logo depois com `1005`.
+
+## Mudancas
+
+- O `web/nginx.conf` passou a usar `upstream api_upstream` fixo em vez de `proxy_pass` com variavel.
+- O proxy agora usa `map $http_upgrade $connection_upgrade`, evitando forcar `Connection: upgrade` quando nao ha upgrade.
+- As rotas `/api/` e `/ws/` receberam `proxy_socket_keepalive on`, `proxy_next_upstream off`, `proxy_read_timeout` e `proxy_send_timeout` altos.
+- A rota `/ws/` tambem passou a ter `proxy_request_buffering off`.
+
+## Efeito esperado
+
+- Menos fechamentos prematuros de WebSocket em producao por comportamento do Nginx no caminho entre web e api.
+- Menos chance de reconexao em loop com `1005` quando o socket de presence esta atras do proxy do `web`.
+
 # Correcao 2026-03-19 (Presence ticket por query string para o Portal Willian)
 
 ## Objetivo
