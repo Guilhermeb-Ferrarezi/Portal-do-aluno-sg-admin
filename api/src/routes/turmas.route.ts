@@ -117,6 +117,34 @@ function isMissingDatabaseObjectError(error: unknown): boolean {
   return code === "42P01" || code === "42703";
 }
 
+function isNotNullConstraintError(error: unknown): error is { code: string; column?: string | null } {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+  return code === "23502";
+}
+
+function parseBooleanQuery(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") {
+    return true;
+  }
+  if (normalized === "false" || normalized === "0") {
+    return false;
+  }
+  return undefined;
+}
+
 let courseColumnConfigCache: CourseColumnConfig | null = null;
 
 async function getCourseColumnConfig(forceRefresh = false): Promise<CourseColumnConfig> {
@@ -556,7 +584,12 @@ export function turmasRouter(jwtSecret: string) {
   // GET /courses
   router.get("/courses", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-    const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
+    const isPaidFilter = parseBooleanQuery(req.query.isPaid);
+    const hasPaginationInput =
+      req.query.page !== undefined ||
+      req.query.limit !== undefined ||
+      req.query.q !== undefined ||
+      req.query.isPaid !== undefined;
     const pageRaw = Number(req.query.page ?? 1);
     const limitRaw = Number(req.query.limit ?? 20);
     const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
@@ -588,6 +621,10 @@ export function turmasRouter(jwtSecret: string) {
       if (q) {
         params.push(`%${q}%`);
         conditions.push(`(COALESCE(name, '') ILIKE $${params.length} OR COALESCE(description, '') ILIKE $${params.length})`);
+      }
+      if (isPaidFilter !== undefined) {
+        params.push(isPaidFilter);
+        conditions.push(`is_paid = $${params.length}`);
       }
       const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
       const mapRows = (rows: DbCourseRow[]) =>
@@ -694,6 +731,9 @@ export function turmasRouter(jwtSecret: string) {
           return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
         }
 
+        const normalizedDurationHours = data.duration_hours ?? 1;
+        const normalizedPrice = data.price ?? 0;
+
         const insertColumns = ["name", "description", "is_paid"];
         const insertValues: Array<string | number | boolean | null> = [
           data.nome,
@@ -703,7 +743,7 @@ export function turmasRouter(jwtSecret: string) {
 
         if (courseColumns.durationColumn) {
           insertColumns.push(courseColumns.durationColumn);
-          insertValues.push(data.duration_hours ?? null);
+          insertValues.push(normalizedDurationHours);
         }
 
         if (courseColumns.levelColumn) {
@@ -718,7 +758,7 @@ export function turmasRouter(jwtSecret: string) {
 
         if (courseColumns.priceColumn) {
           insertColumns.push(courseColumns.priceColumn);
-          insertValues.push(data.price ?? null);
+          insertValues.push(normalizedPrice);
         }
 
         const valuePlaceholders = insertValues.map((_, index) => `$${index + 1}`).join(", ");
@@ -758,6 +798,16 @@ export function turmasRouter(jwtSecret: string) {
       } catch (error) {
         if (isMissingDatabaseObjectError(error)) {
           return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
+        }
+        if (isNotNullConstraintError(error)) {
+          const column = typeof error.column === "string" ? error.column : null;
+          if (column === "duration_hours") {
+            return res.status(400).json({ message: "A duração do curso é obrigatória na estrutura atual do banco" });
+          }
+          if (column === "price") {
+            return res.status(400).json({ message: "O preço do curso é obrigatório na estrutura atual do banco" });
+          }
+          return res.status(400).json({ message: "Dados obrigatórios do curso não foram informados" });
         }
         console.error("Erro ao criar curso:", error);
         return res.status(500).json({ message: "Erro ao criar curso" });

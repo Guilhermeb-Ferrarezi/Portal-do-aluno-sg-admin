@@ -211,14 +211,13 @@ export default function EstruturaCursoPage() {
     let ativo = true;
 
     setCursoSelectCarregando(true);
-    listarCursos({ page: cursoSelectPagina, limit: 8, q: cursoSelectBusca || undefined })
+    listarCursos({ page: cursoSelectPagina, limit: 8, q: cursoSelectBusca || undefined, isPaid: false })
       .then((data) => {
         if (!ativo || Array.isArray(data)) return;
         setCursoSelectOpcoes(data.items);
         setCursoSelectTotalPages(data.pagination.totalPages);
         if (!courseIdSelecionado && data.items.length > 0) {
-          const free = data.items.find((c) => !c.isPaid) ?? data.items[0];
-          if (free) setCourseIdSelecionado(free.id);
+          setCourseIdSelecionado(data.items[0].id);
         }
       })
       .catch(() => {
@@ -240,6 +239,26 @@ export default function EstruturaCursoPage() {
     const fromSelectList = cursoSelectOpcoes.find((curso) => curso.id === courseIdSelecionado) ?? null;
     setCursoSelectSelecionado(fromMainList ?? fromSelectList ?? cursoSelectSelecionado);
   }, [courseIdSelecionado, cursoSelectOpcoes, cursos]);
+
+  const cursoSelectOpcoesGratuitas = React.useMemo(
+    () => cursoSelectOpcoes.filter((curso) => !curso.isPaid),
+    [cursoSelectOpcoes]
+  );
+
+  const cursoSelectSelecionadoGratuito = React.useMemo(
+    () => cursoSelectOpcoesGratuitas.find((curso) => curso.id === courseIdSelecionado) ?? null,
+    [courseIdSelecionado, cursoSelectOpcoesGratuitas]
+  );
+
+  React.useEffect(() => {
+    if (abaAtiva !== "fase" && abaAtiva !== "conteiners") return;
+    if (courseIdSelecionado && cursoSelectOpcoesGratuitas.some((curso) => curso.id === courseIdSelecionado)) return;
+
+    const nextCourseId = cursoSelectOpcoesGratuitas[0]?.id ?? "";
+    if (courseIdSelecionado !== nextCourseId) {
+      setCourseIdSelecionado(nextCourseId);
+    }
+  }, [abaAtiva, courseIdSelecionado, cursoSelectOpcoesGratuitas]);
 
   React.useEffect(() => {
     if (!courseIdSelecionado) {
@@ -1016,7 +1035,7 @@ export default function EstruturaCursoPage() {
 
                 <span>Nível de dificuldade</span>
                 <select value={novoCursoNivel} onChange={(e) => setNovoCursoNivel(e.target.value)}>
-                  <option value="">Selecione o nível</option>
+                  <option value="" disabled>Selecione o nível</option>
                   <option value="iniciante">Iniciante</option>
                   <option value="iniciante-intermediario">Iniciante -&gt; Intermediário</option>
                   <option value="intermediario">Intermediário</option>
@@ -1249,21 +1268,21 @@ export default function EstruturaCursoPage() {
                   value={courseIdSelecionado}
                   onChange={(value) => {
                     setCourseIdSelecionado(value);
-                    const found = cursoSelectOpcoes.find((curso) => curso.id === value) ?? null;
+                    const found = cursoSelectOpcoesGratuitas.find((curso) => curso.id === value) ?? null;
                     if (found) setCursoSelectSelecionado(found);
                   }}
-                  options={cursoSelectOpcoes.map((curso) => ({
+                  options={cursoSelectOpcoesGratuitas.map((curso) => ({
                     value: curso.id,
                     label: curso.nome,
                     meta: curso.isPaid ? "Pago" : "Gratuito",
                   }))}
-                  selectedOption={cursoSelectSelecionado ? {
-                    value: cursoSelectSelecionado.id,
-                    label: cursoSelectSelecionado.nome,
-                    meta: cursoSelectSelecionado.isPaid ? "Pago" : "Gratuito",
+                  selectedOption={cursoSelectSelecionadoGratuito ? {
+                    value: cursoSelectSelecionadoGratuito.id,
+                    label: cursoSelectSelecionadoGratuito.nome,
+                    meta: cursoSelectSelecionadoGratuito.isPaid ? "Pago" : "Gratuito",
                   } : null}
-                  placeholder="Selecione um curso"
-                  emptyText="Nenhum curso cadastrado"
+                  placeholder="Selecione um curso gratuito"
+                  emptyText="Nenhum curso gratuito cadastrado"
                   allowPageSizeChange={false}
                   remote={{
                     query: cursoSelectBusca,
@@ -1464,22 +1483,22 @@ export default function EstruturaCursoPage() {
                   value={courseIdSelecionado}
                   onChange={(value) => {
                     setCourseIdSelecionado(value);
-                    const found = cursoSelectOpcoes.find((c) => c.id === value) ?? null;
+                    const found = cursoSelectOpcoesGratuitas.find((c) => c.id === value) ?? null;
                     if (found) setCursoSelectSelecionado(found);
                     setFaseIdParaContainers("");
                   }}
-                  options={cursoSelectOpcoes.map((curso) => ({
+                  options={cursoSelectOpcoesGratuitas.map((curso) => ({
                     value: curso.id,
                     label: curso.nome,
                     meta: curso.isPaid ? "Pago" : "Gratuito",
                   }))}
-                  selectedOption={cursoSelectSelecionado ? {
-                    value: cursoSelectSelecionado.id,
-                    label: cursoSelectSelecionado.nome,
-                    meta: cursoSelectSelecionado.isPaid ? "Pago" : "Gratuito",
+                  selectedOption={cursoSelectSelecionadoGratuito ? {
+                    value: cursoSelectSelecionadoGratuito.id,
+                    label: cursoSelectSelecionadoGratuito.nome,
+                    meta: cursoSelectSelecionadoGratuito.isPaid ? "Pago" : "Gratuito",
                   } : null}
-                  placeholder="Selecione um curso"
-                  emptyText="Nenhum curso cadastrado"
+                  placeholder="Selecione um curso gratuito"
+                  emptyText="Nenhum curso gratuito cadastrado"
                   allowPageSizeChange={false}
                   remote={{
                     query: cursoSelectBusca,

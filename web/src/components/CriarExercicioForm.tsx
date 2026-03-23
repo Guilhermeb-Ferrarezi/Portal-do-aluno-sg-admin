@@ -168,16 +168,22 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     if (cursoIdsPorTurma.size === 0) return cursosGratuitos;
     return cursosGratuitos.filter((c) => cursoIdsPorTurma.has(c.id));
   }, [cursosDisponiveis, turmasDisponiveis]);
+  void cursosToggleOrdenados;
+
+  const cursosGratuitosDisponiveis = React.useMemo(
+    () => cursosDisponiveis.filter((c) => c.isPaid !== true),
+    [cursosDisponiveis]
+  );
 
   const cursosToggleFiltrados = React.useMemo(() => {
     const termo = cursoCardsFiltro.trim().toLowerCase();
-    if (!termo) return cursosToggleOrdenados;
-    return cursosToggleOrdenados.filter((c) => {
+    if (!termo) return cursosGratuitosDisponiveis;
+    return cursosGratuitosDisponiveis.filter((c) => {
       const nome = c.nome?.toLowerCase() ?? "";
       const desc = c.descricao?.toLowerCase() ?? "";
       return nome.includes(termo) || desc.includes(termo);
     });
-  }, [cursosToggleOrdenados, cursoCardsFiltro]);
+  }, [cursosGratuitosDisponiveis, cursoCardsFiltro]);
 
   const cursosCardsTotalPaginas = Math.max(1, Math.ceil(cursosToggleFiltrados.length / cursoCardsItensPorPagina));
 

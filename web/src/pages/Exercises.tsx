@@ -321,15 +321,22 @@ export default function ExerciciosPage() {
 
     return cursosGratuitos.filter((curso) => cursoIdsPorTurma.has(curso.id));
   }, [cursosDisponiveis, turmasDisponiveis]);
+  void cursosToggleOrdenados;
+
+  const cursosGratuitosDisponiveis = React.useMemo(
+    () => cursosDisponiveis.filter((curso) => curso.isPaid !== true),
+    [cursosDisponiveis]
+  );
+
   const cursosToggleFiltrados = React.useMemo(() => {
     const termo = cursoCardsFiltro.trim().toLowerCase();
-    if (!termo) return cursosToggleOrdenados;
-    return cursosToggleOrdenados.filter((curso) => {
+    if (!termo) return cursosGratuitosDisponiveis;
+    return cursosGratuitosDisponiveis.filter((curso) => {
       const nome = curso.nome?.toLowerCase() ?? "";
       const descricao = curso.descricao?.toLowerCase() ?? "";
       return nome.includes(termo) || descricao.includes(termo);
     });
-  }, [cursosToggleOrdenados, cursoCardsFiltro]);
+  }, [cursosGratuitosDisponiveis, cursoCardsFiltro]);
   const cursosCardsTotalPaginas = Math.max(1, Math.ceil(cursosToggleFiltrados.length / cursoCardsItensPorPagina));
   const cursosTogglePaginados = React.useMemo(() => {
     const inicio = (cursoCardsPagina - 1) * cursoCardsItensPorPagina;

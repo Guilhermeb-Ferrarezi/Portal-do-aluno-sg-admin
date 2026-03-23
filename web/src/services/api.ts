@@ -1181,16 +1181,19 @@ export async function listarCursos(params: {
   q?: string;
   page?: number;
   limit?: number;
+  isPaid?: boolean;
 }): Promise<PaginatedItemsResponse<Curso>>;
 export async function listarCursos(params?: {
   q?: string;
   page?: number;
   limit?: number;
+  isPaid?: boolean;
 }) {
   const search = new URLSearchParams();
   if (params?.q) search.set("q", params.q);
   if (params?.page) search.set("page", String(params.page));
   if (params?.limit) search.set("limit", String(params.limit));
+  if (typeof params?.isPaid === "boolean") search.set("isPaid", String(params.isPaid));
   const query = search.toString();
   return apiFetch<Curso[] | PaginatedItemsResponse<Curso>>(`/courses${query ? `?${query}` : ""}`);
 }
