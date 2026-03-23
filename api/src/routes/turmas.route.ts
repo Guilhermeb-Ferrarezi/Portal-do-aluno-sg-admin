@@ -1,4 +1,5 @@
-import { Router } from "express";
+﻿import { Router } from "express";
+import { type PoolClient } from "pg";
 import { z } from "zod";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
@@ -39,6 +40,17 @@ type CourseColumnConfig = {
   selectList: string;
 };
 
+type ProgressStudentPhaseConfig = {
+  hasTable: boolean;
+  hasUserIdColumn: boolean;
+  hasPhaseIdColumn: boolean;
+  hasProgressColumn: boolean;
+  hasStatusColumn: boolean;
+  hasUnlockedAtColumn: boolean;
+  hasCompletedAtColumn: boolean;
+  hasCreatedAtColumn: boolean;
+};
+
 type DbModuleRow = {
   id: number;
   course_id: number;
@@ -58,8 +70,15 @@ type DbPhaseRow = {
   updated_at: string;
 };
 
+type DbStudentPhaseProgressRow = {
+  user_id: number;
+  status: number | null;
+  progress: number | null;
+  unlocked_at: string | null;
+};
+
 const createTurmaSchema = z.object({
-  nome: z.string().min(2, "Nome obrigatório"),
+  nome: z.string().min(2, "Nome obrigatÃ³rio"),
   tipo: z.enum(["turma", "particular"]).default("turma"),
   categoria: z.enum(["programacao", "informatica"]).default("programacao"),
   descricao: z.string().optional().nullable(),
@@ -72,7 +91,7 @@ const createTurmaSchema = z.object({
 const updateTurmaSchema = createTurmaSchema.partial();
 
 const createModuleSchema = z.object({
-  nome: z.string().min(2, "Nome obrigatório"),
+  nome: z.string().min(2, "Nome obrigatÃ³rio"),
   descricao: z.string().optional().nullable(),
   course_id: z.coerce.number().int().positive().optional(),
   courseId: z.coerce.number().int().positive().optional(),
@@ -80,7 +99,7 @@ const createModuleSchema = z.object({
 });
 
 const createPhaseSchema = z.object({
-  nome: z.string().min(2, "Nome obrigatório"),
+  nome: z.string().min(2, "Nome obrigatÃ³rio"),
   week_number: z.coerce.number().int().positive().optional(),
   index_order: z.coerce.number().int().positive().optional(),
   admin_authorize: z.boolean().optional().default(true),
@@ -145,7 +164,26 @@ function parseBooleanQuery(value: unknown): boolean | undefined {
   return undefined;
 }
 
+function mapPhaseStartStatus(status: number | null, unlockedAt: string | null) {
+  if (status === 2) {
+    return { key: "concluido", label: "Concluido" };
+  }
+  if (status === 1) {
+    return { key: "em_progresso", label: "Em progresso" };
+  }
+  if (status === 0) {
+    return { key: "nao_iniciado", label: "Nao iniciado" };
+  }
+  if (unlockedAt) {
+    return { key: "em_progresso", label: "Em progresso" };
+  }
+  return { key: "desconhecido", label: "Desconhecido" };
+}
+
 let courseColumnConfigCache: CourseColumnConfig | null = null;
+let progressStudentPhaseConfigCache: ProgressStudentPhaseConfig | null = null;
+
+type Queryable = Pick<PoolClient, "query">;
 
 async function getCourseColumnConfig(forceRefresh = false): Promise<CourseColumnConfig> {
   if (!forceRefresh && courseColumnConfigCache) {
@@ -184,6 +222,52 @@ async function getCourseColumnConfig(forceRefresh = false): Promise<CourseColumn
   };
 
   return courseColumnConfigCache;
+}
+
+async function getProgressStudentPhaseConfig(forceRefresh = false): Promise<ProgressStudentPhaseConfig> {
+  if (!forceRefresh && progressStudentPhaseConfigCache) {
+    return progressStudentPhaseConfigCache;
+  }
+
+  const tableResult = await pool.query<{ has_table: boolean }>(
+    `SELECT to_regclass('public.progress_student_phase') IS NOT NULL AS has_table`
+  );
+
+  if (!tableResult.rows[0]?.has_table) {
+    progressStudentPhaseConfigCache = {
+      hasTable: false,
+      hasUserIdColumn: false,
+      hasPhaseIdColumn: false,
+      hasProgressColumn: false,
+      hasStatusColumn: false,
+      hasUnlockedAtColumn: false,
+      hasCompletedAtColumn: false,
+      hasCreatedAtColumn: false,
+    };
+    return progressStudentPhaseConfigCache;
+  }
+
+  const columnsResult = await pool.query<{ column_name: string }>(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'progress_student_phase'`
+  );
+
+  const columns = new Set(columnsResult.rows.map((row) => row.column_name));
+
+  progressStudentPhaseConfigCache = {
+    hasTable: true,
+    hasUserIdColumn: columns.has("user_id"),
+    hasPhaseIdColumn: columns.has("phase_id"),
+    hasProgressColumn: columns.has("progress"),
+    hasStatusColumn: columns.has("status"),
+    hasUnlockedAtColumn: columns.has("unlocked_at"),
+    hasCompletedAtColumn: columns.has("completed_at"),
+    hasCreatedAtColumn: columns.has("created_at"),
+  };
+
+  return progressStudentPhaseConfigCache;
 }
 
 async function getCourseById(courseId: number): Promise<DbCourseRow | null> {
@@ -265,6 +349,21 @@ async function getFirstModuleFromCourse(courseId: number): Promise<DbModuleRow |
   return result.rows[0] ?? null;
 }
 
+async function getFirstPhaseFromModule(
+  moduleId: number,
+  db: Queryable = pool
+): Promise<DbPhaseRow | null> {
+  const result = await db.query<DbPhaseRow>(
+    `SELECT id, module_id, name, week_number, index_order, admin_authorize, created_at, updated_at
+     FROM phase
+     WHERE module_id = $1
+     ORDER BY index_order ASC, id ASC
+     LIMIT 1`,
+    [moduleId]
+  );
+  return result.rows[0] ?? null;
+}
+
 async function resolveCourseAndModule(params: {
   courseId?: number;
   currentModuleId?: number;
@@ -283,10 +382,10 @@ async function resolveCourseAndModule(params: {
   if (params.currentModuleId) {
     const byId = await getModuleById(params.currentModuleId);
     if (!byId) {
-      return { error: "Módulo selecionado não existe" as const };
+      return { error: "MÃ³dulo selecionado nÃ£o existe" as const };
     }
     if (byId.course_id !== course.id) {
-      return { error: "O módulo informado não pertence ao curso selecionado" as const };
+      return { error: "O mÃ³dulo informado nÃ£o pertence ao curso selecionado" as const };
     }
     moduleRow = byId;
   } else {
@@ -294,7 +393,7 @@ async function resolveCourseAndModule(params: {
   }
 
   if (!moduleRow) {
-    return { error: "Curso sem módulos. Crie um módulo antes de criar a turma" as const };
+    return { error: "Curso sem mÃ³dulos. Crie um mÃ³dulo antes de criar a turma" as const };
   }
 
   return { course, moduleRow };
@@ -335,6 +434,126 @@ async function getTurmaByIdOrNull(id: number) {
   return { row, course };
 }
 
+async function syncProgressStudentPhaseForModule(
+  db: Queryable,
+  userId: number,
+  moduleId: number
+) {
+  const progressConfig = await getProgressStudentPhaseConfig();
+
+  if (
+    !progressConfig.hasTable ||
+    !progressConfig.hasUserIdColumn ||
+    !progressConfig.hasPhaseIdColumn
+  ) {
+    return;
+  }
+
+  const insertColumns = ["user_id", "phase_id"];
+  const selectValues = ["$1", "p.id"];
+
+  if (progressConfig.hasProgressColumn) {
+    insertColumns.push("progress");
+    selectValues.push("0");
+  }
+
+  if (progressConfig.hasStatusColumn) {
+    insertColumns.push("status");
+    selectValues.push("0");
+  }
+
+  if (progressConfig.hasUnlockedAtColumn) {
+    insertColumns.push("unlocked_at");
+    selectValues.push("NULL");
+  }
+
+  if (progressConfig.hasCompletedAtColumn) {
+    insertColumns.push("completed_at");
+    selectValues.push("NULL");
+  }
+
+  if (progressConfig.hasCreatedAtColumn) {
+    insertColumns.push("created_at");
+    selectValues.push("NOW()");
+  }
+
+  await db.query(
+    `INSERT INTO progress_student_phase (${insertColumns.join(", ")})
+     SELECT ${selectValues.join(", ")}
+     FROM phase p
+     WHERE p.module_id = $2
+       AND NOT EXISTS (
+         SELECT 1
+         FROM progress_student_phase psp
+         WHERE psp.user_id = $1
+           AND psp.phase_id = p.id
+       )`,
+    [userId, moduleId]
+  );
+}
+
+async function startFirstPhaseForStudents(
+  db: Queryable,
+  classId: number,
+  moduleId: number,
+  studentIds: number[]
+) {
+  const firstPhase = await getFirstPhaseFromModule(moduleId, db);
+  if (!firstPhase) {
+    return { firstPhase: null, affectedStudentIds: [] as number[] };
+  }
+
+  const progressConfig = await getProgressStudentPhaseConfig();
+  if (
+    !progressConfig.hasTable ||
+    !progressConfig.hasUserIdColumn ||
+    !progressConfig.hasPhaseIdColumn
+  ) {
+    throw new Error("Tabela de progresso de fases indisponivel");
+  }
+
+  const updatableFields: string[] = [];
+  if (progressConfig.hasStatusColumn) {
+    updatableFields.push(
+      `status = CASE WHEN COALESCE(status, 0) = 2 THEN 2 ELSE 1 END`
+    );
+  }
+  if (progressConfig.hasUnlockedAtColumn) {
+    updatableFields.push(`unlocked_at = COALESCE(unlocked_at, NOW())`);
+  }
+
+  if (updatableFields.length === 0) {
+    throw new Error("Tabela de progresso sem colunas para iniciar fases");
+  }
+
+  const enrolledStudents = await db.query<{ user_id: number }>(
+    `SELECT DISTINCT user_id
+     FROM enrollment
+     WHERE class_id = $1
+       AND user_id = ANY($2::int[])`,
+    [classId, studentIds]
+  );
+
+  const affectedStudentIds = enrolledStudents.rows.map((row) => row.user_id);
+  if (affectedStudentIds.length === 0) {
+    return { firstPhase, affectedStudentIds };
+  }
+
+  for (const studentId of affectedStudentIds) {
+    await syncProgressStudentPhaseForModule(db, studentId, moduleId);
+  }
+
+  await db.query(
+    `UPDATE progress_student_phase
+     SET ${updatableFields.join(", ")}
+     WHERE user_id = ANY($1::int[])
+       AND phase_id = $2`,
+    [affectedStudentIds, firstPhase.id]
+  );
+
+  return { firstPhase, affectedStudentIds };
+}
+
 export function turmasRouter(jwtSecret: string) {
   const router = Router();
 
@@ -342,7 +561,7 @@ export function turmasRouter(jwtSecret: string) {
     const parsed = createModuleSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
-        message: "Dados inválidos",
+        message: "Dados invÃ¡lidos",
         issues: parsed.error.flatten().fieldErrors,
       });
     }
@@ -351,12 +570,12 @@ export function turmasRouter(jwtSecret: string) {
       const body = parsed.data;
       const courseId = body.course_id ?? body.courseId;
       if (!courseId) {
-        return res.status(400).json({ message: "course_id é obrigatório" });
+        return res.status(400).json({ message: "course_id Ã© obrigatÃ³rio" });
       }
 
       const course = await getCourseById(courseId);
       if (!course) {
-        return res.status(404).json({ message: "Curso não encontrado" });
+        return res.status(404).json({ message: "Curso nÃ£o encontrado" });
       }
 
       let indexOrder = body.index_order;
@@ -390,18 +609,18 @@ export function turmasRouter(jwtSecret: string) {
       }).catch((err) => console.error("activity log error:", err));
 
       return res.status(201).json({
-        message: "Módulo criado com sucesso!",
+        message: "MÃ³dulo criado com sucesso!",
         modulo: {
           id: String(row.id),
           courseId: String(row.course_id),
-          nome: row.name ?? `Módulo ${row.id}`,
+          nome: row.name ?? `MÃ³dulo ${row.id}`,
           descricao: row.description,
           indexOrder: row.index_order,
         },
       });
     } catch (error) {
-      console.error("Erro ao criar módulo:", error);
-      return res.status(500).json({ message: "Erro ao criar módulo" });
+      console.error("Erro ao criar mÃ³dulo:", error);
+      return res.status(500).json({ message: "Erro ao criar mÃ³dulo" });
     }
   };
 
@@ -409,7 +628,7 @@ export function turmasRouter(jwtSecret: string) {
     try {
       const moduleId = Number(req.params.moduleId);
       if (!Number.isFinite(moduleId)) {
-        return res.status(400).json({ message: "Module ID inválido" });
+        return res.status(400).json({ message: "Module ID invÃ¡lido" });
       }
 
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -490,7 +709,7 @@ export function turmasRouter(jwtSecret: string) {
     const parsed = createPhaseSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
-        message: "Dados inválidos",
+        message: "Dados invÃ¡lidos",
         issues: parsed.error.flatten().fieldErrors,
       });
     }
@@ -498,12 +717,12 @@ export function turmasRouter(jwtSecret: string) {
     try {
       const moduleId = Number(req.params.moduleId);
       if (!Number.isFinite(moduleId)) {
-        return res.status(400).json({ message: "Module ID inválido" });
+        return res.status(400).json({ message: "Module ID invÃ¡lido" });
       }
 
       const moduleRow = await getModuleById(moduleId);
       if (!moduleRow) {
-        return res.status(404).json({ message: "Módulo não encontrado" });
+        return res.status(404).json({ message: "MÃ³dulo nÃ£o encontrado" });
       }
 
       let indexOrder = parsed.data.index_order;
@@ -557,7 +776,7 @@ export function turmasRouter(jwtSecret: string) {
     }
   };
 
-  // GET /estrutura/stats – global totals for overview cards
+  // GET /estrutura/stats â€“ global totals for overview cards
   router.get("/estrutura/stats", authGuard(jwtSecret), async (_req: AuthRequest, res: any) => {
     try {
       const result = await pool.query<{ cursos: string; modulos: string; fases: string }>(
@@ -703,9 +922,9 @@ export function turmasRouter(jwtSecret: string) {
     }
   });
 
-  // POST /courses (criação de curso)
+  // POST /courses (criaÃ§Ã£o de curso)
   const createCourseSchema = z.object({
-    nome: z.string().min(2, "Nome obrigatório"),
+    nome: z.string().min(2, "Nome obrigatÃ³rio"),
     descricao: z.string().optional().nullable(),
     is_paid: z.boolean().optional().default(false),
     duration_hours: z.coerce.number().int().min(1).optional().nullable(),
@@ -722,13 +941,13 @@ export function turmasRouter(jwtSecret: string) {
       try {
         const parsed = createCourseSchema.safeParse(req.body);
         if (!parsed.success) {
-          return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Dados inválidos" });
+          return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Dados invÃ¡lidos" });
         }
         const data = parsed.data;
         const courseColumns = await getCourseColumnConfig(true);
 
         if (!courseColumns.hasCourseTable) {
-          return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
+          return res.status(400).json({ message: "Estrutura de cursos indisponÃ­vel no banco atual" });
         }
 
         const normalizedDurationHours = data.duration_hours ?? 1;
@@ -797,17 +1016,17 @@ export function turmasRouter(jwtSecret: string) {
         });
       } catch (error) {
         if (isMissingDatabaseObjectError(error)) {
-          return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
+          return res.status(400).json({ message: "Estrutura de cursos indisponÃ­vel no banco atual" });
         }
         if (isNotNullConstraintError(error)) {
           const column = typeof error.column === "string" ? error.column : null;
           if (column === "duration_hours") {
-            return res.status(400).json({ message: "A duração do curso é obrigatória na estrutura atual do banco" });
+            return res.status(400).json({ message: "A duraÃ§Ã£o do curso Ã© obrigatÃ³ria na estrutura atual do banco" });
           }
           if (column === "price") {
-            return res.status(400).json({ message: "O preço do curso é obrigatório na estrutura atual do banco" });
+            return res.status(400).json({ message: "O preÃ§o do curso Ã© obrigatÃ³rio na estrutura atual do banco" });
           }
-          return res.status(400).json({ message: "Dados obrigatórios do curso não foram informados" });
+          return res.status(400).json({ message: "Dados obrigatÃ³rios do curso nÃ£o foram informados" });
         }
         console.error("Erro ao criar curso:", error);
         return res.status(500).json({ message: "Erro ao criar curso" });
@@ -824,12 +1043,12 @@ export function turmasRouter(jwtSecret: string) {
       try {
         const id = Number(req.params.id);
         if (!Number.isFinite(id)) {
-          return res.status(400).json({ message: "ID de curso inválido" });
+          return res.status(400).json({ message: "ID de curso invÃ¡lido" });
         }
 
         const existing = await getCourseById(id);
         if (!existing) {
-          return res.status(404).json({ message: "Curso não encontrado" });
+          return res.status(404).json({ message: "Curso nÃ£o encontrado" });
         }
 
         await pool.query(`DELETE FROM course WHERE id = $1`, [id]);
@@ -847,7 +1066,7 @@ export function turmasRouter(jwtSecret: string) {
         return res.json({ message: "Curso deletado com sucesso" });
       } catch (error) {
         if (isMissingDatabaseObjectError(error)) {
-          return res.status(400).json({ message: "Estrutura de cursos indisponível no banco atual" });
+          return res.status(400).json({ message: "Estrutura de cursos indisponÃ­vel no banco atual" });
         }
         console.error("Erro ao deletar curso:", error);
         return res.status(500).json({ message: "Erro ao deletar curso" });
@@ -864,12 +1083,12 @@ export function turmasRouter(jwtSecret: string) {
       try {
         const id = Number(req.params.id);
         if (!Number.isFinite(id)) {
-          return res.status(400).json({ message: "ID de módulo inválido" });
+          return res.status(400).json({ message: "ID de mÃ³dulo invÃ¡lido" });
         }
 
         const existing = await getModuleById(id);
         if (!existing) {
-          return res.status(404).json({ message: "Módulo não encontrado" });
+          return res.status(404).json({ message: "MÃ³dulo nÃ£o encontrado" });
         }
 
         await pool.query(`DELETE FROM module WHERE id = $1`, [id]);
@@ -884,10 +1103,10 @@ export function turmasRouter(jwtSecret: string) {
           req,
         }).catch((err) => console.error("activity log error:", err));
 
-        return res.json({ message: "Módulo deletado com sucesso" });
+        return res.json({ message: "MÃ³dulo deletado com sucesso" });
       } catch (error) {
-        console.error("Erro ao deletar módulo:", error);
-        return res.status(500).json({ message: "Erro ao deletar módulo" });
+        console.error("Erro ao deletar mÃ³dulo:", error);
+        return res.status(500).json({ message: "Erro ao deletar mÃ³dulo" });
       }
     }
   );
@@ -901,12 +1120,12 @@ export function turmasRouter(jwtSecret: string) {
       try {
         const id = Number(req.params.id);
         if (!Number.isFinite(id)) {
-          return res.status(400).json({ message: "ID de fase inválido" });
+          return res.status(400).json({ message: "ID de fase invÃ¡lido" });
         }
 
         const existing = await pool.query(`SELECT id, name FROM phase WHERE id = $1 LIMIT 1`, [id]);
         if (!existing.rows[0]) {
-          return res.status(404).json({ message: "Fase não encontrada" });
+          return res.status(404).json({ message: "Fase nÃ£o encontrada" });
         }
 
         await pool.query(`DELETE FROM phase WHERE id = $1`, [id]);
@@ -934,7 +1153,7 @@ export function turmasRouter(jwtSecret: string) {
     try {
       const courseId = Number(req.params.courseId);
       if (!Number.isFinite(courseId)) {
-        return res.status(400).json({ message: "Course ID inválido" });
+        return res.status(400).json({ message: "Course ID invÃ¡lido" });
       }
 
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -956,7 +1175,7 @@ export function turmasRouter(jwtSecret: string) {
         rows.map((row) => ({
           id: String(row.id),
           courseId: String(row.course_id),
-          nome: row.name ?? `Módulo ${row.id}`,
+          nome: row.name ?? `MÃ³dulo ${row.id}`,
           descricao: row.description,
           indexOrder: row.index_order,
         }));
@@ -1004,12 +1223,12 @@ export function turmasRouter(jwtSecret: string) {
         },
       });
     } catch (error) {
-      console.error("Erro ao listar módulos do curso:", error);
-      return res.status(500).json({ message: "Erro ao listar módulos do curso" });
+      console.error("Erro ao listar mÃ³dulos do curso:", error);
+      return res.status(500).json({ message: "Erro ao listar mÃ³dulos do curso" });
     }
   });
 
-  // POST /modules (criação de módulo)
+  // POST /modules (criaÃ§Ã£o de mÃ³dulo)
   router.post(
     "/modules",
     authGuard(jwtSecret),
@@ -1017,13 +1236,13 @@ export function turmasRouter(jwtSecret: string) {
     createModuleHandler
   );
 
-  // Alias PT-BR para criar módulo
+  // Alias PT-BR para criar mÃ³dulo
   router.post("/modulos", authGuard(jwtSecret), requireRole(["admin"]), createModuleHandler);
 
   // GET /modules/:moduleId/phases
   router.get("/modules/:moduleId/phases", authGuard(jwtSecret), listPhasesHandler);
 
-  // POST /modules/:moduleId/phases (criação de fase)
+  // POST /modules/:moduleId/phases (criaÃ§Ã£o de fase)
   router.post(
     "/modules/:moduleId/phases",
     authGuard(jwtSecret),
@@ -1148,8 +1367,8 @@ export function turmasRouter(jwtSecret: string) {
       const all = await pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM class`);
       return res.json({ total: Number(all.rows[0]?.count ?? "0") });
     } catch (error) {
-      console.error("Erro ao contar turmas responsáveis:", error);
-      return res.status(500).json({ message: "Erro ao contar turmas responsáveis" });
+      console.error("Erro ao contar turmas responsÃ¡veis:", error);
+      return res.status(500).json({ message: "Erro ao contar turmas responsÃ¡veis" });
     }
   });
 
@@ -1235,12 +1454,12 @@ export function turmasRouter(jwtSecret: string) {
     const userRole = req.user!.role;
 
     if (!Number.isFinite(id)) {
-      return res.status(400).json({ message: "ID de turma inválido" });
+      return res.status(400).json({ message: "ID de turma invÃ¡lido" });
     }
 
     const turmaData = await getTurmaByIdOrNull(id);
     if (!turmaData) {
-      return res.status(404).json({ message: "Turma não encontrada" });
+      return res.status(404).json({ message: "Turma nÃ£o encontrada" });
     }
 
     if (userRole === "aluno") {
@@ -1249,9 +1468,11 @@ export function turmasRouter(jwtSecret: string) {
         [userId, id]
       );
       if (!hasAccess.rows.length) {
-        return res.status(403).json({ message: "Sem permissão" });
+        return res.status(403).json({ message: "Sem permissÃ£o" });
       }
     }
+
+    const firstPhase = await getFirstPhaseFromModule(turmaData.row.current_module_id);
 
     const alunosR = await pool.query<{
       id: number;
@@ -1266,6 +1487,31 @@ export function turmasRouter(jwtSecret: string) {
        ORDER BY u.name NULLS LAST`,
       [id]
     );
+
+    const progressConfig = await getProgressStudentPhaseConfig();
+    const studentProgressMap = new Map<number, DbStudentPhaseProgressRow>();
+
+    if (
+      firstPhase &&
+      progressConfig.hasTable &&
+      progressConfig.hasUserIdColumn &&
+      progressConfig.hasPhaseIdColumn
+    ) {
+      const progressR = await pool.query<DbStudentPhaseProgressRow>(
+        `SELECT
+           user_id,
+           ${progressConfig.hasStatusColumn ? "status" : "NULL::int AS status"},
+           ${progressConfig.hasProgressColumn ? "progress" : "NULL::double precision AS progress"},
+           ${progressConfig.hasUnlockedAtColumn ? "unlocked_at" : "NULL::timestamptz AS unlocked_at"}
+         FROM progress_student_phase
+         WHERE phase_id = $1`,
+        [firstPhase.id]
+      );
+
+      for (const row of progressR.rows) {
+        studentProgressMap.set(row.user_id, row);
+      }
+    }
 
     const phasesR = await pool.query<{
       id: number;
@@ -1282,12 +1528,27 @@ export function turmasRouter(jwtSecret: string) {
 
     return res.json({
       ...mapClassToTurma(turmaData.row, turmaData.course),
-      alunos: alunosR.rows.map((row) => ({
-        id: String(row.id),
-        usuario: row.usuario ?? undefined,
-        nome: row.nome ?? `Usuário ${row.id}`,
-        role: row.role === 1 ? "aluno" : row.role === 2 ? "professor" : "admin",
-      })),
+      faseInicial: firstPhase
+        ? {
+            id: String(firstPhase.id),
+            nome: firstPhase.name ?? `Fase ${firstPhase.id}`,
+          }
+        : null,
+      alunos: alunosR.rows.map((row) => {
+        const progress = studentProgressMap.get(row.id);
+        const phaseStatus = mapPhaseStartStatus(progress?.status ?? null, progress?.unlocked_at ?? null);
+
+        return {
+          id: String(row.id),
+          usuario: row.usuario ?? undefined,
+          nome: row.nome ?? `Usuario ${row.id}`,
+          role: row.role === 1 ? "aluno" : row.role === 2 ? "professor" : "admin",
+          faseInicialStatus: phaseStatus.key,
+          faseInicialStatusLabel: phaseStatus.label,
+          faseInicialProgress: progress?.progress ?? 0,
+          faseInicialUnlockedAt: progress?.unlocked_at ?? null,
+        };
+      }),
       exercicios: phasesR.rows.map((row) => ({
         id: String(row.id),
         titulo: row.titulo ?? `Fase ${row.id}`,
@@ -1305,7 +1566,7 @@ export function turmasRouter(jwtSecret: string) {
       const parsed = createTurmaSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados inválidos",
+          message: "Dados invÃ¡lidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
@@ -1363,20 +1624,20 @@ export function turmasRouter(jwtSecret: string) {
     async (req: AuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) {
-        return res.status(400).json({ message: "ID de turma inválido" });
+        return res.status(400).json({ message: "ID de turma invÃ¡lido" });
       }
 
       const parsed = updateTurmaSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
-          message: "Dados inválidos",
+          message: "Dados invÃ¡lidos",
           issues: parsed.error.flatten().fieldErrors,
         });
       }
 
       const current = await getTurmaByIdOrNull(id);
       if (!current) {
-        return res.status(404).json({ message: "Turma não encontrada" });
+        return res.status(404).json({ message: "Turma nÃ£o encontrada" });
       }
 
       const data = parsed.data;
@@ -1447,12 +1708,12 @@ export function turmasRouter(jwtSecret: string) {
     async (req: AuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) {
-        return res.status(400).json({ message: "ID de turma inválido" });
+        return res.status(400).json({ message: "ID de turma invÃ¡lido" });
       }
 
       const check = await getTurmaByIdOrNull(id);
       if (!check) {
-        return res.status(404).json({ message: "Turma não encontrada" });
+        return res.status(404).json({ message: "Turma nÃ£o encontrada" });
       }
 
       await pool.query(`DELETE FROM class WHERE id = $1`, [id]);
@@ -1481,33 +1742,135 @@ export function turmasRouter(jwtSecret: string) {
       const { aluno_ids } = req.body as { aluno_ids?: Array<string | number> };
 
       if (!Number.isFinite(classId)) {
-        return res.status(400).json({ message: "ID de turma inválido" });
+        return res.status(400).json({ message: "ID de turma invÃ¡lido" });
       }
 
       if (!Array.isArray(aluno_ids) || aluno_ids.length === 0) {
-        return res.status(400).json({ message: "aluno_ids deve ser um array não vazio" });
+        return res.status(400).json({ message: "aluno_ids deve ser um array nÃ£o vazio" });
       }
 
       const turma = await getTurmaByIdOrNull(classId);
       if (!turma) {
-        return res.status(404).json({ message: "Turma não encontrada" });
+        return res.status(404).json({ message: "Turma nÃ£o encontrada" });
       }
 
-      for (const rawAlunoId of aluno_ids) {
-        const alunoId = Number(rawAlunoId);
-        if (!Number.isFinite(alunoId)) continue;
+      const normalizedAlunoIds = Array.from(
+        new Set(
+          aluno_ids
+            .map((value) => Number(value))
+            .filter((value): value is number => Number.isFinite(value))
+        )
+      );
 
-        await pool.query(
-          `INSERT INTO enrollment (user_id, class_id, created_at)
-           SELECT $1, $2, NOW()
-           WHERE NOT EXISTS (
-             SELECT 1 FROM enrollment WHERE user_id = $1 AND class_id = $2
-           )`,
-          [alunoId, classId]
-        );
+      if (normalizedAlunoIds.length === 0) {
+        return res.status(400).json({ message: "Nenhum aluno_id valido informado" });
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        for (const alunoId of normalizedAlunoIds) {
+          await client.query(
+            `INSERT INTO enrollment (user_id, class_id, created_at)
+             SELECT $1, $2, NOW()
+             WHERE NOT EXISTS (
+               SELECT 1 FROM enrollment WHERE user_id = $1 AND class_id = $2
+             )`,
+            [alunoId, classId]
+          );
+
+          await syncProgressStudentPhaseForModule(client, alunoId, turma.row.current_module_id);
+        }
+
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        console.error("Erro ao adicionar alunos na turma:", error);
+        return res.status(500).json({ message: "Erro ao adicionar alunos na turma" });
+      } finally {
+        client.release();
       }
 
       return res.json({ message: "Alunos adicionados com sucesso" });
+    }
+  );
+
+  // POST /turmas/:id/iniciar-fases
+  router.post(
+    "/turmas/:id/iniciar-fases",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const classId = Number(req.params.id);
+      const { aluno_ids } = req.body as { aluno_ids?: Array<string | number> };
+
+      if (!Number.isFinite(classId)) {
+        return res.status(400).json({ message: "ID de turma invalido" });
+      }
+
+      if (!Array.isArray(aluno_ids) || aluno_ids.length === 0) {
+        return res.status(400).json({ message: "aluno_ids deve ser um array nao vazio" });
+      }
+
+      const turma = await getTurmaByIdOrNull(classId);
+      if (!turma) {
+        return res.status(404).json({ message: "Turma nao encontrada" });
+      }
+
+      const normalizedAlunoIds = Array.from(
+        new Set(
+          aluno_ids
+            .map((value) => Number(value))
+            .filter((value): value is number => Number.isFinite(value))
+        )
+      );
+
+      if (normalizedAlunoIds.length === 0) {
+        return res.status(400).json({ message: "Nenhum aluno_id valido informado" });
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const result = await startFirstPhaseForStudents(
+          client,
+          classId,
+          turma.row.current_module_id,
+          normalizedAlunoIds
+        );
+
+        if (!result.firstPhase) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: "O modulo atual da turma nao possui fases" });
+        }
+
+        await client.query("COMMIT");
+
+        return res.json({
+          message: "Fase inicial iniciada com sucesso",
+          fase: {
+            id: String(result.firstPhase.id),
+            nome: result.firstPhase.name ?? `Fase ${result.firstPhase.id}`,
+          },
+          totalAlunos: result.affectedStudentIds.length,
+        });
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        console.error("Erro ao iniciar fases da turma:", error);
+
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Erro ao iniciar fases da turma";
+
+        return res.status(500).json({ message });
+      } finally {
+        client.release();
+      }
     }
   );
 
@@ -1521,12 +1884,12 @@ export function turmasRouter(jwtSecret: string) {
       const alunoId = Number(req.params.alunoId);
 
       if (!Number.isFinite(classId) || !Number.isFinite(alunoId)) {
-        return res.status(400).json({ message: "Parâmetros inválidos" });
+        return res.status(400).json({ message: "ParÃ¢metros invÃ¡lidos" });
       }
 
       const turma = await getTurmaByIdOrNull(classId);
       if (!turma) {
-        return res.status(404).json({ message: "Turma não encontrada" });
+        return res.status(404).json({ message: "Turma nÃ£o encontrada" });
       }
 
       await pool.query(`DELETE FROM enrollment WHERE user_id = $1 AND class_id = $2`, [alunoId, classId]);
@@ -1541,7 +1904,7 @@ export function turmasRouter(jwtSecret: string) {
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (_req: AuthRequest, res) => {
-      return res.status(501).json({ message: "Atribuição de exercícios por turma indisponível no schema atual" });
+      return res.status(501).json({ message: "AtribuiÃ§Ã£o de exercÃ­cios por turma indisponÃ­vel no schema atual" });
     }
   );
 
@@ -1550,7 +1913,7 @@ export function turmasRouter(jwtSecret: string) {
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (_req: AuthRequest, res) => {
-      return res.status(501).json({ message: "Remoção de exercícios por turma indisponível no schema atual" });
+      return res.status(501).json({ message: "RemoÃ§Ã£o de exercÃ­cios por turma indisponÃ­vel no schema atual" });
     }
   );
 
@@ -1559,24 +1922,24 @@ export function turmasRouter(jwtSecret: string) {
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (_req: AuthRequest, res) => {
-      return res.status(501).json({ message: "Cronograma legado indisponível no schema atual" });
+      return res.status(501).json({ message: "Cronograma legado indisponÃ­vel no schema atual" });
     }
   );
 
-  // GET /turmas/:id/cronograma - fallback com fases do módulo atual
+  // GET /turmas/:id/cronograma - fallback com fases do mÃ³dulo atual
   router.get("/turmas/:id/cronograma", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const classId = Number(req.params.id);
     const userId = Number(req.user!.sub);
     const userRole = req.user!.role;
 
     if (!Number.isFinite(classId)) {
-      return res.status(400).json({ message: "ID de turma inválido" });
+      return res.status(400).json({ message: "ID de turma invÃ¡lido" });
     }
 
     try {
       const turma = await getTurmaByIdOrNull(classId);
       if (!turma) {
-        return res.status(404).json({ message: "Turma não encontrada" });
+        return res.status(404).json({ message: "Turma nÃ£o encontrada" });
       }
 
       if (userRole === "aluno") {
@@ -1585,7 +1948,7 @@ export function turmasRouter(jwtSecret: string) {
           [userId, classId]
         );
         if (!hasAccess.rows.length) {
-          return res.status(403).json({ message: "Sem permissão" });
+          return res.status(403).json({ message: "Sem permissÃ£o" });
         }
       }
 
@@ -1629,11 +1992,11 @@ export function turmasRouter(jwtSecret: string) {
     }
   });
 
-  // ─── REORDER MODULES ───────────────────────────────────────────────
+  // â”€â”€â”€ REORDER MODULES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   router.patch("/modules/:id/reorder", authGuard(jwtSecret), requireRole(["admin", "professor"]), async (req: AuthRequest, res: any) => {
     try {
       const id = Number(req.params.id);
-      if (!Number.isFinite(id)) return res.status(400).json({ message: "ID inválido" });
+      if (!Number.isFinite(id)) return res.status(400).json({ message: "ID invÃ¡lido" });
 
       const direction = req.body?.direction as string;
       if (direction !== "up" && direction !== "down") {
@@ -1644,7 +2007,7 @@ export function turmasRouter(jwtSecret: string) {
         `SELECT id, course_id, index_order FROM module WHERE id = $1`,
         [id]
       );
-      if (current.rows.length === 0) return res.status(404).json({ message: "Módulo não encontrado" });
+      if (current.rows.length === 0) return res.status(404).json({ message: "MÃ³dulo nÃ£o encontrado" });
 
       const mod = current.rows[0];
       const operator = direction === "up" ? "<" : ">";
@@ -1659,7 +2022,7 @@ export function turmasRouter(jwtSecret: string) {
       );
 
       if (neighbor.rows.length === 0) {
-        return res.status(400).json({ message: "Já está na posição limite" });
+        return res.status(400).json({ message: "JÃ¡ estÃ¡ na posiÃ§Ã£o limite" });
       }
 
       const nb = neighbor.rows[0];
@@ -1672,16 +2035,16 @@ export function turmasRouter(jwtSecret: string) {
       return res.json({ message: "Ordem atualizada" });
     } catch (error) {
       await pool.query("ROLLBACK").catch(() => {});
-      console.error("Erro ao reordenar módulo:", error);
-      return res.status(500).json({ message: "Erro ao reordenar módulo" });
+      console.error("Erro ao reordenar mÃ³dulo:", error);
+      return res.status(500).json({ message: "Erro ao reordenar mÃ³dulo" });
     }
   });
 
-  // ─── REORDER PHASES ────────────────────────────────────────────────
+  // â”€â”€â”€ REORDER PHASES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   router.patch("/phases/:id/reorder", authGuard(jwtSecret), requireRole(["admin", "professor"]), async (req: AuthRequest, res: any) => {
     try {
       const id = Number(req.params.id);
-      if (!Number.isFinite(id)) return res.status(400).json({ message: "ID inválido" });
+      if (!Number.isFinite(id)) return res.status(400).json({ message: "ID invÃ¡lido" });
 
       const direction = req.body?.direction as string;
       if (direction !== "up" && direction !== "down") {
@@ -1692,7 +2055,7 @@ export function turmasRouter(jwtSecret: string) {
         `SELECT id, module_id, index_order FROM phase WHERE id = $1`,
         [id]
       );
-      if (current.rows.length === 0) return res.status(404).json({ message: "Fase não encontrada" });
+      if (current.rows.length === 0) return res.status(404).json({ message: "Fase nÃ£o encontrada" });
 
       const phase = current.rows[0];
       const operator = direction === "up" ? "<" : ">";
@@ -1707,7 +2070,7 @@ export function turmasRouter(jwtSecret: string) {
       );
 
       if (neighbor.rows.length === 0) {
-        return res.status(400).json({ message: "Já está na posição limite" });
+        return res.status(400).json({ message: "JÃ¡ estÃ¡ na posiÃ§Ã£o limite" });
       }
 
       const nb = neighbor.rows[0];

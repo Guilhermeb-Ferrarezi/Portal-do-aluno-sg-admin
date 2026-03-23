@@ -688,6 +688,19 @@ export type Turma = {
   updatedAt?: string;
 };
 
+export type TurmaAlunoPhaseStatus =
+  | "nao_iniciado"
+  | "em_progresso"
+  | "concluido"
+  | "desconhecido";
+
+export type TurmaAluno = User & {
+  faseInicialStatus?: TurmaAlunoPhaseStatus;
+  faseInicialStatusLabel?: string;
+  faseInicialProgress?: number;
+  faseInicialUnlockedAt?: string | null;
+};
+
 export type CronogramaSemana = {
   semana: number;
   exercicios: Array<{
@@ -731,7 +744,8 @@ export async function obterContagemAlunosDashboard() {
 
 export async function obterTurma(id: string) {
   return apiFetch<Turma & {
-    alunos: Array<{ id: string; usuario?: string; email?: string; nome: string; role: Role }>;
+    faseInicial?: { id: string; nome: string } | null;
+    alunos: TurmaAluno[];
     exercicios: Array<{ id: string; titulo: string; modulo: string }>;
   }>(`/turmas/${id}`);
 }
@@ -789,6 +803,16 @@ export async function removerAlunoDaTurma(turmaId: string, alunoId: string) {
   return apiFetch<{ message: string }>(`/turmas/${turmaId}/alunos/${alunoId}`, {
     method: "DELETE",
   });
+}
+
+export async function iniciarFasesNaTurma(turmaId: string, alunoIds: string[]) {
+  return apiFetch<{ message: string; fase?: { id: string; nome: string } | null; totalAlunos: number }>(
+    `/turmas/${turmaId}/iniciar-fases`,
+    {
+      method: "POST",
+      body: JSON.stringify({ aluno_ids: alunoIds }),
+    }
+  );
 }
 
 export async function atribuirExerciciosNaTurma(turmaId: string, exercicioIds: string[]) {
