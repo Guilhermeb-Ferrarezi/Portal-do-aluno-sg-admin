@@ -264,3 +264,85 @@ Se o WebSocket continuar caindo em producao mesmo apos deploy, verificar:
 - `api`: `npx tsc --noEmit` sem erros
 - `web`: `npx tsc --noEmit` sem erros
 - Docker nao estava rodando para teste completo de deploy
+
+# Correcao 2026-03-24
+
+## Ajustes aplicados
+
+- Backend ganhou `POST /api/exercicios/ai/generate` com auth, permissao para `admin/professor`, validacao por `zod`, rate limit dedicado, timeout e log de atividade.
+- A geracao com Groq usa `fetch` no endpoint oficial com structured outputs em JSON schema estrito, resolve curso/modulo/fase canonicos no banco antes da chamada e valida a resposta de volta com `zod`.
+- O schema novo de exercicios agora persiste multipla escolha em `question` e `question_option`, inclusive no update, sem criar colunas novas e sem apagar estrutura se ja existirem respostas vinculadas.
+- O save do schema novo falha de forma explicita quando tentam salvar `gabarito` textual sem coluna existente em `public.exercise`, conforme a restricao de nao alterar o banco.
+- O frontend ganhou um painel reutilizavel de IA com prompt, estado de loading/erro, bloqueio sem curso/modulo/fase e confirmacao antes de sobrescrever campos preenchidos.
+- As duas UIs de criacao/edicao cobertas nesta task voltaram a exibir `gabarito` editavel para `escrita`, passaram a preencher `titulo`, `descricao`, `gabarito` ou `multiplaQuestoes` a partir da IA e agora enviam `multipla_regras` em formato `questoes` lowercase.
+- A validacao de submissoes passou a aceitar tanto `questoes` quanto `Questoes` para manter compatibilidade com dados antigos.
+
+## Validacao executada
+
+- `api`: `npm run build`
+- `web`: `npm run lint` (sem erros; warnings antigos de hooks/fast-refresh continuam no projeto)
+- `web`: `npm run build`
+- `./deploy_and_push.bat` executado e interrompido no primeiro prompt com `n`, sem pull/commit/push
+
+## Atualizacao da mesma task
+
+- O campo `gabarito` deixou de ser usado nas UIs de criacao de exercicios escritos. O frontend nao coleta mais esse conteudo e a geracao de rascunho por IA para `escrita` passou a preencher apenas `titulo` e `descricao`.
+- O backend de exercicios agora ignora `gabarito` recebido no create/update e limpa o valor no save quando o schema permite, mantendo a multipla escolha intacta.
+- A autocorrecao de respostas escritas no fluxo legado de `submissoes` passou a usar IA via Groq, retornando nota e feedback automaticos quando a resposta textual existe.
+- Se a IA falhar ou estiver indisponivel, a submissao escrita ainda e salva, mas fica pendente para revisao manual em vez de bloquear o aluno.
+- A heuristica `verificacaoDescricao` para respostas textuais passou a considerar o enunciado da atividade, sem depender de `gabarito`.
+
+## Validacao complementar
+
+- `api`: `npm run build`
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh, sem erros novos)
+- `web`: `npm run build`
+
+## Atualizacao adicional da mesma task
+
+- O gerador de rascunho com IA deixou de produzir texto descritivo de briefing no campo principal e passou a instruir explicitamente a Groq a devolver o enunciado/pergunta final para o aluno.
+- O contrato do draft agora retorna tambem `difficulty` e `pointsRedeem`, ambos validados no backend antes de chegar ao frontend.
+- As duas telas que usam o gerador agora aplicam automaticamente dificuldade e pontos de resgate no formulario, alem de incluir esses campos na confirmacao de sobrescrita.
+- Os textos da UI do painel de IA foram ajustados para refletir que a IA preenche pergunta, dificuldade e pontos de resgate, nao apenas descricao.
+
+## Validacao desta atualizacao
+
+- `api`: `npm run build`
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh, sem erros novos)
+- `web`: `npm run build`
+- `./deploy_and_push.bat` executado com respostas `s`, `s`, `n`, concluindo deploy e encerrando antes de commit/push
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste adicional do gerador de pergunta
+
+- O backend do draft com Groq passou a exigir que o campo principal venha em formato de pergunta real, terminando com `?`, em vez de aceitar enunciados descritivos no imperativo.
+- Foi adicionada uma validacao extra no schema do draft para rejeitar respostas como `Crie`, `Desenvolva`, `Escreva` e similares quando o campo principal nao estiver em formato interrogativo.
+- A geracao agora faz uma segunda tentativa automatica com instrucao mais rigida quando a primeira resposta da Groq vier como descricao/enunciado em vez de pergunta.
+- Os textos da UI do gerador foram ajustados para deixar explicito que a IA deve preencher uma pergunta direta.
+
+## Validacao desse ajuste
+
+- `api`: `npm run build`
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh, sem erros novos)
+- `web`: `npm run build`
+- `./deploy_and_push.bat` executado com respostas `s`, `s`, `n`, concluindo deploy e encerrando antes de commit/push
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste de modelo Groq para plano free
+
+- A correcao escrita em `submissoes.route.ts` deixou de ter modelo hardcoded e agora le `GROQ_CORRECTION_MODEL` do ambiente, com fallback para `GROQ_MODEL` apenas se essa variavel especifica nao estiver definida.
+- Foi configurado `GROQ_CORRECTION_MODEL=llama-3.1-8b-instant` no `.env` da raiz e no `api/.env`, reduzindo custo e consumo de quota para o Free Plan.
+- A rota de correcao agora usa `json_schema` estrito apenas para modelos `gpt-oss`; para modelos mais leves como `llama-3.1-8b-instant`, ela usa `json_object` e continua validando a resposta com `zod` no backend.
+- O limite de saida da correcao escrita foi reduzido para `250` completion tokens e o prompt passou a exigir feedback curto, para economizar quota no Free Plan.
+- O `docker-compose.yml` passou a expor explicitamente `GROQ_CORRECTION_MODEL` para o container da API.
+
+## Validacao desse ajuste de modelo
+
+- `api`: `npm run build`
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh, sem erros novos)
+- `web`: `npm run build`
+- `./deploy_and_push.bat` executado com respostas `s`, `s`, `n`, concluindo deploy e encerrando antes de commit/push
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`

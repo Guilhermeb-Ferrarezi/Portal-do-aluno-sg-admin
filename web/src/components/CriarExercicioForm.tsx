@@ -2,6 +2,7 @@ import React from "react";
 import Pagination from "./Pagination";
 import PaginatedSelect from "./PaginatedSelect";
 import MultipleChoiceQuestion from "./Exercise/MultipleChoiceQuestion";
+import ExerciseAIDraftGenerator from "./ExerciseAIDraftGenerator";
 import {
   ScaleIn,
   AnimatedRadioLabel,
@@ -32,6 +33,7 @@ import {
   listarFasesDoModulo,
   listarTurmas,
   anexarExercicioArquivo,
+  type ExerciseAIDraft,
   type ContainerGroup,
   type Curso,
   type Modulo,
@@ -90,7 +92,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
   const [titulo, setTitulo] = React.useState("");
   const [descricao, setDescricao] = React.useState("");
-  const [gabarito, setGabarito] = React.useState("");
   const [cursosDisponiveis, setCursosDisponiveis] = React.useState<Curso[]>([]);
   const [cursoIdSelecionado, setCursoIdSelecionado] = React.useState("");
   const [todosModulosDisponiveis, setTodosModulosDisponiveis] = React.useState<Modulo[]>([]);
@@ -339,15 +340,51 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     const fallbackPergunta = perguntaBase.trim();
     return questoes.map((questao, index) => ({
       ...questao,
-      pergunta: fallbackPergunta || `Questão ${index + 1}`,
+      pergunta: fallbackPergunta || `Questao ${index + 1}`,
     }));
+  }
+
+  function buildMultiplaRegrasValue(
+    questoes: Array<{ pergunta: string; opcoes: Array<{ letter: string; text: string }>; respostaCorreta: string }>,
+    perguntaBase: string
+  ) {
+    return JSON.stringify({ questoes: buildMultiplaQuestoesPayload(questoes, perguntaBase) });
+  }
+
+  function mapDraftMultiplaQuestoes(draft: ExerciseAIDraft) {
+    if (draft.multiplaQuestoes.length === 0) {
+      return getDefaultMultiplaQuestoes();
+    }
+
+    return draft.multiplaQuestoes.map((questao) => ({
+      pergunta: questao.pergunta ?? "",
+      opcoes: questao.opcoes.map((opcao) => ({
+        letter: opcao.letter,
+        text: opcao.text,
+      })),
+      respostaCorreta: questao.respostaCorreta ?? "",
+    }));
+  }
+
+  function applyAIDraft(draft: ExerciseAIDraft) {
+    clearFieldWarning("titulo");
+    clearFieldWarning("descricao");
+    clearFieldWarning("multipla");
+    setTitulo(draft.titulo);
+    setDescricao(draft.descricao);
+    setDifficulty(String(draft.difficulty));
+    setPointsRedeem(String(draft.pointsRedeem));
+
+    if (componenteInterativo === "multipla") {
+      setMultiplaQuestoes(mapDraftMultiplaQuestoes(draft));
+      return;
+    }
   }
 
   function resetForm() {
     setFieldWarnings({});
     setTitulo("");
     setDescricao("");
-    setGabarito("");
     setCursoIdSelecionado("");
     setModuloIdSelecionado("");
     setModuloSelecionadoCache(null);
@@ -583,8 +620,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   async function handleSubmit() {
     try {
       setSaving(true);
-
-      const gabaritoLimpo = gabarito.trim();
       const descricaoFinal = descricao.trim();
       const tituloFinal = titulo.trim();
       const tipoSelecionado: "escrita" | "multipla" = componenteInterativo === "multipla" ? "multipla" : "escrita";
@@ -679,9 +714,8 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
         publicado: true,
         published_at: null,
         categoria,
-        ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
         ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
-        ...(componenteInterativo === "multipla" ? { multipla_regras: JSON.stringify({ Questoes: buildMultiplaQuestoesPayload(multiplaQuestoes, descricaoFinal) }) } : {}),
+        multipla_regras: componenteInterativo === "multipla" ? buildMultiplaRegrasValue(multiplaQuestoes, descricaoFinal) : null,
         permitir_repeticao: false,
         max_tentativas: null,
         penalidade_por_tentativa: 0,
@@ -730,6 +764,19 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
   }
 
   const disabled = saving || !titulo.trim() || !cursoIdSelecionado || !moduloIdSelecionado || !faseIdSelecionada || !prazo;
+  const aiDifficultyValue = parseDifficultyValue(difficulty);
+  const hasAIDraftOverwriteContent =
+    componenteInterativo === "multipla"
+      ? Boolean(
+        titulo.trim() ||
+        descricao.trim() ||
+        difficulty.trim() ||
+        pointsRedeem.trim() ||
+        multiplaQuestoes.some((questao) =>
+          questao.respostaCorreta.trim() || questao.opcoes.some((opcao) => opcao.text.trim())
+        )
+      )
+      : Boolean(titulo.trim() || descricao.trim() || difficulty.trim() || pointsRedeem.trim());
 
   return (
     <div className="estruturaCard" style={{ gridColumn: "1 / -1" }}>
@@ -758,6 +805,19 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 onChange={(e) => { setDescricao(e.target.value); clearFieldWarning("descricao"); }}
               />
               {fieldWarnings.descricao && <small className="exFieldWarning">{fieldWarnings.descricao}</small>}
+            </div>
+
+            <div className="exInputGroup" style={{ gridColumn: "1 / -1" }}>
+              <ExerciseAIDraftGenerator
+                courseId={cursoIdSelecionado}
+                moduleId={moduloIdSelecionado}
+                phaseId={faseIdSelecionada}
+                categoria={categoria}
+                componentType={componenteInterativo === "multipla" ? "multipla" : "escrita"}
+                difficulty={aiDifficultyValue}
+                hasContentToOverwrite={hasAIDraftOverwriteContent}
+                onApplyDraft={applyAIDraft}
+              />
             </div>
 
             {/* TIPO DE EXERCICIO - Programacao */}
@@ -827,6 +887,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                     <AnimatedRadioLabel name="compInfoCriar" value="multipla" checked={componenteInterativo === "multipla"} onChange={(e) => setComponenteInterativo(e.target.value)} label="Multipla Escolha" icon={<ListChecks size={14} />} />
                   </div>
                 </div>
+
                 <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
                   <div style={{ background: "#f9fafb", border: "2px dashed #e5e7eb", borderRadius: "12px", padding: "20px", marginTop: "16px" }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "16px" }}>

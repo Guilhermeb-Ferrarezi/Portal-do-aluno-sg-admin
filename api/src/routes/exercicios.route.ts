@@ -1,6 +1,8 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import multer from "multer";
+import type { PoolClient } from "pg";
 import { pool } from "../db";
 import { hasLegacySubmissoesTable } from "../db/legacySubmissoes";
 import { authGuard } from "../middlewares/auth";
@@ -11,6 +13,25 @@ import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 
 type DBDate = string | Date;
 type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "multipla"
+type Queryable = {
+  query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }>;
+};
+type MultiplaOpcao = {
+  letter: string;
+  text: string;
+};
+type MultiplaQuestao = {
+  pergunta: string;
+  opcoes: MultiplaOpcao[];
+  respostaCorreta: string;
+};
+type ExerciseAIDraft = {
+  titulo: string;
+  descricao: string;
+  difficulty: number;
+  pointsRedeem: number;
+  multiplaQuestoes: MultiplaQuestao[];
+};
 
 type ExercicioRow = {
   id: string;
@@ -76,6 +97,8 @@ type ExerciseSchemaInfo = {
   hasAlunoTurma: boolean;
   hasDailyTasks: boolean;
   hasExercise: boolean;
+  hasQuestion: boolean;
+  hasQuestionOption: boolean;
   hasExerciciosIsDailyTask: boolean;
   hasExerciseIsDailyTask: boolean;
   hasExerciseVideoUrl: boolean;
@@ -84,6 +107,7 @@ type ExerciseSchemaInfo = {
   hasExerciseIsFinalExercise: boolean;
   hasExercisePointsRedeem: boolean;
   hasExerciseExercisePeriod: boolean;
+  exerciseAnswerKeyColumn: string | null;
 };
 
 let exerciseSchemaInfoCache: ExerciseSchemaInfo | null = null;
@@ -96,6 +120,8 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
     has_aluno_turma: boolean;
     has_daily_tasks: boolean;
     has_exercise: boolean;
+    has_question: boolean;
+    has_question_option: boolean;
     has_exercicios_is_daily_task: boolean;
     has_exercise_is_daily_task: boolean;
     has_exercise_video_url: boolean;
@@ -104,6 +130,7 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
     has_exercise_is_final_exercise: boolean;
     has_exercise_points_redeem: boolean;
     has_exercise_exercise_period: boolean;
+    exercise_answer_key_column: string | null;
   }>(
     `SELECT
        to_regclass('public.exercicios') IS NOT NULL AS has_exercicios,
@@ -111,6 +138,8 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
        to_regclass('public.aluno_turma') IS NOT NULL AS has_aluno_turma,
        to_regclass('public.daily_tasks') IS NOT NULL AS has_daily_tasks,
        to_regclass('public.exercise') IS NOT NULL AS has_exercise,
+       to_regclass('public.question') IS NOT NULL AS has_question,
+       to_regclass('public.question_option') IS NOT NULL AS has_question_option,
        EXISTS (
          SELECT 1
          FROM information_schema.columns
@@ -166,7 +195,22 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
          WHERE table_schema = 'public'
            AND table_name = 'exercise'
            AND column_name = 'exercise_period'
-       ) AS has_exercise_exercise_period`
+       ) AS has_exercise_exercise_period,
+       (
+         SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'exercise'
+           AND column_name IN ('gabarito', 'answer_key', 'expected_answer', 'solution')
+         ORDER BY CASE column_name
+           WHEN 'gabarito' THEN 1
+           WHEN 'answer_key' THEN 2
+           WHEN 'expected_answer' THEN 3
+           WHEN 'solution' THEN 4
+           ELSE 10
+         END
+         LIMIT 1
+       ) AS exercise_answer_key_column`
   );
   exerciseSchemaInfoCache = {
     hasExercicios: !!r.rows[0]?.has_exercicios,
@@ -174,6 +218,8 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
     hasAlunoTurma: !!r.rows[0]?.has_aluno_turma,
     hasDailyTasks: !!r.rows[0]?.has_daily_tasks,
     hasExercise: !!r.rows[0]?.has_exercise,
+    hasQuestion: !!r.rows[0]?.has_question,
+    hasQuestionOption: !!r.rows[0]?.has_question_option,
     hasExerciciosIsDailyTask: !!r.rows[0]?.has_exercicios_is_daily_task,
     hasExerciseIsDailyTask: !!r.rows[0]?.has_exercise_is_daily_task,
     hasExerciseVideoUrl: !!r.rows[0]?.has_exercise_video_url,
@@ -182,6 +228,7 @@ async function getExerciseSchemaInfo(): Promise<ExerciseSchemaInfo> {
     hasExerciseIsFinalExercise: !!r.rows[0]?.has_exercise_is_final_exercise,
     hasExercisePointsRedeem: !!r.rows[0]?.has_exercise_points_redeem,
     hasExerciseExercisePeriod: !!r.rows[0]?.has_exercise_exercise_period,
+    exerciseAnswerKeyColumn: r.rows[0]?.exercise_answer_key_column ?? null,
   };
   return exerciseSchemaInfoCache;
 }
@@ -246,41 +293,15 @@ function getNewExerciseReturningFields(schema: ExerciseSchemaInfo) {
   ];
 }
 
-function mapNewExerciseRow(row: NewExerciseRow) {
-  const isDailyTask = !!row.is_daily_task || !!row.container_is_daily_task;
-  return {
-    id: String(row.id),
-    titulo: row.title,
-    descricao: row.description ?? "",
-    phaseId: row.phase_id != null ? String(row.phase_id) : null,
-    modulo: row.modulo ?? "Sem modulo",
-    tema: row.tema ?? null,
-    prazo: row.term_at ?? null,
-    publishedAt: null,
-    publicado: true,
-    isDailyTask,
-    tipoExercicio: mapTypeExerciseToTipoExercicio(row.type_exercise),
-    categoria: "programacao",
-    mouse_regras: null,
-    multipla_regras: null,
-    atalho_tipo: null,
-    permitir_repeticao: false,
-    maxTentativas: null,
-    penalidadePorTentativa: null,
-    intervaloReenvio: null,
-    anexoUrl: null,
-    anexoNome: null,
-    videoUrl: row.video_url ?? null,
-    difficulty: row.difficulty ?? null,
-    indexOrder: row.index_order ?? null,
-    isFinalExercise: !!row.is_final_exercise,
-    pointsRedeem: row.points_redeem ?? null,
-    exercisePeriod: row.exercise_period ?? null,
-    containerName: row.container_name ?? null,
-    containerDay: row.container_day ?? null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
+async function mapNewExerciseRowsWithInteraction(rows: NewExerciseRow[]) {
+  const multiplaMap = await loadNewSchemaMultiplaMap(
+    pool,
+    rows.map((row) => Number(row.id))
+  );
+
+  return rows.map((row) => mapNewExerciseRow(row, {
+    multiplaQuestoes: multiplaMap.get(Number(row.id)) ?? [],
+  }));
 }
 
 async function listFromNewExerciseSchema(userId: string | undefined, isAluno: boolean, schema: ExerciseSchemaInfo) {
@@ -332,13 +353,17 @@ async function listFromNewExerciseSchema(userId: string | undefined, isAluno: bo
   `;
 
   const r = await pool.query<NewExerciseRow>(q, params);
-  return r.rows.map((row) => ({
-    ...mapNewExerciseRow(row),
+  const items = await mapNewExerciseRowsWithInteraction(r.rows);
+  return items.map((item, index) => {
+    const row = r.rows[index];
+    return {
+      ...item,
     tema: row.tema ?? row.daily_task_name ?? null,
     dailyTaskId: row.daily_task_id != null ? String(row.daily_task_id) : null,
     dailyTaskName: row.daily_task_name ?? null,
     isDailyTask: schema.hasExerciseIsDailyTask ? !!row.is_daily_task : true,
-  }));
+    };
+  });
 }
 
 async function listDailyTasksFromNewExerciseSchema(
@@ -400,13 +425,17 @@ async function listDailyTasksFromNewExerciseSchema(
   `;
 
   const r = await pool.query<NewExerciseRow>(q, params);
-  return r.rows.map((row) => ({
-    ...mapNewExerciseRow(row),
+  const items = await mapNewExerciseRowsWithInteraction(r.rows);
+  return items.map((item, index) => {
+    const row = r.rows[index];
+    return {
+      ...item,
     tema: row.tema ?? row.daily_task_name ?? null,
     dailyTaskId: row.daily_task_id != null ? String(row.daily_task_id) : null,
     dailyTaskName: row.daily_task_name ?? null,
     isDailyTask: !!row.is_daily_task || !!row.container_is_daily_task,
-  }));
+    };
+  });
 }
 
 async function getFromNewExerciseSchema(
@@ -453,7 +482,8 @@ async function getFromNewExerciseSchema(
 
   const r = await pool.query<NewExerciseRow>(q, params);
   if (!r.rows[0]) return null;
-  return mapNewExerciseRow(r.rows[0]);
+  const [mapped] = await mapNewExerciseRowsWithInteraction([r.rows[0]]);
+  return mapped ?? null;
 }
 
 const allowedMimeTypes = new Set([
@@ -607,6 +637,8 @@ const createNewSchema = z.object({
   phase_id: z.coerce.number().int().positive("Fase obrigatoria"),
   course_id: z.coerce.number().int().positive().optional().nullable(),
   prazo: z.coerce.date().optional().nullable(),
+  gabarito: z.string().optional().nullable(),
+  multipla_regras: z.string().optional().nullable(),
   tipo_exercicio: z.string().optional().nullable(),
   video_url: z.string().trim().optional().nullable(),
   difficulty: z.preprocess(
@@ -632,8 +664,159 @@ function normalizeNewSchemaBody(body: unknown) {
     is_daily_task: raw.is_daily_task ?? raw.isDailyTask ?? null,
     points_redeem: raw.points_redeem ?? raw.pointsRedeem ?? null,
     exercise_period: raw.exercise_period ?? raw.exercisePeriod ?? null,
+    multipla_regras: raw.multipla_regras ?? raw.multiplaRegras ?? null,
   };
 }
+
+const aiGenerateSchema = z.object({
+  prompt: z.string().trim().min(10, "Prompt obrigatorio"),
+  courseId: z.coerce.number().int().positive("Curso obrigatorio"),
+  moduleId: z.coerce.number().int().positive("Modulo obrigatorio"),
+  phaseId: z.coerce.number().int().positive("Fase obrigatoria"),
+  categoria: z.enum(["programacao", "informatica"]),
+  componentType: z.enum(["escrita", "multipla"]),
+  difficulty: z.coerce.number().int().min(1).optional().nullable(),
+});
+
+const aiDraftLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 8,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req as AuthRequest).user?.sub?.trim();
+    return userId && userId.length > 0 ? `exercise-ai:${userId}` : `exercise-ai:${req.ip}`;
+  },
+  handler: (_req, res) => {
+    res.status(429).json({
+      message: "Muitas geracoes de rascunho em pouco tempo. Tente novamente em alguns minutos.",
+    });
+  },
+});
+
+const groqDraftJsonSchema = {
+  name: "exercise_draft",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      titulo: { type: "string" },
+      descricao: { type: "string" },
+      difficulty: {
+        type: "integer",
+        minimum: 1,
+      },
+      pointsRedeem: {
+        type: "integer",
+        minimum: 0,
+      },
+      multiplaQuestoes: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            pergunta: { type: "string" },
+            opcoes: {
+              type: "array",
+              minItems: 4,
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  letter: {
+                    type: "string",
+                    enum: ["A", "B", "C", "D"],
+                  },
+                  text: { type: "string" },
+                },
+                required: ["letter", "text"],
+              },
+            },
+            respostaCorreta: {
+              type: "string",
+              enum: ["A", "B", "C", "D"],
+            },
+          },
+          required: ["pergunta", "opcoes", "respostaCorreta"],
+        },
+      },
+    },
+    required: ["titulo", "descricao", "difficulty", "pointsRedeem", "multiplaQuestoes"],
+  },
+} as const;
+
+const QUESTION_IMPERATIVE_PREFIXES = [
+  "crie ",
+  "desenvolva ",
+  "escreva ",
+  "implemente ",
+  "monte ",
+  "faca ",
+  "faça ",
+  "construa ",
+  "produza ",
+  "elabore ",
+  "liste ",
+  "descreva ",
+] as const;
+
+function normalizeDraftQuestionText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isDirectQuestionText(value: string) {
+  const normalized = normalizeDraftQuestionText(value);
+  if (normalized.length < 10 || !normalized.endsWith("?")) {
+    return false;
+  }
+
+  const asciiNormalized = normalized
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return !QUESTION_IMPERATIVE_PREFIXES.some((prefix) => asciiNormalized.startsWith(prefix));
+}
+
+const aiDraftResponseSchema = z.object({
+  titulo: z.string().trim().min(2),
+  descricao: z.string().trim().min(10),
+  difficulty: z.coerce.number().int().min(1),
+  pointsRedeem: z.coerce.number().int().min(0),
+  multiplaQuestoes: z.array(
+    z.object({
+      pergunta: z.string().trim().min(2),
+      opcoes: z.array(
+        z.object({
+          letter: z.enum(["A", "B", "C", "D"]),
+          text: z.string().trim().min(1),
+        })
+      ).length(4),
+      respostaCorreta: z.enum(["A", "B", "C", "D"]),
+    })
+  ),
+}).superRefine((draft, ctx) => {
+  if (!isDirectQuestionText(draft.descricao)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "A pergunta principal precisa estar em formato interrogativo e terminar com '?'.",
+      path: ["descricao"],
+    });
+  }
+
+  draft.multiplaQuestoes.forEach((questao, index) => {
+    if (!isDirectQuestionText(questao.pergunta)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A pergunta da multipla escolha precisa estar em formato interrogativo e terminar com '?'.",
+        path: ["multiplaQuestoes", index, "pergunta"],
+      });
+    }
+  });
+});
 
 function mapTipoExercicioToTypeExercise(tipo: string | null | undefined): number {
   if ((tipo ?? "").toLowerCase() === "codigo") return 0;
@@ -642,6 +825,191 @@ function mapTipoExercicioToTypeExercise(tipo: string | null | undefined): number
 
 function mapTypeExerciseToTipoExercicio(value: unknown): TipoExercicio {
   return Number(value) === 1 ? "texto" : "codigo";
+}
+
+function getDifficultyLabel(value: number | null | undefined) {
+  if (value === 2) return "Lower";
+  if (value === 3) return "Prova Semanal";
+  if (value != null && value >= 4) return `Nivel ${value}`;
+  return "Normal";
+}
+
+async function resolveGenerationContext(courseId: number, moduleId: number, phaseId: number) {
+  const result = await pool.query<{
+    course_id: number;
+    course_name: string | null;
+    module_id: number;
+    module_name: string | null;
+    phase_id: number;
+    phase_name: string | null;
+  }>(
+    `SELECT
+       c.id AS course_id,
+       c.name AS course_name,
+       m.id AS module_id,
+       m.name AS module_name,
+       p.id AS phase_id,
+       p.name AS phase_name
+     FROM phase p
+     JOIN module m ON m.id = p.module_id
+     JOIN course c ON c.id = m.course_id
+     WHERE p.id = $1
+     LIMIT 1`,
+    [phaseId]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+  if (row.course_id !== courseId || row.module_id !== moduleId) {
+    return null;
+  }
+
+  return row;
+}
+
+async function generateExerciseDraftWithGroq(input: {
+  prompt: string;
+  categoria: "programacao" | "informatica";
+  componentType: "escrita" | "multipla";
+  difficulty: number | null | undefined;
+  courseName: string | null;
+  moduleName: string | null;
+  phaseName: string | null;
+}) {
+  type GroqChatCompletionResponse = {
+    choices?: Array<{
+      message?: {
+        content?: string | null;
+      } | null;
+    }>;
+    error?: {
+      message?: string;
+    };
+    message?: string;
+  };
+
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY nao configurada no servidor.");
+  }
+
+  const model = process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-20b";
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20_000);
+    const isRetry = attempt > 0;
+
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          temperature: isRetry ? 0.3 : 0.6,
+          max_completion_tokens: 1200,
+          response_format: {
+            type: "json_schema",
+            json_schema: groqDraftJsonSchema,
+          },
+          messages: [
+            {
+              role: "system",
+              content:
+                "Voce gera rascunhos de exercicios em portugues do Brasil para um portal educacional. Responda somente JSON valido no schema pedido, sem markdown. O titulo deve ser curto e claro. A descricao deve ser exatamente a pergunta principal que aparecera no campo Pergunta, escrita diretamente para o aluno em formato interrogativo. Ela deve terminar com '?' e nao pode comecar com verbos no imperativo como 'Crie', 'Desenvolva', 'Escreva', 'Implemente', 'Monte' ou equivalentes. Prefira formulacoes como 'Como voce...', 'Qual seria...' ou 'De que forma voce...'. Retorne difficulty como inteiro valido do sistema, usando 1 para Normal, 2 para Lower e 3 para Prova Semanal. Retorne pointsRedeem como inteiro maior ou igual a zero, coerente com a dificuldade. Se o tipo for escrita, retorne multiplaQuestoes vazia. Se o tipo for multipla, retorne exatamente 1 questao com 4 opcoes A-D e exatamente 1 correta, e a pergunta dessa questao tambem deve terminar com '?'. Nao inclua observacoes fora do JSON.",
+            },
+            {
+              role: "user",
+              content: [
+                `Curso: ${input.courseName ?? "Nao informado"}`,
+                `Modulo: ${input.moduleName ?? "Nao informado"}`,
+                `Fase: ${input.phaseName ?? "Nao informado"}`,
+                `Categoria: ${input.categoria}`,
+                `Tipo de componente: ${input.componentType}`,
+                input.difficulty != null
+                  ? `Dificuldade ja selecionada no formulario: ${getDifficultyLabel(input.difficulty)}. Mantenha esse nivel ao responder difficulty.`
+                  : "Dificuldade ainda nao selecionada no formulario. Escolha o nivel mais adequado e retorne em difficulty.",
+                "Formato obrigatorio da pergunta: uma unica pergunta direta ao aluno, terminando com '?'.",
+                "Nao entregue descricao de briefing, lista de requisitos, passo a passo ou texto no imperativo.",
+                "PointsRedeem: defina um valor inteiro coerente com a complexidade do exercicio.",
+                isRetry
+                  ? "Correcao obrigatoria: a tentativa anterior nao veio em formato de pergunta. Reescreva o campo principal como pergunta real terminando com '?'."
+                  : "Primeira tentativa: gere a pergunta principal diretamente no formato final do formulario.",
+                `Pedido editorial: ${input.prompt}`,
+              ].join("\n"),
+            },
+          ],
+        }),
+      });
+
+      const payload = await response.json().catch(() => null) as GroqChatCompletionResponse | null;
+      if (!response.ok) {
+        const message =
+          payload && typeof payload === "object"
+            ? ((payload as { error?: { message?: string } }).error?.message
+              ?? (payload as { message?: string }).message
+              ?? "Erro ao gerar rascunho no Groq.")
+            : "Erro ao gerar rascunho no Groq.";
+        throw new Error(message);
+      }
+
+      const rawContent = payload?.choices?.[0]?.message?.content;
+      if (typeof rawContent !== "string" || rawContent.trim().length === 0) {
+        throw new Error("Groq nao retornou um rascunho valido.");
+      }
+
+      const parsedContent = JSON.parse(rawContent);
+      const parsedDraft = aiDraftResponseSchema.parse(parsedContent);
+
+      if (input.componentType === "escrita") {
+        return {
+          titulo: parsedDraft.titulo.trim(),
+          descricao: normalizeDraftQuestionText(parsedDraft.descricao),
+          difficulty: parsedDraft.difficulty,
+          pointsRedeem: parsedDraft.pointsRedeem,
+          multiplaQuestoes: [],
+        } satisfies ExerciseAIDraft;
+      }
+
+      if (parsedDraft.multiplaQuestoes.length !== 1) {
+        throw new Error("Groq retornou uma estrutura invalida para multipla escolha.");
+      }
+
+      return {
+        titulo: parsedDraft.titulo.trim(),
+        descricao: normalizeDraftQuestionText(parsedDraft.descricao),
+        difficulty: parsedDraft.difficulty,
+        pointsRedeem: parsedDraft.pointsRedeem,
+        multiplaQuestoes: parsedDraft.multiplaQuestoes.map((questao) => ({
+          ...questao,
+          pergunta: normalizeDraftQuestionText(questao.pergunta),
+        })),
+      } satisfies ExerciseAIDraft;
+    } catch (error) {
+      lastError = error;
+      const isRetryableValidationError =
+        error instanceof z.ZodError
+        || (error instanceof Error && error.message.includes("estrutura invalida"));
+
+      if (!isRetryableValidationError || isRetry) {
+        if (error instanceof z.ZodError) {
+          throw new Error("Groq nao retornou uma pergunta valida para o campo principal.");
+        }
+        throw error;
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Nao foi possivel gerar uma pergunta valida com IA.");
 }
 
 async function getPhaseWithModuleById(phaseId: number) {
@@ -737,6 +1105,261 @@ async function getIndexOrderConflictInfo(
 
   const smallestAvailable = await findSmallestAvailableIndexOrder(phaseId, excludeExerciseId);
   return { taken: true as const, smallestAvailable };
+}
+
+function normalizeOptionalText(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getMultiplaQuestoesFromPayload(input: unknown): MultiplaQuestao[] {
+  let value = input;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+
+  const raw =
+    value && typeof value === "object"
+      ? (value as { questoes?: unknown[]; Questoes?: unknown[] })
+      : null;
+  const rawQuestoes = Array.isArray(raw?.questoes)
+    ? raw.questoes
+    : Array.isArray(raw?.Questoes)
+      ? raw.Questoes
+      : [];
+
+  return rawQuestoes
+    .map((questao) => {
+      const pergunta = normalizeOptionalText((questao as { pergunta?: unknown })?.pergunta);
+      const opcoesRaw = Array.isArray((questao as { opcoes?: unknown[] })?.opcoes)
+        ? ((questao as { opcoes?: unknown[] }).opcoes as unknown[])
+        : [];
+      const opcoes = opcoesRaw
+        .map((opcao, index) => ({
+          letter: normalizeOptionalText((opcao as { letter?: unknown })?.letter)?.toUpperCase()
+            ?? String.fromCharCode(65 + index),
+          text: normalizeOptionalText((opcao as { text?: unknown })?.text) ?? "",
+        }))
+        .filter((opcao) => opcao.text.length > 0);
+
+      if (!pergunta || opcoes.length === 0) return null;
+
+      const respostaCorretaRaw =
+        normalizeOptionalText((questao as { respostaCorreta?: unknown })?.respostaCorreta)?.toUpperCase()
+        ?? "";
+      const respostaCorreta = opcoes.some((opcao) => opcao.letter === respostaCorretaRaw)
+        ? respostaCorretaRaw
+        : opcoes[0]?.letter ?? "A";
+
+      return {
+        pergunta,
+        opcoes,
+        respostaCorreta,
+      } satisfies MultiplaQuestao;
+    })
+    .filter((questao): questao is MultiplaQuestao => !!questao);
+}
+
+function stringifyMultiplaQuestoes(questoes: MultiplaQuestao[]) {
+  if (questoes.length === 0) return null;
+  return JSON.stringify({ questoes });
+}
+
+function getTextAnswerKeyMissingMessage() {
+  return "O schema novo de exercicios nao possui campo para gabarito textual. Para suportar esse save sem perder dados, o banco precisa de um campo de texto em public.exercise (ex.: gabarito, answer_key, expected_answer ou solution) ou de uma estrutura dedicada. Nenhuma alteracao foi feita.";
+}
+
+function getMultipleChoicePersistenceMissingMessage() {
+  return "O schema novo de exercicios nao possui as tabelas question/question_option necessarias para salvar multipla escolha. Nenhuma alteracao foi feita.";
+}
+
+type NewSchemaQuestionRow = {
+  exercise_id: number;
+  question_id: number | null;
+  question_statement: string | null;
+  option_id: number | null;
+  option_text: string | null;
+  is_correct: boolean | null;
+};
+
+async function loadNewSchemaMultiplaMap(db: Queryable, exerciseIds: number[]) {
+  const normalizedIds = Array.from(new Set(exerciseIds.filter((id) => Number.isInteger(id) && id > 0)));
+  const map = new Map<number, MultiplaQuestao[]>();
+  if (normalizedIds.length === 0) return map;
+
+  const result = await db.query(
+    `SELECT
+       q.exercise_id,
+       q.id AS question_id,
+       q.statement AS question_statement,
+       qo.id AS option_id,
+       qo.option_text,
+       qo.is_correct
+     FROM question q
+     LEFT JOIN question_option qo ON qo.question_id = q.id
+     WHERE q.exercise_id = ANY($1::int[])
+     ORDER BY q.exercise_id ASC, q.id ASC, qo.id ASC`,
+    [normalizedIds]
+  ) as { rows: NewSchemaQuestionRow[] };
+
+  const questionMap = new Map<number, Map<number, MultiplaQuestao>>();
+  for (const row of result.rows) {
+    if (!row.question_id) continue;
+    const byExercise = questionMap.get(row.exercise_id) ?? new Map<number, MultiplaQuestao>();
+    if (!questionMap.has(row.exercise_id)) {
+      questionMap.set(row.exercise_id, byExercise);
+    }
+
+    const pergunta = normalizeOptionalText(row.question_statement) ?? "Em aberto";
+    const questao =
+      byExercise.get(row.question_id) ?? {
+        pergunta,
+        opcoes: [],
+        respostaCorreta: "",
+      };
+
+    if (row.option_id && normalizeOptionalText(row.option_text)) {
+      const letter = String.fromCharCode(65 + questao.opcoes.length);
+      questao.opcoes.push({
+        letter,
+        text: normalizeOptionalText(row.option_text) ?? "",
+      });
+      if (row.is_correct) {
+        questao.respostaCorreta = letter;
+      }
+    }
+
+    byExercise.set(row.question_id, questao);
+  }
+
+  for (const [exerciseId, byQuestion] of questionMap.entries()) {
+    const questoes = Array.from(byQuestion.values())
+      .filter((questao) => questao.opcoes.length > 0)
+      .map((questao) => ({
+        ...questao,
+        respostaCorreta: questao.respostaCorreta || questao.opcoes[0]?.letter || "A",
+      }));
+
+    if (questoes.length > 0) {
+      map.set(exerciseId, questoes);
+    }
+  }
+
+  return map;
+}
+
+async function clearNewSchemaQuestions(db: Queryable, exerciseId: number) {
+  await db.query(
+    `DELETE FROM question_option
+     WHERE question_id IN (
+       SELECT id
+       FROM question
+       WHERE exercise_id = $1
+     )`,
+    [exerciseId]
+  );
+  await db.query(`DELETE FROM question WHERE exercise_id = $1`, [exerciseId]);
+}
+
+async function countNewSchemaAnswers(db: Queryable, exerciseId: number) {
+  const result = await db.query(
+    `SELECT COUNT(*)::int AS total
+     FROM answer
+     WHERE exercise_id = $1`,
+    [exerciseId]
+  ) as { rows: Array<{ total: number }> };
+  return Number(result.rows[0]?.total ?? 0);
+}
+
+async function syncNewSchemaMultiplaQuestoes(
+  db: Queryable,
+  exerciseId: number,
+  nextQuestoes: MultiplaQuestao[]
+) {
+  const currentMap = await loadNewSchemaMultiplaMap(db, [exerciseId]);
+  const currentQuestoes = currentMap.get(exerciseId) ?? [];
+  const currentJson = JSON.stringify(currentQuestoes);
+  const nextJson = JSON.stringify(nextQuestoes);
+
+  if (currentJson === nextJson) {
+    return;
+  }
+
+  if (currentQuestoes.length > 0 || nextQuestoes.length > 0) {
+    const answersCount = await countNewSchemaAnswers(db, exerciseId);
+    if (answersCount > 0) {
+      throw new Error("Nao e possivel alterar as questoes de multipla escolha desse exercicio porque ja existem respostas vinculadas no schema novo.");
+    }
+  }
+
+  await clearNewSchemaQuestions(db, exerciseId);
+
+  for (const questao of nextQuestoes) {
+    const createdQuestion = await db.query(
+      `INSERT INTO question (statement, exercise_id)
+       VALUES ($1, $2)
+       RETURNING id`,
+      [questao.pergunta, exerciseId]
+    ) as { rows: Array<{ id: number }> };
+
+    const questionId = createdQuestion.rows[0]?.id;
+    if (!questionId) continue;
+
+    for (const opcao of questao.opcoes) {
+      await db.query(
+        `INSERT INTO question_option (question_id, option_text, is_correct)
+         VALUES ($1, $2, $3)`,
+        [questionId, opcao.text, opcao.letter === questao.respostaCorreta]
+      );
+    }
+  }
+}
+
+function mapNewExerciseRow(
+  row: NewExerciseRow,
+  options: { multiplaQuestoes?: MultiplaQuestao[] } = {}
+) {
+  const isDailyTask = !!row.is_daily_task || !!row.container_is_daily_task;
+  const multiplaQuestoes = options.multiplaQuestoes ?? [];
+  const multiplaRegras = stringifyMultiplaQuestoes(multiplaQuestoes);
+  return {
+    id: String(row.id),
+    titulo: row.title,
+    descricao: row.description ?? "",
+    phaseId: row.phase_id != null ? String(row.phase_id) : null,
+    modulo: row.modulo ?? "Sem modulo",
+    tema: row.tema ?? null,
+    prazo: row.term_at ?? null,
+    publishedAt: null,
+    publicado: true,
+    isDailyTask,
+    tipoExercicio: multiplaRegras ? "multipla" : mapTypeExerciseToTipoExercicio(row.type_exercise),
+    categoria: "programacao",
+    mouse_regras: null,
+    multipla_regras: multiplaRegras,
+    atalho_tipo: null,
+    permitir_repeticao: false,
+    maxTentativas: null,
+    penalidadePorTentativa: null,
+    intervaloReenvio: null,
+    anexoUrl: null,
+    anexoNome: null,
+    videoUrl: row.video_url ?? null,
+    difficulty: row.difficulty ?? null,
+    indexOrder: row.index_order ?? null,
+    isFinalExercise: !!row.is_final_exercise,
+    pointsRedeem: row.points_redeem ?? null,
+    exercisePeriod: row.exercise_period ?? null,
+    containerName: row.container_name ?? null,
+    containerDay: row.container_day ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function parseIdArray(value: unknown): string[] {
@@ -1335,6 +1958,82 @@ export function exerciciosRouter(jwtSecret: string) {
 
   // Protegido: só admin/professor cria
   router.post(
+    "/exercicios/ai/generate",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    aiDraftLimiter,
+    async (req: AuthRequest, res) => {
+      const parsed = aiGenerateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados invalidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const { prompt, courseId, moduleId, phaseId, categoria, componentType, difficulty } = parsed.data;
+
+      try {
+        const context = await resolveGenerationContext(courseId, moduleId, phaseId);
+        if (!context) {
+          return res.status(400).json({
+            message: "Curso, modulo e fase invalidos ou inconsistentes entre si.",
+          });
+        }
+
+        const draft = await generateExerciseDraftWithGroq({
+          prompt,
+          categoria,
+          componentType,
+          difficulty,
+          courseName: context.course_name,
+          moduleName: context.module_name,
+          phaseName: context.phase_name,
+        });
+
+        await logActivity({
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role ?? null,
+          action: "generate_exercicio_ai_draft",
+          entityType: "exercicio_ai",
+          entityId: null,
+          metadata: {
+            courseId,
+            moduleId,
+            phaseId,
+            categoria,
+            componentType,
+            difficulty: difficulty ?? null,
+            promptLength: prompt.length,
+          },
+          req,
+        }).catch((error) => console.error("activity log error:", error));
+
+        return res.json({
+          message: "Rascunho gerado com sucesso",
+          draft,
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Erro ao gerar rascunho no Groq.";
+        if (error instanceof Error && error.name === "AbortError") {
+          return res.status(504).json({ message: "Tempo limite atingido ao gerar rascunho no Groq." });
+        }
+        if (errorMessage.includes("GROQ_API_KEY")) {
+          return res.status(503).json({ message: errorMessage });
+        }
+        if (errorMessage.toLowerCase().includes("groq")) {
+          return res.status(502).json({ message: errorMessage });
+        }
+        if (errorMessage.toLowerCase().includes("invalid")) {
+          return res.status(502).json({ message: "Resposta invalida recebida do Groq." });
+        }
+        console.error("Erro ao gerar rascunho de exercicio com IA:", error);
+        return res.status(500).json({ message: "Erro ao gerar rascunho de exercicio com IA." });
+      }
+    }
+  );
+
+  router.post(
     "/exercicios",
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
@@ -1345,7 +2044,8 @@ export function exerciciosRouter(jwtSecret: string) {
           return res.status(500).json({ message: "Tabela exercise nao encontrada no banco" });
         }
 
-        const parsedNew = createNewSchema.safeParse(normalizeNewSchemaBody(req.body));
+        const normalizedNewBody = normalizeNewSchemaBody(req.body);
+        const parsedNew = createNewSchema.safeParse(normalizedNewBody);
         if (!parsedNew.success) {
           return res.status(400).json({
             message: "Dados invalidos",
@@ -1359,6 +2059,7 @@ export function exerciciosRouter(jwtSecret: string) {
           phase_id,
           course_id,
           prazo,
+          multipla_regras,
           tipo_exercicio,
           video_url,
           difficulty,
@@ -1380,6 +2081,9 @@ export function exerciciosRouter(jwtSecret: string) {
         const indexOrderValue = index_order ?? 1;
         const pointsRedeemValue = points_redeem ?? 0;
         const exercisePeriodValue = exercise_period ?? new Date();
+        const hasMultiplaInput = Object.prototype.hasOwnProperty.call(normalizedNewBody, "multipla_regras");
+        const multiplaRawValue = normalizeOptionalText(multipla_regras);
+        const multiplaQuestoes = getMultiplaQuestoesFromPayload(multipla_regras);
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
@@ -1400,78 +2104,112 @@ export function exerciciosRouter(jwtSecret: string) {
             });
           }
         }
+        if (multiplaRawValue && multiplaQuestoes.length === 0) {
+          return res.status(400).json({
+            message: "Formato invalido em multipla_regras para o schema novo.",
+          });
+        }
+        if (multiplaQuestoes.length > 0 && (!schema.hasQuestion || !schema.hasQuestionOption)) {
+          return res.status(400).json({
+            message: getMultipleChoicePersistenceMissingMessage(),
+          });
+        }
 
         const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
         const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
 
         const dailyTask = !!is_daily_task;
         const finalExercise = !!is_final_exercise;
+        const client = await pool.connect();
+        let row: NewExerciseRow | null = null;
 
-        const insertColumns = ["title", "description", "phase_id", "term_at", "type_exercise"];
-        const insertValues = ["$1", "$2", "$3", "$4", "$5"];
-        const insertParams: unknown[] = [
-          titulo,
-          descricao,
-          phase_id,
-          prazo ?? null,
-          mapTipoExercicioToTypeExercise(tipoExercicio),
-        ];
-
-        if (schema.hasExerciseIsDailyTask) {
-          insertColumns.push("is_daily_task");
-          insertParams.push(dailyTask);
-          insertValues.push(`$${insertParams.length}`);
-        }
-        if (schema.hasExerciseVideoUrl) {
-          insertColumns.push("video_url");
-          insertParams.push(video_url?.trim() || null);
-          insertValues.push(`$${insertParams.length}`);
-        }
-        if (schema.hasExerciseDifficulty) {
-          insertColumns.push("difficulty");
-          insertParams.push(difficultyValue);
-          insertValues.push(`$${insertParams.length}`);
-        }
-        if (schema.hasExerciseIndexOrder) {
-          insertColumns.push("index_order");
-          insertParams.push(indexOrderValue);
-          insertValues.push(`$${insertParams.length}`);
-        }
-        if (schema.hasExerciseIsFinalExercise) {
-          insertColumns.push("is_final_exercise");
-          insertParams.push(finalExercise);
-          insertValues.push(`$${insertParams.length}`);
-        }
-        if (schema.hasExercisePointsRedeem) {
-          insertColumns.push("points_redeem");
-          insertParams.push(pointsRedeemValue);
-          insertValues.push(`$${insertParams.length}`);
-        }
-        if (schema.hasExerciseExercisePeriod) {
-          insertColumns.push("exercise_period");
-          insertParams.push(exercisePeriodValue);
-          insertValues.push(`$${insertParams.length}`);
-        }
-
-        const insertSql = `INSERT INTO exercise (${insertColumns.join(", ")}, created_at, updated_at)
-           VALUES (${insertValues.join(", ")}, NOW(), NOW())
-           RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`;
-
-        let created: { rows: NewExerciseRow[] };
         try {
-          created = await pool.query<NewExerciseRow>(insertSql, insertParams);
-        } catch (err: any) {
-          const isDuplicateId =
-            err?.code === "23505" &&
-            typeof err?.detail === "string" &&
-            err.detail.includes("(id)=");
-          if (!isDuplicateId) throw err;
+          for (let attempt = 0; attempt < 2 && !row; attempt += 1) {
+            await client.query("BEGIN");
+            try {
+              const insertColumns = ["title", "description", "phase_id", "term_at", "type_exercise"];
+              const insertValues = ["$1", "$2", "$3", "$4", "$5"];
+              const insertParams: unknown[] = [
+                titulo,
+                descricao,
+                phase_id,
+                prazo ?? null,
+                mapTipoExercicioToTypeExercise(tipoExercicio),
+              ];
 
-          await realignExerciseIdSequence();
-          created = await pool.query<NewExerciseRow>(insertSql, insertParams);
+              if (schema.hasExerciseIsDailyTask) {
+                insertColumns.push("is_daily_task");
+                insertParams.push(dailyTask);
+                insertValues.push(`$${insertParams.length}`);
+              }
+              if (schema.hasExerciseVideoUrl) {
+                insertColumns.push("video_url");
+                insertParams.push(video_url?.trim() || null);
+                insertValues.push(`$${insertParams.length}`);
+              }
+              if (schema.hasExerciseDifficulty) {
+                insertColumns.push("difficulty");
+                insertParams.push(difficultyValue);
+                insertValues.push(`$${insertParams.length}`);
+              }
+              if (schema.hasExerciseIndexOrder) {
+                insertColumns.push("index_order");
+                insertParams.push(indexOrderValue);
+                insertValues.push(`$${insertParams.length}`);
+              }
+              if (schema.hasExerciseIsFinalExercise) {
+                insertColumns.push("is_final_exercise");
+                insertParams.push(finalExercise);
+                insertValues.push(`$${insertParams.length}`);
+              }
+              if (schema.hasExercisePointsRedeem) {
+                insertColumns.push("points_redeem");
+                insertParams.push(pointsRedeemValue);
+                insertValues.push(`$${insertParams.length}`);
+              }
+              if (schema.hasExerciseExercisePeriod) {
+                insertColumns.push("exercise_period");
+                insertParams.push(exercisePeriodValue);
+                insertValues.push(`$${insertParams.length}`);
+              }
+              if (schema.exerciseAnswerKeyColumn) {
+                insertColumns.push(schema.exerciseAnswerKeyColumn);
+                insertParams.push(null);
+                insertValues.push(`$${insertParams.length}`);
+              }
+
+              const insertSql = `INSERT INTO exercise (${insertColumns.join(", ")}, created_at, updated_at)
+                 VALUES (${insertValues.join(", ")}, NOW(), NOW())
+                 RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`;
+
+              const created = await client.query<NewExerciseRow>(insertSql, insertParams);
+              row = created.rows[0];
+
+              if (row && (hasMultiplaInput || multiplaQuestoes.length > 0)) {
+                await syncNewSchemaMultiplaQuestoes(client, row.id, multiplaQuestoes);
+              }
+
+              await client.query("COMMIT");
+            } catch (err: any) {
+              await client.query("ROLLBACK");
+              const isDuplicateId =
+                err?.code === "23505" &&
+                typeof err?.detail === "string" &&
+                err.detail.includes("(id)=");
+              if (isDuplicateId && attempt === 0) {
+                await realignExerciseIdSequence();
+                continue;
+              }
+              throw err;
+            }
+          }
+        } finally {
+          client.release();
         }
 
-        const row = created.rows[0];
+        if (!row) {
+          return res.status(500).json({ message: "Nao foi possivel criar o exercicio no schema novo." });
+        }
 
         logActivity({
           actorId: req.user?.sub ?? null,
@@ -1494,6 +2232,8 @@ export function exerciciosRouter(jwtSecret: string) {
           ...row,
           modulo: phaseRow.module_name ?? null,
           tema: phaseRow.phase_name ?? null,
+        }, {
+          multiplaQuestoes,
         });
 
         return res.status(201).json({
@@ -1510,7 +2250,7 @@ export function exerciciosRouter(jwtSecret: string) {
         });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, published_at, linguagem_esperada, categoria, mouse_regras, multipla_regras, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio } = parsed.data;
 
       // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
@@ -1533,7 +2273,7 @@ export function exerciciosRouter(jwtSecret: string) {
           published_at ?? null,
           req.user?.sub ?? null,
           tipoExercicio,
-          gabarito ?? null,
+          null,
           linguagem_esperada ?? null,
           categoria ?? "programacao",
           mouse_regras ?? null,
@@ -1636,7 +2376,8 @@ export function exerciciosRouter(jwtSecret: string) {
           return res.status(400).json({ message: "ID de exercicio invalido" });
         }
 
-        const parsedNew = createNewSchema.safeParse(normalizeNewSchemaBody(req.body));
+        const normalizedNewBody = normalizeNewSchemaBody(req.body);
+        const parsedNew = createNewSchema.safeParse(normalizedNewBody);
         if (!parsedNew.success) {
           return res.status(400).json({
             message: "Dados invalidos",
@@ -1650,6 +2391,7 @@ export function exerciciosRouter(jwtSecret: string) {
           phase_id,
           course_id,
           prazo,
+          multipla_regras,
           tipo_exercicio,
           video_url,
           difficulty,
@@ -1671,6 +2413,9 @@ export function exerciciosRouter(jwtSecret: string) {
         const indexOrderValue = index_order ?? 1;
         const pointsRedeemValue = points_redeem ?? 0;
         const exercisePeriodValue = exercise_period ?? new Date();
+        const hasMultiplaInput = Object.prototype.hasOwnProperty.call(normalizedNewBody, "multipla_regras");
+        const multiplaRawValue = normalizeOptionalText(multipla_regras);
+        const multiplaQuestoes = getMultiplaQuestoesFromPayload(multipla_regras);
         const phaseRow = await getPhaseWithModuleById(phase_id);
         if (!phaseRow) {
           return res.status(404).json({ message: "Fase nao encontrada" });
@@ -1691,6 +2436,16 @@ export function exerciciosRouter(jwtSecret: string) {
             });
           }
         }
+        if (multiplaRawValue && multiplaQuestoes.length === 0) {
+          return res.status(400).json({
+            message: "Formato invalido em multipla_regras para o schema novo.",
+          });
+        }
+        if (multiplaQuestoes.length > 0 && (!schema.hasQuestion || !schema.hasQuestionOption)) {
+          return res.status(400).json({
+            message: getMultipleChoicePersistenceMissingMessage(),
+          });
+        }
 
         const checkExercicioNovo = await pool.query<{ id: number }>(
           `SELECT id FROM exercise WHERE id = $1 LIMIT 1`,
@@ -1704,63 +2459,94 @@ export function exerciciosRouter(jwtSecret: string) {
         const tipoExercicio = providedTipo ?? detectarTipoExercicio(titulo, descricao);
         const dailyTask = !!is_daily_task;
         const finalExercise = !!is_final_exercise;
+        const client = await pool.connect();
+        let rowNew: NewExerciseRow | null = null;
 
-        const updateSet: string[] = [
-          "title = $1",
-          "description = $2",
-          "phase_id = $3",
-          "term_at = $4",
-          "type_exercise = $5",
-        ];
-        const updateParams: unknown[] = [
-          titulo,
-          descricao,
-          phase_id,
-          prazo ?? null,
-          mapTipoExercicioToTypeExercise(tipoExercicio),
-        ];
+        try {
+          await client.query("BEGIN");
 
-        if (schema.hasExerciseIsDailyTask) {
-          updateSet.push(`is_daily_task = $${updateParams.length + 1}`);
-          updateParams.push(dailyTask);
-        }
-        if (schema.hasExerciseVideoUrl) {
-          updateSet.push(`video_url = $${updateParams.length + 1}`);
-          updateParams.push(video_url?.trim() || null);
-        }
-        if (schema.hasExerciseDifficulty) {
-          updateSet.push(`difficulty = $${updateParams.length + 1}`);
-          updateParams.push(difficultyValue);
-        }
-        if (schema.hasExerciseIndexOrder) {
-          updateSet.push(`index_order = $${updateParams.length + 1}`);
-          updateParams.push(indexOrderValue);
-        }
-        if (schema.hasExerciseIsFinalExercise) {
-          updateSet.push(`is_final_exercise = $${updateParams.length + 1}`);
-          updateParams.push(finalExercise);
-        }
-        if (schema.hasExercisePointsRedeem) {
-          updateSet.push(`points_redeem = $${updateParams.length + 1}`);
-          updateParams.push(pointsRedeemValue);
-        }
-        if (schema.hasExerciseExercisePeriod) {
-          updateSet.push(`exercise_period = $${updateParams.length + 1}`);
-          updateParams.push(exercisePeriodValue);
+          const updateSet: string[] = [
+            "title = $1",
+            "description = $2",
+            "phase_id = $3",
+            "term_at = $4",
+            "type_exercise = $5",
+          ];
+          const updateParams: unknown[] = [
+            titulo,
+            descricao,
+            phase_id,
+            prazo ?? null,
+            mapTipoExercicioToTypeExercise(tipoExercicio),
+          ];
+
+          if (schema.hasExerciseIsDailyTask) {
+            updateSet.push(`is_daily_task = $${updateParams.length + 1}`);
+            updateParams.push(dailyTask);
+          }
+          if (schema.hasExerciseVideoUrl) {
+            updateSet.push(`video_url = $${updateParams.length + 1}`);
+            updateParams.push(video_url?.trim() || null);
+          }
+          if (schema.hasExerciseDifficulty) {
+            updateSet.push(`difficulty = $${updateParams.length + 1}`);
+            updateParams.push(difficultyValue);
+          }
+          if (schema.hasExerciseIndexOrder) {
+            updateSet.push(`index_order = $${updateParams.length + 1}`);
+            updateParams.push(indexOrderValue);
+          }
+          if (schema.hasExerciseIsFinalExercise) {
+            updateSet.push(`is_final_exercise = $${updateParams.length + 1}`);
+            updateParams.push(finalExercise);
+          }
+          if (schema.hasExercisePointsRedeem) {
+            updateSet.push(`points_redeem = $${updateParams.length + 1}`);
+            updateParams.push(pointsRedeemValue);
+          }
+          if (schema.hasExerciseExercisePeriod) {
+            updateSet.push(`exercise_period = $${updateParams.length + 1}`);
+            updateParams.push(exercisePeriodValue);
+          }
+          if (schema.exerciseAnswerKeyColumn) {
+            updateSet.push(`${schema.exerciseAnswerKeyColumn} = NULL`);
+          }
+
+          updateSet.push("updated_at = NOW()");
+          updateParams.push(exerciseId);
+
+          const updatedNew = await client.query<NewExerciseRow>(
+            `UPDATE exercise
+             SET ${updateSet.join(", ")}
+             WHERE id = $${updateParams.length}
+             RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`,
+            updateParams
+          );
+
+          rowNew = updatedNew.rows[0] ?? null;
+          if (!rowNew) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Exercicio nao encontrado" });
+          }
+
+          if (hasMultiplaInput) {
+            await syncNewSchemaMultiplaQuestoes(client, exerciseId, multiplaQuestoes);
+          }
+
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          if (error instanceof Error && error.message.includes("Nao e possivel alterar as questoes de multipla escolha")) {
+            return res.status(409).json({ message: error.message });
+          }
+          throw error;
+        } finally {
+          client.release();
         }
 
-        updateSet.push("updated_at = NOW()");
-        updateParams.push(exerciseId);
-
-        const updatedNew = await pool.query<NewExerciseRow>(
-          `UPDATE exercise
-           SET ${updateSet.join(", ")}
-           WHERE id = $${updateParams.length}
-           RETURNING ${getNewExerciseReturningFields(schema).join(", ")}`,
-          updateParams
-        );
-
-        const rowNew = updatedNew.rows[0];
+        if (!rowNew) {
+          return res.status(500).json({ message: "Nao foi possivel atualizar o exercicio no schema novo." });
+        }
 
         logActivity({
           actorId: req.user?.sub ?? null,
@@ -1779,10 +2565,16 @@ export function exerciciosRouter(jwtSecret: string) {
           req,
         }).catch((err) => console.error("activity log error:", err));
 
+        const persistedMultiplaQuestoes = hasMultiplaInput
+          ? multiplaQuestoes
+          : (await loadNewSchemaMultiplaMap(pool, [exerciseId])).get(exerciseId) ?? [];
+
         const exercicio = mapNewExerciseRow({
           ...rowNew,
           modulo: phaseRow.module_name ?? null,
           tema: phaseRow.phase_name ?? null,
+        }, {
+          multiplaQuestoes: persistedMultiplaQuestoes,
         });
 
         return res.json({
@@ -1809,7 +2601,7 @@ export function exerciciosRouter(jwtSecret: string) {
         return res.status(404).json({ message: "Exercício não encontrado" });
       }
 
-      const { titulo, descricao, modulo, tema, prazo, publicado, gabarito, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, published_at } = parsed.data;
+      const { titulo, descricao, modulo, tema, prazo, publicado, linguagem_esperada, categoria, mouse_regras, multipla_regras, atalho_tipo, tipo_exercicio, permitir_repeticao, max_tentativas, penalidade_por_tentativa, intervalo_reenvio, published_at } = parsed.data;
 
       // Usar tipo fornecido (snake_case ou camelCase) se houver, caso contrário detectar automaticamente
       const providedTipo = tipo_exercicio ?? (req.body as any).tipoExercicio ?? (req.body as any).tipo ?? null;
@@ -1834,7 +2626,7 @@ export function exerciciosRouter(jwtSecret: string) {
           shouldPublish,
           published_at ?? null,
           tipoExercicio,
-          gabarito ?? null,
+          null,
           linguagem_esperada ?? null,
           categoria ?? "programacao",
           mouse_regras ?? null,

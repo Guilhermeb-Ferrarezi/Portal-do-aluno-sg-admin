@@ -8,6 +8,7 @@ import Pagination from "../components/Pagination";
 import PaginatedSelect from "../components/PaginatedSelect";
 import MultipleChoiceQuestion from "../components/Exercise/MultipleChoiceQuestion";
 import MultipleChoiceQuestionEditor from "../components/Exercise/MultipleChoiceQuestionEditor";
+import ExerciseAIDraftGenerator from "../components/ExerciseAIDraftGenerator";
 import { ScaleIn, AnimatedRadioLabel, AnimatedButton, AnimatedToast, ConditionalFieldAnimation, AnimatedSelect, FadeInUp, AnimatedToggle } from "../components/animate-ui";
 import {
   RefreshCcw,
@@ -53,6 +54,7 @@ import {
   getRole,
   type AnsweredExerciseByStudent,
   type Exercicio,
+  type ExerciseAIDraft,
   type ExerciseAnswerStudent,
   type Curso,
   type Fase,
@@ -165,7 +167,6 @@ export default function ExerciciosPage() {
   // form
   const [titulo, setTitulo] = React.useState("");
   const [descricao, setDescricao] = React.useState("");
-  const [gabarito, setGabarito] = React.useState("");
   const [cursosDisponiveis, setCursosDisponiveis] = React.useState<Curso[]>([]);
   const [cursoIdSelecionado, setCursoIdSelecionado] = React.useState("");
   const [todosModulosDisponiveis, setTodosModulosDisponiveis] = React.useState<Modulo[]>([]);
@@ -464,11 +465,65 @@ export default function ExerciciosPage() {
     }));
   }
 
+  function buildMultiplaRegrasValue(
+    questoes: Array<{ pergunta: string; opcoes: Array<{ letter: string; text: string }>; respostaCorreta: string }>,
+    perguntaBase: string
+  ) {
+    return JSON.stringify({ questoes: buildMultiplaQuestoesPayload(questoes, perguntaBase) });
+  }
+
+  function getMultiplaQuestoesFromRegras(rawRegras: string | null | undefined) {
+    if (!rawRegras) {
+      return getDefaultMultiplaQuestoes();
+    }
+
+    try {
+      const regras = JSON.parse(rawRegras);
+      const questoes = Array.isArray(regras?.questoes)
+        ? regras.questoes
+        : Array.isArray(regras?.Questoes)
+          ? regras.Questoes
+          : [];
+      return questoes.length > 0 ? questoes : getDefaultMultiplaQuestoes();
+    } catch {
+      return getDefaultMultiplaQuestoes();
+    }
+  }
+
+  function mapDraftMultiplaQuestoes(draft: ExerciseAIDraft) {
+    if (draft.multiplaQuestoes.length === 0) {
+      return getDefaultMultiplaQuestoes();
+    }
+
+    return draft.multiplaQuestoes.map((questao) => ({
+      pergunta: questao.pergunta ?? "",
+      opcoes: questao.opcoes.map((opcao) => ({
+        letter: opcao.letter,
+        text: opcao.text,
+      })),
+      respostaCorreta: questao.respostaCorreta ?? "",
+    }));
+  }
+
+  function applyAIDraft(draft: ExerciseAIDraft) {
+    clearFieldWarning("titulo");
+    clearFieldWarning("descricao");
+    clearFieldWarning("multipla");
+    setTitulo(draft.titulo);
+    setDescricao(draft.descricao);
+    setDifficulty(String(draft.difficulty));
+    setPointsRedeem(String(draft.pointsRedeem));
+
+    if (componenteInterativo === "multipla") {
+      setMultiplaQuestoes(mapDraftMultiplaQuestoes(draft));
+      return;
+    }
+  }
+
   function resetExerciseFormState(params?: { clearAttachments?: boolean }) {
     setFieldWarnings({});
     setTitulo("");
     setDescricao("");
-    setGabarito("");
     setCursoIdSelecionado("");
     setModuloIdSelecionado("");
     setFaseIdSelecionada("");
@@ -1024,8 +1079,6 @@ export default function ExerciciosPage() {
       setErro(null);
       setOkMsg(null);
 
-      const gabaritoLimpo = gabarito.trim();
-
       const descricaoFinal = descricao.trim();
       const tituloFinal = titulo.trim();
 
@@ -1101,11 +1154,10 @@ export default function ExerciciosPage() {
         publicado: true,
         published_at: null,
         categoria: categoria,
-        ...(gabaritoLimpo && categoria === "programacao" ? { gabarito: gabaritoLimpo } : {}),
         ...(tipoSelecionado ? { tipoExercicio: tipoSelecionado } : {}),
-        ...(componenteInterativo === "multipla" ? {
-          multipla_regras: JSON.stringify({ Questoes: buildMultiplaQuestoesPayload(multiplaQuestoes, descricaoFinal) })
-        } : {}),
+        multipla_regras: componenteInterativo === "multipla"
+          ? buildMultiplaRegrasValue(multiplaQuestoes, descricaoFinal)
+          : null,
         permitir_repeticao: false,
         max_tentativas: null,
         penalidade_por_tentativa: 0,
@@ -1243,9 +1295,7 @@ export default function ExerciciosPage() {
     if (exercicio.multipla_regras) {
       setEditAttrComponenteInterativo("multipla");
       try {
-        const regras = JSON.parse(exercicio.multipla_regras);
-        const questoes = Array.isArray(regras?.Questoes) ? regras.Questoes : [];
-        setEditAttrMultiplaQuestoes(questoes.length > 0 ? questoes : getDefaultMultiplaQuestoes());
+        setEditAttrMultiplaQuestoes(getMultiplaQuestoesFromRegras(exercicio.multipla_regras));
       } catch {
         setEditAttrComponenteInterativo("escrita");
         setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
@@ -1328,9 +1378,9 @@ export default function ExerciciosPage() {
         published_at: null,
         categoria: ex.categoria ?? "programacao",
         tipoExercicio: tipoSelecionado,
-        ...(editAttrComponenteInterativo === "multipla" ? {
-          multipla_regras: JSON.stringify({ Questoes: buildMultiplaQuestoesPayload(editAttrMultiplaQuestoes, descricaoFinal) })
-        } : {}),
+        multipla_regras: editAttrComponenteInterativo === "multipla"
+          ? buildMultiplaRegrasValue(editAttrMultiplaQuestoes, descricaoFinal)
+          : null,
       });
 
       setOkMsg("Exercício atualizado com sucesso!");
@@ -1482,6 +1532,19 @@ export default function ExerciciosPage() {
     (!isInteractiveComponentInformatica && titulo.trim().length < 2) ||
     (!isInteractiveComponentInformatica && descricao.trim().length < 2) ||
     (componenteInterativo === "multipla" && multiplaQuestoes.some(q => !q.respostaCorreta || q.opcoes.some(o => !o.text)));
+  const aiDifficultyValue = parseDifficultyValue(difficulty);
+  const hasAIDraftOverwriteContent =
+    componenteInterativo === "multipla"
+      ? Boolean(
+        titulo.trim() ||
+        descricao.trim() ||
+        difficulty.trim() ||
+        pointsRedeem.trim() ||
+        multiplaQuestoes.some((questao) =>
+          questao.respostaCorreta.trim() || questao.opcoes.some((opcao) => opcao.text.trim())
+        )
+      )
+      : Boolean(titulo.trim() || descricao.trim() || difficulty.trim() || pointsRedeem.trim());
 
   const sourceItems = activeSection === "tarefa-diaria" ? dailyItems : items;
   const totalItemsSection = activeSection === "tarefa-diaria" ? totalItemsTarefaDiaria : totalItemsLista;
@@ -1765,6 +1828,19 @@ export default function ExerciciosPage() {
                     }}
                   />
                   {fieldWarnings.descricao && <small className="exFieldWarning">{fieldWarnings.descricao}</small>}
+                </div>
+
+                <div className="exInputGroup" style={{ gridColumn: "1 / -1" }}>
+                  <ExerciseAIDraftGenerator
+                    courseId={cursoIdSelecionado}
+                    moduleId={moduloIdSelecionado}
+                    phaseId={faseIdSelecionada}
+                    categoria={categoria}
+                    componentType={componenteInterativo === "multipla" ? "multipla" : "escrita"}
+                    difficulty={aiDifficultyValue}
+                    hasContentToOverwrite={hasAIDraftOverwriteContent}
+                    onApplyDraft={applyAIDraft}
+                  />
                 </div>
 
                 {/* Temporariamente desativado: anexos */}

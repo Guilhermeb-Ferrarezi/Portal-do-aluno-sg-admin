@@ -201,6 +201,25 @@ export type Exercicio = {
 
 export type TipoExercicio = "nenhum" | "codigo" | "texto" | "escrita" | "mouse" | "multipla" | "atalho";
 
+export type ExerciseMultipleChoiceOption = {
+  letter: string;
+  text: string;
+};
+
+export type ExerciseMultipleChoiceQuestion = {
+  pergunta: string;
+  opcoes: ExerciseMultipleChoiceOption[];
+  respostaCorreta: string;
+};
+
+export type ExerciseAIDraft = {
+  titulo: string;
+  descricao: string;
+  difficulty: number;
+  pointsRedeem: number;
+  multiplaQuestoes: ExerciseMultipleChoiceQuestion[];
+};
+
 export type Submissao = {
   id: string;
   exercicioId: string;
@@ -366,6 +385,21 @@ export async function listarTarefasDiarias(params?: {
 
 export async function obterExercicio(id: string) {
   return apiFetch<Exercicio>(`/exercicios/${id}`);
+}
+
+export async function gerarRascunhoExercicioIA(dados: {
+  prompt: string;
+  courseId: number;
+  moduleId: number;
+  phaseId: number;
+  categoria: "programacao" | "informatica";
+  componentType: "escrita" | "multipla";
+  difficulty?: number | null;
+}) {
+  return apiFetch<{ message: string; draft: ExerciseAIDraft }>("/exercicios/ai/generate", {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
 }
 
 export async function criarExercicio(dados: {

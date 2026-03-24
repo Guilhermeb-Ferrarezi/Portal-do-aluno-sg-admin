@@ -92,6 +92,31 @@ const batchUpdateAnswersSchema = z.object({
   patch: updateAnswerSchema,
 });
 
+const aiWrittenCorrectionResponseSchema = z.object({
+  nota: z.number().int().min(0).max(100),
+  feedback: z.string().trim().min(1).max(2000),
+});
+
+const groqWrittenCorrectionJsonSchema = {
+  name: "written_exercise_correction",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      nota: {
+        type: "integer",
+        minimum: 0,
+        maximum: 100,
+      },
+      feedback: {
+        type: "string",
+      },
+    },
+    required: ["nota", "feedback"],
+  },
+} as const;
+
 let hasAlunoTurmaTableCache: boolean | null = null;
 
 async function hasAlunoTurmaTable(): Promise<boolean> {
@@ -373,22 +398,15 @@ function calcularScoreAderencia(
   descricao: string,
   gabarito: string | null
 ): number | null {
-  if (gabarito) {
-    if (tipo === "codigo") {
-      const respostaLimpa = normalizarCodigo(resposta);
-      const gabaritoLimpo = normalizarCodigo(gabarito);
-      const similaridade = calcularSimilaridade(respostaLimpa, gabaritoLimpo);
-      return Math.round(similaridade * 100);
-    }
-
-    const respostaNorm = normalizarTexto(resposta);
-    const gabaritoNorm = normalizarTexto(gabarito);
-    const similaridade = calcularSimilaridade(respostaNorm, gabaritoNorm);
-    return Math.round(similaridade * 100);
-  }
-
   if (tipo === "texto") {
     return calcularScoreDescricao(descricao, resposta);
+  }
+
+  if (gabarito && tipo === "codigo") {
+    const respostaLimpa = normalizarCodigo(resposta);
+    const gabaritoLimpo = normalizarCodigo(gabarito);
+    const similaridade = calcularSimilaridade(respostaLimpa, gabaritoLimpo);
+    return Math.round(similaridade * 100);
   }
 
   return null;
@@ -450,13 +468,6 @@ function corrigirAutomaticamente(
 ): number | null {
   if (!gabarito) return null;
 
-  if (tipo === "texto") {
-    const respostaNorm = normalizarTexto(resposta);
-    const gabaritoNorm = normalizarTexto(gabarito);
-    const similaridade = calcularSimilaridade(respostaNorm, gabaritoNorm);
-    return Math.round(similaridade * 100);
-  }
-
   if (tipo === "codigo") {
     const respostaLimpa = normalizarCodigo(resposta);
     const gabaritoLimpo = normalizarCodigo(gabarito);
@@ -467,29 +478,129 @@ function corrigirAutomaticamente(
   return null;
 }
 
+async function corrigirRespostaEscritaComIA(input: {
+  descricaoExercicio: string;
+  respostaAluno: string;
+}) {
+  type GroqChatCompletionResponse = {
+    choices?: Array<{
+      message?: {
+        content?: string | null;
+      } | null;
+    }>;
+    error?: {
+      message?: string;
+    };
+    message?: string;
+  };
+
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY nao configurada no servidor.");
+  }
+
+  const model = process.env.GROQ_CORRECTION_MODEL?.trim()
+    || process.env.GROQ_MODEL?.trim();
+  if (!model) {
+    throw new Error("GROQ_CORRECTION_MODEL ou GROQ_MODEL nao configurado no servidor.");
+  }
+
+  const useStrictStructuredOutputs = model === "openai/gpt-oss-20b" || model === "openai/gpt-oss-120b";
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_completion_tokens: 250,
+        response_format: useStrictStructuredOutputs
+          ? {
+            type: "json_schema",
+            json_schema: groqWrittenCorrectionJsonSchema,
+          }
+          : {
+            type: "json_object",
+          },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Voce corrige respostas escritas de alunos em portugues do Brasil. Compare somente a resposta com o enunciado da atividade. A nota deve ir de 0 a 100. Avalie aderencia ao pedido, corretude, completude e clareza. Nao penalize detalhes de ortografia quando a ideia principal estiver correta. O feedback deve ser curto, objetivo, util para o aluno, sem markdown e com no maximo 3 frases.",
+          },
+          {
+            role: "user",
+            content: [
+              `Enunciado da atividade: ${input.descricaoExercicio}`,
+              `Resposta do aluno: ${input.respostaAluno}`,
+              "Retorne apenas JSON com nota inteira e feedback.",
+            ].join("\n\n"),
+          },
+        ],
+      }),
+    });
+
+    const payload = await response.json().catch(() => null) as GroqChatCompletionResponse | null;
+    if (!response.ok) {
+      const message =
+        payload && typeof payload === "object"
+          ? ((payload as { error?: { message?: string } }).error?.message
+            ?? (payload as { message?: string }).message
+            ?? "Erro ao corrigir resposta escrita com IA.")
+          : "Erro ao corrigir resposta escrita com IA.";
+      throw new Error(message);
+    }
+
+    const rawContent = payload?.choices?.[0]?.message?.content;
+    if (typeof rawContent !== "string" || rawContent.trim().length === 0) {
+      throw new Error("Groq nao retornou uma correcao valida.");
+    }
+
+    const parsed = aiWrittenCorrectionResponseSchema.parse(JSON.parse(rawContent));
+    return {
+      nota: parsed.nota,
+      feedback: parsed.feedback.trim(),
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function validarMultiplaEscolhaCompleta(resposta: string, multipla_regras: string): { completa: boolean; mensagem?: string } {
   try {
     const respostaObj = JSON.parse(resposta);
     const regrasObj = JSON.parse(multipla_regras);
+    const questoes = Array.isArray(regrasObj?.questoes)
+      ? regrasObj.questoes
+      : Array.isArray(regrasObj?.Questoes)
+        ? regrasObj.Questoes
+        : null;
 
-    if (!regrasObj.questoes || !Array.isArray(regrasObj.questoes)) {
-      return { completa: false, mensagem: "Formato de regras inválido" };
+    if (!questoes) {
+      return { completa: false, mensagem: "Formato de regras invalido" };
     }
 
-    const numQuestoes = regrasObj.questoes.length;
+    const numQuestoes = questoes.length;
     for (let i = 0; i < numQuestoes; i++) {
       if (!respostaObj[`q${i}`]) {
         return {
           completa: false,
-          mensagem: `Responda todas as ${numQuestoes} questões antes de enviar.`
+          mensagem: `Responda todas as ${numQuestoes} questoes antes de enviar.`
         };
       }
     }
 
     return { completa: true };
   } catch (error) {
-    console.error("Erro ao validar múltipla escolha:", error);
-    return { completa: false, mensagem: "Formato de resposta inválido" };
+    console.error("Erro ao validar multipla escolha:", error);
+    return { completa: false, mensagem: "Formato de resposta invalido" };
   }
 }
 
@@ -497,22 +608,27 @@ function validarMultiplaEscolha(resposta: string, multipla_regras: string): numb
   try {
     const respostaObj = JSON.parse(resposta);
     const regrasObj = JSON.parse(multipla_regras);
+    const questoes = Array.isArray(regrasObj?.questoes)
+      ? regrasObj.questoes
+      : Array.isArray(regrasObj?.Questoes)
+        ? regrasObj.Questoes
+        : null;
 
-    if (!regrasObj.questoes || !Array.isArray(regrasObj.questoes)) {
+    if (!questoes) {
       return 0;
     }
 
     let acertos = 0;
-    regrasObj.questoes.forEach((questao: any, index: number) => {
+    questoes.forEach((questao: any, index: number) => {
       const respostaAluno = respostaObj[`q${index}`];
       if (respostaAluno === questao.respostaCorreta) {
         acertos++;
       }
     });
 
-    return Math.round((acertos / regrasObj.questoes.length) * 100);
+    return Math.round((acertos / questoes.length) * 100);
   } catch (error) {
-    console.error("Erro ao validar múltipla escolha:", error);
+    console.error("Erro ao validar multipla escolha:", error);
     return 0;
   }
 }
@@ -662,16 +778,33 @@ export function submissoesRouter(jwtSecret: string) {
 
         // Detectar tipo de exercício e validar
         const tipoExercicio = exRow.tipo_exercicio;
-        let notaAuto = null;
+        let notaAuto: number | null = null;
+        let feedbackAuto: string | null = null;
+        let corrigidaAuto = false;
         if (tipoExercicio === "atalho") {
           // Atalhos completados = 100% sempre
           notaAuto = 100;
+          corrigidaAuto = true;
         } else if (multiplaRegras) {
           // Múltipla escolha - validação automática
           notaAuto = validarMultiplaEscolha(respostaStr, multiplaRegras);
+          corrigidaAuto = true;
+        } else if (tipo_resposta === "texto" && respostaTexto.length > 0) {
+          try {
+            const correcaoIA = await corrigirRespostaEscritaComIA({
+              descricaoExercicio,
+              respostaAluno: respostaTexto,
+            });
+            notaAuto = correcaoIA.nota;
+            feedbackAuto = correcaoIA.feedback;
+            corrigidaAuto = true;
+          } catch (aiError) {
+            console.error("Erro ao corrigir resposta escrita com IA:", aiError);
+          }
         } else if (gabarito) {
-          // Validação normal por gabarito
+          // Mantem validacao por gabarito apenas para respostas de codigo legadas
           notaAuto = corrigirAutomaticamente(respostaStr, gabarito, tipo_resposta);
+          corrigidaAuto = notaAuto !== null;
         }
         if (notaAuto !== null && penalidadeTentativa > 0 && tentativasAnteriores > 0) {
           const fator = 1 - (penalidadeTentativa * tentativasAnteriores) / 100;
@@ -690,8 +823,8 @@ export function submissoesRouter(jwtSecret: string) {
 
         // Inserir submissão
         const result = await pool.query<SubmissaoRow>(
-          `INSERT INTO submissoes (exercicio_id, aluno_id, resposta, tipo_resposta, linguagem, nota, corrigida, is_late, arquivo_url, arquivo_nome)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `INSERT INTO submissoes (exercicio_id, aluno_id, resposta, tipo_resposta, linguagem, nota, corrigida, feedback_professor, is_late, arquivo_url, arquivo_nome)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            RETURNING *`,
           [
             exercicioId,
@@ -699,8 +832,9 @@ export function submissoesRouter(jwtSecret: string) {
             respostaFinal,
             tipo_resposta,
             linguagem ?? null,
-            notaAuto, // nota automática se houver gabarito ou múltipla escolha
-            gabarito || multiplaRegras ? true : false, // marcar como corrigida se há gabarito ou múltipla escolha
+            notaAuto,
+            corrigidaAuto,
+            feedbackAuto,
             isLate ?? false, // marcar como atrasada se passou do prazo
             arquivoUrl,
             arquivoNome,
