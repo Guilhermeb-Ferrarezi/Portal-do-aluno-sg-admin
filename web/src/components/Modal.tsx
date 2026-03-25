@@ -1,8 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, m } from 'framer-motion';
-import { X } from 'lucide-react';
-import './Modal.css';
+import React, { useId } from "react";
+import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export interface ModalProps {
   isOpen: boolean;
@@ -12,7 +16,7 @@ export interface ModalProps {
   footer?: React.ReactNode;
   closeOnEscape?: boolean;
   closeOnBackdropClick?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   className?: string;
 }
 
@@ -24,142 +28,56 @@ export default function Modal({
   footer,
   closeOnEscape = true,
   closeOnBackdropClick = true,
-  size = 'md',
-  className = '',
+  size = "md",
+  className = "",
 }: ModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null);
-  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
-  // Bloquear scroll do body quando modal está aberto
-  useEffect(() => {
-    if (isOpen) {
-      previousActiveElement.current = document.activeElement as HTMLElement;
-      document.body.style.overflow = 'hidden';
+  const sizeClassName =
+    size === "sm"
+      ? "max-w-[420px]"
+      : size === "lg"
+        ? "max-w-[680px]"
+        : "max-w-[520px]";
 
-      // Aguardar renderização para focar no modal
-      setTimeout(() => {
-        const closeButton = modalRef.current?.querySelector('[data-autofocus]');
-        if (closeButton instanceof HTMLElement) {
-          closeButton.focus();
-        }
-      }, 100);
-    } else {
-      document.body.style.overflow = 'unset';
-      // Retornar foco ao elemento anterior
-      if (previousActiveElement.current?.focus) {
-        previousActiveElement.current.focus();
-      }
-    }
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        aria-labelledby={titleId}
+        className={cn(
+          "max-h-[calc(100vh-24px)] gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-card-foreground shadow-[0_20px_60px_rgba(0,0,0,0.35)] sm:max-h-[calc(100vh-120px)]",
+          sizeClassName,
+          className
+        )}
+        onEscapeKeyDown={(event) => {
+          if (!closeOnEscape) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (!closeOnBackdropClick) event.preventDefault();
+        }}
+        closeClassName="top-4 right-4 h-10 w-10 rounded-xl bg-muted text-foreground hover:bg-accent focus-visible:ring-ring/50 sm:top-5 sm:right-5"
+      >
+        <DialogHeader className="border-b border-border px-4 py-4 sm:px-6 sm:py-5">
+          <DialogTitle id={titleId} className="pr-12 text-base sm:text-xl">
+            {title}
+          </DialogTitle>
+        </DialogHeader>
 
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+          {children}
+        </div>
 
-  // Handle Escape key
-  useEffect(() => {
-    if (!isOpen || !closeOnEscape) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, closeOnEscape, onClose]);
-
-  // Handle backdrop click
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (closeOnBackdropClick && e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  // Respeitar prefers-reduced-motion
-  const prefersReducedMotion = window.matchMedia(
-    '(prefers-reduced-motion: reduce)'
-  ).matches;
-
-  const overlayVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-    exit: { opacity: 0 },
-  };
-
-  const modalVariants = {
-    hidden: {
-      opacity: 0,
-      y: prefersReducedMotion ? 0 : 20,
-      scale: prefersReducedMotion ? 1 : 0.96,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-    },
-    exit: {
-      opacity: 0,
-      y: prefersReducedMotion ? 0 : 20,
-      scale: prefersReducedMotion ? 1 : 0.96,
-    },
-  };
-
-  const transition = prefersReducedMotion
-    ? { duration: 0 }
-    : { type: 'spring' as const, stiffness: 300, damping: 30, duration: 0.3 };
-
-  return createPortal(
-    <AnimatePresence mode="wait">
-      {isOpen && (
-        <m.div
-          className="modal-overlay"
-          variants={overlayVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          transition={transition}
-          onClick={handleBackdropClick}
-          role="presentation"
-        >
-          <m.div
-            ref={modalRef}
-            className={`modal-content modal-${size} ${className}`}
-            variants={modalVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            transition={transition}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-          >
-            {/* Header */}
-            <div className="modal-header">
-              <h2 id="modal-title" className="modal-title">
-                {title}
-              </h2>
-              <button
-                className="modal-close-btn"
-                onClick={onClose}
-                aria-label="Fechar modal"
-                data-autofocus
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="modal-body">{children}</div>
-
-            {/* Footer */}
-            {footer && <div className="modal-footer">{footer}</div>}
-          </m.div>
-        </m.div>
-      )}
-    </AnimatePresence>,
-    document.body
+        {footer ? (
+          <DialogFooter className="px-4 py-4 sm:px-6 sm:py-5">
+            {footer}
+          </DialogFooter>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }

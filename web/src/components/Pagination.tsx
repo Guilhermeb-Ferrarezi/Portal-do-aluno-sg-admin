@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import "./Pagination.css";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface PaginationProps {
   currentPage: number;
@@ -50,25 +51,27 @@ export default function Pagination({
   if (totalItems === 0) return null;
 
   return (
-    <div className="paginationContainer">
-      <div className="paginationInfo">
-        <span className="paginationText">
+    <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex w-full items-center justify-start">
+        <span className="text-sm font-medium text-muted-foreground">
           Exibindo {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} a{" "}
           {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} itens
         </span>
       </div>
 
-      <div className="paginationControls">
-        <div className="itemsPerPageSelector">
-          <label htmlFor="itemsPerPage">Itens por página:</label>
+      <div className="flex w-full flex-col items-center gap-4 md:flex-row md:justify-between md:gap-3">
+        <div className="flex items-center gap-2.5">
+          <label htmlFor="itemsPerPage" className="text-sm font-medium text-muted-foreground">
+            Itens por pagina:
+          </label>
           <select
             id="itemsPerPage"
             value={itemsPerPage}
             onChange={(e) => {
-              onItemsPerPageChange(parseInt(e.target.value));
+              onItemsPerPageChange(parseInt(e.target.value, 10));
               onPageChange(1);
             }}
-            className="itemsPerPageSelect"
+            className="h-10 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground outline-none transition hover:border-border/80 hover:bg-muted/40 focus:border-primary focus:ring-3 focus:ring-ring/30"
           >
             <option value={5}>5</option>
             <option value={10}>10</option>
@@ -77,49 +80,60 @@ export default function Pagination({
           </select>
         </div>
 
-        <div className="paginationButtons">
-          <button
+        <div className="flex w-full flex-wrap items-center justify-center gap-1 rounded-full border border-border/70 bg-muted/65 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:w-auto">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="paginationBtn"
-            title="Página anterior"
+            className="rounded-full px-3.5 font-bold"
+            title="Pagina anterior"
           >
             <ChevronLeft size={16} /> Anterior
-          </button>
+          </Button>
 
-          <div className="pageIndicator">
+          <div className="flex flex-wrap items-center justify-center gap-1">
             {visiblePages.map((page) => (
-              <button
+              <Button
+                type="button"
                 key={page}
                 onClick={() => onPageChange(page)}
-                className={`pageNumber ${page === currentPage ? "active" : ""}`}
-                disabled={page === currentPage}
+                variant={page === currentPage ? "default" : "ghost"}
+                size="sm"
+                className="min-w-9 rounded-full px-3 font-bold"
+                aria-current={page === currentPage ? "page" : undefined}
               >
                 {page}
-              </button>
+              </Button>
             ))}
           </div>
 
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="paginationBtn"
-            title="Próxima página"
+            className="rounded-full px-3.5 font-bold"
+            title="Proxima pagina"
           >
-            Próxima <ChevronRight size={16} />
-          </button>
+            Proxima <ChevronRight size={16} />
+          </Button>
         </div>
 
-        <div className="pageJump">
-          <label htmlFor="jumpToPage">Página:</label>
-          <input
+        <div className="flex items-center justify-center gap-2 md:justify-end">
+          <label htmlFor="jumpToPage" className="text-sm font-semibold text-muted-foreground">
+            Pagina:
+          </label>
+          <Input
             id="jumpToPage"
             type="number"
             min={1}
             max={totalPages}
             value={jumpPage}
             onChange={(e) => setJumpPage(e.target.value)}
-            className="pageJumpInput"
+            className="h-10 w-[72px] rounded-full border-border bg-card px-3 text-center text-sm font-medium text-foreground"
           />
         </div>
       </div>

@@ -1,11 +1,18 @@
 import type { ReactNode } from "react";
 import React from "react";
-import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, hasRole } from "../../auth/auth";
 import { listarTurmas, logoutWithServer, obterUsuarioAtual, type Turma } from "../../services/api";
 import ProfilePopup from "../ProfilePopup";
 import SettingsOverlay from "../SettingsOverlay";
+import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   GraduationCap,
   X,
@@ -21,16 +28,15 @@ import {
   KeyRound,
   BarChart3,
   Bell,
-    Settings,
-    Menu,
+  Settings,
+  Menu,
   Laptop,
   Monitor,
   ArrowRight,
   Medal,
   ChevronDown,
   BookOpen,
-  } from "lucide-react";
-import "./Dashboard.css";
+} from "lucide-react";
 
 type DashboardLayoutProps = {
   title: string;
@@ -49,6 +55,25 @@ function roleLabel(role: string | null) {
   return "Aluno";
 }
 
+function navItemClass(active: boolean, nested = false) {
+  return cn(
+    "group flex w-full items-center gap-3 rounded-2xl border text-left transition duration-200",
+    nested ? "px-3 py-2.5 pl-10 text-[13px] font-medium" : "px-3.5 py-3 text-sm font-semibold",
+    active
+      ? "border-primary/30 bg-primary/15 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+      : "border-transparent text-white/72 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
+  );
+}
+
+function sectionToggleClass(active: boolean) {
+  return cn(
+    "group flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left text-sm font-semibold transition duration-200",
+    active
+      ? "border-primary/30 bg-primary/12 text-white"
+      : "border-transparent text-white/72 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
+  );
+}
+
 export default function DashboardLayout({
   title,
   subtitle,
@@ -65,12 +90,15 @@ export default function DashboardLayout({
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [estruturaOpen, setEstruturaOpen] = React.useState(() => readStoredDropdownState("dashboard.sidebar.estruturaOpen"));
-  const [usuariosOpen, setUsuariosOpen] = React.useState(() => readStoredDropdownState("dashboard.sidebar.usuariosOpen"));
+  const [estruturaOpen, setEstruturaOpen] = React.useState(() =>
+    readStoredDropdownState("dashboard.sidebar.estruturaOpen")
+  );
+  const [usuariosOpen, setUsuariosOpen] = React.useState(() =>
+    readStoredDropdownState("dashboard.sidebar.usuariosOpen")
+  );
   const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    // Load turmas for admin/professor to manage, and for alunos to view their own
     listarTurmas()
       .then(setTurmas)
       .catch((e) => console.error("Erro ao carregar turmas:", e));
@@ -82,9 +110,12 @@ export default function DashboardLayout({
       .catch((e) => console.error("Erro ao carregar perfil atual:", e));
   }, [settingsOpen]);
 
+  React.useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   const isDashboard = location.pathname === "/dashboard";
   const isExercicios = location.pathname === "/dashboard/exercicios";
-
   const isMateriais = location.pathname === "/dashboard/materiais";
   const isVideoaulas = location.pathname === "/dashboard/videoaulas";
   const isMedalhas = location.pathname === "/dashboard/medalhas";
@@ -93,14 +124,12 @@ export default function DashboardLayout({
   const isEstruturaCurso = location.pathname.startsWith("/dashboard/estrutura-curso");
   const isActivityLogs = location.pathname === "/dashboard/logs";
 
-  // Auto-open "Estrutura do Curso" dropdown when on any sub-route
   React.useEffect(() => {
     if (isEstruturaCurso || isExercicios || location.pathname === "/dashboard/turmas") {
       setEstruturaOpen(true);
     }
   }, [isEstruturaCurso, isExercicios, location.pathname]);
 
-  // Auto-open "Usuários" dropdown when on user management pages
   React.useEffect(() => {
     if (isAdminUsers || isCreateUser) {
       setUsuariosOpen(true);
@@ -130,7 +159,6 @@ export default function DashboardLayout({
       } else if (turmas.length === 1) {
         navigate(`/dashboard/turmas/${turmas[0].id}`);
       } else {
-        // 2+ turmas - abrir modal de seleção
         setModalSelecionarTurmaAberto(true);
       }
     } else {
@@ -138,212 +166,235 @@ export default function DashboardLayout({
     }
   }
 
+  const pageSubtitle = subtitle ?? `Bem-vindo de volta, ${name}`;
+
   return (
-    <div className="appShell">
-      {/* SIDEBAR */}
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sbTop">
-          <div className="sbBrand">
-            <div className="sbLogo" aria-hidden="true">
+    <div className="min-h-screen bg-background text-foreground">
+      {sidebarOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Fechar menu lateral"
+        />
+      ) : null}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-[17.5rem] max-w-[88vw] flex-col border-r border-white/8 bg-[radial-gradient(circle_at_top,rgba(225,29,46,0.14),transparent_30%),linear-gradient(180deg,rgba(18,25,40,0.98),rgba(11,17,29,1))] text-white shadow-[0_32px_80px_-28px_rgba(0,0,0,0.95)] transition-transform duration-300 lg:max-w-none lg:translate-x-0 lg:w-[15rem] xl:w-[17.5rem]",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid size-11 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-primary/12 text-primary-foreground shadow-[0_12px_28px_-18px_rgba(225,29,46,0.75)]">
               <GraduationCap size={20} />
             </div>
-            <div className="sbBrandText">
-              <div className="sbBrandName">Santos Tech</div>
-              <div className="sbBrandSub">Portal do Aluno</div>
+            <div className="min-w-0">
+              <div className="truncate text-base font-bold tracking-[-0.03em] text-white">
+                Santos Tech
+              </div>
+              <div className="mt-0.5 truncate text-xs font-medium text-white/50">
+                Portal do Aluno
+              </div>
             </div>
           </div>
+
           <button
-            className="sbCloseBtn"
+            className="inline-flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white transition hover:bg-white/10 lg:hidden"
             onClick={() => setSidebarOpen(false)}
             aria-label="Fechar menu"
+            type="button"
           >
             <X size={18} />
           </button>
         </div>
 
-        <nav className="sbNav">
-          <Link className={`sbItem ${isDashboard ? "active" : ""}`} to="/dashboard">
-            <span className="sbIcon" aria-hidden="true">
+        <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-3 py-4">
+          <Link className={navItemClass(isDashboard)} to="/dashboard">
+            <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
               <Home size={18} />
             </span>
-            <span className="sbLabel">Dashboard</span>
+            <span className="truncate">Dashboard</span>
           </Link>
-          {/* Exercícios link visible for non-admin/non-creator roles */}
-          {!canCreateUser && (
-            <Link className={`sbItem ${isExercicios ? "active" : ""}`} to="/dashboard/exercicios">
-              <span className="sbIcon" aria-hidden="true">
+
+          {!canCreateUser ? (
+            <Link className={navItemClass(isExercicios)} to="/dashboard/exercicios">
+              <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
                 <PenLine size={18} />
               </span>
-              <span className="sbLabel">Exercícios</span>
+              <span className="truncate">Exercicios</span>
             </Link>
-          )}
-          <Link className={`sbItem ${isMateriais ? "active" : ""}`} to="/dashboard/materiais">
-            <span className="sbIcon" aria-hidden="true">
+          ) : null}
+
+          <Link className={navItemClass(isMateriais)} to="/dashboard/materiais">
+            <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
               <FileText size={18} />
             </span>
-            <span className="sbLabel">Materiais</span>
+            <span className="truncate">Materiais</span>
           </Link>
-          <Link className={`sbItem ${isVideoaulas ? "active" : ""}`} to="/dashboard/videoaulas">
-            <span className="sbIcon" aria-hidden="true">
+
+          <Link className={navItemClass(isVideoaulas)} to="/dashboard/videoaulas">
+            <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
               <Play size={18} />
             </span>
-            <span className="sbLabel">Videoaulas Bônus</span>
+            <span className="truncate">Videoaulas Bonus</span>
           </Link>
-          <Link className={`sbItem ${isMedalhas ? "active" : ""}`} to="/dashboard/medalhas">
-            <span className="sbIcon" aria-hidden="true">
+
+          <Link className={navItemClass(isMedalhas)} to="/dashboard/medalhas">
+            <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
               <Medal size={18} />
             </span>
-            <span className="sbLabel">Medalhas</span>
+            <span className="truncate">Medalhas</span>
           </Link>
-          {/* Turmas for non-admin roles (aluno/professor) */}
+
           {!canCreateUser && (role === "professor" || turmas.length > 0) ? (
             <button
-              className="sbItem"
+              className={navItemClass(location.pathname.startsWith("/dashboard/turmas"))}
               onClick={handleMinhasTurmas}
-              style={{ textAlign: "left" }}
+              type="button"
             >
-              <span className="sbIcon" aria-hidden="true">
+              <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
                 <School size={18} />
               </span>
-              <span className="sbLabel">Turmas</span>
+              <span className="truncate">Turmas</span>
             </button>
           ) : null}
 
-          {canCreateUser && (
+          {canCreateUser ? (
             <>
-              {/* Usuários - Dropdown */}
-              <div className="sideSection">
+              <div className="flex flex-col gap-2">
                 <button
-                  className={`sideSectionHeader ${isAdminUsers || isCreateUser ? "active" : ""}`}
+                  className={sectionToggleClass(isAdminUsers || isCreateUser)}
                   onClick={() => setUsuariosOpen((v) => !v)}
                   type="button"
                 >
-                  <span className="sbIcon" aria-hidden="true">
+                  <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
                     <Users size={18} />
                   </span>
-                  <span className="sbLabel">Usuários</span>
-                  <span className={`sideExpand ${usuariosOpen ? "open" : ""}`} aria-hidden="true">
+                  <span className="truncate">Usuarios</span>
+                  <span
+                    className={cn("ml-auto transition-transform duration-200", usuariosOpen && "rotate-180")}
+                    aria-hidden="true"
+                  >
                     <ChevronDown size={14} />
                   </span>
                 </button>
 
-                {usuariosOpen && (
-                  <div className="sideSectionContent">
-                    <Link
-                      className={`sbItem sbSubItem ${isAdminUsers ? "active" : ""}`}
-                      to="/dashboard/usuarios"
-                    >
-                      <span className="sbIcon" aria-hidden="true">
+                {usuariosOpen ? (
+                  <div className="flex flex-col gap-1 pl-2">
+                    <Link className={navItemClass(isAdminUsers, true)} to="/dashboard/usuarios">
+                      <span className="grid size-4 shrink-0 place-items-center" aria-hidden="true">
                         <KeyRound size={16} />
                       </span>
-                      <span className="sbLabel">Gerenciar Usuários</span>
+                      <span className="truncate">Gerenciar Usuarios</span>
                     </Link>
-                    <Link
-                      className={`sbItem sbSubItem ${isCreateUser ? "active" : ""}`}
-                      to="/dashboard/criar-usuario"
-                    >
-                      <span className="sbIcon" aria-hidden="true">
+                    <Link className={navItemClass(isCreateUser, true)} to="/dashboard/criar-usuario">
+                      <span className="grid size-4 shrink-0 place-items-center" aria-hidden="true">
                         <Plus size={16} />
                       </span>
-                      <span className="sbLabel">Criar Usuário</span>
+                      <span className="truncate">Criar Usuario</span>
                     </Link>
                   </div>
-                )}
+                ) : null}
               </div>
 
-              {/* Estrutura do Curso - Dropdown */}
-              <div className="sideSection">
+              <div className="flex flex-col gap-2">
                 <button
-                  className={`sideSectionHeader ${isEstruturaCurso || isExercicios || location.pathname === "/dashboard/turmas" ? "active" : ""}`}
+                  className={sectionToggleClass(
+                    isEstruturaCurso || isExercicios || location.pathname === "/dashboard/turmas"
+                  )}
                   onClick={() => setEstruturaOpen((v) => !v)}
                   type="button"
                 >
-                  <span className="sbIcon" aria-hidden="true">
+                  <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
                     <Blocks size={18} />
                   </span>
-                  <span className="sbLabel">Estrutura do Curso</span>
-                  <span className={`sideExpand ${estruturaOpen ? "open" : ""}`} aria-hidden="true">
+                  <span className="truncate">Estrutura do Curso</span>
+                  <span
+                    className={cn("ml-auto transition-transform duration-200", estruturaOpen && "rotate-180")}
+                    aria-hidden="true"
+                  >
                     <ChevronDown size={14} />
                   </span>
                 </button>
 
-                {estruturaOpen && (
-                  <div className="sideSectionContent">
+                {estruturaOpen ? (
+                  <div className="flex flex-col gap-1 pl-2">
                     <Link
-                      className={`sbItem sbSubItem ${isEstruturaCurso ? "active" : ""}`}
+                      className={navItemClass(isEstruturaCurso, true)}
                       to="/dashboard/estrutura-curso/cursos"
                     >
-                      <span className="sbIcon" aria-hidden="true">
+                      <span className="grid size-4 shrink-0 place-items-center" aria-hidden="true">
                         <BookOpen size={16} />
                       </span>
-                      <span className="sbLabel">Criar Estrutura</span>
+                      <span className="truncate">Criar Estrutura</span>
                     </Link>
-                    <Link
-                      className={`sbItem sbSubItem ${isExercicios ? "active" : ""}`}
-                      to="/dashboard/exercicios"
-                    >
-                      <span className="sbIcon" aria-hidden="true">
+                    <Link className={navItemClass(isExercicios, true)} to="/dashboard/exercicios">
+                      <span className="grid size-4 shrink-0 place-items-center" aria-hidden="true">
                         <PenLine size={16} />
                       </span>
-                      <span className="sbLabel">Exercícios</span>
+                      <span className="truncate">Exercicios</span>
                     </Link>
                     <Link
-                      className={`sbItem sbSubItem ${location.pathname === "/dashboard/turmas" ? "active" : ""}`}
+                      className={navItemClass(location.pathname === "/dashboard/turmas", true)}
                       to="/dashboard/turmas"
                     >
-                      <span className="sbIcon" aria-hidden="true">
+                      <span className="grid size-4 shrink-0 place-items-center" aria-hidden="true">
                         <School size={16} />
                       </span>
-                      <span className="sbLabel">Turmas</span>
+                      <span className="truncate">Turmas</span>
                     </Link>
                   </div>
-                )}
+                ) : null}
               </div>
 
-              <Link className={`sbItem ${isActivityLogs ? "active" : ""}`} to="/dashboard/logs">
-                <span className="sbIcon" aria-hidden="true">
+              <Link className={navItemClass(isActivityLogs)} to="/dashboard/logs">
+                <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
                   <BarChart3 size={18} />
                 </span>
-                <span className="sbLabel">Logs de Atividade</span>
+                <span className="truncate">Logs de Atividade</span>
               </Link>
             </>
-          )}
+          ) : null}
         </nav>
 
-        <div className="sbBottom" ref={sbBottomRef}>
-          <div className="sbUser">
+        <div className="border-t border-white/8 p-4" ref={sbBottomRef}>
+          <div className="flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3 shadow-[0_18px_42px_-32px_rgba(0,0,0,0.95)]">
             <button
-              className="sbUserBtn"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl text-left transition hover:bg-white/[0.04]"
               type="button"
               onClick={() => setProfilePopupOpen((v) => !v)}
               aria-label="Ver perfil"
             >
-              <div className="sbAvatar">
+              <div className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,rgba(139,92,246,0.95),rgba(168,85,247,0.7))] text-sm font-black text-white shadow-[0_14px_32px_-20px_rgba(139,92,246,0.95)]">
                 {profilePictureUrl ? (
-                  <img src={profilePictureUrl} alt={name} className="sbAvatarImg" />
+                  <img src={profilePictureUrl} alt={name} className="size-full object-cover" />
                 ) : (
                   name.slice(0, 1).toUpperCase()
                 )}
               </div>
-              <div className="sbUserText">
-                <div className="sbUserName">{name}</div>
-                <div className="sbUserSub">{roleLabel(role)}</div>
+
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-white">{name}</div>
+                <div className="mt-0.5 truncate text-xs font-medium text-white/55">
+                  {roleLabel(role)}
+                </div>
               </div>
             </button>
 
             <button
-              className="sbDots"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white"
               type="button"
               onClick={() => setSettingsOpen(true)}
-              title="Configurações"
-              aria-label="Configurações"
+              title="Configuracoes"
+              aria-label="Configuracoes"
             >
               <Settings size={16} />
             </button>
-
           </div>
 
-          {profilePopupOpen && (
+          {profilePopupOpen ? (
             <ProfilePopup
               name={name}
               role={role}
@@ -355,123 +406,114 @@ export default function DashboardLayout({
                 setSettingsOpen(true);
               }}
             />
-          )}
+          ) : null}
         </div>
       </aside>
 
-      {/* Overlay para fechar sidebar em mobile */}
-      {sidebarOpen && (
-        <div
-          className="sidebarOverlay"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      <div className="flex min-h-screen flex-col lg:pl-[15rem] xl:pl-[17.5rem]">
+        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/88 backdrop-blur-xl">
+          <div className="mx-auto flex min-h-[5rem] w-full max-w-[88rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              <button
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card text-foreground transition hover:border-primary/30 hover:text-primary lg:hidden"
+                onClick={() => setSidebarOpen((v) => !v)}
+                aria-label="Abrir menu"
+                aria-expanded={sidebarOpen}
+                type="button"
+              >
+                {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
 
-      {/* MAIN */}
-      <div className="main">
-        <header className="topbar">
-          <button
-            className="hamburger"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            aria-label="Abrir menu"
-            aria-expanded={sidebarOpen}
-          >
-            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
+              <div className="min-w-0">
+                <h1 className="truncate text-[1.75rem] font-black tracking-[-0.04em] text-foreground sm:text-[2rem]">
+                  {title}
+                </h1>
+                <p className="mt-1 truncate text-sm text-muted-foreground">{pageSubtitle}</p>
+              </div>
+            </div>
 
-          <div>
-            <h1 className="pageTitle">{title}</h1>
-            <p className="pageSub">{subtitle ?? `Bem-vindo de volta, ${name}`}</p>
-          </div>
-
-          <div className="topActions">
-            <button className="iconBtn" aria-label="Notificações" type="button">
-              <Bell size={18} /> <span className="dot" />
-            </button>
-
+            <div className="flex items-center gap-2">
+              <button
+                className="relative inline-flex size-10 items-center justify-center rounded-xl border border-border/70 bg-card text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+                aria-label="Notificacoes"
+                type="button"
+              >
+                <Bell size={18} />
+                <span className="absolute right-2.5 top-2 size-2 rounded-full bg-primary shadow-[0_0_0_4px_rgba(255,255,255,0.08)] animate-pulse" />
+              </button>
+            </div>
           </div>
         </header>
 
-        <main className="content">{children}</main>
+        <main className="mx-auto flex w-full max-w-[88rem] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+          {children}
+        </main>
       </div>
 
-      {/* SETTINGS OVERLAY */}
       <SettingsOverlay
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onLogout={handleLogout}
       />
 
-      {/* MODAL SELEÇÃO DE TURMA */}
-      {modalSelecionarTurmaAberto && createPortal(
-        <div
-          className="modalOverlay"
-          role="button"
-          tabIndex={0}
-          aria-label="Fechar selecao de turma"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setModalSelecionarTurmaAberto(false);
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
-              setModalSelecionarTurmaAberto(false);
-            }
-          }}
-        >
-          <div className="modalContent">
-            <h3>Selecione sua turma</h3>
-            <p style={{ color: "var(--muted)", marginBottom: "20px" }}>
-              Você está inscrito em {turmas.length} turmas
-            </p>
+      <Dialog open={modalSelecionarTurmaAberto} onOpenChange={setModalSelecionarTurmaAberto}>
+        <DialogContent className="max-w-2xl overflow-hidden border-border/70 bg-[linear-gradient(180deg,rgba(24,33,51,0.98),rgba(15,21,35,1))] p-0 text-foreground shadow-[0_32px_90px_-40px_rgba(0,0,0,1)]">
+          <DialogHeader className="gap-2 border-b border-border/60 pb-5">
+            <DialogTitle>Selecione sua turma</DialogTitle>
+            <DialogDescription>
+              Voce esta inscrito em {turmas.length} turmas.
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="turmasSelectorList">
+          <div className="max-h-[60vh] overflow-y-auto px-6 pb-6">
+            <div className="grid gap-3">
               {turmas.map((turma) => (
                 <button
                   key={turma.id}
-                  className="turmaSelectorItem"
+                  className="flex items-center gap-4 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-4 text-left transition hover:border-primary/30 hover:bg-muted/35"
                   onClick={() => {
                     setModalSelecionarTurmaAberto(false);
                     navigate(`/dashboard/turmas/${turma.id}`);
                   }}
+                  type="button"
                 >
-                  <div className="turmaSelectorInfo">
-                    <div className="turmaSelectorName">{turma.nome}</div>
-                    <div className="turmaSelectorMeta">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-base font-bold tracking-[-0.02em] text-foreground">
+                      {turma.nome}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                       {turma.tipo === "turma" ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span className="inline-flex items-center gap-1.5">
                           <Users size={14} /> Turma (Grupo)
                         </span>
                       ) : (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span className="inline-flex items-center gap-1.5">
                           <User size={14} /> Turma Particular
                         </span>
                       )}
-                      {turma.categoria && (
-                        <>{" - "}{turma.categoria === "programacao"
-                          ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                              <Laptop size={14} /> Programação
-                            </span>
-                          )
-                          : (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                              <Monitor size={14} /> Informática
-                            </span>
-                          )}</>
-                      )}
+                      {turma.categoria ? (
+                        turma.categoria === "programacao" ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Laptop size={14} /> Programacao
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Monitor size={14} /> Informatica
+                          </span>
+                        )
+                      ) : null}
                     </div>
                   </div>
-                  <span className="turmaSelectorArrow" aria-hidden="true"><ArrowRight size={16} /></span>
+
+                  <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary">
+                    <ArrowRight size={16} />
+                  </span>
                 </button>
               ))}
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

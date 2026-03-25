@@ -1,10 +1,16 @@
-import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import React, { useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, m } from "framer-motion";
-import { Settings, User, Shield } from "lucide-react";
+import { Settings, Shield, User } from "lucide-react";
 import { obterUsuarioAtual, type UserMe } from "../services/api";
-import { COVER_POSITION_EVENT, COVER_POSITION_KEY_PREFIX, COVER_ZOOM_KEY_PREFIX, getCoverPositionY, getCoverZoom } from "../utils/coverPosition";
-import "./ProfilePopup.css";
+import {
+  COVER_POSITION_EVENT,
+  COVER_POSITION_KEY_PREFIX,
+  COVER_ZOOM_KEY_PREFIX,
+  getCoverPositionY,
+  getCoverZoom,
+} from "../utils/coverPosition";
+import { cn } from "../lib/utils";
 
 type ProfilePopupProps = {
   name: string;
@@ -21,11 +27,22 @@ function roleLabel(role: string | null) {
   return "Aluno";
 }
 
-function roleBadgeColor(role: string | null) {
-  if (role === "admin") return "#e11d2e";
-  if (role === "professor") return "#3b82f6";
-  return "#10b981";
+function roleBadgeClass(role: string | null) {
+  if (role === "admin") return "border-primary/25 bg-primary/10 text-primary";
+  if (role === "professor") return "border-sky-400/25 bg-sky-400/10 text-sky-300";
+  return "border-emerald-400/25 bg-emerald-400/10 text-emerald-300";
 }
+
+function RoleIcon({ role }: { role: string | null }) {
+  if (role === "admin") return <Shield size={12} />;
+  if (role === "professor") return <User size={12} />;
+  return null;
+}
+
+const popupClass =
+  "fixed z-[10000] w-[300px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-white/10 bg-slate-900/95 text-white shadow-[0_24px_64px_rgba(0,0,0,0.48)] backdrop-blur max-md:w-[280px]";
+const actionButtonClass =
+  "inline-flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white";
 
 export default function ProfilePopup({
   name,
@@ -37,21 +54,38 @@ export default function ProfilePopup({
 }: ProfilePopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
   const [userInfo, setUserInfo] = useState<UserMe | null>(null);
-  const [position, setPosition] = useState({ bottom: 0, left: 0 });
-  const [coverStateVersion, refreshCoverState] = useReducer((value: number) => value + 1, 0);
+  const [position, setPosition] = useState({ bottom: 0, left: 16 });
+  const [isCompactViewport, setIsCompactViewport] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false,
+  );
+  const [, refreshCoverState] = useReducer((value: number) => value + 1, 0);
 
   useEffect(() => {
     obterUsuarioAtual().then(setUserInfo).catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (anchorRef.current) {
+    const updatePosition = () => {
+      const compact = window.innerWidth <= 768;
+      setIsCompactViewport(compact);
+
+      if (!anchorRef.current) return;
       const rect = anchorRef.current.getBoundingClientRect();
+      const clampedLeft = Math.max(16, Math.min(rect.left + 8, window.innerWidth - 316));
+
       setPosition({
         bottom: window.innerHeight - rect.top + 8,
-        left: rect.left + 8,
+        left: clampedLeft,
       });
-    }
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
   }, [anchorRef]);
 
   useEffect(() => {
@@ -60,34 +94,28 @@ export default function ProfilePopup({
         onClose();
       }
     };
+
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    // Delay adding listener to avoid immediate close from the triggering click
-    const timer = setTimeout(() => {
+
+    const timer = window.setTimeout(() => {
       document.addEventListener("mousedown", handleClick);
       document.addEventListener("keydown", handleEsc);
     }, 10);
+
     return () => {
-      clearTimeout(timer);
+      window.clearTimeout(timer);
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleEsc);
     };
   }, [onClose]);
 
-  const color = roleBadgeColor(role);
   const effectiveProfilePicture = profilePictureUrl || userInfo?.profilePictureUrl || "";
   const effectiveCoverPicture = userInfo?.coverPictureUrl || "";
   const coverUserKey = userInfo?.id ?? userInfo?.email ?? userInfo?.usuario ?? null;
-  const coverState = useMemo(
-    () => ({
-      positionY: getCoverPositionY(coverUserKey),
-      zoom: getCoverZoom(coverUserKey),
-    }),
-    [coverUserKey, coverStateVersion]
-  );
-  const coverPositionY = coverState.positionY;
-  const coverZoom = coverState.zoom;
+  const coverPositionY = getCoverPositionY(coverUserKey);
+  const coverZoom = getCoverZoom(coverUserKey);
 
   useEffect(() => {
     const onCoverPositionChange = (event: Event) => {
@@ -116,20 +144,23 @@ export default function ProfilePopup({
     };
   }, [coverUserKey]);
 
+  const popupStyle = isCompactViewport
+    ? { left: 16, bottom: 90 }
+    : { bottom: position.bottom, left: position.left };
+
   return createPortal(
     <AnimatePresence>
       <m.div
         ref={popupRef}
-        className="profilePopup"
-        style={{ bottom: position.bottom, left: position.left }}
+        className={popupClass}
+        style={popupStyle}
         initial={{ opacity: 0, y: 10, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        {/* Banner */}
         <div
-          className="ppBanner"
+          className="h-[68px] bg-[linear-gradient(135deg,rgba(var(--primary-rgb),0.92),rgba(var(--primary-rgb),0.58))]"
           style={
             effectiveCoverPicture
               ? {
@@ -142,43 +173,40 @@ export default function ProfilePopup({
           }
         />
 
-        {/* Avatar */}
-        <div className="ppAvatarWrap">
-          <div className="ppAvatar">
-            {effectiveProfilePicture ? (
-              <img src={effectiveProfilePicture} alt={name} className="ppAvatarImg" />
-            ) : (
-              name.slice(0, 1).toUpperCase()
-            )}
+        <div className="-mt-8 flex items-end gap-3 px-4">
+          <div className="relative">
+            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-slate-900 bg-primary text-2xl font-black text-white">
+              {effectiveProfilePicture ? (
+                <img src={effectiveProfilePicture} alt={name} className="size-full object-cover" />
+              ) : (
+                name.slice(0, 1).toUpperCase()
+              )}
+            </div>
+            <div className="absolute bottom-1 right-0 size-4 rounded-full border-[3px] border-slate-900 bg-emerald-500" />
           </div>
-          <div className="ppStatusDot" />
         </div>
 
-        {/* Body */}
-        <div className="ppBody">
-          <div className="ppDisplayName">{name}</div>
-          <div className="ppUsername">
-            @{userInfo?.usuario ?? "..."}
-          </div>
+        <div className="px-4 pb-4 pt-3">
+          <div className="text-lg font-black tracking-[-0.02em] text-white">{name}</div>
+          <div className="mt-1 text-sm text-white/50">@{userInfo?.usuario ?? "..."}</div>
+
           <span
-            className="ppRoleBadge"
-            style={{ background: `${color}22`, color }}
-          >
-            {role === "admin" ? (
-              <><Shield size={12} style={{ marginRight: 4 }} />{roleLabel(role)}</>
-            ) : role === "professor" ? (
-              <><User size={12} style={{ marginRight: 4 }} />{roleLabel(role)}</>
-            ) : (
-              roleLabel(role)
+            className={cn(
+              "mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
+              roleBadgeClass(role),
             )}
+          >
+            <RoleIcon role={role} />
+            {roleLabel(role)}
           </span>
 
-          <div className="ppDivider" />
+          <div className="my-3 h-px bg-white/8" />
 
-          {/* Info */}
-          <div className="ppInfoSection">
-            <div className="ppInfoLabel">Membro desde</div>
-            <div className="ppInfoValue">
+          <div className="rounded-xl border border-white/8 bg-black/15 px-3 py-3">
+            <div className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-white/40">
+              Membro desde
+            </div>
+            <div className="text-sm font-medium text-white/90">
               {userInfo?.createdAt
                 ? new Date(userInfo.createdAt).toLocaleDateString("pt-BR", {
                     day: "2-digit",
@@ -189,11 +217,10 @@ export default function ProfilePopup({
             </div>
           </div>
 
-          <div className="ppDivider" />
+          <div className="my-3 h-px bg-white/8" />
 
-          {/* Actions */}
-          <div className="ppActions">
-            <button className="ppActionBtn" onClick={onOpenSettings}>
+          <div className="flex flex-col gap-2">
+            <button className={actionButtonClass} onClick={onOpenSettings}>
               <Settings size={16} />
               <span>Configurações</span>
             </button>
@@ -201,6 +228,6 @@ export default function ProfilePopup({
         </div>
       </m.div>
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 }

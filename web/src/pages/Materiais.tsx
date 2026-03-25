@@ -1,4 +1,5 @@
 import React from "react";
+import { cn } from "@/lib/utils";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
@@ -12,6 +13,7 @@ import {
   AnimatedSelect,
 } from "../components/animate-ui";
 import {
+  Search,
   File,
   FileArchive,
   FileImage,
@@ -24,6 +26,9 @@ import {
   Trash2,
   Download,
   Plus,
+  RefreshCw,
+  FolderUp,
+  Check,
 } from "lucide-react";
 import {
   listarMateriais,
@@ -36,7 +41,6 @@ import {
   atribuirMaterialTurmas,
   type Turma,
 } from "../services/api";
-import "./Materiais.css";
 
 type MaterialCategoria =
   | "link"
@@ -50,6 +54,23 @@ type MaterialCategoria =
   | "arquivo";
 
 type FormatoArquivo = Exclude<MaterialCategoria, "link">;
+
+const pageTitle = "Materiais";
+const pageSubtitle = "Acesse arquivos e links de estudo";
+
+const fieldClass =
+  "h-12 w-full rounded-2xl border border-border/75 bg-card px-4 text-sm text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition placeholder:text-muted-foreground/90 hover:border-primary/35 focus:border-primary focus:ring-4 focus:ring-ring/30";
+const textareaClass = cn(fieldClass, "min-h-28 py-3 leading-6");
+const suggestionPanelClass =
+  "absolute left-0 right-0 top-[calc(100%+0.45rem)] z-30 overflow-hidden rounded-2xl border border-border/80 bg-popover shadow-[0_18px_45px_rgba(0,0,0,0.24)]";
+const suggestionOptionClass =
+  "block w-full border-b border-border/60 px-4 py-3 text-left text-sm font-medium text-foreground transition last:border-b-0 hover:bg-accent/70";
+const primaryButtonClass =
+  "inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-[0_14px_30px_rgba(225,29,46,0.28)] transition disabled:cursor-not-allowed disabled:opacity-65";
+const secondaryButtonClass =
+  "inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-border/80 bg-muted/50 px-5 text-sm font-semibold text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-65";
+const surfaceCardClass =
+  "rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_right,rgba(225,29,46,0.12),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] bg-card/95 shadow-[0_18px_44px_rgba(0,0,0,0.16)]";
 
 const FORMATO_ARQUIVO_OPTIONS: Array<{ value: FormatoArquivo; label: string }> = [
   { value: "arquivo", label: "Qualquer arquivo" },
@@ -153,31 +174,50 @@ function getCategoriaLabel(categoria: MaterialCategoria): string {
 }
 
 function getCategoriaIcon(categoria: MaterialCategoria): React.ReactNode {
-  if (categoria === "link") return <LinkIcon size={14} />;
-  if (categoria === "excel") return <FileSpreadsheet size={14} />;
-  if (categoria === "imagem") return <FileImage size={14} />;
-  if (categoria === "compactado") return <FileArchive size={14} />;
-  if (categoria === "pdf" || categoria === "word" || categoria === "texto") return <FileText size={14} />;
-  return <File size={14} />;
+  if (categoria === "link") return <LinkIcon size={18} />;
+  if (categoria === "excel") return <FileSpreadsheet size={18} />;
+  if (categoria === "imagem") return <FileImage size={18} />;
+  if (categoria === "compactado") return <FileArchive size={18} />;
+  if (categoria === "pdf" || categoria === "word" || categoria === "texto") {
+    return <FileText size={18} />;
+  }
+  return <File size={18} />;
+}
+
+function formatDate(value?: string | null) {
+  return new Date(value || new Date()).toLocaleDateString("pt-BR");
+}
+
+function typeOptionClass(active: boolean) {
+  return cn(
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/30",
+    active
+      ? "border-primary/60 bg-primary text-primary-foreground shadow-[0_14px_30px_rgba(225,29,46,0.24)]"
+      : "border-border/75 bg-muted/45 text-muted-foreground hover:border-primary/35 hover:text-foreground"
+  );
+}
+
+function turmaBadgeClass(tipo?: string) {
+  return tipo === "turma"
+    ? "border-sky-500/25 bg-sky-500/12 text-sky-300"
+    : "border-fuchsia-500/25 bg-fuchsia-500/12 text-fuchsia-300";
 }
 
 export default function MateriaisPage() {
   const canUpload = hasRole(["admin", "professor"]);
   const { addToast } = useToastActions();
   const iconLabel = (icon: React.ReactNode, label: string) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span className="inline-flex items-center gap-1.5">
       {icon}
       <span>{label}</span>
     </span>
   );
 
-  // Carregar materiais com cache
   const [materiais, setMateriais] = React.useState<Material[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [totalItems, setTotalItems] = React.useState(0);
 
-  // Estados de filtros
   const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
   const [buscaModuloFiltro, setBuscaModuloFiltro] = React.useState<string>("");
   const [showSugestoesModuloFiltro, setShowSugestoesModuloFiltro] = React.useState(false);
@@ -186,7 +226,6 @@ export default function MateriaisPage() {
   const [turmaFiltro, setTurmaFiltro] = React.useState<string>("todas");
   const [modalAberto, setModalAberto] = React.useState(false);
 
-  // Estados do formulário
   const [formTitulo, setFormTitulo] = React.useState("");
   const [formModuloId, setFormModuloId] = React.useState("");
   const [buscaModuloForm, setBuscaModuloForm] = React.useState("");
@@ -205,7 +244,6 @@ export default function MateriaisPage() {
   const [deleting, setDeleting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Paginação
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
   const deferredBusca = React.useDeferredValue(busca);
@@ -215,8 +253,6 @@ export default function MateriaisPage() {
     return termo.length > 0 ? termo : undefined;
   }, [buscaModuloFiltro, filtroModulo]);
 
-  // Carregar turmas e modulos quando puder fazer upload
-
   React.useEffect(() => {
     if (canUpload) {
       listarTurmas()
@@ -224,11 +260,10 @@ export default function MateriaisPage() {
         .catch((err) => console.error("Erro ao carregar turmas:", err));
       listarModulos()
         .then(setModulosDisponiveis)
-        .catch((err) => console.error("Erro ao carregar módulos:", err));
+        .catch((err) => console.error("Erro ao carregar modulos:", err));
     }
   }, [canUpload]);
 
-  // Filtrar materiais
   const carregarMateriais = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -244,8 +279,9 @@ export default function MateriaisPage() {
 
       setMateriais(response.items);
       setTotalItems(response.total);
-      if (currentPage > response.pagination.totalPages) {
-        setCurrentPage(response.pagination.totalPages);
+      const lastPage = Math.max(1, response.pagination.totalPages);
+      if (currentPage > lastPage) {
+        setCurrentPage(lastPage);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar materiais");
@@ -258,11 +294,10 @@ export default function MateriaisPage() {
     void carregarMateriais();
   }, [carregarMateriais]);
 
-  // Obter lista única de módulos
   const modulos = Array.from(
     new Set([
-      ...materiais.map((m) => m.modulo).filter(Boolean),
-      ...modulosDisponiveis.map((m) => m.nome).filter(Boolean),
+      ...materiais.map((material) => material.modulo).filter(Boolean),
+      ...modulosDisponiveis.map((modulo) => modulo.nome).filter(Boolean),
     ])
   );
 
@@ -270,13 +305,16 @@ export default function MateriaisPage() {
   const modulosFiltradosNoFiltro =
     termoModuloFiltro.length === 0
       ? []
-      : modulos.filter((mod) => mod.toLowerCase().includes(termoModuloFiltro));
+      : modulos.filter((modulo) => modulo.toLowerCase().includes(termoModuloFiltro));
 
   const termoModuloForm = buscaModuloForm.trim().toLowerCase();
   const modulosFiltradosNoForm =
     termoModuloForm.length === 0
       ? []
-      : modulosDisponiveis.filter((mod) => mod.nome.toLowerCase().includes(termoModuloForm));
+      : modulosDisponiveis.filter((modulo) =>
+          modulo.nome.toLowerCase().includes(termoModuloForm)
+        );
+
   const hasAnyFiltro =
     busca.trim() !== "" ||
     filtroTipo !== "todos" ||
@@ -296,6 +334,7 @@ export default function MateriaisPage() {
     setFormArquivo(null);
     setTurmasSelecionadas([]);
     setFormError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleArquivoChange = (file: File | null) => {
@@ -307,7 +346,9 @@ export default function MateriaisPage() {
     const ext = getFileExtension(file.name);
     const allowedExtensions = EXT_BY_FORMAT[formFormatoArquivo];
     if (formFormatoArquivo !== "arquivo" && (!ext || !allowedExtensions.includes(ext))) {
-      setFormError(`Arquivo incompatível com o formato selecionado (${getCategoriaLabel(formFormatoArquivo)}).`);
+      setFormError(
+        `Arquivo incompativel com o formato selecionado (${getCategoriaLabel(formFormatoArquivo)}).`
+      );
       setFormArquivo(null);
       return;
     }
@@ -323,12 +364,13 @@ export default function MateriaisPage() {
     const moduloDigitado = buscaModuloForm.trim().toLowerCase();
     const moduloEncontrado =
       moduloIdSelecionado ||
-      modulosDisponiveis.find((m) => m.nome.toLowerCase() === moduloDigitado)?.id ||
-      modulosDisponiveis.find((m) => m.nome.toLowerCase().includes(moduloDigitado))?.id ||
+      modulosDisponiveis.find((modulo) => modulo.nome.toLowerCase() === moduloDigitado)?.id ||
+      modulosDisponiveis.find((modulo) => modulo.nome.toLowerCase().includes(moduloDigitado))
+        ?.id ||
       "";
 
-    if (!formTitulo || !moduloEncontrado) {
-      setFormError("Preencha todos os campos obrigatórios.");
+    if (!formTitulo.trim() || !moduloEncontrado) {
+      setFormError("Preencha todos os campos obrigatorios.");
       return;
     }
 
@@ -337,20 +379,19 @@ export default function MateriaisPage() {
       return;
     }
 
-    if (formTipo === "link" && !formUrl) {
-      setFormError("Forneça uma URL para o link.");
+    if (formTipo === "link" && !formUrl.trim()) {
+      setFormError("Forneca uma URL para o link.");
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // Preparar FormData
       const formData = new FormData();
       formData.append("titulo", formTitulo);
       formData.append("tipo", formTipo);
       formData.append("moduloId", moduloEncontrado);
-      if (formDescricao) {
+      if (formDescricao.trim()) {
         formData.append("descricao", formDescricao);
       }
 
@@ -360,14 +401,12 @@ export default function MateriaisPage() {
         formData.append("url", formUrl);
       }
 
-      // Adicionar turma_ids
       if (turmasSelecionadas.length > 0) {
         formData.append("turma_ids", JSON.stringify(turmasSelecionadas));
       }
 
       const resultado = await criarMaterial(formData);
 
-      // Atribuir turmas se houver
       if (turmasSelecionadas.length > 0 && resultado.material?.id) {
         try {
           await atribuirMaterialTurmas(resultado.material.id, turmasSelecionadas);
@@ -381,10 +420,7 @@ export default function MateriaisPage() {
       addToast("Material adicionado com sucesso.", "success");
       await carregarMateriais();
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Erro ao adicionar material",
-        "error"
-      );
+      addToast(err instanceof Error ? err.message : "Erro ao adicionar material", "error");
     } finally {
       setSubmitting(false);
     }
@@ -401,30 +437,37 @@ export default function MateriaisPage() {
       addToast(`"${target.titulo}" foi removido.`, "success");
       await carregarMateriais();
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Erro ao deletar material",
-        "error"
-      );
+      addToast(err instanceof Error ? err.message : "Erro ao deletar material", "error");
     } finally {
       setDeleting(false);
     }
   };
 
   const handleDownload = (material: Material) => {
-    window.open(material.url, "_blank");
+    window.open(material.url, "_blank", "noopener,noreferrer");
   };
 
-  // Loading state
   if (loading) {
     return (
-      <DashboardLayout
-        title="Materiais"
-        subtitle="Acesse arquivos e links de estudo"
-      >
-        <div className="materiaisContainer">
-          <div className="materiaisGrid">
+      <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>
+        <div className="flex flex-col gap-6">
+          <div className={cn(surfaceCardClass, "p-4 sm:p-5")}>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,0.8fr))]">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={`materiais-filter-skeleton-${index}`}
+                  className="h-12 animate-pulse rounded-2xl border border-border/70 bg-muted/50"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={`material-skeleton-${index}`} className="materialCard materialCardSkeleton" />
+              <div
+                key={`material-skeleton-${index}`}
+                className="h-[280px] animate-pulse rounded-[28px] border border-border/70 bg-card/80"
+              />
             ))}
           </div>
         </div>
@@ -432,239 +475,217 @@ export default function MateriaisPage() {
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <DashboardLayout
-        title="Materiais"
-        subtitle="Acesse arquivos e links de estudo"
-      >
-        <div style={{ textAlign: "center", padding: "2rem", color: "red" }}>
-          <p>Erro: {error}</p>
-          <button onClick={carregarMateriais}>Tentar novamente</button>
+      <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>
+        <div className="rounded-[28px] border border-red-500/25 bg-[radial-gradient(circle_at_top,rgba(225,29,46,0.12),transparent_48%)] bg-red-500/8 px-6 py-10 text-center shadow-[0_18px_44px_rgba(0,0,0,0.16)]">
+          <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
+            <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-red-500/25 bg-red-500/12 text-red-300">
+              <RefreshCw size={20} />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-black tracking-[-0.02em] text-foreground">
+                Nao foi possivel carregar os materiais
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">{error}</p>
+            </div>
+            <AnimatedButton className={primaryButtonClass} onClick={() => void carregarMateriais()}>
+              {iconLabel(<RefreshCw size={16} />, "Tentar novamente")}
+            </AnimatedButton>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout
-      title="Materiais"
-      subtitle="Acesse arquivos e links de estudo"
-    >
+    <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>
       <FadeInUp duration={0.28}>
-        <div className="materiaisContainer">
-          {/* HEADER COM FILTROS */}
-          <div className="materiaisHeader">
-            <div className="filtrosRow">
-              {/* Busca */}
-              <div className="searchBox">
-                <input
-                  type="text"
-                  placeholder="Buscar materiais..."
-                  value={busca}
-                  onChange={(e) => {
-                    setBusca(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="searchInput"
-                />
-              </div>
-
-              {/* Filtro de Tipo */}
-              <AnimatedSelect
-                value={filtroTipo}
-                onChange={(e) => {
-                  setFiltroTipo(e.target.value as "todos" | MaterialCategoria);
-                  setCurrentPage(1);
-                }}
-                className="filterSelect"
-              >
-                {FILTER_TIPO_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </AnimatedSelect>
-
-              {/* Filtro de Módulo por escrita */}
-              <div style={{ position: "relative", minWidth: 200 }}>
-                <input
-                  type="text"
-                  placeholder="Filtrar módulo..."
-                  value={buscaModuloFiltro}
-                  onChange={(e) => {
-                    setBuscaModuloFiltro(e.target.value);
-                    setFiltroModulo("todos");
-                    setCurrentPage(1);
-                    setShowSugestoesModuloFiltro(true);
-                  }}
-                  className="filterSelect"
-                />
-                {showSugestoesModuloFiltro && modulosFiltradosNoFiltro.length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 6px)",
-                      left: 0,
-                      right: 0,
-                      zIndex: 30,
-                      border: "1px solid var(--line)",
-                      borderRadius: 10,
-                      background: "var(--background)",
-                      maxHeight: 210,
-                      overflowY: "auto",
+        <div className="flex flex-col gap-6">
+          <div className={cn(surfaceCardClass, "relative overflow-hidden p-4 sm:p-5")}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)]" />
+            <div className="relative flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="grid flex-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,0.8fr))]">
+                <div className="relative md:col-span-2 xl:col-span-1">
+                  <span className="pointer-events-none absolute inset-y-0 left-4 inline-flex w-5 items-center justify-center text-muted-foreground">
+                    <Search size={16} />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Buscar materiais..."
+                    value={busca}
+                    onChange={(event) => {
+                      setBusca(event.target.value);
+                      setCurrentPage(1);
                     }}
-                  >
-                    {modulosFiltradosNoFiltro.map((mod) => (
-                      <button
-                        key={mod}
-                        type="button"
-                        onClick={() => {
-                          setFiltroModulo(mod);
-                          setBuscaModuloFiltro(mod);
-                          setCurrentPage(1);
-                          setShowSugestoesModuloFiltro(false);
-                        }}
-                        style={{ width: "100%", textAlign: "left" }}
-                        className="badgeFilterOption"
-                      >
-                        {mod}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                    className={cn(fieldClass, "pl-14")}
+                    style={{ paddingLeft: "3.75rem" }}
+                  />
+                </div>
+
+                <AnimatedSelect
+                  value={filtroTipo}
+                  onChange={(event) => {
+                    setFiltroTipo(event.target.value as "todos" | MaterialCategoria);
+                    setCurrentPage(1);
+                  }}
+                  className={cn(fieldClass, "appearance-none pr-10")}
+                >
+                  {FILTER_TIPO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AnimatedSelect>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filtrar modulo..."
+                    value={buscaModuloFiltro}
+                    onFocus={() => {
+                      if (modulosFiltradosNoFiltro.length > 0) {
+                        setShowSugestoesModuloFiltro(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setShowSugestoesModuloFiltro(false), 120);
+                    }}
+                    onChange={(event) => {
+                      setBuscaModuloFiltro(event.target.value);
+                      setFiltroModulo("todos");
+                      setCurrentPage(1);
+                      setShowSugestoesModuloFiltro(true);
+                    }}
+                    className={fieldClass}
+                  />
+                  {showSugestoesModuloFiltro && modulosFiltradosNoFiltro.length > 0 ? (
+                    <div className={suggestionPanelClass}>
+                      {modulosFiltradosNoFiltro.map((modulo) => (
+                        <button
+                          key={modulo}
+                          type="button"
+                          onClick={() => {
+                            setFiltroModulo(modulo);
+                            setBuscaModuloFiltro(modulo);
+                            setCurrentPage(1);
+                            setShowSugestoesModuloFiltro(false);
+                          }}
+                          className={suggestionOptionClass}
+                        >
+                          {modulo}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <AnimatedSelect
+                  value={turmaFiltro}
+                  onChange={(event) => {
+                    setTurmaFiltro(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className={cn(fieldClass, "appearance-none pr-10")}
+                >
+                  <option value="todas">Todas as turmas</option>
+                  {turmasDisponiveis.map((turma) => (
+                    <option key={turma.id} value={turma.id}>
+                      {turma.nome}
+                    </option>
+                  ))}
+                </AnimatedSelect>
               </div>
 
-              {/* Filtro de Turmas */}
-              <AnimatedSelect
-                value={turmaFiltro}
-                onChange={(e) => {
-                  setTurmaFiltro(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="filterSelect"
-              >
-                <option value="todas">Todas as turmas</option>
-                {turmasDisponiveis.map((turma) => (
-                  <option key={turma.id} value={turma.id}>
-                    {turma.nome}
-                  </option>
-                ))}
-              </AnimatedSelect>
+              {canUpload ? (
+                <AnimatedButton
+                  className={primaryButtonClass}
+                  onClick={() => {
+                    setModalAberto(true);
+                    setFormError(null);
+                  }}
+                >
+                  {iconLabel(<Plus size={16} />, "Adicionar material")}
+                </AnimatedButton>
+              ) : null}
             </div>
-
-            {/* Botão de Upload (apenas para admin/professor) */}
-            {canUpload && (
-              <AnimatedButton
-                className="uploadBtn"
-                onClick={() => {
-                  setModalAberto(true);
-                  setFormError(null);
-                }}
-              >
-                {iconLabel(<Plus size={14} />, "Adicionar Material")}
-              </AnimatedButton>
-            )}
           </div>
 
-          {/* LISTA DE MATERIAIS */}
-          <div>
-            {totalItems === 0 ? (
-              <div className="emptyState">
-                <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
-                <div className="emptyTitle">
-                  {!hasAnyFiltro
-                    ? "Nenhum material disponível"
-                    : "Nenhum material encontrado"}
+          {totalItems === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-border/80 bg-[radial-gradient(circle_at_top,rgba(225,29,46,0.09),transparent_44%)] bg-muted/35 px-6 py-16 text-center shadow-[0_18px_44px_rgba(0,0,0,0.12)]">
+              <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
+                <div className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-border/80 bg-card text-primary shadow-[0_16px_36px_rgba(0,0,0,0.2)]">
+                  <BookOpen size={24} />
                 </div>
-                <p className="emptyText">
-                  {!hasAnyFiltro
-                    ? "Em breve serão adicionados materiais para estudo."
-                    : "Tente ajustar seus filtros de busca."}
-                </p>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-black tracking-[-0.02em] text-foreground">
+                    {!hasAnyFiltro ? "Nenhum material disponivel" : "Nenhum material encontrado"}
+                  </h2>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {!hasAnyFiltro
+                      ? "Em breve novos materiais de estudo serao adicionados."
+                      : "Tente ajustar sua busca ou os filtros da listagem."}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <>
-                <div className="materiaisGrid">
-                  {materiais.map((material, index) => {
-                    const categoria = getMaterialCategoria(material);
-                    return (
-                      <FadeInUp key={material.id} delay={index * 0.1}>
-                        <div className="materialCard">
-                          <div className="materialHeader">
-                            <div className="materialIcon">
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+                {materiais.map((material, index) => {
+                  const categoria = getMaterialCategoria(material);
+
+                  return (
+                    <FadeInUp key={material.id} delay={index * 0.05}>
+                      <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent)] bg-card shadow-[0_12px_36px_rgba(0,0,0,0.16)] transition duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_22px_50px_rgba(225,29,46,0.18)]">
+                        <div className="flex flex-1 flex-col gap-4 p-5 sm:p-6">
+                          <div className="flex items-start gap-4">
+                            <div className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border border-border/70 bg-[linear-gradient(135deg,rgba(225,29,46,0.14),rgba(59,130,246,0.14))] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                               {getCategoriaIcon(categoria)}
                             </div>
-                            <div className="materialInfo">
-                              <h3 className="materialTitulo">{material.titulo}</h3>
-                              <div className="materialMeta">
-                                <span className="metaBadge">{material.modulo}</span>
-                                <span className="metaBadge materialTypeBadge">{getCategoriaLabel(categoria)}</span>
-                                <span className="metaData">
-                                  {new Date(material.createdAt).toLocaleDateString(
-                                    "pt-BR"
-                                  )}
+
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div className="flex flex-wrap gap-2">
+                                <span className="inline-flex rounded-full border border-sky-500/20 bg-sky-500/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-300">
+                                  {material.modulo}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground">
+                                  {getCategoriaLabel(categoria)}
                                 </span>
                               </div>
+
+                              <h3 className="text-lg font-black leading-tight tracking-[-0.02em] text-foreground">
+                                {material.titulo}
+                              </h3>
+
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {formatDate(material.createdAt)}
+                              </span>
                             </div>
                           </div>
 
-                          <p className="materialDescricao">
-                            {material.descricao || "Sem descrição"}
+                          <p className="text-sm leading-6 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden">
+                            {material.descricao || "Sem descricao cadastrada."}
                           </p>
 
-                          {/* Badges de acesso/turmas */}
-                          <div
-                            style={{
-                              marginTop: "8px",
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "6px",
-                            }}
-                          >
+                          <div className="flex flex-wrap gap-2">
                             {material.turmas && material.turmas.length > 0 ? (
                               <>
                                 <PopInBadge delay={0.1}>
-                                  <span
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      padding: "4px 10px",
-                                      fontSize: "11px",
-                                      fontWeight: 700,
-                                      borderRadius: "12px",
-                                      background: "rgba(59, 130, 246, 0.15)",
-                                      color: "#1e40af",
-                                      border: "1px solid rgba(59, 130, 246, 0.3)",
-                                    }}
-                                  >
-                                    {iconLabel(<Landmark size={12} />, `${material.turmas.length} turma${material.turmas.length > 1 ? "s" : ""}`)}
+                                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/25 bg-sky-500/12 px-3 py-1 text-[11px] font-semibold text-sky-300">
+                                    {iconLabel(
+                                      <Landmark size={12} />,
+                                      `${material.turmas.length} turma${material.turmas.length > 1 ? "s" : ""}`
+                                    )}
                                   </span>
                                 </PopInBadge>
-                                {material.turmas.map((turma, idx) => (
-                                  <PopInBadge key={turma.id} delay={0.2 + idx * 0.1}>
+                                {material.turmas.map((turma, turmaIndex) => (
+                                  <PopInBadge key={turma.id} delay={0.18 + turmaIndex * 0.08}>
                                     <span
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "4px",
-                                        padding: "4px 10px",
-                                        fontSize: "10px",
-                                        fontWeight: 600,
-                                        borderRadius: "12px",
-                                        background:
-                                          turma.tipo === "turma"
-                                            ? "rgba(59, 130, 246, 0.1)"
-                                            : "rgba(168, 85, 247, 0.1)",
-                                        color:
-                                          turma.tipo === "turma" ? "#2563eb" : "#a855f7",
-                                        border:
-                                          turma.tipo === "turma"
-                                            ? "1px solid rgba(59, 130, 246, 0.2)"
-                                            : "1px solid rgba(168, 85, 247, 0.2)",
-                                      }}
+                                      className={cn(
+                                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold",
+                                        turmaBadgeClass(turma.tipo)
+                                      )}
                                       title={`${turma.tipo}: ${turma.nome}`}
                                     >
                                       {turma.nome}
@@ -675,224 +696,206 @@ export default function MateriaisPage() {
                             ) : (
                               <PopInBadge delay={0.1}>
                                 <span
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    padding: "4px 10px",
-                                    fontSize: "11px",
-                                    fontWeight: 700,
-                                    borderRadius: "12px",
-                                    background: "rgba(34, 197, 94, 0.15)",
-                                    color: "#15803d",
-                                    border: "1px solid rgba(34, 197, 94, 0.3)",
-                                  }}
-                                  title="Disponível para todos os alunos"
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/12 px-3 py-1 text-[11px] font-semibold text-emerald-300"
+                                  title="Disponivel para todos os alunos"
                                 >
-                                  {iconLabel(<Globe size={12} />, "Para Todos")}
+                                  {iconLabel(<Globe size={12} />, "Para todos")}
                                 </span>
                               </PopInBadge>
                             )}
                           </div>
 
-                          <div className="materialFooter">
+                          <div className="mt-auto flex items-center gap-2 border-t border-border/70 pt-4">
                             <AnimatedButton
-                              className="materialBtn"
+                              className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_12px_24px_rgba(225,29,46,0.22)] transition disabled:cursor-not-allowed disabled:opacity-65"
                               onClick={() => handleDownload(material)}
                             >
                               {material.tipo === "arquivo"
-                                ? iconLabel(<Download size={14} />, "Baixar")
-                                : iconLabel(<Globe size={14} />, "Abrir Link")}
+                                ? iconLabel(<Download size={16} />, "Baixar")
+                                : iconLabel(<LinkIcon size={16} />, "Abrir link")}
                             </AnimatedButton>
 
-                            {canUpload && (
+                            {canUpload ? (
                               <AnimatedButton
                                 onClick={() => setDeleteTarget(material)}
-                                className="materialDeleteBtn"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-500/35 bg-red-500/10 text-red-300 transition hover:bg-red-500/18 disabled:cursor-not-allowed disabled:opacity-60"
                                 title="Deletar"
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={16} />
                               </AnimatedButton>
-                            )}
+                            ) : null}
                           </div>
                         </div>
-                      </FadeInUp>
-                    );
-                  })}
-                </div>
+                      </article>
+                    </FadeInUp>
+                  );
+                })}
+              </div>
 
-                <Pagination
-                  currentPage={currentPage}
-                  itemsPerPage={itemsPerPage}
-                  totalItems={totalItems}
-                  onPageChange={setCurrentPage}
-                  onItemsPerPageChange={setItemsPerPage}
-                />
-              </>
-            )}
-          </div>
+              <Pagination
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={totalItems}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+              />
+            </>
+          )}
 
-          {/* MODAL DE UPLOAD (apenas para admin/professor) */}
           <Modal
             isOpen={modalAberto && canUpload}
             onClose={() => {
               setModalAberto(false);
               resetForm();
             }}
-            title="Adicionar Novo Material"
+            title="Adicionar novo material"
             size="lg"
             footer={
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <div className="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <AnimatedButton
                   onClick={() => {
                     setModalAberto(false);
                     resetForm();
                   }}
                   disabled={submitting}
-                  style={{
-                    background: 'var(--background-secondary)',
-                    color: 'var(--text)',
-                    border: '1px solid var(--line)',
-                    padding: '12px 18px',
-                    borderRadius: '10px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
+                  className={secondaryButtonClass}
                 >
                   Cancelar
                 </AnimatedButton>
                 <AnimatedButton
-                  onClick={handleSubmit}
+                  onClick={() => void handleSubmit()}
                   disabled={submitting}
                   loading={submitting}
-                  style={{
-                    background: 'var(--red)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '12px 18px',
-                    borderRadius: '10px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
+                  className={primaryButtonClass}
                 >
-                  Salvar Material
+                  Salvar material
                 </AnimatedButton>
               </div>
             }
           >
-            {formError && <p className="formError">{formError}</p>}
+            <div className="space-y-5">
+              {formError ? (
+                <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200">
+                  {formError}
+                </div>
+              ) : null}
 
-            <div>
-              <div className="formGroup">
-                <span className="formLabel">Título *</span>
+              <div className="space-y-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Titulo *
+                </span>
                 <input
                   type="text"
-                  placeholder="Título do material"
-                  className="formInput"
+                  placeholder="Titulo do material"
+                  className={fieldClass}
                   value={formTitulo}
-                  onChange={(e) => setFormTitulo(e.target.value)}
-                  required
+                  onChange={(event) => setFormTitulo(event.target.value)}
                 />
               </div>
 
-              <div className="formGroup">
-                <span className="formLabel">Módulo *</span>
-                <div style={{ position: "relative" }}>
+              <div className="space-y-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Modulo *
+                </span>
+                <div className="relative">
                   <input
                     type="text"
-                    placeholder="Buscar módulo por nome..."
-                    className="formInput"
+                    placeholder="Buscar modulo por nome..."
+                    className={fieldClass}
                     value={buscaModuloForm}
-                    onChange={(e) => {
-                      setBuscaModuloForm(e.target.value);
+                    onFocus={() => {
+                      if (modulosFiltradosNoForm.length > 0) {
+                        setShowSugestoesModuloForm(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setShowSugestoesModuloForm(false), 120);
+                    }}
+                    onChange={(event) => {
+                      setBuscaModuloForm(event.target.value);
                       setFormModuloId("");
                       setShowSugestoesModuloForm(true);
                       if (formError) setFormError(null);
                     }}
-                    required
                   />
-                  {showSugestoesModuloForm && modulosFiltradosNoForm.length > 0 && (
-                    <div
-                      style={{
-                        marginTop: 6,
-                        border: "1px solid var(--line)",
-                        borderRadius: 10,
-                        background: "var(--background)",
-                        maxHeight: 210,
-                        overflowY: "auto",
-                      }}
-                    >
-                      {modulosFiltradosNoForm.map((mod) => (
+                  {showSugestoesModuloForm && modulosFiltradosNoForm.length > 0 ? (
+                    <div className={suggestionPanelClass}>
+                      {modulosFiltradosNoForm.map((modulo) => (
                         <button
-                          key={mod.id}
+                          key={modulo.id}
                           type="button"
                           onClick={() => {
-                            setFormModuloId(mod.id);
-                            setBuscaModuloForm(mod.nome);
+                            setFormModuloId(modulo.id);
+                            setBuscaModuloForm(modulo.nome);
                             setShowSugestoesModuloForm(false);
                             if (formError) setFormError(null);
                           }}
-                          style={{ width: "100%", textAlign: "left" }}
-                          className="badgeFilterOption"
+                          className={suggestionOptionClass}
                         >
-                          {mod.nome}
+                          {modulo.nome}
                         </button>
                       ))}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
-              <div className="formGroup">
-                <span className="formLabel">Tipo *</span>
-                <div className="materialTypeSegment" role="tablist" aria-label="Tipo de material">
+              <div className="space-y-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Tipo *
+                </span>
+                <div className="grid gap-2 sm:grid-cols-2" role="tablist" aria-label="Tipo de material">
                   <button
                     type="button"
-                    className={`materialTypeOption ${formTipo === "arquivo" ? "active" : ""}`}
+                    className={typeOptionClass(formTipo === "arquivo")}
                     onClick={() => {
                       setFormTipo("arquivo");
                       setFormUrl("");
                     }}
                   >
-                    {iconLabel(<FileText size={14} />, "Arquivo")}
+                    {iconLabel(<FileText size={16} />, "Arquivo")}
                   </button>
                   <button
                     type="button"
-                    className={`materialTypeOption ${formTipo === "link" ? "active" : ""}`}
+                    className={typeOptionClass(formTipo === "link")}
                     onClick={() => {
                       setFormTipo("link");
                       setFormArquivo(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
                   >
-                    {iconLabel(<LinkIcon size={14} />, "Link")}
+                    {iconLabel(<LinkIcon size={16} />, "Link")}
                   </button>
                 </div>
               </div>
 
-              <div className="formGroup">
-                <span className="formLabel">Descrição</span>
+              <div className="space-y-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Descricao
+                </span>
                 <textarea
-                  placeholder="Descrição do material"
-                  className="formInput"
-                  rows={3}
+                  placeholder="Descricao do material"
+                  className={textareaClass}
+                  rows={4}
                   value={formDescricao}
-                  onChange={(e) => setFormDescricao(e.target.value)}
+                  onChange={(event) => setFormDescricao(event.target.value)}
                 />
               </div>
 
-              <div className="formGroup">
-                <span className="formLabel">Turmas (opcional)</span>
+              <div className="space-y-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Turmas (opcional)
+                </span>
                 <select
-                  className="formInput"
+                  className={cn(fieldClass, "h-32 py-3")}
                   multiple
                   value={turmasSelecionadas}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setTurmasSelecionadas(
-                      Array.from(e.target.selectedOptions, (opt) => opt.value)
+                      Array.from(event.target.selectedOptions, (option) => option.value)
                     )
                   }
                   size={4}
-                  style={{ minHeight: "100px" }}
                 >
                   {turmasDisponiveis.map((turma) => (
                     <option key={turma.id} value={turma.id}>
@@ -900,65 +903,85 @@ export default function MateriaisPage() {
                     </option>
                   ))}
                 </select>
-                <small className="formHint">
-                  Segure Ctrl/Cmd para selecionar multiplas. Deixe vazio para "Todos".
-                </small>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Segure Ctrl ou Cmd para selecionar multiplas turmas. Deixe vazio para liberar a todos.
+                </p>
               </div>
 
-              {/* Input dinâmico baseado no tipo */}
               {formTipo === "arquivo" ? (
-                <div className="formGroup">
-                  <span className="formLabel">Formato do Arquivo</span>
-                  <select
-                    className="formInput"
-                    value={formFormatoArquivo}
-                    onChange={(e) => {
-                      setFormFormatoArquivo(e.target.value as FormatoArquivo);
-                      setFormArquivo(null);
-                      setFormError(null);
-                    }}
-                  >
-                    {FORMATO_ARQUIVO_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small className="formHint">
-                    Selecione um formato específico para restringir os arquivos permitidos.
-                  </small>
-
-                  <span className="formLabel">Arquivo *</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept={ACCEPT_BY_FORMAT[formFormatoArquivo]}
-                    className="materialFileInputHidden"
-                    onChange={(e) => handleArquivoChange(e.target.files?.[0] || null)}
-                  />
-                  <div className="materialFilePicker">
-                    <AnimatedButton
-                      type="button"
-                      className="materialFilePickerBtn"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      Procurar
-                    </AnimatedButton>
-                    <span className="materialFilePickerName">
-                      {formArquivo?.name || "Nenhum arquivo selecionado."}
+                <div className="space-y-5">
+                  <div className="space-y-2.5">
+                    <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                      Formato do arquivo
                     </span>
+                    <select
+                      className={fieldClass}
+                      value={formFormatoArquivo}
+                      onChange={(event) => {
+                        setFormFormatoArquivo(event.target.value as FormatoArquivo);
+                        setFormArquivo(null);
+                        setFormError(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                    >
+                      {FORMATO_ARQUIVO_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Selecione um formato especifico para restringir os arquivos permitidos.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                      Arquivo *
+                    </span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPT_BY_FORMAT[formFormatoArquivo]}
+                      className="sr-only"
+                      onChange={(event) => handleArquivoChange(event.target.files?.[0] || null)}
+                    />
+                    <div className="flex flex-col gap-3 rounded-[24px] border-2 border-dashed border-border/80 bg-muted/35 p-4 transition hover:border-primary/35 hover:bg-accent/45 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/80 bg-card text-primary">
+                          {formArquivo ? <Check size={18} /> : <FolderUp size={18} />}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {formArquivo?.name || "Nenhum arquivo selecionado"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Formatos aceitos: {getCategoriaLabel(formFormatoArquivo)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <AnimatedButton
+                        type="button"
+                        className="inline-flex h-11 items-center justify-center rounded-full border border-border/80 bg-card px-4 text-sm font-semibold text-foreground transition hover:bg-accent"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Procurar
+                      </AnimatedButton>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="formGroup">
-                  <span className="formLabel">URL *</span>
+                <div className="space-y-2.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                    URL *
+                  </span>
                   <input
                     type="url"
                     placeholder="https://exemplo.com/recurso"
-                    className="formInput"
+                    className={fieldClass}
                     value={formUrl}
-                    onChange={(e) => setFormUrl(e.target.value)}
-                    required
+                    onChange={(event) => setFormUrl(event.target.value)}
                   />
                 </div>
               )}
@@ -981,4 +1004,3 @@ export default function MateriaisPage() {
     </DashboardLayout>
   );
 }
-

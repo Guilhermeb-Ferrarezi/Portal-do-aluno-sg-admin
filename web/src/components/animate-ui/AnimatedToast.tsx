@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, m } from 'framer-motion';
 import { CheckCircle, XCircle, Info } from 'lucide-react';
 
@@ -72,7 +73,7 @@ export function AnimatedToast({
   const animate = isFloating ? { x: 0, opacity: 1 } : { y: 0, opacity: 1 };
   const exit = isFloating ? { x: 20, opacity: 0 } : { y: -20, opacity: 0 };
 
-  return (
+  const content = (
     <AnimatePresence>
       {message && (
         <m.div
@@ -108,4 +109,10 @@ export function AnimatedToast({
       )}
     </AnimatePresence>
   );
+
+  if (isFloating && typeof document !== 'undefined') {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }

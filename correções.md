@@ -346,3 +346,451 @@ Se o WebSocket continuar caindo em producao mesmo apos deploy, verificar:
 - `./deploy_and_push.bat` executado com respostas `s`, `s`, `n`, concluindo deploy e encerrando antes de commit/push
 - `GET http://localhost:3001/api/health` -> `{"ok":true}`
 - `GET http://localhost:8080` -> `200`
+
+# Correcao 2026-03-25 (Tailwind + Radix + shadcn/ui no login)
+
+## Objetivo
+
+Preparar o frontend para uso de `Tailwind CSS`, `Radix` e `shadcn/ui`, e migrar a tela de login inteira para a nova base sem depender mais de `Login.css`.
+
+## Mudancas
+
+- O frontend passou a incluir `tailwindcss`, `@tailwindcss/vite`, `shadcn`, `radix-ui`, `tw-animate-css`, `class-variance-authority`, `clsx` e `tailwind-merge` em `web/package.json`.
+- O build do Vite agora carrega o plugin do Tailwind e o alias `@` foi configurado em `web/vite.config.ts`, `web/tsconfig.json` e `web/tsconfig.app.json`.
+- Foi adicionada a base do `shadcn/ui` com `web/components.json`, `web/src/styles/globals.css`, `web/src/lib/utils.ts` e os componentes `ui/button`, `ui/card`, `ui/input` e `ui/label`.
+- A tela `web/src/components/Login/Login.tsx` foi reescrita para usar Tailwind + shadcn, mantendo o fluxo de auth, toggle de senha, countdown de redirecionamento, toasts e overlay de carregamento.
+- O arquivo legado `web/src/components/Login/Login.css` foi removido, porque a tela de login passou a ser 100% estilizada por classes utilitarias.
+- O `docker-compose.yml` tinha um caractere solto antes de `PORT: 3000` na API; o typo foi removido para permitir validacao do deploy local.
+
+## Validacao executada
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose config -q`
+- `docker compose up -d --build`
+- `docker compose ps`
+- `GET http://localhost:3001/api/health` -> `200`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste visual complementar
+
+- O cabecalho do login foi alinhado corretamente em `web/src/components/Login/Login.tsx`, ajustando o `CardHeader` do shadcn para `grid` centralizado em vez de classes pensadas para `flex`.
+- A badge `Santos Tech`, o logo e o bloco de titulo/subtitulo agora compartilham o mesmo eixo central, evitando o efeito de badge esticada e logo puxado para a esquerda.
+
+## Validacao do ajuste visual
+
+- `web`: `npm run build`
+
+## Atualizacao complementar 2026-03-25 (Modal, ConfirmDialog e Pagination)
+
+- `web/src/components/Modal.tsx` foi migrado para `Radix Dialog` com base shadcn, mantendo a API publica atual (`isOpen`, `onClose`, `title`, `footer`, `size`, `closeOnEscape`, `closeOnBackdropClick`).
+- Foi adicionado `web/src/components/ui/dialog.tsx` para centralizar a base de dialogos reutilizaveis do app em Tailwind/shadcn.
+- `web/src/components/ConfirmDialog.tsx` deixou de depender de `ConfirmDialog.css` e passou a usar `Modal` + `Button` do shadcn com variacao normal/perigosa.
+- `web/src/components/Pagination.tsx` deixou de depender de `Pagination.css` e passou a usar classes utilitarias, `Button` e `Input`, preservando a mesma interface de props.
+- Os arquivos legados `web/src/components/Modal.css`, `web/src/components/ConfirmDialog.css` e `web/src/components/Pagination.css` foram removidos.
+
+## Validacao dessa atualizacao complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste visual complementar 2026-03-25 (context menu no nome do holder)
+
+- O `context menu` tambem foi aplicado no bloco do nome do usuario em `web/src/pages/Medalhas.tsx`, dentro da secao `Quem tem medalhas`, que era o ponto desejado para a interacao contextual.
+- Nesse menu, o usuario pode ser buscado rapidamente na lista, ter o contato copiado e, para admin, ser adicionado direto na area de atribuicao.
+- O chip de usuario selecionado na area de atribuicao tambem foi reduzido para um tamanho mais proporcional ao restante do layout.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste visual complementar 2026-03-25 (AdminUsers em lista compacta)
+
+- A listagem de `web/src/pages/AdminUsers.tsx` saiu do layout de cards altos e passou para um formato compacto em linhas, com colunas para `Usuario`, `Papel`, `Status` e `Ultima atividade`, aproximando a tela do padrao de tabela leve desejado.
+- O clique direito agora atua sobre a linha inteira do usuario, com `context menu` mais proximo do fluxo esperado: `Editar usuario`, `Copiar contato`, `Enviar email`, submenu `Alterar papel` e `Deletar usuario`.
+- A troca de papel no submenu passou a usar `atualizarUsuario(..., { role })`, que ja e suportado pela API do projeto.
+- O texto de ultima atividade foi resumido para formato relativo (`Agora`, `2h atras`, `3 dias atras`), deixando a leitura mais proxima da referencia visual.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste visual complementar 2026-03-25 (toast fora do conteudo e topo simplificado em AdminUsers)
+
+- `web/src/components/animate-ui/AnimatedToast.tsx` passou a usar `createPortal` para o modo flutuante `top-right`, garantindo que o toast nao fique preso a containers com transformacao ou dentro do conteudo da pagina.
+- O topo de `web/src/pages/AdminUsers.tsx` foi simplificado: sairam o bloco `Operacao de usuarios` e os cards de resumo, incluindo o de `Paginacao`, mantendo apenas busca, filtro e acao de atualizar.
+- Com isso a tela ficou mais limpa e o foco visual voltou para a lista de usuarios.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste visual complementar 2026-03-25 (medalhas com filtro e paginacao na atribuicao)
+
+- A coluna `Medalha` da area de atribuicao em `web/src/pages/Medalhas.tsx` foi reorganizada para um painel de resultados filtrados com paginacao, em vez do bloco expansivel com scroll longo.
+- Agora a busca por medalha filtra toda a base e a lista mostra poucos itens por vez, usando o componente de paginacao ja padronizado no projeto.
+- O estado selecionado da medalha foi mantido no mesmo fluxo, mas a visualizacao ficou mais estavel e proporcional entre as duas colunas da atribuicao.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste visual complementar 2026-03-25 (submenu de medalhas no context menu)
+
+- O context menu do nome do holder em `web/src/pages/Medalhas.tsx` passou a usar um submenu `Medalhas`, no estilo `Mais >`, em vez de exibir a acao de expandir diretamente na raiz do menu.
+- Dentro desse submenu ficaram as acoes relacionadas ao bloco: `Expandir/Recolher medalhas` e, para admin, `Adicionar a atribuicao`.
+- Esse ajuste foi feito para aproximar o comportamento do padrao visual de submenu esperado e reduzir a sensacao de menu "seco" com acoes desconectadas.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste visual complementar 2026-03-25 (lista expansivel de medalhas na atribuicao)
+
+- A coluna `Medalha` em `web/src/pages/Medalhas.tsx` deixou de listar itens abertos o tempo todo e passou a usar um controle de `Expandir/Recolher medalhas`, reduzindo o overflow e equilibrando melhor a altura entre as colunas da atribuicao.
+- Ao digitar no campo de medalha, a lista abre automaticamente; ao selecionar uma medalha, ela fecha novamente.
+- No `context menu` do nome do holder, a opcao pouco util de `Buscar este usuario` foi substituida por `Expandir/Recolher medalhas`, alinhando a acao ao comportamento real esperado nesse bloco.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste visual complementar 2026-03-25 (context menu de usuarios sem filtro embutido)
+
+- O `context menu` da tela `web/src/pages/AdminUsers.tsx` deixou de incluir a acao de filtro por role, para ficar restrito a acoes do proprio item.
+- Os chips informativos do rodape dos cards de usuario foram removidos, reduzindo altura e ruído visual.
+- O card passou a manter apenas a acao visivel de `Editar`; a exclusao continua disponivel pelo `context menu`, evitando excesso de botoes no layout.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Atualizacao complementar 2026-03-25 (Medalhas em Tailwind)
+
+- `web/src/pages/Medalhas.tsx` foi migrada para Tailwind, removendo a dependencia completa de `Medalhas.css` e preservando listagem, filtros, cards, paginação, holders agrupados, atribuição em lote, biblioteca de imagens, criação/edição e modal de edição.
+- A aba `ver` agora usa cards e painéis na mesma linguagem visual aplicada nas telas já migradas, com estados vazios/loading em Tailwind e ações administrativas padronizadas.
+- O bloco de holders foi refeito com acordeão visual utilitário, filtros consistentes e ações de salvar/remover alinhadas à nova base.
+- As abas `imagens` e `criar` passaram a usar cards utilitários, preview de ícone em Tailwind e file input visual sem depender mais de classes legadas.
+- O arquivo legado `web/src/pages/Medalhas.css` foi removido.
+
+## Validacao dessa atualizacao complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste visual complementar 2026-03-25 (atribuicao de medalhas)
+
+- O bloco de atribuicao em `web/src/pages/Medalhas.tsx` passou a sugerir medalhas logo ao abrir o campo, evitando a coluna vazia enquanto nenhuma busca e digitada.
+- A selecao da medalha agora aparece tambem como chip removivel, espelhando o comportamento dos usuarios selecionados e deixando mais claro o estado atual da atribuicao.
+- Foram adicionados estados vazios para busca sem resultado e um rodape de resumo com CTA mais explicito, inclusive com aparencia desabilitada mais evidente quando ainda falta usuario ou medalha.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Atualizacao complementar 2026-03-25 (context menu em usuarios selecionados)
+
+- Foi adicionado `web/src/components/ui/context-menu.tsx` via `shadcn/ui` para suportar interacoes de clique direito no frontend.
+- Os chips de usuario selecionado na area de atribuicao de `web/src/pages/Medalhas.tsx` agora abrem um `context menu` ao clicar com o botao direito.
+- O menu inclui acoes para manter somente aquele usuario na selecao, copiar email/login quando existir e remover o usuario da selecao sem depender apenas do clique comum no chip.
+
+## Validacao dessa atualizacao complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste visual complementar 2026-03-25 (campo de busca em VideoaulaBonus)
+
+- O campo de busca da tela `web/src/pages/VideoaulaBonus.tsx` recebeu mais espaco interno a esquerda (`pl-14`) e o container do icone foi fixado com largura propria, evitando que o placeholder encoste ou sobreponha o icone de busca.
+
+## Validacao do ajuste visual complementar
+
+- `web`: `npm run build`
+
+## Refinamento visual complementar 2026-03-25 (VideoaulaBonus)
+
+- A tela `web/src/pages/VideoaulaBonus.tsx` recebeu uma segunda passada visual para harmonizar melhor com a nova base Tailwind: painel de filtros com superficie mais consistente, estados de loading/erro/vazio na mesma linguagem e cards com acabamento mais limpo.
+- O campo de busca manteve o ajuste de espacamento do icone, e o bloco de filtros passou a usar uma superficie mais intencional em vez de um card plano.
+- Os cards de videoaula receberam ajuste fino de espacamento interno e camada visual sutil para reduzir o aspecto "seco" da primeira migracao.
+
+## Validacao desse refinamento visual
+
+- `web`: `npm run build`
+
+## Atualizacao complementar 2026-03-25 (Materiais em Tailwind)
+
+- `web/src/pages/Materiais.tsx` foi reescrita para Tailwind, removendo a dependencia completa de `Materiais.css` e preservando filtros, cards, paginacao, upload de arquivo, cadastro por link, exclusao e atribuicao de turmas.
+- A tela passou a usar a mesma base visual aplicada em `VideoaulaBonus`: painel de filtros em card, estados de loading/erro/vazio em Tailwind, badges de acesso por turma e cards com acao principal/delecao padronizadas.
+- O modal de criacao de material foi migrado para a nova base com campos utilitarios, selecao de tipo `arquivo/link`, seletor de formato de arquivo e file picker visual em Tailwind.
+- O arquivo legado `web/src/pages/Materiais.css` foi removido.
+
+## Validacao dessa atualizacao complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `GET http://localhost:8080` -> `200`
+
+## Hotfix 2026-03-25 (icone sobrepondo placeholder nas buscas)
+
+- Os campos de busca em `web/src/pages/VideoaulaBonus.tsx` e `web/src/pages/Materiais.tsx` passaram a forcar `padding-left` explicito para evitar que o icone de lupa sobreponha o placeholder.
+- O problema vinha do padding base reutilizado no campo utilitario, que neste contexto estava prevalecendo sobre o ajuste especifico do input de busca.
+
+## Validacao desse hotfix
+
+- `web`: `npm run build`
+
+## Refactor 2026-03-25 (PaginatedSelect em Tailwind)
+
+- `web/src/components/PaginatedSelect.tsx` deixou de depender de `PaginatedSelect.css` e passou a usar utilitarios Tailwind com `cn`.
+- O seletor manteve a mesma API publica (`value`, `onChange`, `options`, `selectedOption`, `remote`, paginação local/remota e `pageSize`), mas agora concentra toda a estrutura visual no proprio componente.
+- O trigger, o painel, a busca interna, os cards de resultado, o estado vazio/loading e o pager `Ant / Prox` foram reescritos na nova base visual.
+- O componente agora tambem fecha com `Escape`, continua fechando ao clicar fora e preserva o comportamento responsivo sem depender de media queries em arquivo CSS.
+- O arquivo legado `web/src/components/PaginatedSelect.css` foi removido.
+
+## Validacao desse refactor
+
+- `web`: `npm run lint` (16 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Hotfix 2026-03-25 (confirmacao extra condicional em CreateUser)
+
+- `web/src/components/Dashboard/Sidebar/CreateUser/CreateUser.tsx` passou a exibir o bloco de confirmacao extra apenas quando o cargo selecionado e `Administrador`.
+- A linha de `Cargo` agora volta para coluna unica quando o papel escolhido nao exige senha administrativa, evitando reservar espaco vazio no layout.
+
+## Validacao desse hotfix
+
+- `web`: `npm run build`
+
+## Refactor 2026-03-25 (ProfilePopup em Tailwind)
+
+- `web/src/components/ProfilePopup.tsx` foi migrado para Tailwind e deixou de depender de `ProfilePopup.css`.
+- O popup manteve portal, animação com `framer-motion`, banner com capa customizada, avatar, badge de role, informacoes da conta e acao de abrir configuracoes.
+- O posicionamento agora tambem reage a `resize` e `scroll`, com clamp horizontal no desktop e fallback fixo no mobile, evitando que o popup escape da viewport.
+- O estado da capa continua sincronizado pelos eventos de cover, mas o `useMemo` antigo foi removido, eliminando um warning de lint desnecessario nesse componente.
+- O arquivo legado `web/src/components/ProfilePopup.css` foi removido.
+
+## Validacao desse refactor
+
+- `web`: `npm run lint` (os warnings antigos do projeto cairam de 17 para 16; sem erros novos)
+- `web`: `npm run build`
+
+## Hotfix 2026-03-25 (API do Docker usando banco remoto)
+
+- O serviço `api` em `docker-compose.yml` estava herdando `DATABASE_URL` do arquivo `.env`, o que fazia o container tentar subir apontando para o banco remoto em vez do serviço `db` do compose.
+- O compose agora sobrescreve explicitamente `DATABASE_URL`, `DB_SERVER`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` e `DB_SSL` para usar o banco local do stack Docker.
+- Com isso, a API voltou a iniciar o processo de migração localmente, conectar no `db` do compose e responder no healthcheck.
+
+## Validacao desse hotfix
+
+- `docker compose config`
+- `docker compose up -d --build api`
+- `docker compose ps`
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `docker compose up -d web`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste complementar 2026-03-25 (Docker apontando para o banco remoto via proxy local)
+
+- O banco local do compose estava vazio, entao a API conectava mas o dashboard seguia quebrando por falta de tabelas como `class`, `user`, `exercise` e `enrollment`.
+- Foi adicionado `scripts/remote-db-proxy.js`, um proxy TCP simples em Node para expor no host uma porta local que encaminha para o Postgres remoto configurado no `.env`.
+- `docker-compose.yml` foi ajustado para o servico `api` usar `guilherme_whatsapp-db:${DOCKER_DB_PROXY_PORT:-15432}`, aproveitando o `host-gateway` ja configurado.
+- O proxy foi iniciado no host e a API passou a enxergar, de dentro do proprio container, as tabelas reais do banco remoto.
+
+## Validacao desse ajuste complementar
+
+- `Test-NetConnection 212.28.182.72 -Port 15500` -> `TcpTestSucceeded : True`
+- `Test-NetConnection localhost -Port 15432` -> `TcpTestSucceeded : True`
+- `docker compose exec -T api node -` consultando `information_schema.tables` -> tabelas reais encontradas (`class`, `badge`, `container_tasks`, etc.)
+- `docker compose up -d --build api web`
+- `docker compose ps` -> `api` healthy e `web` up
+
+## Hotfix 2026-03-25 (largura do select em CreateUser)
+
+- O campo `Cargo` em `web/src/components/Dashboard/Sidebar/CreateUser/CreateUser.tsx` passou a usar `w-full`.
+- Isso corrige o caso em que o `select` encolhia ao tamanho do texto enquanto o icone de seta continuava preso ao limite direito do wrapper, deixando o campo visualmente quebrado.
+
+## Validacao desse hotfix
+
+- `web`: `npm run build`
+
+## Refinamento 2026-03-25 (cards de medalhas compactados)
+
+- `web/src/pages/Medalhas.tsx` teve os cards da grade principal compactados com menos padding, icone menor, descricao mais curta visualmente, chips mais leves e acoes de `Editar/Excluir` reduzidas.
+- O objetivo foi remover a sensacao de "vazio" no rodape dos cards e deixar a leitura mais proporcional na grade.
+
+## Validacao desse refinamento
+
+- `web`: `npm run build`
+
+## Ajuste 2026-03-25 (atribuicao de medalhas em lote)
+
+- `web/src/pages/Medalhas.tsx` deixou de tratar a selecao de medalha como item unico na area de atribuicao.
+- O seletor agora adiciona medalhas a uma lista de chips removiveis, permitindo enviar varias medalhas para os usuarios selecionados em uma unica acao.
+- O card grande de medalha selecionada foi removido e substituido por chips compactos, reduzindo o desnivel visual entre as colunas `Usuario` e `Medalha`.
+
+## Validacao desse ajuste
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste 2026-03-25 (fallback mobile para context menus)
+
+- Foi adicionado `web/src/components/ui/dropdown-menu.tsx` via shadcn para servir como menu de acoes tocavel no mobile.
+- `web/src/pages/AdminUsers.tsx` agora mostra um botao de acoes no celular em cada linha de usuario, mantendo o `ContextMenu` no desktop.
+- `web/src/pages/Medalhas.tsx` ganhou o mesmo fallback nos cards de holders e nos chips de usuarios selecionados na area de atribuicao.
+- Com isso, as acoes que antes dependiam de clique direito agora tambem podem ser acessadas por toque em telas pequenas.
+
+## Validacao desse fallback mobile
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Atualizacao complementar 2026-03-25 (ConfirmModal e VideoaulaBonus)
+
+- `web/src/components/ConfirmModal.tsx` deixou de depender de `ConfirmModal.css` e passou a usar portal + Tailwind + `Button` do shadcn, mantendo as props publicas (`isOpen`, `title`, `message`, `onConfirm`, `onCancel`, `danger`, `isLoading` e `overlayZIndex`).
+- `web/src/pages/VideoaulaBonus.tsx` foi reescrita para Tailwind, removendo a dependencia completa de `VideoaulaBonus.css` e preservando busca, filtros, cards, modal de player, modal de upload, toasts, paginacao e fluxo de exclusao.
+- A tela agora usa uma composicao mais consistente com a nova base visual: filtros em card, cards com hover utilitario, estado vazio/error em Tailwind e formularios de modal alinhados ao design system atual.
+- O formulario de criacao passou a expor tambem a opcao `Vimeo`, que ja era suportada pela logica existente da pagina.
+- O label lateral em `web/src/components/Dashboard/DashboardLayout.tsx` foi ajustado para `Videoaulas Bonus`, evitando texto quebrado nessa rota.
+- Os arquivos legados `web/src/components/ConfirmModal.css` e `web/src/pages/VideoaulaBonus.css` foram removidos.
+
+## Validacao dessa atualizacao complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`
+
+## Refactor 2026-03-25 (Dashboard e shell em Tailwind/shadcn)
+
+- `web/src/components/Dashboard/DashboardLayout.tsx` deixou de depender de `Dashboard.css` e foi refeito com utilitarios Tailwind para sidebar, topbar, overlay mobile, bloco de perfil e navegacao administrativa.
+- O modal de selecao de turma do shell saiu do overlay manual e passou a usar `Dialog` do shadcn, mantendo o fluxo de escolha para alunos com mais de uma turma.
+- `web/src/components/Dashboard/Dashboard.tsx` foi migrado para Tailwind/shadcn com `Card`, `Button`, `Badge`, `Separator` e `Skeleton`, cobrindo loading, erro, resumo operacional, cards metricos, lista de exercicios recentes, progresso e acoes rapidas.
+- O arquivo legado `web/src/components/Dashboard/Dashboard.css` foi removido.
+- Foram adicionados os componentes `web/src/components/ui/badge.tsx`, `web/src/components/ui/separator.tsx` e `web/src/components/ui/skeleton.tsx` para sustentar essa camada nova sem CSS avulso.
+
+## Validacao desse refactor
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste visual 2026-03-25 (alinhamento da atribuicao de medalhas)
+
+- `web/src/pages/Medalhas.tsx` passou a usar a mesma estrutura de campo no bloco de `Medalha` e no bloco de `Usuario` dentro da atribuicao em lote.
+- O espaco extra criado por um wrapper com `min-h-6` no rotulo da medalha foi removido, fazendo o `PaginatedSelect` subir e alinhar corretamente com o input de busca de usuario.
+
+## Validacao desse ajuste visual
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`
+
+## Ajuste visual e novo refactor 2026-03-25 (Medalhas + CreateUser)
+
+- A area de atribuicao em `web/src/pages/Medalhas.tsx` foi reorganizada para alinhar melhor as colunas de `Usuario` e `Medalha`: o cabecalho da direita deixou de carregar o botao de limpar, e a acao `Limpar medalhas` passou a acompanhar os chips de selecao.
+- Quando nenhuma medalha esta selecionada, o lado direito agora mostra um helper curto no mesmo bloco, em vez de um cabecalho assimetrico.
+- `web/src/components/Dashboard/Sidebar/CreateUser/CreateUser.tsx` foi migrado inteiro para Tailwind/shadcn, preservando validacao, checagem de e-mail, indicador de forca de senha, confirmacao de admin e toast de feedback.
+- A tela de criacao passou a usar `Button`, `Input`, `Label` e utilitarios via `cn`, com novo layout em duas colunas e painel lateral informativo sem depender do CSS legado.
+- O arquivo legado `web/src/components/Dashboard/Sidebar/CreateUser/CreateUser.css` foi removido.
+
+## Validacao desse ajuste visual e refactor
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+
+## Ajuste visual complementar 2026-03-25 (glow do CreateUser)
+
+- O fundo dos cards em `web/src/components/Dashboard/Sidebar/CreateUser/CreateUser.tsx` deixou de usar a faixa linear horizontal no topo.
+- O overlay agora usa glows radiais distribuidos pelo card, eliminando o corte reto perceptivel no fundo.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run build`
+
+## Hotfix 2026-03-25 (alinhamento das colunas no CreateUser)
+
+- As linhas em duas colunas do formulario de `web/src/components/Dashboard/Sidebar/CreateUser/CreateUser.tsx` agora usam `items-start`, evitando que uma coluna seja esticada pela altura da outra.
+- Com isso, campos como `Senha` e `Confirmar senha` passam a assentar no mesmo eixo visual, sem o desnivel causado pelo stretch do grid.
+
+## Validacao desse hotfix
+
+- `web`: `npm run build`
+
+## Ajustes pontuais 2026-03-25 (busca, Medalhas e VideoaulaBonus)
+
+- `web/src/pages/AdminUsers.tsx` recebeu mais espacamento no campo de busca, evitando que a lupa volte a encostar no placeholder.
+- `web/src/pages/Medalhas.tsx` foi refinada em dois pontos: a area de atribuicao agora alinha melhor os campos de usuario e medalha, e os cards da grade deixaram de esticar a altura da linha inteira.
+- `web/src/components/PaginatedSelect.css` foi ajustado para aproximar a altura do seletor do restante dos campos utilitarios do projeto.
+- `web/src/pages/VideoaulaBonus.tsx` passou a enquadrar a thumbnail com crop levemente maior e sem fundo preto no card, reduzindo as bordas escuras laterais.
+
+## Validacao desses ajustes pontuais
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`
+
+## Hotfix 2026-03-25 (padding real da busca em AdminUsers)
+
+- `web/src/pages/AdminUsers.tsx` passou a forcar `paddingLeft` inline no campo principal de busca para evitar que o `px-4` da classe base volte a sobrepor o placeholder com a lupa.
+
+## Validacao desse hotfix
+
+- `web`: `npm run build`
+
+## Ajuste visual complementar 2026-03-25 (seletor de medalha com paginacao compacta)
+
+- A selecao de medalha na area de atribuicao em `web/src/pages/Medalhas.tsx` deixou de usar a lista customizada com `Pagination` completo no rodape.
+- O bloco agora reutiliza `web/src/components/PaginatedSelect.tsx`, que ja segue o padrao visual compacto com busca interna, cards de resultado e paginação `Ant / pagina / Prox`, como nos seletores do projeto.
+- A busca local de medalhas e a paginação manual do bloco foram removidas, simplificando o fluxo para escolha de medalha.
+- A medalha selecionada continua aparecendo abaixo do seletor, agora em um resumo compacto com acao de limpar selecao.
+
+## Validacao desse ajuste visual complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`
+
+## Atualizacao complementar 2026-03-25 (AdminUsers em Tailwind + context menu)
+
+- `web/src/pages/AdminUsers.tsx` foi migrada para Tailwind e deixou de depender de `AdminUsers.css`, preservando busca, filtro por tipo, refresh, presence em tempo real, paginacao, edicao e exclusao.
+- A listagem saiu do layout antigo de tabela/CSS e passou para cards responsivos com resumo visual de role, contato e status online/offline, mantendo a leitura melhor no desktop e no mobile.
+- Cada card de usuario agora abre um `context menu` no clique direito, com acoes para editar, copiar contato, filtrar pela role do usuario e deletar.
+- O modal de edicao da pagina tambem foi refeito na nova base utilitaria, mantendo o bloqueio de fechamento durante `salvando`.
+- O arquivo legado `web/src/pages/AdminUsers.css` foi removido.
+
+## Validacao dessa atualizacao complementar
+
+- `web`: `npm run lint` (17 warnings antigos de hooks/fast-refresh continuam no projeto; sem erros novos)
+- `web`: `npm run build`
+- `docker compose up -d --build web`
+- `docker compose ps`
+- `GET http://localhost:8080` -> `200`

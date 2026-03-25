@@ -3,7 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { m } from "framer-motion";
 import DashboardLayout from "./DashboardLayout";
 import { getName, getRole, hasRole } from "../../auth/auth";
-import { RippleButton, GradientBackground, FadeInUp } from "../animate-ui";
+import { FadeInUp } from "../animate-ui";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   listarTurmas,
   obterTurmasResponsavel,
@@ -39,15 +52,105 @@ function ordenarExerciciosRecentes(items: Exercicio[]) {
 function RingProgress({ value }: { value: number }) {
   const normalized = Math.max(0, Math.min(value, 100));
   const style = {
-    background: `conic-gradient(var(--red) ${normalized}%, var(--ring) 0)`,
+    background: `conic-gradient(var(--primary) ${normalized}%, rgba(255,255,255,0.08) 0)`,
   } as React.CSSProperties;
 
   return (
-    <div className="ring" style={style} aria-label={`Progresso ${normalized}%`}>
-      <div className="ringInner">
-        <span className="ringValue">{normalized}%</span>
+    <div
+      className="grid size-20 place-items-center rounded-full p-1.5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.95)]"
+      style={style}
+      aria-label={`Progresso ${normalized}%`}
+    >
+      <div className="grid size-full place-items-center rounded-full bg-background/95 shadow-[inset_0_1px_6px_rgba(0,0,0,0.45)]">
+        <span className="text-lg font-black tracking-[-0.04em] text-foreground">
+          {normalized}%
+        </span>
       </div>
     </div>
+  );
+}
+
+type MetricRow = {
+  label: string;
+  value: React.ReactNode;
+  valueClassName?: string;
+};
+
+const eyebrowClass =
+  "text-[0.68rem] font-bold uppercase tracking-[0.32em] text-muted-foreground/80";
+const surfaceClass =
+  "overflow-hidden rounded-[1.5rem] border-border/70 bg-card/95 shadow-[0_24px_70px_-42px_rgba(0,0,0,0.9)]";
+
+function SurfaceCard({
+  className,
+  ...props
+}: React.ComponentProps<typeof Card>) {
+  return <Card className={cn(surfaceClass, className)} {...props} />;
+}
+
+function MetricRows({ rows }: { rows: MetricRow[] }) {
+  return (
+    <div className="flex flex-col">
+      {rows.map((row, index) => (
+        <React.Fragment key={row.label}>
+          <div className="flex items-center justify-between gap-3 py-3 text-sm text-muted-foreground">
+            <span>{row.label}</span>
+            <strong className={cn("text-sm font-semibold text-foreground", row.valueClassName)}>
+              {row.value}
+            </strong>
+          </div>
+          {index < rows.length - 1 ? <Separator className="bg-border/60" /> : null}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function MetricCard({
+  kicker,
+  value,
+  rows,
+  description,
+  delay,
+}: {
+  kicker: string;
+  value: React.ReactNode;
+  rows: MetricRow[];
+  description?: React.ReactNode;
+  delay: number;
+}) {
+  return (
+    <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.3 }}>
+      <SurfaceCard className="h-full">
+        <CardHeader className="gap-3">
+          <div className={eyebrowClass}>{kicker}</div>
+          <CardTitle className="text-[2.35rem] leading-none font-black tracking-[-0.06em]">
+            {value}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-0">
+          <MetricRows rows={rows} />
+          {description ? (
+            <p className="pt-4 text-sm leading-6 text-muted-foreground">{description}</p>
+          ) : null}
+        </CardContent>
+      </SurfaceCard>
+    </m.div>
+  );
+}
+
+function LoadingMetricCard() {
+  return (
+    <SurfaceCard className="h-full">
+      <CardHeader className="gap-3">
+        <Skeleton className="h-3 w-24 rounded-full bg-muted/70" />
+        <Skeleton className="h-10 w-20 rounded-xl bg-muted/70" />
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Skeleton className="h-11 rounded-2xl bg-muted/60" />
+        <Skeleton className="h-11 rounded-2xl bg-muted/60" />
+      </CardContent>
+    </SurfaceCard>
   );
 }
 
@@ -208,22 +311,26 @@ export default function Dashboard() {
     ? Math.round((exerciciosProgramados / totalExerciciosPublicados) * 100)
     : 0;
 
+  const statsGridClass = cn(
+    "grid gap-5 xl:gap-6",
+    isManagementView ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-2 xl:grid-cols-3"
+  );
+
   if (loading) {
     return (
       <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
-        <div className="dashboardSections">
-          <section className="card dashboardSkeletonIntro">
-            <div className="skeletonLine skeletonTitle" />
-            <div className="skeletonLine skeletonSub" />
-          </section>
-          <section className={isManagementView ? "grid4" : "grid3"}>
+        <div className="flex flex-col gap-6">
+          <SurfaceCard>
+            <CardHeader className="gap-3">
+              <Skeleton className="h-3 w-28 rounded-full bg-muted/70" />
+              <Skeleton className="h-10 w-56 rounded-xl bg-muted/70" />
+              <Skeleton className="h-4 w-full max-w-xl rounded-full bg-muted/60" />
+            </CardHeader>
+          </SurfaceCard>
+
+          <section className={statsGridClass}>
             {Array.from({ length: isManagementView ? 4 : 3 }).map((_, idx) => (
-              <div key={idx} className="card skeletonCard">
-                <div className="skeletonLine skeletonKicker" />
-                <div className="skeletonLine skeletonBig" />
-                <div className="skeletonLine skeletonRow" />
-                <div className="skeletonLine skeletonRow" />
-              </div>
+              <LoadingMetricCard key={idx} />
             ))}
           </section>
         </div>
@@ -234,18 +341,24 @@ export default function Dashboard() {
   if (erro) {
     return (
       <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
-        <div className="card dashboardErrorCard">
-          <div className="cardTitle">Falha ao carregar dashboard</div>
-          <p className="mutedSmall">{erro}</p>
-          <RippleButton
-            className="dashboardActionBtn"
-            onClick={() => window.location.reload()}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <RefreshCcw size={16} /> Tentar novamente
-            </span>
-          </RippleButton>
-        </div>
+        <SurfaceCard className="max-w-2xl">
+          <CardHeader className="gap-2">
+            <CardTitle className="text-[1.75rem] font-black tracking-[-0.04em]">
+              Falha ao carregar dashboard
+            </CardTitle>
+            <CardDescription>{erro}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-fit rounded-2xl px-4"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCcw data-icon="inline-start" />
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </SurfaceCard>
       </DashboardLayout>
     );
   }
@@ -253,299 +366,281 @@ export default function Dashboard() {
   return (
     <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
       <FadeInUp>
-        <div className={`dashboardSections ${isManagementView ? "adminBoard" : ""}`}>
-          {isManagementView && (
-            <section className="card adminOverview">
-              <div>
-                <div className="kicker">Visao administrativa</div>
-                <div className="adminOverviewTitle">Painel operacional</div>
-                <p className="muted">
-                  Leitura consolidada de turmas, alunos e exercicios com foco em operacao.
-                </p>
-              </div>
-              <div className="adminOverviewStats">
-                <div className="adminOverviewChip">
-                  <Users size={14} />
-                  <span>{totalAlunos} alunos vinculados</span>
+        <div className={cn("flex flex-col gap-6", isManagementView && "gap-5")}>
+          {isManagementView ? (
+            <SurfaceCard>
+              <CardContent className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="flex flex-col gap-3">
+                  <div className={eyebrowClass}>Visao administrativa</div>
+                  <div className="text-[2rem] font-black tracking-[-0.05em] text-foreground">
+                    Painel operacional
+                  </div>
+                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Leitura consolidada de turmas, alunos e exercicios com foco em operacao.
+                  </p>
                 </div>
-                <div className="adminOverviewChip">
-                  <ClipboardList size={14} />
-                  <span>{exerciciosAtivos} exercicios ativos</span>
-                </div>
-                <div className="adminOverviewChip">
-                  <ShieldCheck size={14} />
-                  <span>{taxaAgendamento}% em agendamento</span>
-                </div>
-              </div>
-            </section>
-          )}
 
-          <section className={isManagementView ? "grid4" : "grid3"}>
-            {(isManagementView || hasTurmas) && (
-              <m.div
-                className="card"
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0, duration: 0.3 }}
-              >
-                <div className="cardHead">
-                  <div>
-                    <div className="kicker">{isManagementView ? "Turmas geridas" : "Turmas"}</div>
-                    <div className="big">{isManagementView ? turmasResponsavel : totalTurmasAluno}</div>
-                  </div>
+                <div className="flex flex-wrap gap-3 lg:justify-end">
+                  <Badge
+                    variant="secondary"
+                    className="h-9 gap-2 rounded-full px-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em]"
+                  >
+                    <Users /> {totalAlunos} alunos vinculados
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="h-9 gap-2 rounded-full px-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em]"
+                  >
+                    <ClipboardList /> {exerciciosAtivos} exercicios ativos
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="h-9 gap-2 rounded-full px-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em]"
+                  >
+                    <ShieldCheck /> {taxaAgendamento}% em agendamento
+                  </Badge>
                 </div>
-                <div className="kv">
-                  <div className="kvRow">
-                    <span>{isManagementView ? "Sob responsabilidade" : "Turmas registradas"}</span>
-                    <strong>{isManagementView ? turmasResponsavel : totalTurmasAluno}</strong>
-                  </div>
-                  {isAdmin && (
-                    <div className="kvRow">
-                      <span>Total no sistema</span>
-                      <strong style={{ color: "var(--muted)", fontSize: "14px" }}>{totalTurmasDoSistema}</strong>
-                    </div>
-                  )}
-                </div>
-              </m.div>
-            )}
+              </CardContent>
+            </SurfaceCard>
+          ) : null}
 
-            {(isManagementView || hasTurmas) && (
-              <m.div
-                className="card"
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1, duration: 0.3 }}
-              >
-                <div className="cardHead">
-                  <div>
-                    <div className="kicker">{isManagementView ? "Cobertura de alunos" : "Alunos"}</div>
-                    <div className="big">{totalAlunos}</div>
-                  </div>
-                </div>
-                <div className="kv">
-                  <div className="kvRow">
-                    <span>{isManagementView ? "Alunos vinculados" : "Alunos nas turmas"}</span>
-                    <strong>{totalAlunos}</strong>
-                  </div>
-                  {isAdmin && (
-                    <div className="kvRow">
-                      <span>Total no sistema</span>
-                      <strong style={{ color: "var(--muted)", fontSize: "14px" }}>{totalAlunosDoSistema}</strong>
-                    </div>
-                  )}
-                </div>
-              </m.div>
-            )}
+          <section className={statsGridClass}>
+            {(isManagementView || hasTurmas) ? (
+              <MetricCard
+                kicker={isManagementView ? "Turmas geridas" : "Turmas"}
+                value={isManagementView ? turmasResponsavel : totalTurmasAluno}
+                rows={[
+                  {
+                    label: isManagementView ? "Sob responsabilidade" : "Turmas registradas",
+                    value: isManagementView ? turmasResponsavel : totalTurmasAluno,
+                  },
+                  ...(isAdmin
+                    ? [
+                        {
+                          label: "Total no sistema",
+                          value: totalTurmasDoSistema,
+                          valueClassName: "text-muted-foreground",
+                        },
+                      ]
+                    : []),
+                ]}
+                delay={0}
+              />
+            ) : null}
 
-            <m.div
-              className="card"
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.3 }}
-            >
-              <div className="cardHead">
-                <div>
-                  <div className="kicker">{isManagementView ? "Operacao de exercicios" : "Exercicios"}</div>
-                  <div className="big">{isManagementView ? exerciciosAtivos : totalExercicios}</div>
-                </div>
-              </div>
-              <div className="kv">
-                {isManagementView ? (
-                  <>
-                    <div className="kvRow">
-                      <span>Publicados</span>
-                      <strong>{totalExerciciosPublicados}</strong>
-                    </div>
-                    <div className="kvRow">
-                      <span>Programados</span>
-                      <strong>{exerciciosProgramados}</strong>
-                    </div>
-                  </>
-                ) : (
-                  <div className="kvRow">
-                    <span>Pendentes</span>
-                    <strong style={{ color: "var(--red)" }}>{exerciciosPendentes}</strong>
-                  </div>
-                )}
-              </div>
-            </m.div>
+            {(isManagementView || hasTurmas) ? (
+              <MetricCard
+                kicker={isManagementView ? "Cobertura de alunos" : "Alunos"}
+                value={totalAlunos}
+                rows={[
+                  {
+                    label: isManagementView ? "Alunos vinculados" : "Alunos nas turmas",
+                    value: totalAlunos,
+                  },
+                  ...(isAdmin
+                    ? [
+                        {
+                          label: "Total no sistema",
+                          value: totalAlunosDoSistema,
+                          valueClassName: "text-muted-foreground",
+                        },
+                      ]
+                    : []),
+                ]}
+                delay={0.1}
+              />
+            ) : null}
 
-            {isManagementView && (
-              <m.div
-                className="card"
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.3 }}
-              >
-                <div className="cardHead">
-                  <div>
-                    <div className="kicker">Backlog editorial</div>
-                    <div className="big">{exerciciosRascunho}</div>
-                  </div>
-                </div>
-                <p className="mutedSmall" style={{ marginTop: 8 }}>
-                  Exercicios em rascunho aguardando revisao ou publicacao.
-                </p>
-              </m.div>
-            )}
+            <MetricCard
+              kicker={isManagementView ? "Operacao de exercicios" : "Exercicios"}
+              value={isManagementView ? exerciciosAtivos : totalExercicios}
+              rows={
+                isManagementView
+                  ? [
+                      { label: "Publicados", value: totalExerciciosPublicados },
+                      { label: "Programados", value: exerciciosProgramados },
+                    ]
+                  : [
+                      {
+                        label: "Pendentes",
+                        value: exerciciosPendentes,
+                        valueClassName: "text-primary",
+                      },
+                    ]
+              }
+              delay={0.2}
+            />
+
+            {isManagementView ? (
+              <MetricCard
+                kicker="Backlog editorial"
+                value={exerciciosRascunho}
+                rows={[
+                  { label: "Rascunhos", value: exerciciosRascunho },
+                  { label: "Prontos para revisao", value: exerciciosRascunho },
+                ]}
+                description="Exercicios em rascunho aguardando revisao ou publicacao."
+                delay={0.3}
+              />
+            ) : null}
           </section>
 
-          <section className="grid2">
-            <m.div
-              className="card"
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.3 }}
-            >
-              <div className="cardTitle">Exercicios recentes</div>
-              <div className="taskList">
-                {exerciciosRecentes.length === 0 ? (
-                  <div style={{ padding: "12px", opacity: 0.6, textAlign: "center" }}>
-                    Nenhum exercicio disponivel
-                  </div>
-                ) : (
-                  exerciciosRecentes.map((ex) => {
-                    const isPassed = !!ex.prazo && new Date(ex.prazo) < new Date();
-                    const isProgrammed = !!ex.publishedAt && new Date(ex.publishedAt) > new Date();
-                    return (
-                      <div
-                        key={ex.id}
-                        className="taskRow"
-                        onClick={() => navigate(`/dashboard/exercicios/${ex.id}`)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            navigate(`/dashboard/exercicios/${ex.id}`);
-                          }
-                        }}
-                        style={{ cursor: "pointer" }}
-                      >
-                        <span
-                          className={`taskDot ${isProgrammed ? "blue" : isPassed ? "red" : "gray"}`}
-                          aria-hidden="true"
-                        />
-                        <div className="taskText">
-                          <div className="taskTitle" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            {ex.titulo}
-                            {isProgrammed && (
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: 600,
-                                  background: "#3b82f6",
-                                  color: "white",
-                                  padding: "2px 6px",
-                                  borderRadius: "4px",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                  <Calendar size={14} /> Programado
-                                </span>
-                              </span>
+          <section className="grid gap-5 xl:gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.95fr)]">
+            <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.3 }}>
+              <SurfaceCard className="h-full">
+                <CardHeader className="gap-2">
+                  <CardTitle className="text-xl font-black tracking-[-0.03em]">
+                    Exercicios recentes
+                  </CardTitle>
+                  <CardDescription>
+                    Ultimas publicacoes e prazos relevantes para acompanhar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  {exerciciosRecentes.length === 0 ? (
+                    <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
+                      Nenhum exercicio disponivel
+                    </div>
+                  ) : (
+                    exerciciosRecentes.map((ex) => {
+                      const isPassed = !!ex.prazo && new Date(ex.prazo) < new Date();
+                      const isProgrammed = !!ex.publishedAt && new Date(ex.publishedAt) > new Date();
+
+                      return (
+                        <button
+                          key={ex.id}
+                          className="flex items-start gap-4 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-4 text-left transition hover:border-primary/30 hover:bg-muted/35"
+                          onClick={() => navigate(`/dashboard/exercicios/${ex.id}`)}
+                          type="button"
+                        >
+                          <span
+                            className={cn(
+                              "mt-1 size-2.5 shrink-0 rounded-full shadow-[0_0_0_4px_rgba(255,255,255,0.04)]",
+                              isProgrammed
+                                ? "bg-sky-500"
+                                : isPassed
+                                  ? "bg-primary"
+                                  : "bg-slate-400"
                             )}
+                            aria-hidden="true"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="truncate text-sm font-semibold text-foreground">
+                                {ex.titulo}
+                              </span>
+                              {isProgrammed ? (
+                                <Badge
+                                  variant="secondary"
+                                  className="h-6 gap-1 rounded-full px-2.5 text-[0.64rem] font-semibold uppercase tracking-[0.18em]"
+                                >
+                                  <Calendar /> Programado
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              {isProgrammed && ex.publishedAt
+                                ? `Publicacao: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
+                                : ex.prazo
+                                  ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
+                                  : "Sem prazo"}
+                            </div>
                           </div>
-                          <div className="mutedSmall">
-                            {isProgrammed && ex.publishedAt
-                              ? `Publicacao: ${new Date(ex.publishedAt).toLocaleDateString("pt-BR")}`
-                              : ex.prazo
-                                ? `Prazo: ${new Date(ex.prazo).toLocaleDateString("pt-BR")}`
-                                : "Sem prazo"}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </SurfaceCard>
             </m.div>
 
-            <m.div
-              className="card"
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.45, duration: 0.3 }}
-            >
-              <div className="cardHead">
-                <div>
-                  <div className="kicker">{isManagementView ? "Saude operacional" : "Progresso"}</div>
-                  <div className="big">{progressoOverall}%</div>
-                </div>
-                <RingProgress value={progressoOverall} />
-              </div>
-              <div className="kv" style={{ marginTop: "12px" }}>
-                <div className="kvRow">
-                  <span>{progressoLabelA}</span>
-                  <strong>{progressoValueA}</strong>
-                </div>
-                <div className="kvRow">
-                  <span>{progressoLabelB}</span>
-                  <strong>{progressoValueB}</strong>
-                </div>
-              </div>
+            <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.3 }}>
+              <SurfaceCard className="h-full">
+                <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
+                  <div>
+                    <div className={eyebrowClass}>
+                      {isManagementView ? "Saude operacional" : "Progresso"}
+                    </div>
+                    <CardTitle className="mt-3 text-[2.35rem] leading-none font-black tracking-[-0.06em]">
+                      {progressoOverall}%
+                    </CardTitle>
+                  </div>
+                  <CardAction className="col-auto row-auto justify-self-start sm:justify-self-end">
+                    <RingProgress value={progressoOverall} />
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  <MetricRows
+                    rows={[
+                      { label: progressoLabelA, value: progressoValueA },
+                      { label: progressoLabelB, value: progressoValueB },
+                    ]}
+                  />
+                </CardContent>
+              </SurfaceCard>
             </m.div>
           </section>
 
           <section>
-            <m.div
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.55, duration: 0.3 }}
-            >
-              <GradientBackground className="card">
-                <div className="cardTitle">Acoes rapidas</div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: "12px",
-                    marginTop: "16px",
-                  }}
-                >
-                  <RippleButton
+            <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55, duration: 0.3 }}>
+              <SurfaceCard className="relative overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(225,29,46,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(110,86,255,0.16),transparent_28%)]" />
+                <CardHeader className="relative gap-2">
+                  <CardTitle className="text-xl font-black tracking-[-0.03em]">
+                    Acoes rapidas
+                  </CardTitle>
+                  <CardDescription>
+                    Atalhos diretos para as areas operacionais mais usadas do portal.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="relative grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="h-14 justify-start rounded-2xl px-4 text-sm font-semibold"
                     onClick={() => navigate("/dashboard/exercicios")}
-                    className="dashboardActionBtn"
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <PenLine size={16} /> Exercicios
-                    </span>
-                  </RippleButton>
+                    <PenLine data-icon="inline-start" />
+                    Exercicios
+                  </Button>
 
-                  {(role === "admin" || role === "professor" || hasTurmas) && (
-                    <RippleButton
+                  {role === "admin" || role === "professor" || hasTurmas ? (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="h-14 justify-start rounded-2xl px-4 text-sm font-semibold"
                       onClick={() => navigate("/dashboard/turmas")}
-                      className="dashboardActionBtn"
                     >
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        <School size={16} /> Turmas
-                      </span>
-                    </RippleButton>
-                  )}
+                      <School data-icon="inline-start" />
+                      Turmas
+                    </Button>
+                  ) : null}
 
-                  {canCreateUser && (
+                  {canCreateUser ? (
                     <>
-                      <RippleButton
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="h-14 justify-start rounded-2xl px-4 text-sm font-semibold"
                         onClick={() => navigate("/dashboard/criar-usuario")}
-                        className="dashboardActionBtn"
                       >
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <Plus size={16} /> Criar usuario
-                        </span>
-                      </RippleButton>
+                        <Plus data-icon="inline-start" />
+                        Criar usuario
+                      </Button>
 
-                      <RippleButton
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="h-14 justify-start rounded-2xl px-4 text-sm font-semibold"
                         onClick={() => navigate("/dashboard/usuarios")}
-                        className="dashboardActionBtn"
                       >
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <KeyRound size={16} /> Gerenciar usuarios
-                        </span>
-                      </RippleButton>
+                        <KeyRound data-icon="inline-start" />
+                        Gerenciar usuarios
+                      </Button>
                     </>
-                  )}
-                </div>
-              </GradientBackground>
+                  ) : null}
+                </CardContent>
+              </SurfaceCard>
             </m.div>
           </section>
         </div>

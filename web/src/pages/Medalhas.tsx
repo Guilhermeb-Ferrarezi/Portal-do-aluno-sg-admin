@@ -1,9 +1,42 @@
 import React from "react";
+import { cn } from "@/lib/utils";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
+import PaginatedSelect from "../components/PaginatedSelect";
 import Modal from "../components/Modal";
 import { AnimatedToast } from "../components/animate-ui";
-import { Medal, PlusCircle, Eye, CalendarClock, Pencil, Trash2, ChevronDown, Images } from "lucide-react";
+import {
+  Medal,
+  PlusCircle,
+  Eye,
+  CalendarClock,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  Images,
+  Copy,
+  UserRoundCheck,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   atribuirBadgeAoUsuario,
   atualizarBadgeDoUsuario,
@@ -21,7 +54,6 @@ import {
   type BadgeHolder,
   type User,
 } from "../services/api";
-import "./Medalhas.css";
 
 type Aba = "ver" | "criar" | "imagens";
 type HolderGroup = {
@@ -29,6 +61,104 @@ type HolderGroup = {
   items: BadgeHolder[];
   latestAwardedAt: string;
 };
+
+const surfaceCardClass =
+  "rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_right,rgba(225,29,46,0.12),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] bg-card/95 shadow-[0_18px_44px_rgba(0,0,0,0.16)]";
+const fieldClass =
+  "h-11 w-full rounded-2xl border border-border/75 bg-card px-4 text-sm text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition placeholder:text-muted-foreground/90 hover:border-primary/35 focus:border-primary focus:ring-4 focus:ring-ring/30";
+const textareaClass = cn(fieldClass, "min-h-28 h-auto py-3 leading-6");
+const primaryButtonClass =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_12px_24px_rgba(225,29,46,0.22)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60";
+const secondaryButtonClass =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border/80 bg-muted/45 px-4 text-sm font-semibold text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60";
+const dangerButtonClass =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-full border border-red-500/35 bg-red-500/10 px-4 text-sm font-semibold text-red-300 transition hover:bg-red-500/18 disabled:cursor-not-allowed disabled:opacity-60";
+const medalhasPageClass = "flex flex-col gap-6";
+const medalhasTabsClass =
+  "inline-flex max-w-full flex-wrap items-center gap-2 rounded-[24px] border border-border/70 bg-card/80 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
+const medalhasTabClass = (active: boolean) =>
+  cn(
+    "inline-flex h-11 items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition",
+    active
+      ? "border-primary/45 bg-primary text-primary-foreground shadow-[0_10px_22px_rgba(225,29,46,0.25)]"
+      : "border-border/70 bg-muted/45 text-foreground hover:border-primary/30 hover:bg-accent",
+  );
+const statCardClass =
+  "rounded-[24px] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent)] bg-card/90 p-4 shadow-[0_12px_32px_rgba(0,0,0,0.12)]";
+const searchCardClass = cn(
+  surfaceCardClass,
+  "grid gap-3 p-4 sm:p-5"
+);
+const emptyCardClass =
+  "rounded-[28px] border border-dashed border-border/80 bg-[radial-gradient(circle_at_top,rgba(225,29,46,0.09),transparent_44%)] bg-muted/35 px-6 py-12 text-center text-sm text-muted-foreground shadow-[0_18px_44px_rgba(0,0,0,0.12)]";
+const medalhaCardClass =
+  "group self-start grid grid-cols-[52px_minmax(0,1fr)] gap-3 rounded-[24px] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent)] bg-card p-4 shadow-[0_12px_36px_rgba(0,0,0,0.16)] transition duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_22px_50px_rgba(225,29,46,0.18)]";
+const medalhaIconClass =
+  "relative inline-flex h-[52px] w-[52px] overflow-hidden rounded-[18px] border border-border/70 bg-[linear-gradient(135deg,rgba(37,99,235,0.18),rgba(225,29,46,0.18))] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]";
+const medalhaFormCardClass = cn(surfaceCardClass, "grid gap-5 p-5 sm:p-6");
+const medalhaFormRowClass =
+  "grid gap-2.5 [&>span]:text-xs [&>span]:font-semibold [&>span]:uppercase [&>span]:tracking-[0.24em] [&>span]:text-muted-foreground [&>input]:h-12 [&>input]:w-full [&>input]:rounded-2xl [&>input]:border [&>input]:border-border/75 [&>input]:bg-card [&>input]:px-4 [&>input]:text-sm [&>input]:text-foreground [&>input]:outline-none [&>input]:transition [&>input]:placeholder:text-muted-foreground/90 [&>input]:hover:border-primary/35 [&>input]:focus:border-primary [&>input]:focus:ring-4 [&>input]:focus:ring-ring/30 [&>textarea]:min-h-28 [&>textarea]:w-full [&>textarea]:rounded-2xl [&>textarea]:border [&>textarea]:border-border/75 [&>textarea]:bg-card [&>textarea]:px-4 [&>textarea]:py-3 [&>textarea]:text-sm [&>textarea]:text-foreground [&>textarea]:outline-none [&>textarea]:transition [&>textarea]:placeholder:text-muted-foreground/90 [&>textarea]:hover:border-primary/35 [&>textarea]:focus:border-primary [&>textarea]:focus:ring-4 [&>textarea]:focus:ring-ring/30 [&>select]:h-12 [&>select]:w-full [&>select]:rounded-2xl [&>select]:border [&>select]:border-border/75 [&>select]:bg-card [&>select]:px-4 [&>select]:text-sm [&>select]:text-foreground [&>select]:outline-none";
+const medalhaFormGridClass = "grid gap-4 lg:grid-cols-[minmax(0,1fr)_140px]";
+const medalhaFileFieldClass = "flex flex-wrap items-center gap-3";
+const medalhaFileBtnClass =
+  "inline-flex h-11 items-center justify-center rounded-full border border-border/80 bg-muted/45 px-4 text-sm font-semibold text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60";
+const medalhaFileNameClass = "min-w-[180px] max-w-full truncate text-sm text-muted-foreground";
+const badgeIconPreviewClass = "h-[88px] w-[88px] rounded-[20px] border border-border/70 bg-card object-cover";
+const badgeIconPreviewFallbackClass =
+  "grid place-items-center rounded-[20px] border border-border/70 bg-[linear-gradient(135deg,rgba(37,99,235,0.18),rgba(225,29,46,0.18))] text-3xl font-black text-white";
+const fieldErrorClass = "text-xs font-semibold text-red-300";
+const fieldLabelClass = "text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground";
+const panelTitleClass = "text-lg font-black tracking-[-0.02em] text-foreground";
+const panelCopyClass = "text-sm leading-6 text-muted-foreground";
+const filterRowClass = "mt-1 flex flex-wrap gap-3";
+const filterSelectClass = cn(fieldClass, "min-w-[190px] sm:w-auto");
+const holderPanelClass = cn(surfaceCardClass, "grid gap-5 p-5 sm:p-6");
+const holderGroupClass = (open: boolean) =>
+  cn(
+    "overflow-hidden rounded-[24px] border border-border/70 bg-card/80 transition",
+    open && "border-primary/35 shadow-[0_18px_40px_rgba(225,29,46,0.12)]",
+  );
+const holderGroupSummaryClass =
+  "grid w-full gap-3 bg-transparent px-4 py-4 text-left transition hover:bg-accent/30 sm:grid-cols-[minmax(220px,1fr)_auto_auto] sm:items-center";
+const holderGroupItemsClass = (open: boolean) =>
+  cn(
+    "grid gap-3 px-4 transition-all duration-300",
+    open ? "max-h-[1200px] pb-4 opacity-100" : "max-h-0 overflow-hidden pb-0 opacity-0",
+  );
+const holderActionRowClass = "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-self-end";
+const assignCardClass = cn(surfaceCardClass, "grid gap-5 p-5 sm:p-6");
+const assignGridClass = "grid items-start gap-4 xl:grid-cols-2";
+const assignSelectedListClass = "flex flex-wrap gap-2";
+const assignSelectedChipClass =
+  "inline-flex h-8 items-center rounded-full border border-border/70 bg-muted/45 px-3 text-[13px] font-semibold leading-none text-foreground transition hover:border-primary/35 hover:bg-accent";
+const assignSearchListClass = "grid max-h-[190px] min-h-0 gap-2 overflow-auto pr-1";
+const assignSearchItemClass = (active: boolean) =>
+  cn(
+    "rounded-2xl border border-border/70 bg-card/90 px-4 py-3 text-left text-sm text-foreground transition",
+    active ? "border-primary/45 bg-primary/10" : "hover:border-primary/35 hover:bg-accent",
+  );
+const assignHintClass =
+  "rounded-[20px] border border-dashed border-border/70 bg-muted/25 px-4 py-3 text-sm text-muted-foreground";
+const assignFooterClass =
+  "flex flex-col gap-3 rounded-[22px] border border-border/70 bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between";
+const mobileActionTriggerClass =
+  "inline-flex size-8 items-center justify-center rounded-full border border-border/70 bg-muted/45 text-muted-foreground transition hover:border-primary/35 hover:bg-accent";
+const imagesGridClass = "grid gap-4 sm:grid-cols-2 xl:grid-cols-3";
+const imageCardClass = (clickable: boolean) =>
+  cn(
+    "grid gap-3 rounded-[24px] border border-border/70 bg-card/90 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.12)]",
+    clickable &&
+      "cursor-pointer transition hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_18px_36px_rgba(225,29,46,0.14)]",
+  );
+const imageThumbWrapClass =
+  "grid min-h-[168px] place-items-center overflow-hidden rounded-[20px] border border-border/70 bg-muted/35 p-3";
+const imageSkeletonClass = "animate-pulse rounded-[20px] border border-border/70 bg-muted/50";
+const imageTextSkeletonClass = "h-5 animate-pulse rounded-full bg-muted/50";
+const previewWrapClass = "mt-2";
+const fileRemoveButtonClass = cn(
+  medalhaFileBtnClass,
+  "border-red-500/35 bg-red-500/10 text-red-300 hover:bg-red-500/18",
+);
 
 export default function MedalhasPage() {
   const [aba, setAba] = React.useState<Aba>("ver");
@@ -68,8 +198,8 @@ export default function MedalhasPage() {
   const [assignUserId, setAssignUserId] = React.useState("");
   const [assignUserIds, setAssignUserIds] = React.useState<string[]>([]);
   const [assignBadgeId, setAssignBadgeId] = React.useState("");
+  const [assignBadgeIds, setAssignBadgeIds] = React.useState<string[]>([]);
   const [assignUserQuery, setAssignUserQuery] = React.useState("");
-  const [assignBadgeQuery, setAssignBadgeQuery] = React.useState("");
   const [assigning, setAssigning] = React.useState(false);
   const [iconeArquivoNome, setIconeArquivoNome] = React.useState("");
   const [badgeIconLoadError, setBadgeIconLoadError] = React.useState<Record<string, boolean>>({});
@@ -256,6 +386,13 @@ export default function MedalhasPage() {
     }));
   };
 
+  const setHolderGroupOpen = (userId: string, open: boolean) => {
+    setOpenHolderGroups((prev) => ({
+      ...prev,
+      [userId]: open,
+    }));
+  };
+
   const salvarEdicaoHolder = async (holderId: string) => {
     const novoBadgeId = holderBadgeDraft[holderId];
     if (!novoBadgeId) return;
@@ -410,15 +547,15 @@ export default function MedalhasPage() {
   };
 
   const atribuirMedalha = async () => {
-    setMensagem(null);
-    setErro(null);
+    return atribuirMedalhasSelecionadas();
     const userIds = assignUserIds.length > 0 ? assignUserIds : assignUserId ? [assignUserId] : [];
+    const badgeIds = assignBadgeIds;
     if (userIds.length === 0) {
       setErro("Selecione o usuário.");
       return;
     }
-    if (!assignBadgeId) {
-      setErro("Selecione a medalha.");
+    if (badgeIds.length === 0) {
+      setErro("Selecione ao menos uma medalha.");
       return;
     }
 
@@ -427,11 +564,13 @@ export default function MedalhasPage() {
       let sucesso = 0;
       let falhas = 0;
       for (const userId of userIds) {
-        try {
-          await atribuirBadgeAoUsuario(userId, assignBadgeId);
-          sucesso += 1;
-        } catch {
-          falhas += 1;
+        for (const badgeId of badgeIds) {
+          try {
+            await atribuirBadgeAoUsuario(userId, badgeId);
+            sucesso += 1;
+          } catch {
+            falhas += 1;
+          }
         }
       }
       if (sucesso === 0) {
@@ -446,8 +585,8 @@ export default function MedalhasPage() {
       setAssignUserIds([]);
       setAssignUserQuery("");
       await Promise.all([carregarHolders(), carregarMedalhas(), carregarHoldersSnapshot()]);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao atribuir medalha");
+    } catch {
+      setErro("Erro ao atribuir medalha");
     } finally {
       setAssigning(false);
     }
@@ -622,16 +761,17 @@ export default function MedalhasPage() {
     return base.slice(0, 8);
   }, [usuarios, assignUserQuery]);
 
-  const badgesFiltradasAtribuicao = React.useMemo(() => {
-    const q = assignBadgeQuery.trim().toLowerCase();
-    if (!q) return [];
-    const base = badgeOptions.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
-        b.description.toLowerCase().includes(q)
-    );
-    return base.slice(0, 8);
-  }, [badgeOptions, assignBadgeQuery]);
+  const badgeOptionsAtribuicao = React.useMemo(
+    () =>
+      badgeOptions
+        .filter((badge) => !assignBadgeIds.includes(badge.id))
+        .map((badge) => ({
+          value: badge.id,
+          label: badge.name,
+          meta: badge.description || "Sem descricao",
+        })),
+    [assignBadgeIds, badgeOptions]
+  );
 
   const selecionarUsuarioParaAtribuicao = (u: User) => {
     setAssignUserIds((prev) => (prev.includes(u.id) ? prev : [...prev, u.id]));
@@ -639,9 +779,47 @@ export default function MedalhasPage() {
     setAssignUserQuery("");
   };
 
-  const selecionarBadgeParaAtribuicao = (b: Badge) => {
-    setAssignBadgeId(b.id);
-    setAssignBadgeQuery(b.name);
+  const adicionarBadgeParaAtribuicao = (badgeId: string) => {
+    setAssignBadgeId("");
+    setAssignBadgeIds((prev) => (prev.includes(badgeId) ? prev : [...prev, badgeId]));
+  };
+
+  const removerBadgeSelecionada = (badgeId: string) => {
+    setAssignBadgeIds((prev) => prev.filter((id) => id !== badgeId));
+  };
+
+  const limparBadgesSelecionadas = () => {
+    setAssignBadgeId("");
+    setAssignBadgeIds([]);
+  };
+
+  const manterSomenteUsuarioSelecionado = (userId: string) => {
+    setAssignUserIds([userId]);
+    setAssignUserId(userId);
+  };
+
+  const copiarContatoUsuarioSelecionado = async (
+    user: Pick<User, "nome" | "email" | "usuario"> | BadgeHolder["user"],
+  ) => {
+    const contato = user.email || ("usuario" in user ? user.usuario : "") || "";
+    if (!contato) {
+      setErro("Esse usuário não possui email ou usuário para copiar.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(contato);
+      setMensagem(`Contato copiado: ${contato}`);
+    } catch {
+      setErro("Não foi possível copiar o contato do usuário.");
+    }
+  };
+
+  const adicionarUsuarioDoHolderNaAtribuicao = (user: BadgeHolder["user"]) => {
+    setAssignUserIds((prev) => (prev.includes(user.id) ? prev : [...prev, user.id]));
+    setAssignUserId(user.id);
+    setAssignUserQuery("");
+    setMensagem(`Usuário ${user.nome} adicionado à atribuição.`);
   };
 
   const removerUsuarioSelecionado = (userId: string) => {
@@ -652,17 +830,72 @@ export default function MedalhasPage() {
     }
   };
 
+  const atribuirMedalhasSelecionadas = async () => {
+    setMensagem(null);
+    setErro(null);
+    const userIds = assignUserIds.length > 0 ? assignUserIds : assignUserId ? [assignUserId] : [];
+    if (userIds.length === 0) {
+      setErro("Selecione o usuario.");
+      return;
+    }
+    if (assignBadgeIds.length === 0) {
+      setErro("Selecione ao menos uma medalha.");
+      return;
+    }
+
+    setAssigning(true);
+    try {
+      let sucesso = 0;
+      let falhas = 0;
+      for (const userId of userIds) {
+        for (const badgeId of assignBadgeIds) {
+          try {
+            await atribuirBadgeAoUsuario(userId, badgeId);
+            sucesso += 1;
+          } catch {
+            falhas += 1;
+          }
+        }
+      }
+      if (sucesso === 0) {
+        throw new Error("Nao foi possivel atribuir as medalhas para os usuarios selecionados.");
+      }
+      const totalTentativas = userIds.length * assignBadgeIds.length;
+      setMensagem(
+        falhas > 0
+          ? `Atribuicoes concluidas: ${sucesso} de ${totalTentativas}. ${falhas} falharam.`
+          : `Atribuicoes concluidas: ${sucesso} de ${totalTentativas}.`
+      );
+      setAssignUserId("");
+      setAssignUserIds([]);
+      setAssignBadgeId("");
+      setAssignBadgeIds([]);
+      setAssignUserQuery("");
+      await Promise.all([carregarHolders(), carregarMedalhas(), carregarHoldersSnapshot()]);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao atribuir medalhas");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const previewFallbackText = nome.trim() ? nome.trim().slice(0, 1).toUpperCase() : "Sem preview";
+  const badgesSelecionadasAtribuicao = badgeOptions.filter((b) => assignBadgeIds.includes(b.id));
+  const totalUsuariosSelecionados = assignUserIds.length || (assignUserId ? 1 : 0);
+  const totalBadgesSelecionadas = assignBadgeIds.length;
 
   return (
     <DashboardLayout
       title="Medalhas"
       subtitle="Visualize e crie medalhas do portal"
     >
-      <section className="medalhasPage">
-        <div className="medalhasTabs">
+      <section className={medalhasPageClass}>
+        <div className={medalhasTabsClass}>
+          <span className="px-2 text-xs font-black uppercase tracking-[0.24em] text-muted-foreground sm:pl-3">
+            Exibir:
+          </span>
           <button
-            className={`medalhasTab ${aba === "ver" ? "active" : ""}`}
+            className={medalhasTabClass(aba === "ver")}
             onClick={() => setAba("ver")}
             type="button"
           >
@@ -670,7 +903,7 @@ export default function MedalhasPage() {
             Ver medalhas
           </button>
           <button
-            className={`medalhasTab ${aba === "criar" ? "active" : ""}`}
+            className={medalhasTabClass(aba === "criar")}
             onClick={() => {
               if (role === "admin") setAba("criar");
             }}
@@ -682,7 +915,7 @@ export default function MedalhasPage() {
             Criar medalha
           </button>
           <button
-            className={`medalhasTab ${aba === "imagens" ? "active" : ""}`}
+            className={medalhasTabClass(aba === "imagens")}
             onClick={() => setAba("imagens")}
             type="button"
           >
@@ -705,32 +938,46 @@ export default function MedalhasPage() {
         />
 
         {aba === "ver" ? (
-          <div className="medalhasView">
-            <div className="medalhasStatsGrid">
-              <article className="medalhasStatCard">
-                <span>Total de medalhas</span>
-                <strong>{medalhasRaw.length}</strong>
+          <div className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <article className={statCardClass}>
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Total de medalhas
+                </span>
+                <strong className="mt-2 block text-[28px] font-black tracking-[-0.03em] text-foreground">
+                  {medalhasRaw.length}
+                </strong>
               </article>
-              <article className="medalhasStatCard">
-                <span>Usuarios medalhados</span>
-                <strong>{totalUsuariosMedalhados}</strong>
+              <article className={statCardClass}>
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Usuarios medalhados
+                </span>
+                <strong className="mt-2 block text-[28px] font-black tracking-[-0.03em] text-foreground">
+                  {totalUsuariosMedalhados}
+                </strong>
               </article>
-              <article className="medalhasStatCard">
-                <span>Medalha mais usada</span>
-                <strong>{medalhaMaisUsada ? `${medalhaMaisUsada.nome} (${medalhaMaisUsada.count})` : "-"}</strong>
+              <article className={statCardClass}>
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Medalha mais usada
+                </span>
+                <strong className="mt-2 block text-[28px] font-black tracking-[-0.03em] text-foreground">
+                  {medalhaMaisUsada ? `${medalhaMaisUsada.nome} (${medalhaMaisUsada.count})` : "-"}
+                </strong>
               </article>
             </div>
 
-            <div className="medalhasSearchCard">
-              <label htmlFor="busca-medalha">Buscar medalha por escrita</label>
+            <div className={searchCardClass}>
+              <label htmlFor="busca-medalha" className={fieldLabelClass}>Buscar medalha por escrita</label>
               <input
+                className={fieldClass}
                 id="busca-medalha"
                 value={buscaMedalha}
                 onChange={(e) => setBuscaMedalha(e.target.value)}
                 placeholder="Digite nome ou descrição da medalha..."
               />
-              <div className="medalhasSearchFilters">
+              <div className={filterRowClass}>
                 <select
+                  className={filterSelectClass}
                   value={medalhaUsoFiltro}
                   onChange={(e) => setMedalhaUsoFiltro(e.target.value as "todas" | "com_uso" | "sem_uso")}
                 >
@@ -739,6 +986,7 @@ export default function MedalhasPage() {
                   <option value="sem_uso">Sem atribuição</option>
                 </select>
                 <select
+                  className={filterSelectClass}
                   value={medalhaSort}
                   onChange={(e) => setMedalhaSort(e.target.value as "recentes" | "mais_usadas" | "menos_usadas" | "a_z")}
                 >
@@ -750,17 +998,18 @@ export default function MedalhasPage() {
               </div>
             </div>
 
-            <div className="medalhasGrid">
+            <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
               {loading ? (
-                <div className="medalhaEmpty">Carregando medalhas...</div>
+                <div className={emptyCardClass}>Carregando medalhas...</div>
               ) : medalhas.length === 0 ? (
-                <div className="medalhaEmpty">Nenhuma medalha criada ainda.</div>
+                <div className={emptyCardClass}>Nenhuma medalha criada ainda.</div>
               ) : (
                 medalhas.map((m) => (
-                  <article key={m.id} className="medalhaCard">
-                    <div className="medalhaIcon">
+                  <article key={m.id} className={medalhaCardClass}>
+                    <div className={medalhaIconClass}>
                       {m.iconUrl && !badgeIconLoadError[m.id] ? (
                         <img
+                          className="absolute inset-0 h-full w-full object-cover"
                           src={m.iconUrl}
                           alt={m.name}
                           onError={() => {
@@ -769,30 +1018,36 @@ export default function MedalhasPage() {
                         />
                       ) : null}
                       {(!m.iconUrl || badgeIconLoadError[m.id]) && (
-                        <span>{m.name.slice(0, 1).toUpperCase()}</span>
+                        <span className="relative z-10 m-auto text-lg font-black text-white">
+                          {m.name.slice(0, 1).toUpperCase()}
+                        </span>
                       )}
                     </div>
-                    <div className="medalhaContent">
-                      <h3>{m.name}</h3>
-                      <p>{m.description}</p>
-                      <div className="medalhaUsageCount">
-                        {(badgeUsageById.get(m.id)?.count ?? m.holdersCount ?? 0)} usuário{(badgeUsageById.get(m.id)?.count ?? m.holdersCount ?? 0) === 1 ? "" : "s"}
+                    <div className="min-w-0 flex flex-col gap-3">
+                      <div className="space-y-1.5">
+                        <h3 className="text-lg font-black tracking-[-0.02em] text-foreground">{m.name}</h3>
+                        <p className="text-sm leading-5 text-muted-foreground">{m.description}</p>
                       </div>
-                      <small className="medalhaContextLine">
-                        Última atribuição:{" "}
-                        {badgeUsageById.get(m.id)?.latestAwardedAt
-                          ? new Date(badgeUsageById.get(m.id)!.latestAwardedAt!).toLocaleDateString("pt-BR")
-                          : "nunca"}
-                      </small>
-                      <small>
-                        <CalendarClock size={12} />{" "}
-                        {new Date(m.createdAt).toLocaleDateString("pt-BR")}
-                      </small>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-border/70 bg-muted/45 px-3 py-1 text-[11px] font-semibold text-foreground">
+                          {(badgeUsageById.get(m.id)?.count ?? m.holdersCount ?? 0)} usuário{(badgeUsageById.get(m.id)?.count ?? m.holdersCount ?? 0) === 1 ? "" : "s"}
+                        </span>
+                        <span className="rounded-full border border-border/70 bg-muted/45 px-3 py-1 text-[11px] text-muted-foreground">
+                          Última atribuição:{" "}
+                          {badgeUsageById.get(m.id)?.latestAwardedAt
+                            ? new Date(badgeUsageById.get(m.id)!.latestAwardedAt!).toLocaleDateString("pt-BR")
+                            : "nunca"}
+                        </span>
+                      </div>
+                      <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarClock size={14} />
+                        <span>{new Date(m.createdAt).toLocaleDateString("pt-BR")}</span>
+                      </div>
                       {role === "admin" && (
-                        <div className="medalhaActions">
+                        <div className="flex flex-wrap gap-2.5 pt-0.5">
                           <button
                             type="button"
-                            className="medalhaActionBtn"
+                            className={cn(secondaryButtonClass, "h-10 px-3.5")}
                             onClick={() => {
                               iniciarEdicaoMedalha(m, { manterAbaAtual: true, abrirModal: true });
                             }}
@@ -802,7 +1057,7 @@ export default function MedalhasPage() {
                           </button>
                           <button
                             type="button"
-                            className="medalhaActionBtn danger"
+                            className={cn(dangerButtonClass, "h-10 px-3.5")}
                             onClick={() => excluirMedalha(m)}
                           >
                             <Trash2 size={14} />
@@ -823,16 +1078,21 @@ export default function MedalhasPage() {
               onItemsPerPageChange={setMedalhasPerPage}
             />
 
-            <div className="medalhasHoldersCard">
-              <div className="medalhasHoldersHeader">
-                <h3>Quem tem medalhas</h3>
-                <div className="medalhasHoldersFilters">
+            <div className={holderPanelClass}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-1">
+                  <h3 className={panelTitleClass}>Quem tem medalhas</h3>
+                  <p className={panelCopyClass}>Acompanhe usuários medalhados e ajuste atribuições quando necessário.</p>
+                </div>
+                <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
                   <input
+                    className={cn(fieldClass, "sm:min-w-[240px]")}
                     value={buscaHolder}
                     onChange={(e) => setBuscaHolder(e.target.value)}
                     placeholder="Buscar usuário ou medalha..."
                   />
                   <select
+                    className={cn(fieldClass, "sm:min-w-[230px]")}
                     value={badgeFiltro}
                     onChange={(e) => setBadgeFiltro(e.target.value)}
                   >
@@ -847,96 +1107,191 @@ export default function MedalhasPage() {
               </div>
 
               {loadingHolders ? (
-                <div className="medalhaEmpty">Carregando usuários...</div>
+                <div className={emptyCardClass}>Carregando usuários...</div>
               ) : holdersAgrupados.length === 0 ? (
-                <div className="medalhaEmpty">Ninguém recebeu essa medalha ainda.</div>
+                <div className={emptyCardClass}>Ninguém recebeu essa medalha ainda.</div>
               ) : (
-                <div className="holdersList">
-                  {holdersAgrupados.map((group) => (
-                    <div
-                      key={group.user.id}
-                      className={`holderGroup ${openHolderGroups[group.user.id] ? "isOpen" : ""}`}
-                    >
-                      <button
-                        type="button"
-                        className="holderGroupSummary"
-                        onClick={() => toggleHolderGroup(group.user.id)}
-                        aria-expanded={Boolean(openHolderGroups[group.user.id])}
-                        aria-controls={`holder-group-items-${group.user.id}`}
-                      >
-                        <div className="holderMain">
-                          <strong>{group.user.nome}</strong>
-                          <span>{group.user.email}</span>
-                        </div>
-                        <div className="holderGroupMeta">
-                          <span>
-                            {group.items.length} medalha
-                            {group.items.length === 1 ? "" : "s"}
-                          </span>
-                          <small>
-                            Ultima: {" "}
-                            {new Date(group.latestAwardedAt).toLocaleDateString("pt-BR")}
-                          </small>
-                        </div>
-                        <span className="holderChevron" aria-hidden="true">
-                          <ChevronDown size={16} />
-                        </span>
-                      </button>
+                <div className="grid gap-3">
+                  {holdersAgrupados.map((group) => {
+                    const isOpen = Boolean(openHolderGroups[group.user.id]);
 
+                    return (
                       <div
-                        id={`holder-group-items-${group.user.id}`}
-                        className="holderGroupItems"
+                        key={group.user.id}
+                        className={holderGroupClass(isOpen)}
                       >
-                        {group.items.map((holder) => (
-                          <div key={holder.holderId} className="holderItem">
-                            <div className="holderMeta">
-                              <span>{holder.badgeName}</span>
-                              <small>
-                                {new Date(holder.awardedAt).toLocaleDateString("pt-BR")}
-                              </small>
-                            </div>
-                            {role === "admin" && (
-                              <div className="holderEdit">
-                                <select
-                                  value={holderBadgeDraft[holder.holderId] ?? holder.badgeId}
-                                  onChange={(e) =>
-                                    setHolderBadgeDraft((prev) => ({
-                                      ...prev,
-                                      [holder.holderId]: e.target.value,
-                                    }))
-                                  }
-                                >
-                                  {badgeOptions.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                      {b.name}
-                                    </option>
-                                  ))}
-                                </select>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className={holderGroupSummaryClass}
+                          onClick={() => toggleHolderGroup(group.user.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              toggleHolderGroup(group.user.id);
+                            }
+                          }}
+                          aria-expanded={isOpen}
+                          aria-controls={`holder-group-items-${group.user.id}`}
+                        >
+                          <div className="flex min-w-0 items-start justify-between gap-3">
+                            <ContextMenu>
+                              <ContextMenuTrigger asChild>
+                                <div className="grid min-w-0 gap-1">
+                                  <strong className="truncate text-base font-black tracking-[-0.02em] text-foreground">
+                                    {group.user.nome}
+                                  </strong>
+                                  <span className="truncate text-sm text-muted-foreground">
+                                    {group.user.email}
+                                  </span>
+                                </div>
+                              </ContextMenuTrigger>
+                            <ContextMenuContent className="min-w-56">
+                              <ContextMenuLabel>{group.user.nome}</ContextMenuLabel>
+                              <ContextMenuSeparator />
+                              <ContextMenuSub>
+                                <ContextMenuSubTrigger>
+                                  <Medal />
+                                  Medalhas
+                                </ContextMenuSubTrigger>
+                                <ContextMenuSubContent className="min-w-56">
+                                  <ContextMenuItem onSelect={() => setHolderGroupOpen(group.user.id, !isOpen)}>
+                                    <ChevronDown className={cn(isOpen && "rotate-180")} />
+                                    {isOpen ? "Recolher medalhas" : "Expandir medalhas"}
+                                  </ContextMenuItem>
+                                  {role === "admin" && (
+                                    <ContextMenuItem onSelect={() => adicionarUsuarioDoHolderNaAtribuicao(group.user)}>
+                                      <UserRoundCheck />
+                                      Adicionar à atribuição
+                                    </ContextMenuItem>
+                                  )}
+                                </ContextMenuSubContent>
+                              </ContextMenuSub>
+                              <ContextMenuItem
+                                onSelect={() => void copiarContatoUsuarioSelecionado(group.user)}
+                                disabled={!group.user.email}
+                              >
+                                <Copy />
+                                Copiar contato
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                            </ContextMenu>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
                                 <button
                                   type="button"
-                                  onClick={() => salvarEdicaoHolder(holder.holderId)}
-                                  disabled={
-                                    savingHolderId === holder.holderId ||
-                                    (holderBadgeDraft[holder.holderId] ?? holder.badgeId) === holder.badgeId
-                                  }
+                                  className={cn(mobileActionTriggerClass, "sm:hidden")}
+                                  aria-label={`Acoes para ${group.user.nome}`}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onPointerDown={(event) => event.stopPropagation()}
                                 >
-                                  {savingHolderId === holder.holderId ? "Salvando..." : "Salvar"}
+                                  <MoreHorizontal />
                                 </button>
-                                <button
-                                  type="button"
-                                  className="holderDeleteBtn"
-                                  onClick={() => removerMedalhaDoHolder(holder.holderId)}
-                                  disabled={removingHolderId === holder.holderId}
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="min-w-56 sm:hidden">
+                                <DropdownMenuLabel>{group.user.nome}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={() => setHolderGroupOpen(group.user.id, !isOpen)}>
+                                  <ChevronDown className={cn(isOpen && "rotate-180")} />
+                                  {isOpen ? "Recolher medalhas" : "Expandir medalhas"}
+                                </DropdownMenuItem>
+                                {role === "admin" && (
+                                  <DropdownMenuItem onSelect={() => adicionarUsuarioDoHolderNaAtribuicao(group.user)}>
+                                    <UserRoundCheck />
+                                    Adicionar a atribuicao
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onSelect={() => void copiarContatoUsuarioSelecionado(group.user)}
+                                  disabled={!group.user.email}
                                 >
-                                  {removingHolderId === holder.holderId ? "Removendo..." : "Remover"}
-                                </button>
-                              </div>
-                            )}
+                                  <Copy />
+                                  Copiar contato
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                        ))}
+                          <div className="grid gap-1 sm:justify-items-end">
+                            <span className="text-sm font-semibold text-foreground">
+                              {group.items.length} medalha
+                              {group.items.length === 1 ? "" : "s"}
+                            </span>
+                            <small className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                              Ultima: {new Date(group.latestAwardedAt).toLocaleDateString("pt-BR")}
+                            </small>
+                          </div>
+                          <span
+                            className={cn(
+                              "inline-flex size-10 items-center justify-center rounded-full border border-border/70 bg-muted/45 text-muted-foreground transition sm:justify-self-end",
+                              isOpen && "rotate-180 border-primary/35 text-foreground",
+                            )}
+                            aria-hidden="true"
+                          >
+                            <ChevronDown size={16} />
+                          </span>
+                        </div>
+
+                        <div
+                          id={`holder-group-items-${group.user.id}`}
+                          className={holderGroupItemsClass(isOpen)}
+                        >
+                          {group.items.map((holder) => (
+                            <div
+                              key={holder.holderId}
+                              className="grid gap-4 rounded-[20px] border border-border/70 bg-muted/35 p-4 lg:grid-cols-[minmax(140px,1fr)_auto] lg:items-center"
+                            >
+                              <div className="grid gap-1">
+                                <span className="text-sm font-semibold text-foreground">{holder.badgeName}</span>
+                                <small className="text-sm text-muted-foreground">
+                                  {new Date(holder.awardedAt).toLocaleDateString("pt-BR")}
+                                </small>
+                              </div>
+                              {role === "admin" && (
+                                <div className={holderActionRowClass}>
+                                  <select
+                                    className={cn(fieldClass, "h-10 min-w-[170px]")}
+                                    value={holderBadgeDraft[holder.holderId] ?? holder.badgeId}
+                                    onChange={(e) =>
+                                      setHolderBadgeDraft((prev) => ({
+                                        ...prev,
+                                        [holder.holderId]: e.target.value,
+                                      }))
+                                    }
+                                  >
+                                    {badgeOptions.map((b) => (
+                                      <option key={b.id} value={b.id}>
+                                        {b.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className={secondaryButtonClass}
+                                    onClick={() => salvarEdicaoHolder(holder.holderId)}
+                                    disabled={
+                                      savingHolderId === holder.holderId ||
+                                      (holderBadgeDraft[holder.holderId] ?? holder.badgeId) === holder.badgeId
+                                    }
+                                  >
+                                    {savingHolderId === holder.holderId ? "Salvando..." : "Salvar"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={dangerButtonClass}
+                                    onClick={() => removerMedalhaDoHolder(holder.holderId)}
+                                    disabled={removingHolderId === holder.holderId}
+                                  >
+                                    {removingHolderId === holder.holderId ? "Removendo..." : "Remover"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               <Pagination
@@ -949,12 +1304,16 @@ export default function MedalhasPage() {
             </div>
 
             {role === "admin" && (
-              <div className="medalhasAssignCard">
-                <h3>Atribuir medalha a usuário</h3>
-                <div className="medalhasAssignGrid">
-                  <div className="medalhaFormRow">
+              <div className={assignCardClass}>
+                <div className="space-y-1">
+                  <h3 className={panelTitleClass}>Atribuir medalha a usuário</h3>
+                  <p className={panelCopyClass}>Busque usuários, selecione a medalha e conclua a atribuição em lote.</p>
+                </div>
+                <div className={assignGridClass}>
+                  <div className={medalhaFormRowClass}>
                     <span>Usuário</span>
                     <input
+                      className={cn(fieldClass, "h-12")}
                       value={assignUserQuery}
                       onChange={(e) => {
                         setAssignUserQuery(e.target.value);
@@ -962,80 +1321,196 @@ export default function MedalhasPage() {
                       placeholder="Buscar por nome ou email..."
                     />
                     {assignUserIds.length > 0 && (
-                      <div className="assignSelectedList">
+                      <div className={assignSelectedListClass}>
                         {assignUserIds.map((uid) => {
                           const user = usuarios.find((u) => u.id === uid);
                           return (
-                            <button
-                              key={uid}
-                              type="button"
-                              className="assignSelectedChip"
-                              onClick={() => removerUsuarioSelecionado(uid)}
-                            >
-                              {user?.nome || uid} x
-                            </button>
+                            <div key={uid} className="flex items-center gap-1.5">
+                              <ContextMenu>
+                              <ContextMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className={assignSelectedChipClass}
+                                  onClick={() => removerUsuarioSelecionado(uid)}
+                                  title="Clique para remover ou use o botão direito para mais ações"
+                                >
+                                  {user?.nome || uid} x
+                                </button>
+                              </ContextMenuTrigger>
+                              <ContextMenuContent className="min-w-56">
+                                <ContextMenuLabel>
+                                  {user?.nome || "Usuário selecionado"}
+                                </ContextMenuLabel>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  onSelect={() => manterSomenteUsuarioSelecionado(uid)}
+                                  disabled={assignUserIds.length <= 1}
+                                >
+                                  <UserRoundCheck />
+                                  Manter somente este usuário
+                                </ContextMenuItem>
+                                <ContextMenuItem
+                                  onSelect={() => void (user ? copiarContatoUsuarioSelecionado(user) : Promise.resolve())}
+                                  disabled={!user || (!user.email && !user.usuario)}
+                                >
+                                  <Copy />
+                                  Copiar contato
+                                </ContextMenuItem>
+                                <ContextMenuSeparator />
+                                <ContextMenuItem
+                                  variant="destructive"
+                                  onSelect={() => removerUsuarioSelecionado(uid)}
+                                >
+                                  <Trash2 />
+                                  Remover da seleção
+                                </ContextMenuItem>
+                              </ContextMenuContent>
+                              </ContextMenu>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className={cn(mobileActionTriggerClass, "sm:hidden")}
+                                    aria-label={`Acoes para ${user?.nome || uid}`}
+                                  >
+                                    <MoreHorizontal />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="min-w-56 sm:hidden">
+                                  <DropdownMenuLabel>
+                                    {user?.nome || "Usuario selecionado"}
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onSelect={() => manterSomenteUsuarioSelecionado(uid)}
+                                    disabled={assignUserIds.length <= 1}
+                                  >
+                                    <UserRoundCheck />
+                                    Manter somente este usuario
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() => void (user ? copiarContatoUsuarioSelecionado(user) : Promise.resolve())}
+                                    disabled={!user || (!user.email && !user.usuario)}
+                                  >
+                                    <Copy />
+                                    Copiar contato
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={() => removerUsuarioSelecionado(uid)}
+                                  >
+                                    <Trash2 />
+                                    Remover da selecao
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           );
                         })}
                       </div>
                     )}
                     {assignUserQuery.trim() !== "" && (
-                      <div className="assignSearchList">
-                        {usuariosFiltradosAtribuicao.map((u) => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            className={`assignSearchItem ${assignUserIds.includes(u.id) ? "active" : ""}`}
-                            onClick={() => selecionarUsuarioParaAtribuicao(u)}
-                          >
-                            {u.nome} ({u.email || u.usuario || "sem email"})
-                          </button>
-                        ))}
+                      <div className={assignSearchListClass}>
+                        {usuariosFiltradosAtribuicao.length === 0 ? (
+                          <div className={assignHintClass}>Nenhum usuário encontrado para essa busca.</div>
+                        ) : (
+                          usuariosFiltradosAtribuicao.map((u) => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              className={assignSearchItemClass(assignUserIds.includes(u.id))}
+                              onClick={() => selecionarUsuarioParaAtribuicao(u)}
+                            >
+                              {u.nome} ({u.email || u.usuario || "sem email"})
+                            </button>
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
-                  <div className="medalhaFormRow">
+                  <div className={medalhaFormRowClass}>
                     <span>Medalha</span>
-                    <input
-                      value={assignBadgeQuery}
-                      onChange={(e) => {
-                        setAssignBadgeQuery(e.target.value);
-                        setAssignBadgeId("");
-                      }}
-                      placeholder="Buscar medalha por nome/descrição..."
+
+                    <PaginatedSelect
+                      value={assignBadgeId}
+                      onChange={adicionarBadgeParaAtribuicao}
+                      options={badgeOptionsAtribuicao}
+                      placeholder={
+                        badgeOptionsAtribuicao.length === 0
+                          ? "Todas as medalhas ja foram selecionadas"
+                          : "Adicionar medalha por nome/descricao..."
+                      }
+                      emptyText="Nenhuma medalha encontrada"
+                      pageSize={3}
+                      allowPageSizeChange={false}
+                      disabled={badgeOptionsAtribuicao.length === 0}
                     />
-                    {assignBadgeId === "" && (
-                      <div className="assignSearchList">
-                        {badgesFiltradasAtribuicao.map((b) => (
+
+                    {badgesSelecionadasAtribuicao.length > 0 ? (
+                      <div className={assignSelectedListClass}>
+                        {badgesSelecionadasAtribuicao.map((badge) => (
                           <button
-                            key={b.id}
+                            key={badge.id}
                             type="button"
-                            className={`assignSearchItem ${assignBadgeId === b.id ? "active" : ""}`}
-                            onClick={() => selecionarBadgeParaAtribuicao(b)}
+                            className={assignSelectedChipClass}
+                            onClick={() => removerBadgeSelecionada(badge.id)}
+                            title="Clique para remover da selecao"
                           >
-                            {b.name}
+                            {badge.name} x
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center rounded-full border border-border/70 bg-muted/35 px-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground transition hover:border-primary/35 hover:bg-accent"
+                          onClick={limparBadgesSelecionadas}
+                        >
+                          Limpar medalhas
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/15 px-4 py-3 text-sm text-muted-foreground">
+                        Escolha uma ou mais medalhas para montar o lote.
                       </div>
                     )}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="medalhaSubmit"
-                  onClick={atribuirMedalha}
-                  disabled={assigning || (assignUserIds.length === 0 && !assignUserId) || !assignBadgeId}
-                >
-                  {assigning ? "Atribuindo..." : `Atribuir medalha (${assignUserIds.length || (assignUserId ? 1 : 0)})`}
-                </button>
+                <div className={assignFooterClass}>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-sm font-semibold text-foreground">
+                      {totalUsuariosSelecionados} usuário{totalUsuariosSelecionados === 1 ? "" : "s"}
+                    </span>
+                    <span className="rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-sm text-muted-foreground">
+                      {totalBadgesSelecionadas > 0
+                        ? `${totalBadgesSelecionadas} medalha${totalBadgesSelecionadas === 1 ? "" : "s"}`
+                        : "Selecione medalhas"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={cn(
+                      primaryButtonClass,
+                      "w-full sm:w-fit disabled:border disabled:border-border/70 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:hover:translate-y-0",
+                    )}
+                    onClick={atribuirMedalha}
+                    disabled={assigning || totalUsuariosSelecionados === 0 || totalBadgesSelecionadas === 0}
+                  >
+                    {assigning ? "Atribuindo..." : `Atribuir em lote (${totalUsuariosSelecionados} x ${totalBadgesSelecionadas})`}
+                  </button>
+                </div>
               </div>
             )}
           </div>
         ) : aba === "imagens" ? (
-          <div className="medalhaFormCard">
-            <h3>Imagens das medalhas</h3>
-            <div className="medalhasSearchCard">
-              <label htmlFor="busca-imagens-medalhas">Filtrar imagens</label>
+          <div className={medalhaFormCardClass}>
+            <div className="space-y-1">
+              <h3 className={panelTitleClass}>Imagens das medalhas</h3>
+              <p className={panelCopyClass}>Biblioteca visual das medalhas cadastradas para edição rápida.</p>
+            </div>
+            <div className={searchCardClass}>
+              <label htmlFor="busca-imagens-medalhas" className={fieldLabelClass}>Filtrar imagens</label>
               <input
+                className={fieldClass}
                 id="busca-imagens-medalhas"
                 value={buscaImagemBiblioteca}
                 onChange={(e) => setBuscaImagemBiblioteca(e.target.value)}
@@ -1043,27 +1518,27 @@ export default function MedalhasPage() {
               />
             </div>
             {loadingBadgeOptions ? (
-              <div className="medalhasImagesGrid">
+              <div className={imagesGridClass}>
                 {Array.from({ length: 8 }).map((_, idx) => (
-                  <article key={`img-loading-${idx}`} className="medalhasImageCard medalhasImageCardLoading">
-                    <div className="medalhasImageThumbWrap medalhasImageThumbLoading" />
-                    <strong className="medalhasImageTextLoading" />
+                  <article key={`img-loading-${idx}`} className={imageCardClass(false)}>
+                    <div className={cn(imageThumbWrapClass, imageSkeletonClass)} />
+                    <strong className={imageTextSkeletonClass} />
                   </article>
                 ))}
               </div>
             ) : imagensBibliotecaFiltradas.length === 0 ? (
-              <div className="medalhaEmpty">
+              <div className={emptyCardClass}>
                 {buscaImagemBiblioteca.trim()
                   ? "Nenhuma imagem encontrada para esse filtro."
                   : "Nenhuma imagem cadastrada ainda."}
               </div>
             ) : (
               <>
-                <div className="medalhasImagesGrid">
+                <div className={imagesGridClass}>
                   {imagensBibliotecaPaginadas.map((img) => (
                     <article
                       key={img.id}
-                      className={`medalhasImageCard ${role === "admin" ? "isClickable" : ""}`}
+                      className={imageCardClass(role === "admin")}
                       onClick={() => {
                         if (role !== "admin") return;
                         const badge = badgeOptions.find((b) => b.id === img.id);
@@ -1081,10 +1556,10 @@ export default function MedalhasPage() {
                       role={role === "admin" ? "button" : undefined}
                       tabIndex={role === "admin" ? 0 : undefined}
                     >
-                      <div className="medalhasImageThumbWrap">
+                      <div className={imageThumbWrapClass}>
                         {img.url && !imagemBibliotecaLoadError[img.id] ? (
                           <img
-                            className="medalhasImageThumb"
+                            className="max-h-[260px] max-w-full object-contain"
                             src={img.url}
                             alt={img.nome}
                             onError={() =>
@@ -1093,12 +1568,12 @@ export default function MedalhasPage() {
                           />
                         ) : null}
                         {(!img.url || imagemBibliotecaLoadError[img.id]) && (
-                          <div className="medalhasImageThumbFallback">
+                          <div className="grid h-full w-full place-items-center rounded-[16px] bg-[linear-gradient(135deg,rgba(37,99,235,0.18),rgba(225,29,46,0.18))] text-3xl font-black text-white">
                             {img.nome.slice(0, 1).toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <strong>{img.nome}</strong>
+                      <strong className="truncate text-base font-black tracking-[-0.02em] text-foreground">{img.nome}</strong>
                     </article>
                   ))}
                 </div>
@@ -1113,34 +1588,39 @@ export default function MedalhasPage() {
             )}
           </div>
         ) : (
-          <div className="medalhaFormCard">
-            <h3>{editingBadgeId ? "Editar medalha" : "Criar medalha"}</h3>
-            <div className="medalhaFormRow">
+          <div className={medalhaFormCardClass}>
+            <div className="space-y-1">
+              <h3 className={panelTitleClass}>{editingBadgeId ? "Editar medalha" : "Criar medalha"}</h3>
+              <p className={panelCopyClass}>Defina nome, descrição e imagem da medalha antes de salvar.</p>
+            </div>
+            <div className={medalhaFormRowClass}>
               <span>Nome da medalha</span>
               <input
+                className={fieldClass}
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 placeholder="Ex: Mestre do SQL"
               />
             </div>
-            <div className="medalhaFormRow">
+            <div className={medalhaFormRowClass}>
               <span>Descrição</span>
               <textarea
+                className={textareaClass}
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
                 rows={4}
                 placeholder="Ex: Concluiu a trilha avançada de banco de dados."
               />
             </div>
-            <div className="medalhaFormGrid">
-              <div className="medalhaFormRow">
+            <div className={medalhaFormGridClass}>
+              <div className={medalhaFormRowClass}>
                 <span>Ícone</span>
-                <div className="medalhaFileField">
-                  <label htmlFor="icone-medalha-file" className="medalhaFileBtn">Selecionar imagem</label>
-                  <span className="medalhaFileName">{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
+                <div className={medalhaFileFieldClass}>
+                  <label htmlFor="icone-medalha-file" className={medalhaFileBtnClass}>Selecionar imagem</label>
+                  <span className={medalhaFileNameClass}>{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
                   <button
                     type="button"
-                    className="medalhaFileBtn medalhaFileBtnDanger"
+                    className={fileRemoveButtonClass}
                     onClick={removerImagemBadge}
                     disabled={!icone.trim() && !iconeArquivoNome}
                   >
@@ -1148,7 +1628,7 @@ export default function MedalhasPage() {
                   </button>
                   <input
                     id="icone-medalha-file"
-                    className="medalhaFileInput"
+                    className="sr-only"
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
@@ -1173,59 +1653,67 @@ export default function MedalhasPage() {
                     }}
                   />
                 </div>
-                <div className="badgeIconPreviewWrap">
+                <div className={previewWrapClass}>
                   {icone.trim() && !iconePreviewError ? (
                     <img
-                      className="badgeIconPreview"
+                      className={badgeIconPreviewClass}
                       src={icone}
                       alt="Preview do ícone"
                       onError={() => setIconePreviewError(true)}
                       onLoad={() => setIconePreviewError(false)}
                     />
                   ) : (
-                    <div className={`badgeIconPreview badgeIconPreviewFallback ${!icone.trim() ? "isEmpty" : ""}`}>
+                    <div
+                      className={cn(
+                        badgeIconPreviewClass,
+                        badgeIconPreviewFallbackClass,
+                        !icone.trim() && "px-3 text-center text-xs font-semibold normal-case leading-5",
+                      )}
+                    >
                       {icone.trim() ? previewFallbackText : "Sem preview"}
                     </div>
                   )}
                 </div>
                 {icone.trim() && iconePreviewError && (
-                  <small className="medalhaFieldError">
+                  <small className={fieldErrorClass}>
                     Não foi possível carregar o ícone selecionado.
                   </small>
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              className="medalhaSubmit"
-              onClick={() => void criarOuAtualizarMedalha()}
-              disabled={saving}
-            >
-              <Medal size={16} />
-              {saving ? "Salvando..." : editingBadgeId ? "Salvar alterações" : "Salvar medalha"}
-            </button>
-            {editingBadgeId && (
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                className="medalhaSubmit medalhaCancelBtn"
-                onClick={cancelarEdicaoMedalha}
+                className={cn(primaryButtonClass, "w-full sm:w-fit")}
+                onClick={() => void criarOuAtualizarMedalha()}
                 disabled={saving}
               >
-                Cancelar edição
+                <Medal size={16} />
+                {saving ? "Salvando..." : editingBadgeId ? "Salvar alterações" : "Salvar medalha"}
               </button>
-            )}
+              {editingBadgeId && (
+                <button
+                  type="button"
+                  className={cn(secondaryButtonClass, "w-full sm:w-fit")}
+                  onClick={cancelarEdicaoMedalha}
+                  disabled={saving}
+                >
+                  Cancelar edição
+                </button>
+              )}
+            </div>
           </div>
         )}
         <Modal
           isOpen={imagemModalAberto}
           onClose={() => setImagemModalAberto(false)}
-          title={editingBadgeId ? "Editar medalha" : "Editar medalha"}
+          title="Editar medalha"
           size="lg"
           footer={
-            <>
+            <div className="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                className="medalhaSubmit medalhaCancelBtn"
+                className={cn(secondaryButtonClass, "w-full sm:w-fit")}
                 onClick={() => setImagemModalAberto(false)}
                 disabled={saving}
               >
@@ -1233,99 +1721,105 @@ export default function MedalhasPage() {
               </button>
               <button
                 type="button"
-                className="medalhaSubmit"
+                className={cn(primaryButtonClass, "w-full sm:w-fit")}
                 onClick={() => void criarOuAtualizarMedalha({ manterAbaAtual: true, fecharModal: true })}
                 disabled={saving}
               >
                 {saving ? "Salvando..." : "Salvar alterações"}
               </button>
-            </>
+            </div>
           }
         >
-          <div className="medalhaFormRow">
-            <span>Nome da medalha</span>
-            <input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Mestre do SQL"
-            />
-          </div>
-          <div className="medalhaFormRow">
-            <span>Descrição</span>
-            <textarea
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              rows={4}
-              placeholder="Ex: Concluiu a trilha avançada de banco de dados."
-            />
-          </div>
-          <div className="medalhaFormRow">
-            <span>Ícone</span>
-            <div className="medalhaFileField">
-              <label htmlFor="icone-medalha-file-modal" className="medalhaFileBtn">Selecionar imagem</label>
-              <span className="medalhaFileName">{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
-              <button
-                type="button"
-                className="medalhaFileBtn medalhaFileBtnDanger"
-                onClick={removerImagemBadge}
-                disabled={!icone.trim() && !iconeArquivoNome}
-              >
-                Remover imagem
-              </button>
+          <div className="grid gap-5">
+            <div className={medalhaFormRowClass}>
+              <span>Nome da medalha</span>
               <input
-                id="icone-medalha-file-modal"
-                className="medalhaFileInput"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setIconeArquivoNome(file.name);
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const base64 = String(reader.result || "");
-                    if (!base64.startsWith("data:image/")) {
-                      setErro("Arquivo inválido. Selecione uma imagem.");
-                      return;
-                    }
-                    setErro(null);
-                    setIcone(base64);
-                    setIconePreviewError(false);
-                  };
-                  reader.onerror = () => {
-                    setErro("Não foi possível ler a imagem selecionada.");
-                  };
-                  reader.readAsDataURL(file);
-                }}
+                className={fieldClass}
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Ex: Mestre do SQL"
               />
             </div>
-            <div className="badgeIconPreviewWrap">
-              {icone.trim() && !iconePreviewError ? (
-                <img
-                  className="badgeIconPreview"
-                  src={icone}
-                  alt="Preview do ícone"
-                  onError={() => setIconePreviewError(true)}
-                  onLoad={() => setIconePreviewError(false)}
+            <div className={medalhaFormRowClass}>
+              <span>Descrição</span>
+              <textarea
+                className={textareaClass}
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                rows={4}
+                placeholder="Ex: Concluiu a trilha avançada de banco de dados."
+              />
+            </div>
+            <div className={medalhaFormRowClass}>
+              <span>Ícone</span>
+              <div className={medalhaFileFieldClass}>
+                <label htmlFor="icone-medalha-file-modal" className={medalhaFileBtnClass}>Selecionar imagem</label>
+                <span className={medalhaFileNameClass}>{iconeArquivoNome || "Nenhum arquivo selecionado"}</span>
+                <button
+                  type="button"
+                  className={fileRemoveButtonClass}
+                  onClick={removerImagemBadge}
+                  disabled={!icone.trim() && !iconeArquivoNome}
+                >
+                  Remover imagem
+                </button>
+                <input
+                  id="icone-medalha-file-modal"
+                  className="sr-only"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setIconeArquivoNome(file.name);
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const base64 = String(reader.result || "");
+                      if (!base64.startsWith("data:image/")) {
+                        setErro("Arquivo inválido. Selecione uma imagem.");
+                        return;
+                      }
+                      setErro(null);
+                      setIcone(base64);
+                      setIconePreviewError(false);
+                    };
+                    reader.onerror = () => {
+                      setErro("Não foi possível ler a imagem selecionada.");
+                    };
+                    reader.readAsDataURL(file);
+                  }}
                 />
-              ) : (
-                <div className={`badgeIconPreview badgeIconPreviewFallback ${!icone.trim() ? "isEmpty" : ""}`}>
-                  {icone.trim() ? previewFallbackText : "Sem preview"}
-                </div>
+              </div>
+              <div className={previewWrapClass}>
+                {icone.trim() && !iconePreviewError ? (
+                  <img
+                    className={badgeIconPreviewClass}
+                    src={icone}
+                    alt="Preview do ícone"
+                    onError={() => setIconePreviewError(true)}
+                    onLoad={() => setIconePreviewError(false)}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      badgeIconPreviewClass,
+                      badgeIconPreviewFallbackClass,
+                      !icone.trim() && "px-3 text-center text-xs font-semibold normal-case leading-5",
+                    )}
+                  >
+                    {icone.trim() ? previewFallbackText : "Sem preview"}
+                  </div>
+                )}
+              </div>
+              {icone.trim() && iconePreviewError && (
+                <small className={fieldErrorClass}>
+                  Não foi possível carregar o ícone selecionado.
+                </small>
               )}
             </div>
-            {icone.trim() && iconePreviewError && (
-              <small className="medalhaFieldError">
-                Não foi possível carregar o ícone selecionado.
-              </small>
-            )}
           </div>
         </Modal>
       </section>
     </DashboardLayout>
   );
 }
-
-
-
-

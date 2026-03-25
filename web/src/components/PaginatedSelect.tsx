@@ -1,6 +1,6 @@
 import React from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
-import "./PaginatedSelect.css";
+import { cn } from "../lib/utils";
 
 export type PaginatedSelectOption = {
   value: string;
@@ -30,6 +30,19 @@ type PaginatedSelectProps = {
   emptyText?: string;
   remote?: PaginatedSelectRemoteConfig;
 };
+
+const triggerClass =
+  "flex w-full items-start gap-2 rounded-2xl border border-border/70 bg-[radial-gradient(circle_at_10%_20%,rgba(56,189,248,0.12),transparent_48%),linear-gradient(180deg,rgba(15,23,42,0.86),rgba(15,23,42,0.72))] px-3.5 py-2.5 font-mono text-sm font-semibold text-slate-200 shadow-inner shadow-white/5 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300/45 hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 md:min-h-12 md:items-center";
+const panelClass =
+  "absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[60] flex max-h-[min(420px,65vh)] flex-col gap-2 overflow-hidden rounded-2xl border border-sky-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.94))] p-2.5 shadow-[0_22px_42px_rgba(2,6,23,0.52)] md:max-h-[min(420px,65vh)]";
+const panelSearchClass =
+  "flex items-center gap-2 rounded-xl border border-slate-400/25 bg-slate-950/70 px-3 py-2 text-slate-300";
+const optionClass =
+  "flex w-full flex-col gap-1 rounded-xl border border-slate-400/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent),rgba(15,23,42,0.72)] px-3 py-2.5 text-left text-sm text-slate-200 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300/45 hover:shadow-[0_10px_20px_rgba(8,16,34,0.35)]";
+const navButtonClass =
+  "inline-flex items-center gap-1 rounded-xl border border-border/70 bg-background/35 px-3 py-2 text-sm text-foreground transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/60 disabled:pointer-events-none disabled:opacity-50";
+const pageSizeSelectClass =
+  "h-9 min-w-[72px] rounded-xl border border-border/70 bg-background/35 px-2.5 text-sm text-foreground outline-none transition focus:border-primary/35";
 
 export default function PaginatedSelect({
   value,
@@ -62,18 +75,28 @@ export default function PaginatedSelect({
         setOpen(false);
       }
     };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
     document.addEventListener("mousedown", handleDocClick);
-    return () => document.removeEventListener("mousedown", handleDocClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleDocClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   const selected = React.useMemo(
     () => selectedOption ?? (options.find((opt) => opt.value === value) || null),
-    [options, selectedOption, value]
+    [options, selectedOption, value],
   );
 
   function cleanDisplayText(text: string | undefined) {
     if (!text) return "";
-    // Remove replacement-char artifacts from malformed source text.
     const replacementChar = String.fromCharCode(65533);
     return text.split(replacementChar).join("").trim();
   }
@@ -134,71 +157,116 @@ export default function PaginatedSelect({
   }
 
   return (
-    <div className={`paginatedSelect ${disabled ? "isDisabled" : ""} ${!selected ? "isPlaceholder" : ""}`} ref={rootRef}>
+      <div
+      ref={rootRef}
+      className={cn("relative z-[2] w-full", open && "z-[120]")}
+    >
       <button
         type="button"
-        className="paginatedSelectTrigger"
+        className={cn(triggerClass, !selected && "text-slate-400 font-medium tracking-[0.01em]")}
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
       >
-        <span className="paginatedSelectValueWrap">
-          <span className="paginatedSelectValue">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
+          <span className="overflow-hidden text-left whitespace-normal break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] md:block md:truncate">
             {selected ? cleanDisplayText(selected.label) : cleanDisplayText(placeholder)}
           </span>
-          {selected?.meta ? <small className="paginatedSelectValueMeta">{cleanDisplayText(selected.meta)}</small> : null}
+          {selected?.meta ? (
+            <small className="[overflow-wrap:anywhere] text-left text-[11px] font-bold uppercase tracking-[0.03em] text-sky-300">
+              {cleanDisplayText(selected.meta)}
+            </small>
+          ) : null}
         </span>
-        <ChevronDown size={16} className={`paginatedSelectChevron ${open ? "isOpen" : ""}`} />
+        <ChevronDown
+          size={16}
+          className={cn(
+            "mt-1 shrink-0 text-sky-300 transition duration-200 md:mt-0",
+            open && "rotate-180 text-slate-100",
+          )}
+        />
       </button>
 
-      {open && !disabled && (
-        <div className="paginatedSelectPanel">
-          <div className="paginatedSelectSearch">
-            <Search size={14} />
+      {open && !disabled ? (
+        <div className={panelClass}>
+          <div className={panelSearchClass}>
+            <Search size={14} className="shrink-0 text-slate-300" />
             <input
               value={currentQuery}
               onChange={(e) => handleQueryChange(e.target.value)}
               placeholder="Buscar..."
+              className="w-full border-0 bg-transparent p-0 text-sm text-slate-100 outline-none placeholder:text-slate-400"
             />
-            {currentQuery && (
-              <button type="button" onClick={() => handleQueryChange("")} className="clearQueryBtn" aria-label="Limpar busca">
+            {currentQuery ? (
+              <button
+                type="button"
+                onClick={() => handleQueryChange("")}
+                className="inline-flex size-6 items-center justify-center rounded-full border border-border/60 bg-background/40 text-muted-foreground transition hover:border-primary/35 hover:bg-muted/60 hover:text-foreground"
+                aria-label="Limpar busca"
+              >
                 <X size={12} />
               </button>
-            )}
+            ) : null}
           </div>
 
-          <div className="paginatedSelectList">
+          <div className="flex max-h-[300px] flex-col gap-1.5 overflow-auto pr-1">
             {remote?.loading ? (
-              <div className="paginatedSelectLoading" role="status" aria-live="polite">
-                <Loader2 size={14} className="paginatedSelectLoadingIcon" />
+              <div
+                role="status"
+                aria-live="polite"
+                className="inline-flex items-center gap-2 rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-3 text-sm text-muted-foreground"
+              >
+                <Loader2 size={14} className="animate-spin" />
                 <span>Carregando...</span>
               </div>
             ) : paged.length === 0 ? (
-              <div className="paginatedSelectEmpty">{emptyText}</div>
+              <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                {emptyText}
+              </div>
             ) : (
-              paged.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`paginatedSelectOption ${value === opt.value ? "active" : ""}`}
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="paginatedSelectOptionMain">
-                    <span>{cleanDisplayText(opt.label)}</span>
-                    {value === opt.value ? <Check size={14} className="paginatedSelectOptionCheck" /> : null}
-                  </span>
-                  {opt.meta ? <small>{cleanDisplayText(opt.meta)}</small> : null}
-                </button>
-              ))
+              paged.map((opt) => {
+                const isActive = value === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      optionClass,
+                      isActive &&
+                        "border-sky-400/60 bg-[linear-gradient(90deg,rgba(59,130,246,0.2),transparent_50%),rgba(15,23,42,0.86)] shadow-[inset_0_0_0_1px_rgba(96,165,250,0.24)]",
+                    )}
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="flex min-w-0 items-start justify-between gap-2.5">
+                      <span className="min-w-0 font-mono font-semibold [overflow-wrap:anywhere]">
+                        {cleanDisplayText(opt.label)}
+                      </span>
+                      {isActive ? <Check size={14} className="shrink-0 text-primary" /> : null}
+                    </span>
+                    {opt.meta ? (
+                      <small className="[overflow-wrap:anywhere] text-[11px] text-slate-400">
+                        {cleanDisplayText(opt.meta)}
+                      </small>
+                    ) : null}
+                  </button>
+                );
+              })
             )}
           </div>
 
-          <div className="paginatedSelectFooter">
+          <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
             {allowPageSizeChange ? (
-              <div className="paginatedPageSize">
-                <label htmlFor={pageSizeId}>Qtd</label>
+              <div className="flex w-full items-center justify-between gap-2 md:w-auto md:justify-start">
+                <label
+                  htmlFor={pageSizeId}
+                  className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
+                >
+                  Qtd
+                </label>
                 <select
                   id={pageSizeId}
                   value={String(safePageSize)}
@@ -207,6 +275,7 @@ export default function PaginatedSelect({
                     setCurrentPageSize(Number.isFinite(next) && next > 0 ? next : pageSize);
                     setPage(1);
                   }}
+                  className={pageSizeSelectClass}
                 >
                   {sizeOptions.map((size) => (
                     <option key={size} value={size}>
@@ -217,28 +286,32 @@ export default function PaginatedSelect({
               </div>
             ) : null}
 
-            <div className="paginatedPager">
+            <div className="flex w-full items-center justify-between gap-2 md:ml-auto md:w-auto md:justify-start">
               <button
                 type="button"
-                className="paginatedNavBtn"
+                className={navButtonClass}
                 onClick={() => handlePageChange(Math.max(1, safePage - 1))}
                 disabled={safePage <= 1}
               >
-                <ChevronLeft size={14} /> Ant
+                <ChevronLeft size={14} />
+                Ant
               </button>
-              <span className="pageInfo">{safePage}/{totalPages}</span>
+              <span className="text-sm text-muted-foreground">
+                {safePage}/{totalPages}
+              </span>
               <button
                 type="button"
-                className="paginatedNavBtn"
+                className={navButtonClass}
                 onClick={() => handlePageChange(Math.min(totalPages, safePage + 1))}
                 disabled={safePage >= totalPages}
               >
-                Prox <ChevronRight size={14} />
+                Prox
+                <ChevronRight size={14} />
               </button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

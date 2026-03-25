@@ -1,7 +1,6 @@
-import Modal from './Modal';
-import { AnimatedButton } from './animate-ui';
-import { Loader2 } from 'lucide-react';
-import './ConfirmDialog.css';
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Modal from "./Modal";
 
 export interface ConfirmDialogProps {
   isOpen: boolean;
@@ -21,8 +20,8 @@ export default function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirmar',
-  cancelText = 'Cancelar',
+  confirmText = "Confirmar",
+  cancelText = "Cancelar",
   isLoading = false,
   isDangerous = false,
 }: ConfirmDialogProps) {
@@ -33,31 +32,41 @@ export default function ConfirmDialog({
       title={title}
       size="sm"
       footer={
-        <div className="confirm-dialog-actions">
-          <AnimatedButton
-            className="btn-cancel"
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full rounded-xl border-border bg-muted text-foreground hover:bg-accent"
             onClick={onClose}
             disabled={isLoading}
           >
             {cancelText}
-          </AnimatedButton>
-          <AnimatedButton
-            className={`btn-confirm ${isDangerous ? 'btn-danger' : ''}`}
+          </Button>
+          <Button
+            type="button"
+            className={
+              isDangerous
+                ? "h-11 w-full rounded-xl border border-red-500 bg-red-600 text-white hover:bg-red-500"
+                : "h-11 w-full rounded-xl border border-blue-500 bg-blue-600 text-white hover:bg-blue-500"
+            }
             onClick={onConfirm}
             disabled={isLoading}
           >
             {isLoading ? (
-              <span className="confirm-dialog-loading">
-                <Loader2 size={16} /> Processando...
+              <span className="inline-flex min-w-0 items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin motion-reduce:animate-none" />
+                Processando...
               </span>
             ) : (
               confirmText
             )}
-          </AnimatedButton>
+          </Button>
         </div>
       }
     >
-      <p className="confirm-dialog-message">{message}</p>
+      <p className="m-0 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
+        {message}
+      </p>
     </Modal>
   );
 }

@@ -1,78 +1,19 @@
-import React, { useMemo, useReducer, useRef, useState, useEffect } from "react";
-import "./Login.css";
-import { login } from "../../services/api";
+import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { notifyAuthChanged } from "../../auth/auth";
+import { login } from "../../services/api";
 import { AnimatedToast } from "../animate-ui/AnimatedToast";
-
-function EyeIcon() {
-  return (
-    <svg
-      className="login-icon"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-    >
-      <path
-        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg
-      className="login-icon"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-    >
-      <path
-        d="M3 3l18 18"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M10.6 10.6a2 2 0 0 0 2.8 2.8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M7.1 7.1C4.1 9 2 12 2 12s3.5 7 10 7c2 0 3.7-.6 5.1-1.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M14.6 14.6C13.8 15.5 12.9 16 12 16a4 4 0 0 1-4-4c0-.9.5-1.8 1.4-2.6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9.9 5.2A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a16 16 0 0 1-3.1 4.2"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type LoginFormState = {
   usuario: string;
@@ -138,22 +79,24 @@ export default function Login() {
   );
   const { usuario, senha, mostrarSenha, loading, sucesso, erro, isDarkMode } = state;
 
-  // countdown
   const [segundos, setSegundos] = useState<number | null>(null);
   const intervalRef = useRef<number | null>(null);
-
-  // evita setState depois do unmount
   const mountedRef = useRef(true);
 
   const podeEntrar = useMemo(() => {
     return usuario.trim().length > 0 && senha.trim().length > 0 && !loading;
   }, [usuario, senha, loading]);
+
   const redirecionando = sucesso !== null && segundos !== null;
   const showLoadingScreen = loading || redirecionando;
   const loadingTitle = loading ? "Validando acesso..." : "Login realizado";
   const loadingDescription = loading
     ? "Conferindo suas credenciais no servidor."
     : `Redirecionando para o painel em ${segundos ?? 0}s.`;
+  const backgroundImage = isDarkMode
+    ? "url('/backgroundLogin.png')"
+    : "url('/backgroundLoginBranco.png')";
+  const logoSrc = isDarkMode ? "/favicon.png" : "/faviconPreto.png";
 
   function clearCountdown() {
     if (intervalRef.current !== null) {
@@ -176,9 +119,8 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
-    // Listen for changes to data-theme attribute
     const observer = new MutationObserver(() => {
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
       if (mountedRef.current) {
         dispatch({ type: "set_dark_mode", value: isDark });
       }
@@ -186,7 +128,7 @@ export default function Login() {
 
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme'],
+      attributeFilter: ["data-theme"],
     });
 
     return () => observer.disconnect();
@@ -197,7 +139,6 @@ export default function Login() {
 
     if (!podeEntrar) return;
 
-    // reseta mensagens/contagem
     dispatch({ type: "set_erro", value: null });
     dispatch({ type: "set_sucesso", value: null });
     clearCountdown();
@@ -209,18 +150,15 @@ export default function Login() {
 
       if (!mountedRef.current) return;
 
-      // salva auth
       localStorage.setItem("token", data.token);
       localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("nome", data.user?.nome ?? "");
-      // limpa chave legada: cargo não deve ser persistido no storage do cliente
       localStorage.removeItem("role");
       notifyAuthChanged();
 
       dispatch({ type: "set_sucesso", value: data.message ?? "Login realizado!" });
       dispatch({ type: "set_erro", value: null });
 
-      // inicia contagem 2s e depois navega
       setSegundos(2);
 
       intervalRef.current = window.setInterval(() => {
@@ -233,8 +171,6 @@ export default function Login() {
               intervalRef.current = null;
             }
 
-            // navega fora do render: aqui é callback de intervalo
-            // troca "/dashboard" se tua rota for "/Home"
             navigate("/dashboard", { replace: true });
             return 0;
           }
@@ -245,7 +181,10 @@ export default function Login() {
     } catch (err) {
       if (!mountedRef.current) return;
 
-      dispatch({ type: "set_erro", value: err instanceof Error ? err.message : "Erro desconhecido" });
+      dispatch({
+        type: "set_erro",
+        value: err instanceof Error ? err.message : "Erro desconhecido",
+      });
     } finally {
       if (mountedRef.current) {
         dispatch({ type: "set_loading", value: false });
@@ -254,12 +193,19 @@ export default function Login() {
   }
 
   return (
-    <div className={`login-page ${isDarkMode ? 'dark-mode' : ''}`}>
-      <AnimatedToast
-        message={sucesso}
-        type="success"
-        duration={0}
-      />
+    <div
+      className="relative min-h-screen overflow-hidden bg-black text-white"
+      style={{
+        backgroundImage,
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
+      }}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.36),rgba(2,6,23,0.72))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(225,29,72,0.24),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.16),transparent_30%)]" />
+
+      <AnimatedToast message={sucesso} type="success" duration={0} />
       <AnimatedToast
         message={erro}
         type="error"
@@ -267,104 +213,154 @@ export default function Login() {
         onClose={() => dispatch({ type: "set_erro", value: null })}
       />
 
-      <div className="login-card">
-        <header className="login-header">
-          <div className="login-logo" aria-hidden>
-            <img
-              className="login-logo-img"
-              src="/faviconPreto.png"
-              alt="Santos Tech"
-            />
-          </div>
-          <h1 className="login-title">Entrar</h1>
-          <p className="login-subtitle">Acesse o Portal do Aluno</p>
-        </header>
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-6 sm:px-6">
+        <Card className="relative w-full max-w-[460px] overflow-hidden rounded-[28px] border border-white/18 bg-black/60 py-0 text-white shadow-[0_28px_80px_rgba(2,6,23,0.52)] backdrop-blur-2xl">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(225,29,72,0.18),transparent_42%)]" />
+          <div
+            className="absolute -left-12 top-12 h-28 w-28 rounded-full bg-rose-500/18 blur-3xl"
+            aria-hidden="true"
+          />
+          <div
+            className="absolute -right-14 bottom-12 h-32 w-32 rounded-full bg-sky-400/10 blur-3xl"
+            aria-hidden="true"
+          />
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label className="login-label">
-            Usuário
-            <input
-              className="login-input"
-              value={usuario}
-              onChange={(e) => dispatch({ type: "set_usuario", value: e.target.value })}
-              type="text"
-              autoComplete="username"
-              placeholder="Digite seu usuário"
-            />
-          </label>
-
-          <label className="login-label">
-            Senha
-            <div className="login-input-wrapper">
-              <input
-                className="login-input login-input--with-toggle"
-                value={senha}
-                onChange={(e) => dispatch({ type: "set_senha", value: e.target.value })}
-                type={mostrarSenha ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="Digite sua senha"
-              />
-
-              <button
-                type="button"
-                className="login-toggle"
-                onClick={() => dispatch({ type: "toggle_mostrar_senha" })}
-                aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-                title={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-                aria-pressed={mostrarSenha}
-              >
-                {mostrarSenha ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
+          <CardHeader className="relative z-10 justify-items-center gap-3 px-6 pt-6 pb-2 text-center sm:px-8 sm:pt-8">
+            <div className="inline-flex w-fit items-center justify-center gap-2 rounded-full border border-rose-400/25 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold tracking-[0.24em] text-rose-100 uppercase">
+              Santos Tech
             </div>
-          </label>
+            <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-rose-500/50 bg-black/30 shadow-[0_0_32px_rgba(225,29,72,0.22)]">
+              <img className="h-11 w-11 object-contain" src={logoSrc} alt="Santos Tech" />
+            </div>
+            <CardTitle className="pt-1 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
+              Entrar
+            </CardTitle>
+            <CardDescription className="mx-auto max-w-xs text-sm leading-6 text-white/68">
+              Acesse o Portal do Aluno com o mesmo usuario e senha usados no painel.
+            </CardDescription>
+          </CardHeader>
 
-          <div className="login-links-row">
-            <button
-              type="button"
-              className="login-link-btn"
-              onClick={() => {
-                /* console.log("Esqueci senha") */
-              }}
-              disabled={loading}
-            >
-              Esqueci minha senha
-            </button>
-          </div>
+          <CardContent className="relative z-10 px-6 pb-6 sm:px-8 sm:pb-8">
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="login-usuario"
+                  className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase"
+                >
+                  Usuário
+                </Label>
+                <Input
+                  id="login-usuario"
+                  className="h-12 rounded-2xl border-white/16 bg-white/8 px-4 text-white shadow-[0_0_18px_rgba(225,29,72,0.12)] placeholder:text-white/45 hover:border-white/28 hover:bg-white/10 focus-visible:border-rose-500 focus-visible:ring-rose-500/24"
+                  value={usuario}
+                  onChange={(e) => dispatch({ type: "set_usuario", value: e.target.value })}
+                  type="text"
+                  autoComplete="username"
+                  placeholder="Digite seu usuário"
+                />
+              </div>
 
-          <button
-            type="submit"
-            className="login-primary-btn"
-            disabled={!podeEntrar}
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
+              <div className="space-y-2.5">
+                <Label
+                  htmlFor="login-senha"
+                  className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase"
+                >
+                  Senha
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="login-senha"
+                    className="h-12 rounded-2xl border-white/16 bg-white/8 px-4 pr-12 text-white shadow-[0_0_18px_rgba(225,29,72,0.12)] placeholder:text-white/45 hover:border-white/28 hover:bg-white/10 focus-visible:border-rose-500 focus-visible:ring-rose-500/24"
+                    value={senha}
+                    onChange={(e) => dispatch({ type: "set_senha", value: e.target.value })}
+                    type={mostrarSenha ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="Digite sua senha"
+                  />
 
-        <p className="login-footer">© {new Date().getFullYear()} Santos Tech</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1/2 right-2 h-8 w-8 -translate-y-1/2 rounded-xl border border-transparent bg-transparent text-white/78 hover:border-white/14 hover:bg-white/10 hover:text-white focus-visible:border-white/18 focus-visible:ring-white/18"
+                    onClick={() => dispatch({ type: "toggle_mostrar_senha" })}
+                    aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                    title={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                    aria-pressed={mostrarSenha}
+                  >
+                    {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto p-0 text-[12px] font-bold tracking-[0.08em] text-rose-200 no-underline hover:text-rose-100 hover:no-underline"
+                  onClick={() => undefined}
+                  disabled={loading}
+                >
+                  Esqueci minha senha
+                </Button>
+              </div>
+
+              <Button
+                type="submit"
+                className="h-12 w-full rounded-2xl border border-rose-500 bg-rose-600 text-sm font-black tracking-[0.18em] text-white uppercase shadow-[0_16px_38px_rgba(225,29,72,0.34)] hover:bg-rose-500 focus-visible:border-rose-400 focus-visible:ring-rose-500/28"
+                disabled={!podeEntrar}
+              >
+                {loading ? "Entrando..." : "Entrar"}
+              </Button>
+            </form>
+
+            <p className="mt-6 text-center text-xs tracking-[0.14em] text-white/54 uppercase">
+              © {new Date().getFullYear()} Santos Tech
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {showLoadingScreen && (
-        <div className="login-loading-screen" role="status" aria-live="polite" aria-busy="true">
-          <div className="login-loading-panel">
-            <div className="login-loading-logo" aria-hidden="true">
-              <img
-                className="login-loading-logo-img"
-                src="/faviconPreto.png"
-                alt=""
-              />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/78 px-5 backdrop-blur-md animate-in fade-in duration-200 motion-reduce:animate-none"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Card className="relative w-full max-w-[420px] rounded-[28px] border border-white/12 bg-slate-950/92 py-0 text-white shadow-[0_30px_90px_rgba(2,6,23,0.62)] animate-in zoom-in-95 fade-in duration-200 motion-reduce:animate-none">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(225,29,72,0.18),transparent_42%)]" />
+            <div className="relative z-10 flex flex-col items-center gap-4 px-6 py-8 text-center sm:px-8">
+              <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-rose-500/45 bg-rose-500/10">
+                <img className="h-11 w-11 object-contain" src={logoSrc} alt="" />
+              </div>
+
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/12 bg-white/6">
+                <LoaderCircle className="h-8 w-8 animate-spin text-rose-500 motion-reduce:animate-none" />
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black tracking-[-0.03em] text-white">
+                  {loadingTitle}
+                </h2>
+                <p className="mx-auto max-w-xs text-sm leading-6 text-white/72">
+                  {loadingDescription}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2" aria-hidden="true">
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-bounce motion-reduce:animate-none [animation-duration:900ms]" />
+                <span
+                  className="h-2 w-2 rounded-full bg-rose-500 animate-bounce motion-reduce:animate-none [animation-duration:900ms]"
+                  style={{ animationDelay: "120ms" }}
+                />
+                <span
+                  className="h-2 w-2 rounded-full bg-rose-500 animate-bounce motion-reduce:animate-none [animation-duration:900ms]"
+                  style={{ animationDelay: "240ms" }}
+                />
+              </div>
             </div>
-
-            <div className="login-loading-spinner" aria-hidden="true" />
-
-            <h2 className="login-loading-title">{loadingTitle}</h2>
-            <p className="login-loading-description">{loadingDescription}</p>
-
-            <div className="login-loading-dots" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>
