@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # Ajuste 2026-03-25 (deploy_and_push.sh no Linux local)
 
 ## Ajustes aplicados
@@ -13,6 +14,40 @@
 - `./deploy_and_push.sh` com o Docker desligado -> criou `.env` automaticamente e exibiu a orientacao `sudo systemctl enable --now docker`
 - `docker compose config`
 - Nao foi possivel validar `docker compose up -d --build` nesta task porque o daemon Docker estava inativo no host
+=======
+# Correcao 2026-03-26 (autoatualizacao do Electron via Cloudflare R2/CDN)
+
+## Ajustes aplicados
+
+- O wrapper `electron/` ganhou suporte a autoatualizacao com `electron-updater` usando provider `generic` apontado para `https://cdn.portaldoaluno.santos-tech.com/desktop/painel/win`.
+- `electron/package.json` agora gera metadata de update (`latest.yml`) no build NSIS, inclui `electronUpdaterCompatibility >=2.16` e expoe o script `npm run publish:release`.
+- Foi criado `electron/electron/update-service.ts`, que centraliza os eventos `checking-for-update`, `update-available`, `update-not-available`, `download-progress`, `update-downloaded` e `error`, mantendo `autoDownload=false` e `autoInstallOnAppQuit=false`.
+- `electron/electron/preload.ts` passou a expor `window.desktop.updates` com `getState()`, `check()`, `download()`, `quitAndInstall()` e `subscribe(...)`.
+- O frontend ganhou `web/src/types/desktop.ts` para tipar a bridge desktop no renderer.
+- `web/src/components/SettingsOverlay.tsx` agora mostra a secao de atualizacoes apenas no Electron, com status atual, botao manual de verificar, card de progresso, confirmacao para baixar e confirmacao para reiniciar e instalar.
+- Os prompts de download e reinicio ficam globais dentro do `SettingsOverlay`, entao o app pode avisar sobre update mesmo quando o painel de configuracoes estiver fechado.
+- Foi criado `electron/scripts/publish-release.ts`, que roda o build desktop e envia `latest.yml`, instalador `.exe` e `.blockmap` para o bucket R2 usando a S3 API.
+- O script de release aceita tanto as novas vars `R2_*` quanto as credenciais `CLOUDFLARE_*` ja existentes no `.env` raiz.
+- `electron/.env.example`, `electron/README.md` e `electron/dev-app-update.yml` foram adicionados/atualizados para documentar o feed e a publicacao.
+
+## Validacao executada
+
+- `electron`: `npm install`
+- `web`: `npm run build`
+- `web`: `npm run lint` (0 erros; 16 warnings antigos de hooks/fast-refresh continuam no projeto)
+- `electron`: `npx tsc --pretty false --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --esModuleInterop scripts/publish-release.ts`
+- `electron`: `npm run dist:win`
+- artefatos gerados:
+  - `electron/release/latest.yml`
+  - `electron/release/Painel - Portal Santos Tech Setup 0.1.0.exe`
+  - `electron/release/Painel - Portal Santos Tech Setup 0.1.0.exe.blockmap`
+- execucao do binario `electron/release/win-unpacked/Painel - Portal Santos Tech.exe` com log em `%APPDATA%\\Painel - Portal Santos Tech\\main.log`
+
+## Observacoes
+
+- `deploy_and_push.bat` foi executado para a validacao final, mas abortou antes do deploy porque o Docker nao estava rodando nesta maquina no momento do teste.
+- Com o Docker desligado, nao foi possivel subir o stack local nem validar `http://localhost:8080` e `http://localhost:3001` nesta task.
+>>>>>>> Stashed changes
 
 # Correcao 2026-03-20 (Ticket de presence vinculado ao cliente)
 
@@ -699,6 +734,69 @@ Preparar o frontend para uso de `Tailwind CSS`, `Radix` e `shadcn/ui`, e migrar 
 - `docker compose up -d --build web`
 - `docker compose ps`
 - `GET http://localhost:8080` -> `200`
+
+## Wrapper Electron 2026-03-26 (renderer vindo da pasta web, wrapper em TS)
+
+- Foi criada a pasta `electron/` como wrapper Electron em TypeScript, sem duplicar a aplicacao de `web/`.
+- O frontend continua vindo de `web/`: em desenvolvimento o Electron abre o Vite de `../web`, e no build a pasta `electron/renderer-dist` e gerada a partir de `web/dist`.
+- O processo principal ficou em `electron/electron/main.ts`, com servidor local para servir `renderer-dist` e fazer proxy de `/api` e `/ws`.
+- O preload ficou em `electron/electron/preload.ts`.
+- O script `electron/scripts/sync-renderer.ts` sincroniza o build pronto de `web/dist` para `electron/renderer-dist`.
+- O `electron-builder` foi configurado para empacotar `dist-electron/` e `renderer-dist/`, com `signAndEditExecutable: false` para evitar a falha de privilegio de symlink no Windows durante a validacao local.
+
+## Validacao do wrapper Electron
+
+- `electron`: `npm install`
+- `electron`: `npm run build`
+- `electron`: `npx electron-builder --dir`
+
+## Ajuste de funcionamento 2026-03-26 (wrapper Electron abrindo de fato)
+
+- O wrapper estava falhando ao abrir porque o ambiente local tinha `ELECTRON_RUN_AS_NODE=1`, o que fazia `electron .` iniciar em modo Node e quebrar o acesso a `app.whenReady()`.
+- Os scripts de `electron/package.json` agora limpam essa variavel antes de abrir o Electron em `dev` e `start`.
+- O fallback padrao do proxy do wrapper passou a apontar para `https://painel-portaldoaluno.santos-tech.com`, evitando dependencia obrigatoria de API local para a versao desktop abrir e operar.
+- `electron/electron/main.ts` ganhou logs de startup/carga do renderer para facilitar depuracao do wrapper desktop e confirmar a subida do servidor local que entrega `renderer-dist`.
+
+## Validacao desse ajuste de funcionamento
+
+- `electron`: `npm run build:wrapper`
+- `electron`: `npm run start` (wrapper ficou de pe e registrou carga do renderer local em `%APPDATA%\\portal-do-aluno-electron\\main.log`)
+- `electron`: `npm run build`
+- `electron`: `npx electron-builder --dir`
+- `https://painel-portaldoaluno.santos-tech.com/api/health` -> `200`
+
+## Correcao 2026-03-26 (erro 405 no proxy do Electron)
+
+- O proxy local do wrapper Electron estava montado em `/api` e `/ws`, mas sem reescrever o path antes de encaminhar.
+- Com isso, requisicoes como `/api/auth/login` chegavam no backend como `/auth/login`, causando `405` em vez da resposta correta da API.
+- `electron/electron/main.ts` agora reescreve:
+  - `/api/*` -> `/api/*`
+  - `/ws/*` -> `/api/ws/*`
+- Isso alinha o wrapper ao mesmo contrato usado pelo `nginx.conf` do projeto web.
+
+## Validacao dessa correcao
+
+- `electron`: `npm run build:wrapper`
+- `electron` em execucao local: `GET http://127.0.0.1:4173/api/health` -> `200`
+- `electron` em execucao local: `POST http://127.0.0.1:4173/api/auth/login` com credenciais invalidas -> `401`
+
+## Personalizacao 2026-03-26 (nome e icone do app Electron)
+
+- O wrapper Electron foi renomeado para `Painel - Portal Santos Tech`.
+- `electron/package.json` agora usa:
+  - `name`: `painel-portal-santos-tech`
+  - `description`: `Painel - Portal Santos Tech em Electron usando a pasta web como renderer.`
+  - `build.productName`: `Painel - Portal Santos Tech`
+  - `build.win.executableName`: `Painel - Portal Santos Tech`
+  - `build.win.icon`: `assets/icon.png`
+- `electron/electron/main.ts` passou a definir o titulo da janela com `Painel - Portal Santos Tech` e usar o icone local em `electron/assets/icon.png`.
+- O arquivo `electron/assets/icon.png` foi criado a partir de `web/public/faviconPreto.png`.
+
+## Validacao dessa personalizacao
+
+- `electron`: `npm run build`
+- `electron`: `npx electron-builder --dir`
+- executavel gerado: `electron/release/win-unpacked/Painel - Portal Santos Tech.exe`
 
 ## Refactor 2026-03-25 (Dashboard e shell em Tailwind/shadcn)
 

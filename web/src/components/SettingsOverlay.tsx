@@ -32,6 +32,17 @@ import {
   AnimatedToggle,
 } from "./animate-ui";
 import ConfirmModal from "./ConfirmModal";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import type { DesktopUpdateState } from "@/types/desktop";
 import { getCoverPositionY, getCoverZoom, setCoverPositionY, setCoverZoom } from "../utils/coverPosition";
 import {
   Users,
@@ -57,6 +68,10 @@ import {
   FolderOpen,
   Trash2,
   X,
+  Download,
+  RefreshCw,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 
 type SettingsSection = "conta" | "seguranca" | "configuracoes" | "aparencia" | "desempenho" | "turmas";
@@ -114,6 +129,44 @@ function loadSettings(): ProfileSettings {
   } catch {
     return defaultSettings;
   }
+}
+
+function formatUpdateCheckedAt(value: string | null) {
+  if (!value) return "Ainda nao verificado";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Ainda nao verificado";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function formatUpdateBytes(value: number | null) {
+  if (value === null || !Number.isFinite(value) || value < 0) return null;
+
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  return `${(value / 1024 ** 3).toFixed(1)} GB`;
+}
+
+function getUpdateBadgeVariant(status: DesktopUpdateState["status"]) {
+  if (status === "error") return "destructive";
+  if (status === "available" || status === "downloaded") return "default";
+  if (status === "checking" || status === "downloading") return "secondary";
+  return "outline";
+}
+
+function getUpdateStatusLabel(status: DesktopUpdateState["status"]) {
+  if (status === "checking") return "Verificando";
+  if (status === "available") return "Disponivel";
+  if (status === "up-to-date") return "Atualizado";
+  if (status === "downloading") return "Baixando";
+  if (status === "downloaded") return "Pronto";
+  if (status === "error") return "Erro";
+  return "Ocioso";
 }
 
 function roleLabelText(role: string | null | undefined) {
@@ -179,6 +232,8 @@ type SettingsOverlayProps = {
 
 export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsOverlayProps) {
   const roleLocal = getRole();
+  const desktopBridge = typeof window !== "undefined" ? window.desktop : undefined;
+  const isDesktopApp = Boolean(desktopBridge?.isElectron && desktopBridge.updates);
 
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("conta");
   const [mobileSection, setMobileSection] = React.useState<SettingsSection | null>(null);
@@ -238,6 +293,13 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const [statsLoading, setStatsLoading] = React.useState(false);
   const [statsError, setStatsError] = React.useState<string | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = React.useState(false);
+  const [desktopUpdateState, setDesktopUpdateState] = React.useState<DesktopUpdateState | null>(null);
+  const [desktopUpdateActionLoading, setDesktopUpdateActionLoading] = React.useState(false);
+  const [desktopDownloadConfirmOpen, setDesktopDownloadConfirmOpen] = React.useState(false);
+  const [desktopRestartConfirmOpen, setDesktopRestartConfirmOpen] = React.useState(false);
+  const promptedUpdateVersionRef = React.useRef<string | null>(null);
+  const dismissedUpdateVersionRef = React.useRef<string | null>(null);
+  const promptedRestartVersionRef = React.useRef<string | null>(null);
 
   async function buildCroppedCoverFile(
     file: File,
@@ -293,6 +355,18 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const mobileTitle = mobileSection
     ? NAV_ITEMS.find((item) => item.key === mobileSection)?.label || "Configurações"
     : "Configurações";
+  const desktopUpdateBusy =
+    desktopUpdateActionLoading ||
+    desktopUpdateState?.status === "checking" ||
+    desktopUpdateState?.status === "downloading";
+  const desktopUpdateProgressLabel =
+    desktopUpdateState &&
+    desktopUpdateState.transferredBytes !== null &&
+    desktopUpdateState.totalBytes !== null
+      ? `${formatUpdateBytes(desktopUpdateState.transferredBytes) ?? "--"} / ${formatUpdateBytes(
+          desktopUpdateState.totalBytes
+        ) ?? "--"}`
+      : null;
   const logoutAction = () => setLogoutConfirmOpen(true);
   const refreshCoverAspectRatio = React.useCallback(() => {
     const rect = coverPreviewBannerRef.current?.getBoundingClientRect();
@@ -448,6 +522,158 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     }
     return () => { document.body.style.overflow = "unset"; };
   }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!isDesktopApp || !desktopBridge?.updates) return;
+
+    let active = true;
+    void desktopBridge.updates
+      .getState()
+      .then((nextState) => {
+        if (!active) return;
+        setDesktopUpdateState(nextState);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setDesktopUpdateState({
+          status: "error",
+          currentVersion: "desconhecida",
+          version: null,
+          percent: null,
+          transferredBytes: null,
+          totalBytes: null,
+          bytesPerSecond: null,
+          checkedAt: null,
+          message: error instanceof Error ? error.message : "Nao foi possivel ler o estado de atualizacao.",
+          source: null,
+        });
+      });
+
+    const unsubscribe = desktopBridge.updates.subscribe((nextState) => {
+      if (!active) return;
+      setDesktopUpdateState(nextState);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [desktopBridge, isDesktopApp]);
+
+  React.useEffect(() => {
+    if (desktopUpdateState?.status !== "available") {
+      setDesktopDownloadConfirmOpen(false);
+    }
+
+    if (desktopUpdateState?.status !== "downloaded") {
+      setDesktopRestartConfirmOpen(false);
+    }
+  }, [desktopUpdateState?.status]);
+
+  React.useEffect(() => {
+    if (!desktopUpdateState?.version) return;
+
+    if (desktopUpdateState.status === "available") {
+      if (dismissedUpdateVersionRef.current === desktopUpdateState.version) return;
+      if (promptedUpdateVersionRef.current === desktopUpdateState.version) return;
+
+      promptedUpdateVersionRef.current = desktopUpdateState.version;
+      setDesktopDownloadConfirmOpen(true);
+      return;
+    }
+
+    if (desktopUpdateState.status === "downloaded") {
+      if (promptedRestartVersionRef.current === desktopUpdateState.version) return;
+
+      promptedRestartVersionRef.current = desktopUpdateState.version;
+      setDesktopRestartConfirmOpen(true);
+    }
+  }, [desktopUpdateState]);
+
+  const handleManualDesktopUpdateCheck = async () => {
+    if (!desktopBridge?.updates) return;
+
+    dismissedUpdateVersionRef.current = null;
+    setDesktopUpdateActionLoading(true);
+    setFeedback(null);
+    try {
+      const nextState = await desktopBridge.updates.check();
+      setDesktopUpdateState(nextState);
+      if (nextState.status === "up-to-date") {
+        setFeedback({
+          type: "success",
+          message: nextState.message || "Voce ja esta na versao mais recente.",
+        });
+      }
+      if (nextState.status === "error") {
+        setFeedback({
+          type: "error",
+          message: nextState.message || "Nao foi possivel verificar atualizacoes.",
+        });
+      }
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel verificar atualizacoes.",
+      });
+    } finally {
+      setDesktopUpdateActionLoading(false);
+    }
+  };
+
+  const handleDismissDesktopDownloadPrompt = () => {
+    dismissedUpdateVersionRef.current = desktopUpdateState?.version ?? dismissedUpdateVersionRef.current;
+    setDesktopDownloadConfirmOpen(false);
+  };
+
+  const handleDesktopUpdateDownload = async () => {
+    if (!desktopBridge?.updates) return;
+
+    setDesktopUpdateActionLoading(true);
+    setFeedback(null);
+    try {
+      const nextState = await desktopBridge.updates.download();
+      setDesktopUpdateState(nextState);
+      if (nextState.status === "error") {
+        setFeedback({
+          type: "error",
+          message: nextState.message || "Nao foi possivel baixar a atualizacao.",
+        });
+      } else {
+        setDesktopDownloadConfirmOpen(false);
+      }
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel baixar a atualizacao.",
+      });
+    } finally {
+      setDesktopUpdateActionLoading(false);
+    }
+  };
+
+  const handleDesktopQuitAndInstall = async () => {
+    if (!desktopBridge?.updates) return;
+
+    setDesktopUpdateActionLoading(true);
+    setFeedback(null);
+    try {
+      const started = await desktopBridge.updates.quitAndInstall();
+      if (!started) {
+        setFeedback({
+          type: "error",
+          message: "A atualizacao ainda nao esta pronta para instalar.",
+        });
+      }
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Nao foi possivel reiniciar para instalar.",
+      });
+    } finally {
+      setDesktopUpdateActionLoading(false);
+    }
+  };
 
   const handleChangeSenha = async () => {
     if (!senhaAtual?.trim()) { setFeedback({ type: "error", message: "Preencha a senha atual." }); return; }
@@ -938,6 +1164,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     };
   }, [coverViewerOpen, editorCoverSrc, coverAspectRatio]);
 
+<<<<<<< Updated upstream
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -946,6 +1173,42 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
         showCloseButton={false}
       >
             <DialogTitle className="sr-only">Configurações da conta</DialogTitle>
+=======
+  const buildDismissOverlayClickHandler =
+    (onDismiss: () => void) => (event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+      onDismiss();
+    };
+
+  const buildDismissOverlayKeyDownHandler =
+    (onDismiss: () => void) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (event.target !== event.currentTarget) return;
+      event.preventDefault();
+      onDismiss();
+    };
+
+  return createPortal(
+    <>
+    <AnimatePresence>
+      {isOpen && (
+        <m.div
+          className="settingsOverlay"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <m.div
+            className="settingsPanel"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.97, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: 10 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+>>>>>>> Stashed changes
             {/* Close button */}
             <button
               className={cn(overlayButtonClass, "absolute right-4 top-4 z-20 hidden sm:inline-flex")}
@@ -1348,6 +1611,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   {/* CONFIGURAÇÕES (Notificações + Compacto) */}
                   {activeSection === "configuracoes" && (
                     <>
+<<<<<<< Updated upstream
                       <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Configurações</h2>
                       <section className={settingsCardClass}>
                         <div className="flex flex-col gap-4">
@@ -1355,6 +1619,156 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                             <div className="space-y-1">
                               <h3 className={settingsTitleClass}>Notificações por e-mail</h3>
                               <p className={settingsTextClass}>Receba alertas sobre novas atividades e avisos</p>
+=======
+                      <h2 className="settingsSectionTitle">Configurações</h2>
+                      <section className="perfilCard">
+                        {isDesktopApp ? (
+                          <Card className="mb-4 border-border/70 bg-background/70 shadow-none">
+                            <CardHeader className="gap-3 pb-4">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-1">
+                                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <RefreshCw
+                                      size={16}
+                                      className={
+                                        desktopUpdateState?.status === "checking" ||
+                                        desktopUpdateState?.status === "downloading"
+                                          ? "animate-spin"
+                                          : ""
+                                      }
+                                    />
+                                    <span>Atualizacoes do aplicativo</span>
+                                  </div>
+                                  <CardTitle className="text-lg font-extrabold tracking-[-0.02em]">
+                                    Painel - Portal Santos Tech
+                                  </CardTitle>
+                                  <CardDescription>
+                                    Versao atual {desktopUpdateState?.currentVersion ?? "Carregando..."}
+                                  </CardDescription>
+                                </div>
+                                <Badge
+                                  variant={
+                                    desktopUpdateState
+                                      ? getUpdateBadgeVariant(desktopUpdateState.status)
+                                      : "outline"
+                                  }
+                                  className="self-start"
+                                >
+                                  {desktopUpdateState
+                                    ? getUpdateStatusLabel(desktopUpdateState.status)
+                                    : "Carregando"}
+                                </Badge>
+                              </div>
+                            </CardHeader>
+
+                            <CardContent className="space-y-4">
+                              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                                <p className="text-sm leading-6 text-foreground">
+                                  {desktopUpdateState?.message || "Lendo estado do aplicativo..."}
+                                </p>
+                                {desktopUpdateState?.status === "error" ? (
+                                  <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">
+                                    <AlertTriangle size={14} />
+                                    <span>Falha nao fatal. O app continua funcionando normalmente.</span>
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
+                                <div className="rounded-2xl border border-border/60 bg-background/50 p-3">
+                                  <div className="font-semibold text-foreground">Versao atual</div>
+                                  <div className="mt-1">
+                                    {desktopUpdateState?.currentVersion ?? "Carregando..."}
+                                  </div>
+                                </div>
+                                <div className="rounded-2xl border border-border/60 bg-background/50 p-3">
+                                  <div className="font-semibold text-foreground">Versao alvo</div>
+                                  <div className="mt-1">{desktopUpdateState?.version ?? "--"}</div>
+                                </div>
+                                <div className="rounded-2xl border border-border/60 bg-background/50 p-3">
+                                  <div className="font-semibold text-foreground">Ultima verificacao</div>
+                                  <div className="mt-1">
+                                    {formatUpdateCheckedAt(desktopUpdateState?.checkedAt ?? null)}
+                                  </div>
+                                </div>
+                                <div className="rounded-2xl border border-border/60 bg-background/50 p-3">
+                                  <div className="font-semibold text-foreground">Transferencia</div>
+                                  <div className="mt-1">{desktopUpdateProgressLabel ?? "--"}</div>
+                                </div>
+                              </div>
+
+                              {desktopUpdateState?.status === "downloading" ||
+                              desktopUpdateState?.status === "downloaded" ? (
+                                <div className="space-y-2 rounded-2xl border border-border/60 bg-background/50 p-4">
+                                  <div className="flex items-center justify-between gap-3 text-xs font-semibold text-muted-foreground">
+                                    <span>Progresso do download</span>
+                                    <span>{desktopUpdateState.percent ?? 0}%</span>
+                                  </div>
+                                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                    <div
+                                      className="h-full rounded-full bg-primary transition-all duration-300"
+                                      style={{ width: `${desktopUpdateState.percent ?? 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              <Separator />
+
+                              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-10 rounded-xl"
+                                  onClick={() => void handleManualDesktopUpdateCheck()}
+                                  disabled={desktopUpdateBusy}
+                                >
+                                  <RefreshCw
+                                    size={16}
+                                    className={desktopUpdateBusy ? "animate-spin" : ""}
+                                  />
+                                  <span>Verificar atualizacoes</span>
+                                </Button>
+
+                                {desktopUpdateState?.status === "available" ? (
+                                  <Button
+                                    type="button"
+                                    className="h-10 rounded-xl"
+                                    onClick={() => {
+                                      dismissedUpdateVersionRef.current = null;
+                                      setDesktopDownloadConfirmOpen(true);
+                                    }}
+                                    disabled={desktopUpdateBusy}
+                                  >
+                                    <Download size={16} />
+                                    <span>Baixar agora</span>
+                                  </Button>
+                                ) : null}
+
+                                {desktopUpdateState?.status === "downloaded" ? (
+                                  <Button
+                                    type="button"
+                                    className="h-10 rounded-xl"
+                                    onClick={() => {
+                                      setDesktopRestartConfirmOpen(true);
+                                    }}
+                                    disabled={desktopUpdateBusy}
+                                  >
+                                    <RotateCcw size={16} />
+                                    <span>Reiniciar e instalar</span>
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ) : null}
+
+                        <div className="settingsGrid">
+                          <div className="settingsItem">
+                            <div className="settingsInfo">
+                              <h3>Notificações por e-mail</h3>
+                              <p>Receba alertas sobre novas atividades e avisos</p>
+>>>>>>> Stashed changes
                             </div>
                             <AnimatedToggle
                               checked={settings.emailNotificacoes}
@@ -1798,6 +2212,48 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
               onLogout();
             }}
           />
+<<<<<<< Updated upstream
     </Dialog>
+=======
+        </m.div>
+      )}
+    </AnimatePresence>
+      <ConfirmModal
+        isOpen={desktopDownloadConfirmOpen}
+        title="Nova atualizacao disponivel"
+        message={
+          desktopUpdateState?.version
+            ? `A versao ${desktopUpdateState.version} esta pronta para download. Deseja baixar agora?`
+            : "Ha uma nova atualizacao disponivel. Deseja baixar agora?"
+        }
+        confirmText="Baixar agora"
+        cancelText="Depois"
+        overlayZIndex={10005}
+        isLoading={desktopUpdateBusy && desktopUpdateState?.status !== "downloaded"}
+        onCancel={handleDismissDesktopDownloadPrompt}
+        onConfirm={() => {
+          void handleDesktopUpdateDownload();
+        }}
+      />
+      <ConfirmModal
+        isOpen={desktopRestartConfirmOpen}
+        title="Atualizacao pronta"
+        message={
+          desktopUpdateState?.version
+            ? `A versao ${desktopUpdateState.version} foi baixada. Reiniciar agora para instalar?`
+            : "A atualizacao foi baixada. Reiniciar agora para instalar?"
+        }
+        confirmText="Reiniciar agora"
+        cancelText="Depois"
+        overlayZIndex={10005}
+        isLoading={desktopUpdateActionLoading}
+        onCancel={() => setDesktopRestartConfirmOpen(false)}
+        onConfirm={() => {
+          void handleDesktopQuitAndInstall();
+        }}
+      />
+    </>,
+    document.body
+>>>>>>> Stashed changes
   );
 }

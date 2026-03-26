@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 
 docker-compose.*
+dist-electron/
+renderer-dist/
+release/

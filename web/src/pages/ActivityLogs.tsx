@@ -537,10 +537,18 @@ export default function ActivityLogsPage() {
             </ScaleIn>
           </div>
 
+<<<<<<< Updated upstream
           <div className={`${panelClass} p-4`}>
             <div className="flex flex-wrap gap-2">
               <div className="relative min-w-[260px] flex-1">
                 <span className="pointer-events-none absolute left-3 top-1/2 inline-flex -translate-y-1/2 text-muted-foreground">
+=======
+          {/* Search & Filter Bar */}
+          <div className="alToolbar">
+            <div className="alSearchRow">
+              <div className="alSearchWrap">
+                <span className="alSearchIcon">
+>>>>>>> Stashed changes
                   <Search size={16} />
                 </span>
                 <Input

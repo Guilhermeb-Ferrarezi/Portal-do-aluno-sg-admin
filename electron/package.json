@@ -1,0 +1,69 @@
+{
+  "name": "painel-portal-santos-tech",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Painel - Portal Santos Tech em Electron usando a pasta web como renderer.",
+  "author": "Santos Tech",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:wrapper\" \"npm:dev:electron\"",
+    "dev:renderer": "npm --prefix ../web run dev -- --host 127.0.0.1 --port 5173 --strictPort",
+    "dev:wrapper": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "dev:electron": "wait-on tcp:5173 file:dist-electron/electron/main.js && powershell -NoProfile -Command \"Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue; electron .\"",
+    "build:renderer": "npm --prefix ../web run build",
+    "sync:renderer": "tsx scripts/sync-renderer.ts",
+    "build:wrapper": "tsc -p tsconfig.json",
+    "build": "npm run build:renderer && npm run sync:renderer && npm run build:wrapper",
+    "start": "npm run build && powershell -NoProfile -Command \"Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue; electron .\"",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist": "npm run dist:win",
+    "publish:release": "tsx scripts/publish-release.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "electron-updater": "^6.6.2",
+    "express": "^4.21.0",
+    "http-proxy-middleware": "^3.0.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.922.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^24.10.10",
+    "concurrently": "^9.0.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
+    "typescript": "~5.9.3",
+    "tsx": "^4.20.0",
+    "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.santostech.painelportalsantostech.desktop",
+    "productName": "Painel - Portal Santos Tech",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "assets/**/*",
+      "dist-electron/**/*",
+      "renderer-dist/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "electronUpdaterCompatibility": ">=2.16",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://cdn.portaldoaluno.santos-tech.com/desktop/painel/win",
+        "channel": "latest"
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.png",
+      "executableName": "Painel - Portal Santos Tech",
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}
