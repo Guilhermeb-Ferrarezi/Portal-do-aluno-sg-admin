@@ -537,23 +537,17 @@ export default function ActivityLogsPage() {
             </ScaleIn>
           </div>
 
-<<<<<<< Updated upstream
-          <div className={`${panelClass} p-4`}>
-            <div className="flex flex-wrap gap-2">
-              <div className="relative min-w-[260px] flex-1">
-                <span className="pointer-events-none absolute left-3 top-1/2 inline-flex -translate-y-1/2 text-muted-foreground">
-=======
           {/* Search & Filter Bar */}
-          <div className="alToolbar">
-            <div className="alSearchRow">
-              <div className="alSearchWrap">
-                <span className="alSearchIcon">
->>>>>>> Stashed changes
+          <div className={cn(panelClass, "p-4 sm:p-5")}>
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+              <div className="relative min-w-[260px] flex-1">
+                <span className="pointer-events-none absolute left-4 top-1/2 z-10 inline-flex -translate-y-1/2 items-center justify-center text-muted-foreground">
                   <Search size={16} />
                 </span>
                 <Input
                   type="text"
-                  className="h-11 rounded-xl border-input bg-background/80 pl-10 pr-10"
+                  className="h-11 rounded-xl border-input bg-background/80 pr-10"
+                  style={{ paddingLeft: "3.75rem" }}
                   placeholder="Buscar por usuário, ação, entidade..."
                   value={draft.q}
                   onChange={(e) => setDraft((prev) => ({ ...prev, q: e.target.value }))}
@@ -569,35 +563,37 @@ export default function ActivityLogsPage() {
                   </button>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="relative h-11 rounded-xl border-border/70 bg-background/80 px-4"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <span className="inline-flex">
-                  <SlidersHorizontal size={16} />
-                </span>
-                Filtros
-                {hasActiveFilters && <span className="absolute right-2 top-2 size-2 rounded-full bg-primary" />}
-              </Button>
-              <Button
-                type="button"
-                className="h-11 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
-                onClick={aplicarFiltros}
-              >
-                Buscar
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="size-11 rounded-xl border-border/70 bg-background/80"
-                onClick={carregarLogs}
-                title="Atualizar"
-              >
-                <RefreshCcw size={16} />
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="relative h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <span className="inline-flex">
+                    <SlidersHorizontal size={16} />
+                  </span>
+                  Filtros
+                  {hasActiveFilters && <span className="absolute right-2 top-2 size-2 rounded-full bg-primary" />}
+                </Button>
+                <Button
+                  type="button"
+                  className="h-11 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+                  onClick={aplicarFiltros}
+                >
+                  Buscar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-11 rounded-xl border-border/70 bg-background/80"
+                  onClick={carregarLogs}
+                  title="Atualizar"
+                >
+                  <RefreshCcw size={16} />
+                </Button>
+              </div>
             </div>
 
             {showFilters && (

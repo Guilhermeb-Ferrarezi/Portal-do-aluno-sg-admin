@@ -526,12 +526,13 @@ export default function ExerciseDetail() {
                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Filtro: Busca
                 </label>
-                <div className="flex h-11 items-center overflow-hidden rounded-xl border border-input bg-background/80 px-4 transition focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
+                <div className="flex h-11 items-center gap-2 rounded-xl border border-input bg-background/80 px-4 transition focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
                   <span className="flex w-5 shrink-0 items-center justify-center text-muted-foreground">
                     <Search size={15} aria-hidden="true" />
                   </span>
-                  <Input
-                    className="h-full min-w-0 rounded-none border-0 bg-transparent px-0 pl-2 shadow-none dark:bg-transparent focus-visible:border-0 focus-visible:ring-0"
+                  <input
+                    type="text"
+                    className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                     value={query}
                     onChange={(e) => {
                       setQuery(e.target.value);

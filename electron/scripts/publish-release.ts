@@ -3,7 +3,12 @@ import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import dotenv from "dotenv";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 type PackageJson = {
   version: string;
@@ -12,12 +17,14 @@ type PackageJson = {
 
 type ReleaseArtifact = {
   fileName: string;
+  objectName?: string;
   filePath: string;
   contentType: string;
   cacheControl: string;
 };
 
 const DEFAULT_UPDATES_PREFIX = "desktop/painel/win";
+const DEFAULT_INSTALLER_ALIAS = "Painel - Portal Santos Tech Setup Latest.exe";
 
 const electronRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(electronRoot, "..");
@@ -47,9 +54,53 @@ function normalizeBaseUrl(url: string) {
   return url.replace(/\/+$/g, "");
 }
 
+function toPublicFileName(artifact: ReleaseArtifact) {
+  return artifact.objectName ?? artifact.fileName;
+}
+
+function isManagedReleaseObject(fileName: string) {
+  return (
+    fileName === "latest.yml" ||
+    fileName.endsWith(".exe") ||
+    fileName.endsWith(".exe.blockmap")
+  );
+}
+
+function hasWindowsSigningConfigured() {
+  return [
+    process.env.CSC_LINK,
+    process.env.CSC_KEY_PASSWORD,
+    process.env.WIN_CSC_LINK,
+    process.env.WIN_CSC_KEY_PASSWORD,
+    process.env.CSC_NAME,
+  ].some((value) => value?.trim());
+}
+
+function quoteWindowsShellArg(value: string) {
+  if (!/[\s"&|<>^()]/.test(value)) {
+    return value;
+  }
+
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
 async function runCommand(command: string, args: string[], cwd: string) {
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, {
+    const isWindowsCmd =
+      process.platform === "win32" &&
+      (/\.cmd$/i.test(command) || /\.bat$/i.test(command) || command === "npm");
+
+    const finalCommand = isWindowsCmd ? process.env.ComSpec || "cmd.exe" : command;
+    const finalArgs = isWindowsCmd
+      ? [
+          "/d",
+          "/s",
+          "/c",
+          [command.replace(/\.(cmd|bat)$/i, ""), ...args].map(quoteWindowsShellArg).join(" "),
+        ]
+      : args;
+
+    const child = spawn(finalCommand, finalArgs, {
       cwd,
       stdio: "inherit",
       shell: false,
@@ -62,7 +113,11 @@ async function runCommand(command: string, args: string[], cwd: string) {
         return;
       }
 
-      reject(new Error(`Comando falhou (${command} ${args.join(" ")}), exit code=${String(code)}`));
+      reject(
+        new Error(
+          `Comando falhou (${finalCommand} ${finalArgs.join(" ")}), exit code=${String(code)}`
+        )
+      );
     });
   });
 }
@@ -102,6 +157,13 @@ async function collectArtifacts(version: string) {
       cacheControl: "public, max-age=31536000, immutable",
     },
     {
+      fileName: installer,
+      objectName: DEFAULT_INSTALLER_ALIAS,
+      filePath: path.join(releaseDir, installer),
+      contentType: "application/vnd.microsoft.portable-executable",
+      cacheControl: "no-cache, no-store, must-revalidate",
+    },
+    {
       fileName: blockmap,
       filePath: path.join(releaseDir, blockmap),
       contentType: "application/octet-stream",
@@ -126,7 +188,8 @@ async function uploadArtifacts(
   artifacts: ReleaseArtifact[]
 ) {
   for (const artifact of artifacts) {
-    const objectKey = `${prefix}/${artifact.fileName}`;
+    const publicFileName = toPublicFileName(artifact);
+    const objectKey = `${prefix}/${publicFileName}`;
     console.log(`Enviando ${artifact.fileName} -> ${objectKey}`);
 
     await client.send(
@@ -139,7 +202,61 @@ async function uploadArtifacts(
       })
     );
 
-    console.log(`Publicado: ${publicBaseUrl}/${artifact.fileName}`);
+    console.log(`Publicado: ${publicBaseUrl}/${publicFileName}`);
+  }
+}
+
+async function cleanupStaleArtifacts(
+  client: S3Client,
+  bucket: string,
+  prefix: string,
+  artifacts: ReleaseArtifact[]
+) {
+  const keepFiles = new Set(artifacts.map(toPublicFileName));
+  const staleKeys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const response = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: `${prefix}/`,
+        ContinuationToken: continuationToken,
+      })
+    );
+
+    for (const entry of response.Contents ?? []) {
+      const key = entry.Key;
+      if (!key) continue;
+      const fileName = key.slice(prefix.length + 1);
+      if (!fileName || !isManagedReleaseObject(fileName)) continue;
+      if (keepFiles.has(fileName)) continue;
+      staleKeys.push(key);
+    }
+
+    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  if (staleKeys.length === 0) {
+    console.log("Nenhum artefato antigo para remover no R2.");
+    return;
+  }
+
+  for (let index = 0; index < staleKeys.length; index += 1000) {
+    const chunk = staleKeys.slice(index, index + 1000);
+    await client.send(
+      new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: {
+          Objects: chunk.map((key) => ({ Key: key })),
+          Quiet: false,
+        },
+      })
+    );
+  }
+
+  for (const key of staleKeys) {
+    console.log(`Removido do R2: ${key}`);
   }
 }
 
@@ -167,8 +284,13 @@ async function main() {
   );
 
   console.log(`Gerando release ${version} de ${packageJson.productName ?? "Electron App"}...`);
+  if (!hasWindowsSigningConfigured()) {
+    console.warn(
+      "Aviso: nenhuma credencial de assinatura Windows foi encontrada. O instalador sera gerado sem assinatura confiavel."
+    );
+  }
 
-  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const npmCommand = "npm";
   await runCommand(npmCommand, ["run", "dist:win"], electronRoot);
 
   const artifacts = await collectArtifacts(version);
@@ -183,6 +305,7 @@ async function main() {
   });
 
   await uploadArtifacts(s3, bucket, prefix, publicBaseUrl, artifacts);
+  await cleanupStaleArtifacts(s3, bucket, prefix, artifacts);
 
   console.log("");
   console.log(`Release ${version} publicada com sucesso.`);

@@ -1,7 +1,14 @@
 import React from "react";
 import { getRole } from "../auth/auth";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -12,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   alterarMinhaSenha,
@@ -32,16 +40,6 @@ import {
   AnimatedToggle,
 } from "./animate-ui";
 import ConfirmModal from "./ConfirmModal";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import type { DesktopUpdateState } from "@/types/desktop";
 import { getCoverPositionY, getCoverZoom, setCoverPositionY, setCoverZoom } from "../utils/coverPosition";
 import {
@@ -93,6 +91,8 @@ type ProfileSettings = {
 };
 
 const SETTINGS_KEY = "perfil_settings";
+const DEFAULT_DESKTOP_INSTALLER_URL =
+  "https://cdn.portaldoaluno.santos-tech.com/desktop/painel/win/Painel%20-%20Portal%20Santos%20Tech%20Setup%20Latest.exe";
 
 const iconLabel = (icon: React.ReactNode, label: string) => (
   <span className="inline-flex items-center gap-1.5">
@@ -234,6 +234,9 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const roleLocal = getRole();
   const desktopBridge = typeof window !== "undefined" ? window.desktop : undefined;
   const isDesktopApp = Boolean(desktopBridge?.isElectron && desktopBridge.updates);
+  const desktopInstallerUrl =
+    (import.meta.env.VITE_DESKTOP_INSTALLER_URL as string | undefined)?.trim() ||
+    DEFAULT_DESKTOP_INSTALLER_URL;
 
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("conta");
   const [mobileSection, setMobileSection] = React.useState<SettingsSection | null>(null);
@@ -674,6 +677,25 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
       setDesktopUpdateActionLoading(false);
     }
   };
+
+  const handleInstallDesktopApp = React.useCallback(() => {
+    if (typeof document === "undefined") return;
+
+    setFeedback(null);
+
+    const link = document.createElement("a");
+    link.href = desktopInstallerUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setFeedback({
+      type: "success",
+      message: "Download do instalador desktop iniciado.",
+    });
+  }, [desktopInstallerUrl]);
 
   const handleChangeSenha = async () => {
     if (!senhaAtual?.trim()) { setFeedback({ type: "error", message: "Preencha a senha atual." }); return; }
@@ -1164,61 +1186,22 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     };
   }, [coverViewerOpen, editorCoverSrc, coverAspectRatio]);
 
-<<<<<<< Updated upstream
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         overlayClassName="z-[10001] bg-black/72 backdrop-blur-md sm:p-6"
         className="z-[10002] h-dvh max-h-dvh w-screen max-w-none gap-0 overflow-hidden border-none bg-background/95 p-0 shadow-2xl shadow-black/40 sm:h-[min(86vh,840px)] sm:max-h-[86vh] sm:w-[min(1100px,calc(100vw-3rem))] sm:rounded-[28px]"
         showCloseButton={false}
       >
             <DialogTitle className="sr-only">Configurações da conta</DialogTitle>
-=======
-  const buildDismissOverlayClickHandler =
-    (onDismiss: () => void) => (event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return;
-      onDismiss();
-    };
-
-  const buildDismissOverlayKeyDownHandler =
-    (onDismiss: () => void) => (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      if (event.target !== event.currentTarget) return;
-      event.preventDefault();
-      onDismiss();
-    };
-
-  return createPortal(
-    <>
-    <AnimatePresence>
-      {isOpen && (
-        <m.div
-          className="settingsOverlay"
-          onClick={onClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <m.div
-            className="settingsPanel"
-            onClick={(e) => e.stopPropagation()}
-            initial={{ opacity: 0, scale: 0.97, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          >
->>>>>>> Stashed changes
             {/* Close button */}
             <button
-              className={cn(overlayButtonClass, "absolute right-4 top-4 z-20 hidden sm:inline-flex")}
+              className={cn(floatingIconButtonClass, "absolute right-5 top-5 z-20 hidden sm:inline-flex")}
               onClick={onClose}
               aria-label="Fechar configurações"
             >
-              <X size={20} />
-              <span className="rounded-md border border-border/70 bg-muted/70 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                ESC
-              </span>
+              <X size={18} />
             </button>
 
             <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-background/90 px-4 py-4 sm:px-5 lg:hidden">
@@ -1611,17 +1594,58 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   {/* CONFIGURAÇÕES (Notificações + Compacto) */}
                   {activeSection === "configuracoes" && (
                     <>
-<<<<<<< Updated upstream
                       <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Configurações</h2>
                       <section className={settingsCardClass}>
-                        <div className="flex flex-col gap-4">
-                          <div className={settingsItemClass}>
-                            <div className="space-y-1">
-                              <h3 className={settingsTitleClass}>Notificações por e-mail</h3>
-                              <p className={settingsTextClass}>Receba alertas sobre novas atividades e avisos</p>
-=======
-                      <h2 className="settingsSectionTitle">Configurações</h2>
-                      <section className="perfilCard">
+                        {!isDesktopApp ? (
+                          <Card className="mb-4 border-border/70 bg-background/70 shadow-none">
+                            <CardHeader className="gap-3 pb-4">
+                              <div className="space-y-1">
+                                <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                                  <Laptop size={16} />
+                                  <span>Versao desktop</span>
+                                </div>
+                                <CardTitle className="text-lg font-extrabold tracking-[-0.02em]">
+                                  Instalar aplicativo no Windows
+                                </CardTitle>
+                                <CardDescription>
+                                  Baixe o app desktop com atualizacoes automaticas e acesso rapido pelo computador.
+                                </CardDescription>
+                              </div>
+                            </CardHeader>
+
+                            <CardContent className="space-y-4">
+                              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                                <p className="text-sm leading-6 text-foreground">
+                                  Instale a versao desktop do Painel - Portal Santos Tech para usar o sistema no
+                                  Windows com atualizacoes pelo proprio aplicativo.
+                                </p>
+                              </div>
+
+                              <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
+                                <div className="rounded-2xl border border-border/60 bg-background/50 p-3">
+                                  <div className="font-semibold text-foreground">Plataforma</div>
+                                  <div className="mt-1">Windows</div>
+                                </div>
+                                <div className="rounded-2xl border border-border/60 bg-background/50 p-3">
+                                  <div className="font-semibold text-foreground">Entrega</div>
+                                  <div className="mt-1">Instalador desktop mais recente</div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                <Button
+                                  type="button"
+                                  className="h-10 rounded-xl"
+                                  onClick={handleInstallDesktopApp}
+                                >
+                                  <Download size={16} />
+                                  <span>Instalar versao desktop</span>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ) : null}
+
                         {isDesktopApp ? (
                           <Card className="mb-4 border-border/70 bg-background/70 shadow-none">
                             <CardHeader className="gap-3 pb-4">
@@ -1663,7 +1687,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
 
                             <CardContent className="space-y-4">
                               <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-                                <p className="text-sm leading-6 text-foreground">
+                                <p className="break-words text-sm leading-6 text-foreground">
                                   {desktopUpdateState?.message || "Lendo estado do aplicativo..."}
                                 </p>
                                 {desktopUpdateState?.status === "error" ? (
@@ -1763,12 +1787,11 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                           </Card>
                         ) : null}
 
-                        <div className="settingsGrid">
-                          <div className="settingsItem">
-                            <div className="settingsInfo">
-                              <h3>Notificações por e-mail</h3>
-                              <p>Receba alertas sobre novas atividades e avisos</p>
->>>>>>> Stashed changes
+                        <div className="flex flex-col gap-4">
+                          <div className={settingsItemClass}>
+                            <div className="space-y-1">
+                              <h3 className={settingsTitleClass}>Notificações por e-mail</h3>
+                              <p className={settingsTextClass}>Receba alertas sobre novas atividades e avisos</p>
                             </div>
                             <AnimatedToggle
                               checked={settings.emailNotificacoes}
@@ -2212,19 +2235,14 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
               onLogout();
             }}
           />
-<<<<<<< Updated upstream
-    </Dialog>
-=======
-        </m.div>
-      )}
-    </AnimatePresence>
+      </Dialog>
       <ConfirmModal
         isOpen={desktopDownloadConfirmOpen}
-        title="Nova atualizacao disponivel"
+        title="Nova atualização disponível"
         message={
           desktopUpdateState?.version
-            ? `A versao ${desktopUpdateState.version} esta pronta para download. Deseja baixar agora?`
-            : "Ha uma nova atualizacao disponivel. Deseja baixar agora?"
+            ? `A versão ${desktopUpdateState.version} está pronta para download. Deseja baixar agora?`
+            : "Há uma nova atualização disponível. Deseja baixar agora?"
         }
         confirmText="Baixar agora"
         cancelText="Depois"
@@ -2237,11 +2255,11 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
       />
       <ConfirmModal
         isOpen={desktopRestartConfirmOpen}
-        title="Atualizacao pronta"
+        title="Atualização pronta"
         message={
           desktopUpdateState?.version
-            ? `A versao ${desktopUpdateState.version} foi baixada. Reiniciar agora para instalar?`
-            : "A atualizacao foi baixada. Reiniciar agora para instalar?"
+            ? `A versão ${desktopUpdateState.version} foi baixada. Reiniciar agora para instalar?`
+            : "A atualização foi baixada. Reiniciar agora para instalar?"
         }
         confirmText="Reiniciar agora"
         cancelText="Depois"
@@ -2252,8 +2270,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
           void handleDesktopQuitAndInstall();
         }}
       />
-    </>,
-    document.body
->>>>>>> Stashed changes
+    </>
   );
 }

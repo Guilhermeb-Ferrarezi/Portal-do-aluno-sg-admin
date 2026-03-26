@@ -22,13 +22,39 @@ function toRoundedPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value * 10) / 10));
 }
 
+function normalizeErrorText(error: unknown) {
+  if (!(error instanceof Error)) return "";
+
+  const raw = error.message.trim();
+  if (!raw) return "";
+
+  return raw.replace(/\s+/g, " ");
+}
+
 function toErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    const message = error.message.trim();
-    if (message) return message;
+  const message = normalizeErrorText(error);
+  if (!message) return "Nao foi possivel verificar atualizacoes agora.";
+
+  if (message.includes("latest.yml") && message.includes("404")) {
+    return "Feed de atualizacao nao encontrado (latest.yml). Publique a release desktop no CDN e tente novamente.";
   }
 
-  return "Nao foi possivel verificar atualizacoes agora.";
+  if (
+    message.includes("ENOTFOUND") ||
+    message.includes("ECONNREFUSED") ||
+    message.includes("ETIMEDOUT") ||
+    message.includes("ERR_CONNECTION") ||
+    message.includes("ERR_INTERNET")
+  ) {
+    return "Nao foi possivel acessar o servidor de atualizacoes agora. Verifique a conexao e tente novamente.";
+  }
+
+  if (message.includes("sha512") || message.includes("checksum") || message.includes("blockmap")) {
+    return "Os arquivos publicados de atualizacao parecem invalidos. Gere e publique a release novamente.";
+  }
+
+  const firstLine = message.split(/ at /, 1)[0]?.trim() || message;
+  return firstLine.slice(0, 240);
 }
 
 function buildState(
@@ -80,7 +106,7 @@ export function createDesktopUpdateService(writeLog: WriteLog) {
 
   function setErrorState(error: unknown) {
     const message = toErrorMessage(error);
-    writeLog(`Updater error: ${message}`);
+    writeLog(`Updater error: ${normalizeErrorText(error) || String(error)}`);
     setState({
       status: "error",
       version: pendingUpdateInfo?.version ?? state.version,

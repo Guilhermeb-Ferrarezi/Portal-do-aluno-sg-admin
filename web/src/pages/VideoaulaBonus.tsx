@@ -723,7 +723,7 @@ export default function VideoaulaBonusPage() {
                   ) : (
                     <video className="h-full w-full bg-black" controls>
                       <source src={playableVideoUrl} type="video/mp4" />
-                      Seu navegador nao suporta a tag de video.
+                      Seu navegador não suporta a tag de video.
                     </video>
                   )}
                 </div>

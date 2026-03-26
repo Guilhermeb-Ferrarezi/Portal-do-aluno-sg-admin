@@ -10,13 +10,20 @@ import { app, BrowserWindow, shell } from "electron";
 import { createDesktopUpdateService } from "./update-service";
 
 const APP_NAME = "Painel - Portal Santos Tech";
+const APP_ID = "com.santostech.painelportalsantostech.desktop";
 const appRoot = path.join(__dirname, "..", "..");
 dotenv.config({ path: path.join(appRoot, ".env") });
 app.setName(APP_NAME);
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_ID);
+}
 
 const devRendererUrl = "http://127.0.0.1:5173";
 const rendererDistPath = path.join(appRoot, "renderer-dist");
-const iconPath = path.join(appRoot, "assets", "icon.png");
+const winIconPath = path.join(appRoot, "assets", "icon.ico");
+const pngIconPath = path.join(appRoot, "assets", "icon.png");
+const iconPath =
+  process.platform === "win32" && existsSync(winIconPath) ? winIconPath : pngIconPath;
 const apiOrigin =
   process.env.ELECTRON_API_ORIGIN?.trim() || "https://painel-portaldoaluno.santos-tech.com";
 const wsOrigin = process.env.ELECTRON_WS_ORIGIN?.trim() || apiOrigin.replace(/^http/i, "ws");

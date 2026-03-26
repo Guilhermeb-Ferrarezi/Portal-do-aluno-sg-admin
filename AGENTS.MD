@@ -5,3 +5,4 @@ rode testes antes de concluir a task
 use os componentes do shadcn e radix ui, no extremo
 faça context menus uteis e com funcionalidades que fazem sentido
 prefira usar components prontos dos framweroks do tailwind do que fazer umle
+./correçoes.md

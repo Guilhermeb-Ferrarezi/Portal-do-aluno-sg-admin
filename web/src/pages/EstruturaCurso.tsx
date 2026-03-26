@@ -1016,11 +1016,11 @@ export default function EstruturaCursoPage() {
     "mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
   const clearFilterButtonClass =
     "self-start rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground";
-  const selectedInfoClass = "rounded-xl border border-accent/25 bg-accent/10 px-4 py-3";
+  const selectedInfoClass = "grid gap-2 rounded-xl border border-accent/25 bg-accent/10 px-4 py-3";
   const selectedLabelClass = "text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground";
-  const selectedMetaClass = "text-xs text-muted-foreground";
+  const selectedMetaClass = "text-xs leading-5 text-muted-foreground";
   const selectedActionClass =
-    "mt-2 inline-flex items-center gap-2 self-start rounded-xl border border-border/60 bg-background px-3 py-2 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-muted";
+    "inline-flex items-center gap-2 self-start rounded-xl border border-border/60 bg-background px-3 py-2 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-muted";
   const viewerListClass = "flex max-h-[360px] flex-col gap-2 overflow-auto pr-1";
   const viewerListSpacedClass = cn(viewerListClass, "mt-2.5");
   const viewerEmptyClass = "rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-sm text-muted-foreground break-words";
@@ -1208,7 +1208,17 @@ export default function EstruturaCursoPage() {
                 <div className={selectedInfoClass}>
                   <span className={selectedLabelClass}>Curso selecionado:</span>
                   <strong>{cursoSelecionado.nome}</strong>
-                  <span className={selectedMetaClass}>{cursoSelecionado.isPaid ? "Pago" : "Gratuito"}{cursoSelecionado.durationHours ? ` • ${cursoSelecionado.durationHours}h` : ""}{cursoSelecionado.price != null && cursoSelecionado.price > 0 ? ` • R$ ${Number(cursoSelecionado.price).toFixed(2)}` : ""}</span>
+                  <span className={selectedMetaClass}>
+                    {[
+                      cursoSelecionado.isPaid ? "Pago" : "Gratuito",
+                      cursoSelecionado.durationHours ? `${cursoSelecionado.durationHours}h` : null,
+                      cursoSelecionado.price != null && cursoSelecionado.price > 0
+                        ? `R$ ${Number(cursoSelecionado.price).toFixed(2)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ")}
+                  </span>
                   <AnimatedButton
                     type="button"
                     className={selectedActionClass}

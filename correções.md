@@ -1,20 +1,102 @@
-<<<<<<< Updated upstream
-# Ajuste 2026-03-25 (deploy_and_push.sh no Linux local)
+# Hotfix 2026-03-26 (icone do Electron, assinatura pronta e limpeza do R2)
 
 ## Ajustes aplicados
 
-- `deploy_and_push.sh` agora muda para a pasta do proprio script antes de executar, entao ele funciona mesmo quando chamado fora da raiz do repositorio.
-- Quando o `.env` nao existe, o script cria automaticamente um arquivo local de desenvolvimento com `JWT_SECRET`, portas e credenciais alinhadas ao `docker-compose.yml`.
-- O fluxo de git ficou menos agressivo para uso local: o script avisa quando ha alteracoes nao commitadas e pergunta separadamente se deve sincronizar com o remoto antes do deploy.
-- A deteccao de Docker Compose agora aceita tanto `docker compose` quanto `docker-compose`, e a mensagem de erro no Linux passou a orientar exatamente como subir o daemon.
+- `electron/scripts/sync-win-icon.ts` foi criado para gerar `electron/assets/icon.ico` a partir de `electron/assets/icon.png`.
+- `electron/package.json` passou a rodar `npm run sync:icon` no build, usar `assets/icon.ico` como icone Windows e aplicar o mesmo arquivo em `installerIcon`, `uninstallerIcon` e `installerHeaderIcon` do NSIS.
+- `electron/electron/main.ts` agora define `AppUserModelID` no Windows e usa `icon.ico` no runtime quando ele estiver disponivel, com fallback para `icon.png`.
+- `electron/scripts/publish-release.ts` agora publica o alias estavel `Painel - Portal Santos Tech Setup Latest.exe`, lista os objetos do prefixo no R2 e remove instaladores e blockmaps antigos depois de cada release.
+- `electron/.env.example` e `electron/README.md` foram atualizados com as variaveis de assinatura (`CSC_LINK`, `CSC_KEY_PASSWORD`, `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`, `CSC_NAME`) e com o fluxo de limpeza automatica do R2.
+- O script de release agora tambem avisa quando nenhuma credencial de assinatura Windows esta configurada, para evitar publicar achando que o SmartScreen ja vai sumir.
 
-## Validacao desse ajuste
+## Validacao executada
 
-- `bash -n deploy_and_push.sh`
-- `./deploy_and_push.sh` com o Docker desligado -> criou `.env` automaticamente e exibiu a orientacao `sudo systemctl enable --now docker`
-- `docker compose config`
-- Nao foi possivel validar `docker compose up -d --build` nesta task porque o daemon Docker estava inativo no host
-=======
+- `electron`: `npm run sync:icon`
+- `electron`: `npm run build:wrapper`
+- `electron`: `npm run publish:release`
+- Listagem do prefixo `desktop/painel/win` no R2 confirmou apenas:
+  - `Painel - Portal Santos Tech Setup 0.1.0.exe`
+  - `Painel - Portal Santos Tech Setup 0.1.0.exe.blockmap`
+  - `Painel - Portal Santos Tech Setup Latest.exe`
+  - `latest.yml`
+- `./deploy_and_push.bat` executado ate o fim, encerrado com `n` no passo de commit/push
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
+# Hotfix 2026-03-26 (botao web para instalar a versao desktop)
+
+## Ajustes aplicados
+
+- `web/src/components/SettingsOverlay.tsx` agora mostra um card `Versao desktop` dentro de `Configuracoes` quando o usuario esta no navegador, com o botao `Instalar versao desktop`.
+- O botao da versao web aponta para um instalador desktop com URL fixa, configurado por `VITE_DESKTOP_INSTALLER_URL` e com fallback para o CDN oficial.
+- `web/.env.production` passou a declarar `VITE_DESKTOP_INSTALLER_URL=https://cdn.portaldoaluno.santos-tech.com/desktop/painel/win/Painel%20-%20Portal%20Santos%20Tech%20Setup%20Latest.exe`.
+- `electron/scripts/publish-release.ts` passou a publicar tambem o alias estavel `Painel - Portal Santos Tech Setup Latest.exe`, para o botao da web baixar sempre o instalador mais recente sem depender do numero da versao.
+
+## Validacao executada
+
+- `web`: `npm run build`
+- `electron`: `npm run publish:release`
+- `HEAD https://cdn.portaldoaluno.santos-tech.com/desktop/painel/win/Painel%20-%20Portal%20Santos%20Tech%20Setup%20Latest.exe` -> `200`
+- `./deploy_and_push.bat` executado ate o fim, encerrado com `n` no passo de commit/push
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
+# Hotfix 2026-03-26 (spawn EINVAL no publish do Electron)
+
+## Ajustes aplicados
+
+- `electron/scripts/publish-release.ts` deixou de tentar abrir `npm.cmd` diretamente via `spawn`, que estava falhando com `spawn EINVAL` neste Windows.
+- O script agora executa comandos `.cmd/.bat` pelo `cmd.exe /d /s /c`, mantendo o mesmo fluxo de build e publicacao do release.
+- A release `0.1.0` foi publicada com sucesso no feed `https://cdn.portaldoaluno.santos-tech.com/desktop/painel/win/latest.yml`.
+
+## Validacao executada
+
+- `electron`: `npm run publish:release`
+- `electron`: `npx tsc --noEmit -p tsconfig.json`
+- `GET https://cdn.portaldoaluno.santos-tech.com/desktop/painel/win/latest.yml` -> `200`
+
+# Hotfix 2026-03-26 (casca no filtro de busca das respostas)
+
+## Ajustes aplicados
+
+- `web/src/pages/ExerciseDetail.tsx` deixou de usar o `Input` base dentro do wrapper com borda no bloco `Filtro: Busca`.
+- O campo foi simplificado para um `input` nativo sem borda/radius internos, mantendo apenas o container externo como superficie visual.
+- Com isso, o efeito de "casca" ou moldura interna ao redor do texto/placeholder sumiu no filtro de respostas.
+
+## Validacao executada
+
+- `web`: `npm run build`
+
+# Hotfix 2026-03-26 (padding real da busca em ActivityLogs)
+
+## Ajustes aplicados
+
+- `web/src/pages/ActivityLogs.tsx` passou a forcar `paddingLeft` inline no campo principal de busca e a manter a lupa em um wrapper absoluto com `z-index`, evitando que o `px-*` do componente base `Input` volte a sobrepor o placeholder.
+
+## Validacao executada
+
+- `web`: `npm run build`
+
+# Refinamento 2026-03-26 (logs, curso selecionado, overlay e updater)
+
+## Ajustes aplicados
+
+- `web/src/pages/ActivityLogs.tsx` voltou a usar layout Tailwind puro na barra de busca/filtros, removendo a dependencia pratica das classes antigas `alToolbar/alSearchRow/alSearchWrap` que estavam sem CSS importado e deixavam a lupa fora do campo.
+- `web/src/pages/EstruturaCurso.tsx` passou a renderizar o bloco `Curso selecionado` em linhas separadas, evitando que nome, tipo (`Pago/Gratuito`), duracao e preco grudem no mesmo fluxo inline.
+- `web/src/components/SettingsOverlay.tsx` simplificou o botao desktop de fechar para um icone compacto no canto, reduzindo recorte/choque visual no header do modal.
+- O card de atualizacao do app agora quebra linhas longas corretamente no texto de status.
+- `electron/electron/update-service.ts` passou a sanitizar erros do `electron-updater`, trocando stack trace cru por mensagens curtas e acionaveis, especialmente para o caso de `404` em `latest.yml`.
+
+## Validacao executada
+
+- `web`: `npm run build`
+- `web`: `npm run lint` (0 erros; 17 warnings antigos de hooks/fast-refresh continuam no projeto)
+- `electron`: `npm run build:wrapper`
+- `electron`: `npm run dist:win`
+- `./deploy_and_push.bat` executado ate o fim, encerrado com `n` no passo de commit/push
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
+
 # Correcao 2026-03-26 (autoatualizacao do Electron via Cloudflare R2/CDN)
 
 ## Ajustes aplicados
@@ -34,7 +116,7 @@
 
 - `electron`: `npm install`
 - `web`: `npm run build`
-- `web`: `npm run lint` (0 erros; 16 warnings antigos de hooks/fast-refresh continuam no projeto)
+- `web`: `npm run lint` (0 erros; 17 warnings antigos de hooks/fast-refresh continuam no projeto)
 - `electron`: `npx tsc --pretty false --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --esModuleInterop scripts/publish-release.ts`
 - `electron`: `npm run dist:win`
 - artefatos gerados:
@@ -42,12 +124,31 @@
   - `electron/release/Painel - Portal Santos Tech Setup 0.1.0.exe`
   - `electron/release/Painel - Portal Santos Tech Setup 0.1.0.exe.blockmap`
 - execucao do binario `electron/release/win-unpacked/Painel - Portal Santos Tech.exe` com log em `%APPDATA%\\Painel - Portal Santos Tech\\main.log`
+- `Test-NetConnection 212.28.182.72 -Port 15500` -> `TcpTestSucceeded : True`
+- `Test-NetConnection localhost -Port 15432` -> `TcpTestSucceeded : True` apos subir `node scripts/remote-db-proxy.js`
+- `./deploy_and_push.bat` executado ate o fim, encerrado com `n` no passo de commit/push
+- `GET http://localhost:3001/api/health` -> `{"ok":true}`
+- `GET http://localhost:8080` -> `200`
 
 ## Observacoes
 
-- `deploy_and_push.bat` foi executado para a validacao final, mas abortou antes do deploy porque o Docker nao estava rodando nesta maquina no momento do teste.
-- Com o Docker desligado, nao foi possivel subir o stack local nem validar `http://localhost:8080` e `http://localhost:3001` nesta task.
->>>>>>> Stashed changes
+- O stack Docker local depende do proxy `scripts/remote-db-proxy.js` para expor o banco remoto em `localhost:15432`; sem esse processo o container `api` entra em `unhealthy` por `ECONNREFUSED`.
+
+# Ajuste 2026-03-25 (deploy_and_push.sh no Linux local)
+
+## Ajustes aplicados
+
+- `deploy_and_push.sh` agora muda para a pasta do proprio script antes de executar, entao ele funciona mesmo quando chamado fora da raiz do repositorio.
+- Quando o `.env` nao existe, o script cria automaticamente um arquivo local de desenvolvimento com `JWT_SECRET`, portas e credenciais alinhadas ao `docker-compose.yml`.
+- O fluxo de git ficou menos agressivo para uso local: o script avisa quando ha alteracoes nao commitadas e pergunta separadamente se deve sincronizar com o remoto antes do deploy.
+- A deteccao de Docker Compose agora aceita tanto `docker compose` quanto `docker-compose`, e a mensagem de erro no Linux passou a orientar exatamente como subir o daemon.
+
+## Validacao desse ajuste
+
+- `bash -n deploy_and_push.sh`
+- `./deploy_and_push.sh` com o Docker desligado -> criou `.env` automaticamente e exibiu a orientacao `sudo systemctl enable --now docker`
+- `docker compose config`
+- Nao foi possivel validar `docker compose up -d --build` nesta task porque o daemon Docker estava inativo no host
 
 # Correcao 2026-03-20 (Ticket de presence vinculado ao cliente)
 
