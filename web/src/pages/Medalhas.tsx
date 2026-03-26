@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
+import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/Pagination";
 import PaginatedSelect from "../components/PaginatedSelect";
 import Modal from "../components/Modal";
@@ -176,6 +177,7 @@ export default function MedalhasPage() {
   const [loading, setLoading] = React.useState(true);
   const [loadingBadgeOptions, setLoadingBadgeOptions] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [deletingBadgeId, setDeletingBadgeId] = React.useState<string | null>(null);
   const [badgeFiltro, setBadgeFiltro] = React.useState<string>("");
   const [medalhaUsoFiltro, setMedalhaUsoFiltro] = React.useState<"todas" | "com_uso" | "sem_uso">("todas");
   const [medalhaSort, setMedalhaSort] = React.useState<"recentes" | "mais_usadas" | "menos_usadas" | "a_z">("recentes");
@@ -208,6 +210,7 @@ export default function MedalhasPage() {
   const [imagensPage, setImagensPage] = React.useState(1);
   const [imagensPerPage, setImagensPerPage] = React.useState(5);
   const [imagemModalAberto, setImagemModalAberto] = React.useState(false);
+  const [badgeParaExcluir, setBadgeParaExcluir] = React.useState<Badge | null>(null);
   const role = getRole();
 
   const normalizarTexto = React.useCallback((valor: string) => {
@@ -525,24 +528,24 @@ export default function MedalhasPage() {
     setErro(null);
   };
 
-  const excluirMedalha = async (badge: Badge) => {
-    const confirmed = window.confirm(
-      `Excluir a medalha "${badge.name}"? Isso remove também as atribuições dela aos usuários.`
-    );
-    if (!confirmed) return;
-
+  const excluirMedalha = async () => {
+    if (!badgeParaExcluir) return;
     setMensagem(null);
     setErro(null);
     try {
-      const result = await deletarBadge(badge.id);
-      if (editingBadgeId === badge.id) {
+      setDeletingBadgeId(badgeParaExcluir.id);
+      const result = await deletarBadge(badgeParaExcluir.id);
+      if (editingBadgeId === badgeParaExcluir.id) {
         cancelarEdicaoMedalha();
         setAba("ver");
       }
       await Promise.all([carregarMedalhas(), carregarBadgeOptions(), carregarHolders(), carregarHoldersSnapshot()]);
       setMensagem(result.message || "Medalha excluída com sucesso.");
+      setBadgeParaExcluir(null);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao excluir medalha");
+    } finally {
+      setDeletingBadgeId(null);
     }
   };
 
@@ -1058,7 +1061,7 @@ export default function MedalhasPage() {
                           <button
                             type="button"
                             className={cn(dangerButtonClass, "h-10 px-3.5")}
-                            onClick={() => excluirMedalha(m)}
+                            onClick={() => setBadgeParaExcluir(m)}
                           >
                             <Trash2 size={14} />
                             Excluir
@@ -1819,6 +1822,26 @@ export default function MedalhasPage() {
             </div>
           </div>
         </Modal>
+        <ConfirmModal
+          isOpen={!!badgeParaExcluir}
+          title="Excluir medalha"
+          message={
+            badgeParaExcluir
+              ? `Excluir a medalha "${badgeParaExcluir.name}"? Isso remove também as atribuições dela aos usuários.`
+              : ""
+          }
+          confirmText="Excluir"
+          cancelText="Cancelar"
+          danger
+          isLoading={deletingBadgeId === badgeParaExcluir?.id}
+          onCancel={() => {
+            if (deletingBadgeId) return;
+            setBadgeParaExcluir(null);
+          }}
+          onConfirm={() => {
+            void excluirMedalha();
+          }}
+        />
       </section>
     </DashboardLayout>
   );

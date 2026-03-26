@@ -1,5 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { getUserId } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import ConfirmModal from "../components/ConfirmModal";
@@ -63,7 +64,6 @@ import {
   type User,
 } from "../services/api";
 import { useToastActions } from "../contexts/ToastContext";
-import "./Exercises.css";
 
 
 export default function ExerciciosPage() {
@@ -75,10 +75,125 @@ export default function ExerciciosPage() {
   const isStaff = role === "admin" || role === "professor";
   const canCreate = isStaff;
   const iconLabel = (icon: React.ReactNode, label: string) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span className="inline-flex items-center gap-1.5">
       {icon}
       <span>{label}</span>
     </span>
+  );
+  const pageContainerClass = "flex flex-col gap-5";
+  const panelClass =
+    "rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.12)] sm:p-6";
+  const subtlePanelClass = "rounded-[24px] border border-border/70 bg-muted/20 p-4";
+  const sectionTitleClass = "text-2xl font-black tracking-[-0.03em] text-foreground sm:text-[1.9rem]";
+  const helperTextClass = "text-xs leading-5 text-muted-foreground";
+  const fieldGroupClass = "flex flex-col gap-2";
+  const fieldLabelClass = "text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground";
+  const fieldInputClass =
+    "h-11 w-full rounded-2xl border border-border/70 bg-background/80 px-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-3 focus:ring-ring/30";
+  const fieldTextareaClass = cn(fieldInputClass, "h-auto min-h-28 py-3 leading-6");
+  const fieldSelectClass = cn(fieldInputClass, "appearance-none pr-10");
+  const warningControlClass = "border-amber-300/80 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10";
+  const warningTextClass = "text-xs font-medium text-amber-700 dark:text-amber-300";
+  const rowClass = "grid gap-4 xl:grid-cols-3";
+  const compactRowClass = "grid gap-4 md:grid-cols-2";
+  const radioRowClass = "mt-2 flex flex-wrap gap-3";
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  const primaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
+  const fieldWarnWrapClass = (warning = false) =>
+    cn(
+      "rounded-[24px] transition",
+      warning && "rounded-[24px] border border-amber-300/80 bg-amber-50/60 p-2 dark:border-amber-500/30 dark:bg-amber-500/10"
+    );
+  const toggleGroupClass = (warning = false) =>
+    cn(
+      "grid gap-2 rounded-[24px] border border-border/70 bg-muted/25 p-3",
+      warning && "border-amber-300/80 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10"
+    );
+  const toggleOptionClass = (active: boolean) =>
+    cn(
+      "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition",
+      active
+        ? "border-primary/45 bg-primary/10 text-foreground shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.12)]"
+        : "border-border/70 bg-background/75 text-muted-foreground hover:border-primary/30 hover:bg-accent hover:text-foreground"
+    );
+  const toggleDotClass = (active: boolean) =>
+    cn(
+      "inline-flex size-4 shrink-0 items-center justify-center rounded-full border transition",
+      active
+        ? "border-primary/60 bg-primary/10 shadow-[0_0_0_4px_rgba(var(--primary-rgb),0.12)]"
+        : "border-border/70 bg-background/80"
+    );
+  const toggleDotInnerClass = (active: boolean) =>
+    cn("size-2 rounded-full transition", active ? "bg-primary" : "bg-transparent");
+  const courseSelectedClass = (hasSelection: boolean) =>
+    cn(
+      "grid gap-1 rounded-2xl border px-4 py-3",
+      hasSelection
+        ? "border-emerald-300/70 bg-emerald-50/60 dark:border-emerald-500/25 dark:bg-emerald-500/10"
+        : "border-border/70 bg-muted/35"
+    );
+  const statusToggleClass = (active: boolean) =>
+    cn(
+      "flex h-full cursor-pointer items-start gap-3 rounded-[24px] border px-4 py-4 text-left transition",
+      active
+        ? "border-primary/45 bg-primary/10"
+        : "border-border/70 bg-background/80 hover:border-primary/30 hover:bg-accent/60"
+    );
+  const responseCardClass =
+    "rounded-[24px] border border-sky-500/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.52))] transition hover:border-sky-400/35 hover:shadow-[0_14px_34px_rgba(2,6,23,0.22)]";
+  const responseBadgeClass =
+    "inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs font-semibold text-muted-foreground";
+  const loadingStateClass =
+    "flex min-h-36 flex-col items-center justify-center gap-3 rounded-[24px] border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-sm text-muted-foreground";
+  const spinnerClass =
+    "size-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary";
+  const emptyStateClass =
+    "flex min-h-40 flex-col items-center justify-center gap-3 rounded-[28px] border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center";
+  const emptyIconClass =
+    "inline-flex size-12 items-center justify-center rounded-2xl border border-border/70 bg-background/80 text-muted-foreground";
+  const emptyTitleClass = "text-lg font-semibold text-foreground";
+  const exerciseCardClass = (canEditCard: boolean) =>
+    cn(
+      "grid gap-5 rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.12)] transition focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30 sm:p-6",
+      canEditCard && "cursor-pointer hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_20px_40px_rgba(0,0,0,0.16)]"
+    );
+  const exercisePillClass = "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold";
+  const exerciseTypePillClass = (kind: string) =>
+    cn(
+      exercisePillClass,
+      kind === "isCodigo" && "border-violet-500/30 bg-violet-500/10 text-violet-200",
+      kind === "isEscrita" && "border-rose-500/30 bg-rose-500/10 text-rose-200",
+      kind === "isMouse" && "border-sky-500/30 bg-sky-500/10 text-sky-200",
+      kind === "isMultipla" && "border-amber-500/30 bg-amber-500/10 text-amber-200",
+      kind === "isAtalho" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+      kind === "isDefault" && "border-border/70 bg-background/75 text-muted-foreground"
+    );
+  const accessBadgeClass = (tone: "aluno" | "turmas" | "all") =>
+    cn(
+      exercisePillClass,
+      tone === "aluno" && "border-primary/30 bg-primary/10 text-primary",
+      tone === "turmas" && "border-sky-500/30 bg-sky-500/10 text-sky-200",
+      tone === "all" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+    );
+  const turmaBadgeClass = (tipo: string) =>
+    cn(
+      "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium",
+      tipo === "turma"
+        ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200"
+        : "border-orange-500/30 bg-orange-500/10 text-orange-200"
+    );
+  const modalBodyClass = "flex flex-col gap-4";
+  const modalFooterButtonClass =
+    "inline-flex min-w-[9rem] items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50";
+  const modalFooterGhostButtonClass = cn(
+    modalFooterButtonClass,
+    "border border-border/70 bg-background/80 text-foreground hover:bg-muted"
+  );
+  const modalFooterPrimaryButtonClass = cn(
+    modalFooterButtonClass,
+    "bg-primary text-primary-foreground hover:bg-primary/90"
   );
 
   type RespostasAlunoOption = {
@@ -190,6 +305,34 @@ export default function ExerciciosPage() {
     opcoes: Array<{ letter: string; text: string }>;
     respostaCorreta: string;
   }>>(() => getDefaultMultiplaQuestoes());
+
+  function updateCreateMultiplaQuestaoOpcao(qIndex: number, oIndex: number, value: string) {
+    setMultiplaQuestoes((prev) =>
+      prev.map((questao, index) =>
+        index !== qIndex
+          ? questao
+          : {
+              ...questao,
+              opcoes: questao.opcoes.map((opcao, optionIndex) =>
+                optionIndex !== oIndex ? opcao : { ...opcao, text: value }
+              ),
+            }
+      )
+    );
+  }
+
+  function updateCreateMultiplaQuestaoCorreta(qIndex: number, value: string) {
+    setMultiplaQuestoes((prev) =>
+      prev.map((questao, index) =>
+        index !== qIndex ? questao : { ...questao, respostaCorreta: value }
+      )
+    );
+  }
+
+  function removeCreateMultiplaQuestao(qIndex: number) {
+    setMultiplaQuestoes((prev) => prev.filter((_, index) => index !== qIndex));
+  }
+
   const [anexosAtivo, setAnexosAtivo] = React.useState(false);
   const [anexoArquivo, setAnexoArquivo] = React.useState<File | null>(null);
   const [anexoAtual, setAnexoAtual] = React.useState<{ url: string; nome: string } | null>(null);
@@ -1596,7 +1739,9 @@ export default function ExerciciosPage() {
   const renderNowMs = Date.now();
   const shouldVirtualizeExercises =
     (activeSection === "lista" || activeSection === "tarefa-diaria") &&
-    paginatedExercises.length > 18;
+    // A API já pagina a lista e o componente limita o page size a 50.
+    // Virtualizar lotes tão pequenos trouxe glitches de scroll/layout.
+    paginatedExercises.length > 80;
 
   const updateExercisesVirtualMetrics = React.useCallback(() => {
     if (typeof window === "undefined") return;
@@ -1738,30 +1883,46 @@ export default function ExerciciosPage() {
 
   return (
     <DashboardLayout title="Exercicios" subtitle="Veja e pratique os exercicios disponiveis">
-      <div className="exercisesContainer">
+      <div className={pageContainerClass}>
         {/* HEADER COM BOTAO */}
-        <div className="exercisesHeader">
-          <div className="headerActions" />
-          <button className="refreshBtn" onClick={handleRefresh} disabled={loading}>
+        <div className="flex items-center justify-end">
+          <button
+            className={secondaryButtonClass}
+            onClick={handleRefresh}
+            disabled={loading}
+            type="button"
+          >
             {loading
               ? iconLabel(<Loader2 size={16} />, "Carregando...")
               : iconLabel(<RefreshCcw size={16} />, "Atualizar")}
           </button>
         </div>
 
-        <div className="exercisesTabs">
-          <span className="exercisesTabsLabel">{iconLabel(<Eye size={14} />, "Exibir:")}</span>
-          <div className="exercisesTabsGroup">
+        <div className="flex flex-col gap-3 rounded-[26px] border border-border/70 bg-card/90 p-3 shadow-[0_14px_30px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-start sm:gap-4">
+          <span className="inline-flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {iconLabel(<Eye size={14} />, "Exibir:")}
+          </span>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className={`exercisesTab ${activeSection === "lista" ? "active" : ""}`}
+              className={cn(
+                "inline-flex items-center justify-center rounded-full border px-4 py-2.5 text-sm font-semibold transition",
+                activeSection === "lista"
+                  ? "border-primary/55 bg-primary text-primary-foreground shadow-[0_10px_22px_rgba(var(--primary-rgb),0.24)]"
+                  : "border-border/70 bg-background/80 text-foreground hover:border-primary/35 hover:bg-accent"
+              )}
               onClick={() => setActiveSection("lista")}
             >
               {iconLabel(<ListChecks size={14} />, "Exercicios")}
             </button>
             <button
               type="button"
-              className={`exercisesTab ${activeSection === "tarefa-diaria" ? "active" : ""}`}
+              className={cn(
+                "inline-flex items-center justify-center rounded-full border px-4 py-2.5 text-sm font-semibold transition",
+                activeSection === "tarefa-diaria"
+                  ? "border-primary/55 bg-primary text-primary-foreground shadow-[0_10px_22px_rgba(var(--primary-rgb),0.24)]"
+                  : "border-border/70 bg-background/80 text-foreground hover:border-primary/35 hover:bg-accent"
+              )}
               onClick={() => setActiveSection("tarefa-diaria")}
             >
               {iconLabel(<Calendar size={14} />, "Tarefa diaria")}
@@ -1769,7 +1930,12 @@ export default function ExerciciosPage() {
             {isStaff && (
               <button
                 type="button"
-                className={`exercisesTab ${activeSection === "respostas" ? "active" : ""}`}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-full border px-4 py-2.5 text-sm font-semibold transition",
+                  activeSection === "respostas"
+                    ? "border-primary/55 bg-primary text-primary-foreground shadow-[0_10px_22px_rgba(var(--primary-rgb),0.24)]"
+                    : "border-border/70 bg-background/80 text-foreground hover:border-primary/35 hover:bg-accent"
+                )}
                 onClick={() => setActiveSection("respostas")}
               >
                 {iconLabel(<MessageSquareText size={14} />, "Respostas")}
@@ -1798,14 +1964,14 @@ export default function ExerciciosPage() {
         {/* SECAO DE EDITAR */}
         {canCreate && editandoId && (
           <FadeInUp duration={0.28}>
-            <div className="createExerciseCard">
-              <h2 className="exFormTitle">Editar exercicio</h2>
+            <div className={panelClass}>
+              <h2 className={sectionTitleClass}>Editar exercicio</h2>
 
-              <div className="exFormGrid">
-                <div className="exInputGroup">
-                  <span className="exLabel">Nome do exercício *</span>
+              <div className="mt-5 grid gap-5">
+                <div className={fieldGroupClass}>
+                  <span className={fieldLabelClass}>Nome do exercício *</span>
                   <input
-                    className={`exInput ${fieldWarnings.titulo ? "isWarning" : ""}`}
+                    className={cn(fieldInputClass, fieldWarnings.titulo && warningControlClass)}
                     placeholder="ex: Exercicio 15.3: Layout Responsivo"
                     value={titulo}
                     onChange={(e) => {
@@ -1813,13 +1979,13 @@ export default function ExerciciosPage() {
                       clearFieldWarning("titulo");
                     }}
                   />
-                  {fieldWarnings.titulo && <small className="exFieldWarning">{fieldWarnings.titulo}</small>}
+                  {fieldWarnings.titulo && <small className={warningTextClass}>{fieldWarnings.titulo}</small>}
                 </div>
 
-                <div className="exInputGroup">
-                  <span className="exLabel">Pergunta *</span>
+                <div className={fieldGroupClass}>
+                  <span className={fieldLabelClass}>Pergunta *</span>
                   <textarea
-                    className={`exTextarea ${fieldWarnings.descricao ? "isWarning" : ""}`}
+                    className={cn(fieldTextareaClass, fieldWarnings.descricao && warningControlClass)}
                     placeholder="Descreva a pergunta do exercício em detalhes..."
                     value={descricao}
                     onChange={(e) => {
@@ -1827,10 +1993,10 @@ export default function ExerciciosPage() {
                       clearFieldWarning("descricao");
                     }}
                   />
-                  {fieldWarnings.descricao && <small className="exFieldWarning">{fieldWarnings.descricao}</small>}
+                  {fieldWarnings.descricao && <small className={warningTextClass}>{fieldWarnings.descricao}</small>}
                 </div>
 
-                <div className="exInputGroup" style={{ gridColumn: "1 / -1" }}>
+                <div className={fieldGroupClass}>
                   <ExerciseAIDraftGenerator
                     courseId={cursoIdSelecionado}
                     moduleId={moduloIdSelecionado}
@@ -1845,11 +2011,11 @@ export default function ExerciciosPage() {
 
                 {/* Temporariamente desativado: anexos */}
                 {/* CATEGORIA - PROGRAMACAO vs INFORMATICA */}
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <div className="exCoursesFilterRow">
+                <div className={rowClass}>
+                  <div className={cn(fieldGroupClass, "xl:col-span-3")}>
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                       <input
-                        className="exInput"
+                        className={fieldInputClass}
                         value={cursoCardsFiltro}
                         onChange={(e) => setCursoCardsFiltro(e.target.value)}
                         placeholder="Filtrar cursos por nome ou descrição"
@@ -1857,48 +2023,50 @@ export default function ExerciciosPage() {
                       {cursoCardsFiltro.trim() && (
                         <button
                           type="button"
-                          className="exCoursesFilterClearBtn"
+                          className={secondaryButtonClass}
                           onClick={() => setCursoCardsFiltro("")}
                         >
                           Limpar
                         </button>
                       )}
                     </div>
-                    <div className={`exToggleGroup ${fieldWarnings.curso ? "isWarning" : ""}`}>
+                    <div className={toggleGroupClass(Boolean(fieldWarnings.curso))}>
                       {cursosTogglePaginados.map((curso) => {
                         const cursoCategoria = inferCategoriaFromCourseName(curso.nome);
                         const isAtivo = curso.id === cursoIdSelecionado;
                         return (
-                          <label key={curso.id} className={`exToggleOption ${isAtivo ? "active" : ""}`}>
+                          <label key={curso.id} className={toggleOptionClass(isAtivo)}>
                             <input
-                              className="exToggleInput"
+                              className="sr-only"
                               type="radio"
                               name="course_id"
                               value={curso.id}
                               checked={isAtivo}
                               onChange={() => handleSelecionarCurso(curso.id)}
                             />
-                            <span className="exToggleDot" aria-hidden="true" />
-                            <span className="exToggleLabel">
+                            <span className={toggleDotClass(isAtivo)} aria-hidden="true">
+                              <span className={toggleDotInnerClass(isAtivo)} />
+                            </span>
+                            <span className="inline-flex items-center gap-2 text-sm font-medium">
                               {iconLabel(cursoCategoria === "informatica" ? <Monitor size={14} /> : <Laptop size={14} />, curso.nome)}
                             </span>
                           </label>
                         );
                       })}
                     </div>
-                    {fieldWarnings.curso && <small className="exFieldWarning">{fieldWarnings.curso}</small>}
-                    <div className="exCourseCardsActions">
-                      <div className={`exCourseCardsSelected ${cursoSelecionado ? "" : "isEmpty"}`}>
-                        <span className="exCourseCardsSelectedLabel">
+                    {fieldWarnings.curso && <small className={warningTextClass}>{fieldWarnings.curso}</small>}
+                    <div className="mt-3 flex flex-col gap-3">
+                      <div className={courseSelectedClass(Boolean(cursoSelecionado))}>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                           {iconLabel(<BookOpen size={13} />, cursoSelecionado ? "Curso selecionado" : "Selecao de curso")}
                         </span>
-                        <strong className="exCourseCardsSelectedValue">
+                        <strong className="text-sm font-semibold text-foreground">
                           {cursoSelecionado ? cursoSelecionado.nome : "Selecione um curso para ver detalhes"}
                         </strong>
                       </div>
                       <button
                         type="button"
-                        className="exCourseDetailsBtn"
+                        className={secondaryButtonClass}
                         onClick={() => setMostrarDetalhesCurso((prev) => !prev)}
                         disabled={!cursoSelecionado}
                       >
@@ -1906,7 +2074,7 @@ export default function ExerciciosPage() {
                       </button>
                     </div>
                     {cursosToggleFiltrados.length === 0 && (
-                      <small style={{ color: "#94a3b8", marginTop: "6px" }}>
+                      <small className={helperTextClass}>
                         Nenhum curso encontrado no banco.
                       </small>
                     )}
@@ -1918,41 +2086,44 @@ export default function ExerciciosPage() {
                       onItemsPerPageChange={setCursoCardsItensPorPagina}
                     />
                     <ConditionalFieldAnimation isVisible={Boolean(cursoSelecionado && mostrarDetalhesCurso)}>
-                      <div className="exCourseDetailsPanel">
-                        <div className="exCourseDetailsGrid">
-                          <div className="exCourseDetailItem">
-                            <small>Categoria</small>
+                      <div className={cn(subtlePanelClass, "mt-3 grid gap-4")}>
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div className="grid gap-1 rounded-2xl border border-border/70 bg-background/75 px-4 py-3">
+                            <small className={fieldLabelClass}>Categoria</small>
                             <strong>
                               {inferCategoriaFromCourseName(cursoSelecionado?.nome) === "informatica" ? "Informática" : "Programação"}
                             </strong>
                           </div>
-                          <div className="exCourseDetailItem">
-                            <small>Modelo</small>
+                          <div className="grid gap-1 rounded-2xl border border-border/70 bg-background/75 px-4 py-3">
+                            <small className={fieldLabelClass}>Modelo</small>
                             <strong>{cursoSelecionado?.isPaid ? "Pago" : "Gratuito"}</strong>
                           </div>
-                          <div className="exCourseDetailItem">
-                            <small>Módulos cadastrados</small>
+                          <div className="grid gap-1 rounded-2xl border border-border/70 bg-background/75 px-4 py-3">
+                            <small className={fieldLabelClass}>Módulos cadastrados</small>
                             <strong>{modulosDoCursoSelecionado.length}</strong>
                           </div>
-                          <div className="exCourseDetailItem">
-                            <small>ID do curso</small>
+                          <div className="grid gap-1 rounded-2xl border border-border/70 bg-background/75 px-4 py-3">
+                            <small className={fieldLabelClass}>ID do curso</small>
                             <strong>{cursoSelecionado?.id}</strong>
                           </div>
                         </div>
                         {cursoSelecionado?.descricao && (
-                          <p className="exCourseDescription">{cursoSelecionado.descricao}</p>
+                          <p className="text-sm leading-6 text-muted-foreground">{cursoSelecionado.descricao}</p>
                         )}
                         {modulosDoCursoSelecionado.length > 0 && (
-                          <div className="exCourseModulesPreview">
-                            <small>Trilha de modulos</small>
-                            <div className="exCourseModulesChips">
+                          <div className="grid gap-2">
+                            <small className={fieldLabelClass}>Trilha de modulos</small>
+                            <div className="flex flex-wrap gap-2">
                               {modulosDoCursoSelecionado.slice(0, 5).map((modulo) => (
-                                <span key={modulo.id} className="exCourseModuleChip">
+                                <span
+                                  key={modulo.id}
+                                  className="inline-flex items-center rounded-full border border-border/70 bg-background/75 px-3 py-1 text-xs font-semibold text-muted-foreground"
+                                >
                                   {modulo.nome}
                                 </span>
                               ))}
                               {modulosDoCursoSelecionado.length > 5 && (
-                                <span className="exCourseModuleChip isMore">
+                                <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                                   +{modulosDoCursoSelecionado.length - 5} modulos
                                 </span>
                               )}
@@ -1967,9 +2138,9 @@ export default function ExerciciosPage() {
                 {/* COMPONENTES INTERATIVOS - Para Programacao */}
                 {categoria === "programacao" && (
                   <>
-                    <div className="exInputGroup">
-                      <span className="exLabel">Tipo de Exercicio</span>
-                      <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                    <div className={fieldGroupClass}>
+                      <span className={fieldLabelClass}>Tipo de Exercicio</span>
+                      <div className={radioRowClass}>
                         <AnimatedRadioLabel
                           name="tipoExercicio"
                           value="escrita"
@@ -1987,7 +2158,7 @@ export default function ExerciciosPage() {
                           icon={<ListChecks size={14} />} 
                         />
                       </div>
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                      <small className={helperTextClass}>
                         Selecione o tipo de exercicio para Programacao
                       </small>
                     </div>
@@ -2016,112 +2187,66 @@ export default function ExerciciosPage() {
                     {/* QUESTOES DE MULTIPLA ESCOLHA - Para Programacao */}
                     {componenteInterativo === "multipla" && (
                       <ScaleIn>
-                        <>
-                          <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", margin: "0 0 12px 0" }}>
-                              {iconLabel(<ListChecks size={14} />, "Configurar Questoes de Multipla Escolha:")}
-                            </p>
-
-                            {multiplaQuestoes.map((questao, qIndex) => (
-                              <div key={`prog-q-${questao.pergunta}-${questao.respostaCorreta}-${questao.opcoes.map((o) => o.text).join("|")}`} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
-                                <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questao {qIndex + 1}</h4>
-
-                                <div style={{ marginBottom: "8px" }}>
-                                  <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opcoes:</span>
-                                  {questao.opcoes.map((opcao, oIndex) => (
-                                    <input
-                                      key={`prog-op-${questao.pergunta}-${opcao.letter}-${opcao.text}`}
-                                      className="exInput"
-                                      type="text"
-                                      value={opcao.text}
-                                      onChange={(e) => {
-                                        const naovas = [...multiplaQuestoes];
-                                        naovas[qIndex].opcoes[oIndex].text = e.target.value;
-                                        setMultiplaQuestoes(naovas);
-                                      }}
-                                      placeholder={`Opcao ${opcao.letter}`}
-                                      style={{ marginBottom: "6px" }}
-                                    />
-                                  ))}
-                                </div>
-
-                                <div style={{ marginBottom: "8px" }}>
-                                  <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Resposta Correta:</span>
-                                  <AnimatedSelect
-                                    className="exSelect"
-                                    value={questao.respostaCorreta}
-                                    onChange={(e) => {
-                                      const naovas = [...multiplaQuestoes];
-                                      naovas[qIndex].respostaCorreta = e.target.value;
-                                      setMultiplaQuestoes(naovas);
-                                    }}
-                                  >
-                                    <option value="">-- Selecione --</option>
-                                    {questao.opcoes.map((opcao) => (
-                                      <option key={opcao.letter} value={opcao.letter}>
-                                        {opcao.letter}: {opcao.text}
-                                      </option>
-                                    ))}
-                                  </AnimatedSelect>
-                                </div>
-
-                                {multiplaQuestoes.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex));
-                                    }}
-                                    style={{
-                                      padding: "6px 12px",
-                                      background: "#fee2e2",
-                                      color: "#991b1b",
-                                      border: "naone",
-                                      borderRadius: "4px",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {iconLabel(<Trash2 size={14} />, "Remover Questao")}
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-
-                            {/* Temporariamente desativado: adicionar outra questao */}
-                          </div>
-
-                          <div style={{ background: "var(--background-secondary)", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>
-                              {iconLabel(<Eye size={14} />, "Pre-visualizacao:")}
-                            </p>
-                            {multiplaQuestoes.map((questao, idx) => (
-                              <div
-                                key={`${questao.pergunta}-${questao.respostaCorreta}-${questao.opcoes.map((o) => o.text).join("|")}`}
-                                style={{ marginBottom: "16px" }}
-                              >
-                                <MultipleChoiceQuestion
-                                  question={`Q${idx + 1}: ${descricao.trim() || "Enunciado do exercício"}`}
-                                  options={questao.opcoes}
-                                  selectedAnswer=""
-                                  onAnswer={() => { }}
+                        <div className="mt-3 space-y-3">
+                          <div className="space-y-3 rounded-2xl border border-amber-200/70 bg-amber-50/60 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                              <ListChecks size={14} className="text-amber-700 dark:text-amber-300" />
+                              <span>Configurar questões de múltipla escolha</span>
+                            </div>
+                            <div className="space-y-3">
+                              {multiplaQuestoes.map((questao, qIndex) => (
+                                <MultipleChoiceQuestionEditor
+                                  key={`prog-q-${qIndex}`}
+                                  questionIndex={qIndex}
+                                  opcoes={questao.opcoes}
+                                  respostaCorreta={questao.respostaCorreta}
+                                  onChangeOpcao={(oIndex, value) =>
+                                    updateCreateMultiplaQuestaoOpcao(qIndex, oIndex, value)
+                                  }
+                                  onChangeCorreta={(value) =>
+                                    updateCreateMultiplaQuestaoCorreta(qIndex, value)
+                                  }
+                                  onRemoveQuestao={
+                                    multiplaQuestoes.length > 1
+                                      ? () => removeCreateMultiplaQuestao(qIndex)
+                                      : undefined
+                                  }
                                 />
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </>
+
+                          <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                              <Eye size={14} className="text-emerald-700 dark:text-emerald-300" />
+                              <span>Pré-visualização</span>
+                            </div>
+                            <div className="mt-3 space-y-4">
+                              {multiplaQuestoes.map((questao, idx) => (
+                                <div key={`prog-preview-${idx}`}>
+                                  <MultipleChoiceQuestion
+                                    question={`Q${idx + 1}: ${descricao.trim() || "Enunciado do exercício"}`}
+                                    options={questao.opcoes}
+                                    selectedAnswer=""
+                                    onAnswer={() => {}}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </ScaleIn>
                     )}
-                    {fieldWarnings.multipla && <small className="exFieldWarning">{fieldWarnings.multipla}</small>}
+                    {fieldWarnings.multipla && <small className={warningTextClass}>{fieldWarnings.multipla}</small>}
                   </>
                 )}
 
                 {/* COMPONENTES INTERATIVOS - Apenas para Informatica */}
                 {categoria === "informatica" && (
                   <>
-                    <div className="exInputGroup">
-                      <span className="exLabel">Componente Interativo</span>
-                      <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                    <div className={fieldGroupClass}>
+                      <span className={fieldLabelClass}>Componente Interativo</span>
+                      <div className={radioRowClass}>
                         <AnimatedRadioLabel
                           name="componenteInterativoInformatica"
                           value="escrita"
@@ -2139,7 +2264,7 @@ export default function ExerciciosPage() {
                           icon={<ListChecks size={14} />} 
                         />
                       </div>
-                      <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
+                      <small className={helperTextClass}>
                         Selecione o tipo de componente para Informatica
                       </small>
                     </div>
@@ -2167,128 +2292,48 @@ export default function ExerciciosPage() {
 
                     {/* FORMULARIO DINAMICO PARA MULTIPLA ESCOLHA */}
                     <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
-                      <div style={{
-                        background: "#f9fafb",
-                        border: "2px dashed #e5e7eb",
-                        borderRadius: "12px",
-                        padding: "20px",
-                        marginTop: "16px",
-                      }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "16px" }}>
-                          {iconLabel(<ListChecks size={14} />, "Criar Questoes")} ({multiplaQuestoes.length})
-                        </p>
+                      <div className="mt-4 space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-5 dark:border-slate-500/20 dark:bg-slate-500/5">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <ListChecks size={14} className="text-slate-700 dark:text-slate-300" />
+                          <span>Criar questões ({multiplaQuestoes.length})</span>
+                        </div>
 
-                        {/* Loop atraves de cada Questao */}
-                        {multiplaQuestoes.map((questao, qIndex) => (
-                          <div key={`info-q-${questao.pergunta}-${questao.respostaCorreta}-${questao.opcoes.map((o) => o.text).join("|")}`} style={{
-                            background: "var(--card)",
-                            border: "1px solid var(--line)",
-                            borderRadius: "8px",
-                            padding: "16px",
-                            marginBottom: "16px",
-                          }}>
-                            <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937" }}>
-                              Questao {qIndex + 1}
-                            </h4>
-
-                            {/* Campos de opcoes */}
-                            {questao.opcoes.map((opcao, oIndex) => (
-                              <div key={`info-op-${questao.pergunta}-${opcao.letter}-${opcao.text}`} style={{ marginBottom: "12px" }}>
-                                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
-                                  Opcao {opcao.letter}
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder={`Digite a Opcao ${opcao.letter}...`}
-                                  value={opcao.text}
-                                  onChange={(e) => {
-                                    const naovaQuestoes = [...multiplaQuestoes];
-                                    naovaQuestoes[qIndex].opcoes[oIndex].text = e.target.value;
-                                    setMultiplaQuestoes(naovaQuestoes);
-                                  }}
-                                  style={{
-                                    width: "100%",
-                                    padding: "8px",
-                                    border: "1px solid #d1d5db",
-                                    borderRadius: "4px",
-                                    fontSize: "14px",
-                                    fontFamily: "inherit",
-                                    boxSizing: "border-box",
-                                  }}
-                                />
-                              </div>
-                            ))}
-
-                            {/* Radio buttons para resposta correta */}
-                            <div style={{ marginBottom: "12px" }}>
-                              <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 0, marginBottom: "8px" }}>
-                                Resposta Correta:
-                              </p>
-                              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                                {questao.opcoes.map((opcao) => (
-                                  <label key={opcao.letter} style={{ display: "flex", alignItems: "center", fontSize: "14px", cursor: "pointer" }}>
-                                    <input
-                                      type="radio"
-                                      name={`respostaCorreta_${qIndex}`}
-                                      value={opcao.letter}
-                                      checked={questao.respostaCorreta === opcao.letter}
-                                      onChange={(e) => {
-                                        const naovaQuestoes = [...multiplaQuestoes];
-                                        naovaQuestoes[qIndex].respostaCorreta = e.target.value;
-                                        setMultiplaQuestoes(naovaQuestoes);
-                                      }}
-                                      style={{ marginRight: "6px", cursor: "pointer" }}
-                                    />
-                                    {opcao.letter}
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Botao remover Questao */}
-                            {multiplaQuestoes.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex));
-                                }}
-                                style={{
-                                  padding: "6px 12px",
-                                  background: "#fecaca",
-                                  color: "#991b1b",
-                                  border: "1px solid #fca5a5",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  fontSize: "12px",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {iconLabel(<Trash2 size={14} />, "Remover Questao")}
-                              </button>
-                            )}
-                          </div>
-                        ))}
-
-                        {/* Botao adicionar Questao */}
-                        {/* Temporariamente desativado: adicionar outra questao */}
-
-                        {/* PREVIEW DINAMICO DA PRIMEIRA QUESTAO */}
-                        {multiplaQuestoes.length > 0 && descricao.trim() && (
-                          <div style={{
-                            background: "var(--card)",
-                            border: "2px solid var(--line)",
-                            borderRadius: "8px",
-                            padding: "16px",
-                            marginTop: "16px",
-                          }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: "#0c4a6e", marginTop: 0, marginBottom: "12px" }}>
-                              {iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}
-                            </p>
-                            <MultipleChoiceQuestion
-                              question={`Q1: ${descricao.trim()}`}
-                              options={multiplaQuestoes[0].opcoes}
-                              onAnswer={() => { }}
+                        <div className="space-y-3">
+                          {multiplaQuestoes.map((questao, qIndex) => (
+                            <MultipleChoiceQuestionEditor
+                              key={`info-q-${qIndex}`}
+                              questionIndex={qIndex}
+                              opcoes={questao.opcoes}
+                              respostaCorreta={questao.respostaCorreta}
+                              onChangeOpcao={(oIndex, value) =>
+                                updateCreateMultiplaQuestaoOpcao(qIndex, oIndex, value)
+                              }
+                              onChangeCorreta={(value) =>
+                                updateCreateMultiplaQuestaoCorreta(qIndex, value)
+                              }
+                              onRemoveQuestao={
+                                multiplaQuestoes.length > 1
+                                  ? () => removeCreateMultiplaQuestao(qIndex)
+                                  : undefined
+                              }
                             />
+                          ))}
+                        </div>
+
+                        {multiplaQuestoes.length > 0 && descricao.trim() && (
+                          <div className="rounded-2xl border border-sky-200/70 bg-sky-50/60 p-4 dark:border-sky-500/20 dark:bg-sky-500/5">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                              <Eye size={14} className="text-sky-700 dark:text-sky-300" />
+                              <span>Preview do aluno</span>
+                            </div>
+                            <div className="mt-3">
+                              <MultipleChoiceQuestion
+                                question={`Q1: ${descricao.trim()}`}
+                                options={multiplaQuestoes[0].opcoes}
+                                selectedAnswer=""
+                                onAnswer={() => {}}
+                              />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2296,10 +2341,17 @@ export default function ExerciciosPage() {
                   </>
                 )}
 
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <span className="exLabel">Curso selecionado *</span>
-                    <div className={`exCourseSummary ${cursoSelecionado ? "" : "isEmpty"}`}>
+                <div className={rowClass}>
+                  <div className={cn(fieldGroupClass, "xl:col-span-3")}>
+                    <span className={fieldLabelClass}>Curso selecionado *</span>
+                    <div
+                      className={cn(
+                        "grid gap-2 rounded-[24px] border px-4 py-4",
+                        cursoSelecionado
+                          ? "border-border/70 bg-background/80"
+                          : "border-border/60 bg-muted/25 text-muted-foreground"
+                      )}
+                    >
                       {cursoSelecionado ? (
                         <>
                           <strong>
@@ -2316,16 +2368,16 @@ export default function ExerciciosPage() {
                         <span>Selecione um curso acima para liberar os módulos e fases.</span>
                       )}
                     </div>
-                    <small style={{ color: "#666", marginTop: "4px" }}>
+                    <small className={helperTextClass}>
                       Os módulos abaixo são filtrados automaticamente pelo curso selecionado.
                     </small>
                   </div>
                 </div>
 
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <span className="exLabel">Modulo *</span>
-                    <div className={`exFieldWarnWrap ${fieldWarnings.modulo ? "isWarning" : ""}`}>
+                <div className={rowClass}>
+                  <div className={fieldGroupClass}>
+                    <span className={fieldLabelClass}>Modulo *</span>
+                    <div className={fieldWarnWrapClass(Boolean(fieldWarnings.modulo))}>
                       <PaginatedSelect
                         value={moduloIdSelecionado}
                         onChange={(value) => {
@@ -2346,12 +2398,12 @@ export default function ExerciciosPage() {
                         emptyText="Nenhum modulo encontrado"
                       />
                     </div>
-                    {fieldWarnings.modulo && <small className="exFieldWarning">{fieldWarnings.modulo}</small>}
+                    {fieldWarnings.modulo && <small className={warningTextClass}>{fieldWarnings.modulo}</small>}
                   </div>
 
-                  <div className="exInputGroup">
-                    <span className="exLabel">Fase *</span>
-                    <div className={`exFieldWarnWrap ${fieldWarnings.fase ? "isWarning" : ""}`}>
+                  <div className={fieldGroupClass}>
+                    <span className={fieldLabelClass}>Fase *</span>
+                    <div className={fieldWarnWrapClass(Boolean(fieldWarnings.fase))}>
                       <PaginatedSelect
                         value={faseIdSelecionada}
                         onChange={(value) => {
@@ -2370,13 +2422,13 @@ export default function ExerciciosPage() {
                         emptyText="Nenhuma fase encontrada"
                       />
                     </div>
-                    {fieldWarnings.fase && <small className="exFieldWarning">{fieldWarnings.fase}</small>}
+                    {fieldWarnings.fase && <small className={warningTextClass}>{fieldWarnings.fase}</small>}
                   </div>
 
-                  <div className="exInputGroup">
-                    <span className="exLabel">Prazo (Valido apenas nas tarefas diarias) *</span>
+                  <div className={fieldGroupClass}>
+                    <span className={fieldLabelClass}>Prazo (Valido apenas nas tarefas diarias) *</span>
                     <input
-                      className={`exInput ${fieldWarnings.prazo ? "isWarning" : ""}`}
+                      className={cn(fieldInputClass, fieldWarnings.prazo && warningControlClass)}
                       type="datetime-local"
                       value={prazo}
                       onChange={(e) => {
@@ -2384,29 +2436,29 @@ export default function ExerciciosPage() {
                         clearFieldWarning("prazo");
                       }}
                     />
-                    {fieldWarnings.prazo && <small className="exFieldWarning">{fieldWarnings.prazo}</small>}
+                    {fieldWarnings.prazo && <small className={warningTextClass}>{fieldWarnings.prazo}</small>}
                   </div>
                 </div>
 
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <span className="exLabel">Video URL</span>
+                <div className={compactRowClass}>
+                  <div className={fieldGroupClass}>
+                    <span className={fieldLabelClass}>Video URL</span>
                     <input
-                      className="exInput"
+                      className={fieldInputClass}
                       type="url"
                       placeholder="https://..."
                       value={videoUrl}
                       onChange={(e) => setVideoUrl(e.target.value)}
                     />
-                    <small style={{ color: "#666", marginTop: "4px" }}>
+                    <small className={helperTextClass}>
                       Link opcional de apoio para este exercicio.
                     </small>
                   </div>
 
-                  <div className="exInputGroup">
-                    <span className="exLabel">Dificuldade</span>
+                  <div className={fieldGroupClass}>
+                    <span className={fieldLabelClass}>Dificuldade</span>
                     <AnimatedSelect
-                      className="exSelect"
+                      className={fieldSelectClass}
                       value={difficulty}
                       onChange={(e) => setDifficulty(e.target.value)}
                     >
@@ -2415,7 +2467,7 @@ export default function ExerciciosPage() {
                       <option value="2">Lower (Recuperação)</option>
                       <option value="3">Prova Semanal</option>
                     </AnimatedSelect>
-                    <small style={{ color: "#666", marginTop: "4px" }}>
+                    <small className={helperTextClass}>
                       Escolha um nivel compativel com a validacao da API.
                     </small>
                   </div>
@@ -2423,40 +2475,40 @@ export default function ExerciciosPage() {
                   {/* Campo Ordem removido da criação conforme correções.md */}
                 </div>
 
-                <div className="exInputRow">
-                  <div className="exInputGroup">
-                    <span className="exLabel">Pontos de resgate</span>
+                <div className={compactRowClass}>
+                  <div className={fieldGroupClass}>
+                    <span className={fieldLabelClass}>Pontos de resgate</span>
                     <input
-                      className="exInput"
+                      className={fieldInputClass}
                       type="number"
                       min="0"
                       placeholder="0"
                       value={pointsRedeem}
                       onChange={(e) => setPointsRedeem(e.target.value)}
                     />
-                    <small style={{ color: "#666", marginTop: "4px" }}>
+                    <small className={helperTextClass}>
                       Pontos que o aluno recebe ao concluir o exercicio.
                     </small>
                   </div>
 
-                  <div className="exInputGroup">
-                    <span className="exLabel">Periodo do exercicio</span>
+                  <div className={fieldGroupClass}>
+                    <span className={fieldLabelClass}>Periodo do exercicio</span>
                     <input
-                      className="exInput"
+                      className={fieldInputClass}
                       type="datetime-local"
                       value={exercisePeriod}
                       onChange={(e) => setExercisePeriod(e.target.value)}
                     />
-                    <small style={{ color: "#666", marginTop: "4px" }}>
+                    <small className={helperTextClass}>
                       Data e hora de quando começou o exercício (opcional).
                     </small>
                   </div>
                 </div>
 
-                <div className="exInputRow">
-                  <div className="exInputGroup">
+                <div className={compactRowClass}>
+                  <div className={fieldGroupClass}>
                     <div
-                      className={`exStatusToggle ${isFinalExercise ? "isActive" : ""}`}
+                      className={statusToggleClass(isFinalExercise)}
                       role="button"
                       tabIndex={0}
                       onClick={() => setIsFinalExercise(!isFinalExercise)}
@@ -2471,15 +2523,15 @@ export default function ExerciciosPage() {
                         checked={isFinalExercise}
                         onChange={setIsFinalExercise}
                       />
-                      <span className="exStatusToggleContent">
-                        <span className="exStatusToggleTitle">Exercicio final</span>
-                        <span className="exStatusToggleDescription">Marque se este for o exercicio de fechamento da fase.</span>
+                      <span className="flex min-w-0 flex-col gap-1">
+                        <span className="text-sm font-semibold text-foreground">Exercicio final</span>
+                        <span className="text-sm leading-6 text-muted-foreground">Marque se este for o exercicio de fechamento da fase.</span>
                       </span>
                     </div>
                   </div>
-                  <div className="exInputGroup">
+                  <div className={fieldGroupClass}>
                     <div
-                      className={`exStatusToggle ${isDailyTask ? "isActive" : ""}`}
+                      className={statusToggleClass(isDailyTask)}
                       role="button"
                       tabIndex={0}
                       onClick={() => setIsDailyTask(!isDailyTask)}
@@ -2494,23 +2546,23 @@ export default function ExerciciosPage() {
                         checked={isDailyTask}
                         onChange={setIsDailyTask}
                       />
-                      <span className="exStatusToggleContent">
-                        <span className="exStatusToggleTitle">Tarefas diárias</span>
-                        <span className="exStatusToggleDescription">Mostra este exercicio na aba de tarefa diaria.</span>
+                      <span className="flex min-w-0 flex-col gap-1">
+                        <span className="text-sm font-semibold text-foreground">Tarefas diárias</span>
+                        <span className="text-sm leading-6 text-muted-foreground">Mostra este exercicio na aba de tarefa diaria.</span>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="exInputGroup">
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                <div className={fieldGroupClass}>
+                  <small className={helperTextClass}>
                     Acesso definido por fase no novo schema. Atribuicao por aluno/turma sera adicionada depois.
                   </small>
                 </div>
 
-                <div style={{ display: "flex", gap: "12px" }}>
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <AnimatedButton
-                    className="exSubmitBtn"
+                    className={primaryButtonClass}
                     onClick={handleSubmit}
                     disabled={disabled}
                     loading={saving}
@@ -2522,20 +2574,17 @@ export default function ExerciciosPage() {
                   </AnimatedButton>
                   {editandoId && (
                     <AnimatedButton
-                      className="exSubmitBtn"
+                      className={secondaryButtonClass}
                       onClick={handleCancel}
                       disabled={saving}
-                      style={{
-                        background: "linear-gradient(135deg, #6b7280, #4b5563)",
-                        flex: 1,
-                      }}
+                      style={{ flex: 1 }}
                     >
                       {iconLabel(<X size={16} />, "Cancelar")}
                     </AnimatedButton>
                   )}
                 </div>
 
-                <div className="exFormnaote">
+                <div className="flex items-start gap-3 rounded-2xl border border-amber-300/70 bg-amber-50/60 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
                   {iconLabel(<Lightbulb size={16} />, "Exercicios podem ser publicados para turmas, alunos especificos ou para todos.")}
                 </div>
               </div>
@@ -2544,10 +2593,10 @@ export default function ExerciciosPage() {
         )}
 
         {isStaff && activeSection === "respostas" && (
-          <div className="responsesHub">
-            <div className="responsesToolbar">
+          <div className={panelClass}>
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
               <input
-                className="exInput"
+                className={fieldInputClass}
                 type="text"
                 placeholder="Filtrar usuarios por nome ou e-mail"
                 value={respostasAlunoFiltro}
@@ -2559,7 +2608,7 @@ export default function ExerciciosPage() {
                 }}
               />
               <select
-                className="exSelect responsesLimitSelect"
+                className={cn(fieldSelectClass, "min-w-[11rem]")}
                 value={String(respostasAlunoLimit)}
                 onChange={(e) => {
                   setRespostasAlunoLimit(Number(e.target.value));
@@ -2575,22 +2624,22 @@ export default function ExerciciosPage() {
             </div>
 
             {loadingRespostasAlunos ? (
-              <div className="loadingState">
-                <div className="spinner" />
+              <div className={loadingStateClass}>
+                <div className={spinnerClass} />
                 Carregando usuarios...
               </div>
             ) : respostasAlunos.length === 0 ? (
-              <div className="emptyState">Nenhum usuario respondeu ainda (tabela answer).</div>
+              <div className={emptyStateClass}>Nenhum usuario respondeu ainda (tabela answer).</div>
             ) : (
               <>
-                <div className="responsesSummaryTop">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-foreground">
                     {respostasAlunoPagination.total} usuario(s)
-                  <span>
+                  <span className="text-muted-foreground">
                     Pagina {respostasAlunoPagination.page} de {respostasAlunoPagination.totalPages}
                   </span>
                 </div>
 
-                <div className="responsesStudentsList">
+                <div className="mt-4 grid gap-3">
                   {respostasAlunos.map((aluno, alunoIndex) => {
                     const aberto = respostasAlunoAbertoId === aluno.id;
                     const initials = (aluno.nome || "Aluno")
@@ -2606,44 +2655,50 @@ export default function ExerciciosPage() {
                     return (
                       <div
                         key={aluno.id}
-                        className={`responsesStudentItem ${aberto ? "isOpen" : ""}`}
+                        className={cn(
+                          responseCardClass,
+                          aberto && "border-sky-400/45 shadow-[0_14px_34px_rgba(37,99,235,0.18)]"
+                        )}
                         style={studentAnimationStyle}
                       >
                         <button
                           type="button"
-                          className="responsesStudentToggle"
+                          className="flex w-full flex-col gap-4 px-4 py-4 text-left sm:flex-row sm:items-center sm:justify-between"
                           onClick={() => toggleRespostasAluno(aluno.id)}
                         >
-                          <div className="responsesStudentIdentity">
-                            <span className="responsesStudentAvatar" aria-hidden="true">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span
+                              className="flex size-11 items-center justify-center rounded-2xl border border-sky-500/25 bg-sky-500/10 text-sm font-bold text-sky-100"
+                              aria-hidden="true"
+                            >
                               {initials || "A"}
                             </span>
-                            <div>
-                              <div className="responsesStudentName">{aluno.nome}</div>
-                              <div className="responsesStudentEmail">{aluno.email || "Sem e-mail/usuario"}</div>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-foreground">{aluno.nome}</div>
+                              <div className="truncate text-sm text-muted-foreground">{aluno.email || "Sem e-mail/usuario"}</div>
                             </div>
                           </div>
-                          <div className="responsesStudentMeta">
-                            <div className="responsesStudentMetaCounts">
-                              <span className="responsesStudentMetaBadge">{aluno.totalRespostas} resposta(s)</span>
-                              <span className="responsesStudentMetaBadge">{aluno.totalExercicios} exercicio(s)</span>
+                          <div className="flex items-center gap-3 self-end sm:self-auto">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <span className={responseBadgeClass}>{aluno.totalRespostas} resposta(s)</span>
+                              <span className={responseBadgeClass}>{aluno.totalExercicios} exercicio(s)</span>
                             </div>
-                            <span className="responsesStudentLast">
+                            <span className="hidden text-xs text-muted-foreground sm:inline">
                               {aluno.lastAnsweredAt
                                 ? `Ultima: ${new Date(aluno.lastAnsweredAt).toLocaleDateString("pt-BR")}`
                                 : "Sem data"}
                             </span>
                           </div>
-                          <span className="responsesStudentChevron">
+                          <span className="text-muted-foreground">
                             {aberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </span>
                         </button>
 
                         {aberto && (
-                          <div className="responsesExercisesWrap">
-                            <div className="responsesExercisesToolbar">
+                          <div className="grid gap-4 border-t border-sky-500/15 px-4 pb-4 pt-4">
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                               <input
-                                className="exInput"
+                                className={fieldInputClass}
                                 type="text"
                                 placeholder="Filtrar exercicios deste usuario"
                                 value={respostasExercicioFiltro}
@@ -2653,7 +2708,7 @@ export default function ExerciciosPage() {
                                 }}
                               />
                               <select
-                                className="exSelect responsesLimitSelect"
+                                className={cn(fieldSelectClass, "min-w-[11rem]")}
                                 value={String(respostasExercicioLimit)}
                                 onChange={(e) => {
                                   setRespostasExercicioLimit(Number(e.target.value));
@@ -2667,14 +2722,14 @@ export default function ExerciciosPage() {
                             </div>
 
                             {loadingRespostasExercicios ? (
-                              <div className="loadingState responsesInnerLoading">
-                                <div className="spinner" />
+                              <div className={loadingStateClass}>
+                                <div className={spinnerClass} />
                                 Carregando exercicios...
                               </div>
                             ) : respostasExerciciosAluno.length === 0 ? (
-                              <div className="emptyState">Este usuario ainda nao possui exercicios respondidos.</div>
+                              <div className={emptyStateClass}>Este usuario ainda nao possui exercicios respondidos.</div>
                             ) : (
-                              <div className="responsesExercisesList">
+                              <div className="grid gap-3">
                                 {respostasExerciciosAluno.map((exercicio, exercicioIndex) => {
                                   const directKey = getRespostasDiretasKey(aluno.id, exercicio.id);
                                   const respostasDiretas = respostasDiretasPorExercicio[directKey] ?? [];
@@ -2688,47 +2743,50 @@ export default function ExerciciosPage() {
                                   return (
                                     <div
                                       key={exercicio.id}
-                                      className={`responsesExerciseItem ${abertoExercicio ? "isOpen" : ""}`}
+                                      className={cn(
+                                        "rounded-[22px] border border-border/70 bg-background/70 transition",
+                                        abertoExercicio && "border-primary/35 bg-primary/5"
+                                      )}
                                       style={exerciseAnimationStyle}
                                     >
                                       <button
                                         type="button"
-                                        className="responsesExerciseToggle"
+                                        className="flex w-full flex-col gap-4 px-4 py-4 text-left sm:flex-row sm:items-start sm:justify-between"
                                         onClick={() => setRespostaExercicioAbertoKey((prev) => (prev === directKey ? null : directKey))}
                                         aria-expanded={abertoExercicio}
                                       >
-                                        <div className="responsesExerciseInfo">
-                                          <div className="responsesExerciseTitle">{exercicio.titulo}</div>
-                                          <div className="responsesExerciseMeta">
+                                        <div className="min-w-0">
+                                          <div className="truncate text-sm font-semibold text-foreground">{exercicio.titulo}</div>
+                                          <div className="mt-1 text-sm text-muted-foreground">
                                             {[exercicio.modulo, exercicio.tema].filter(Boolean).join(" - ") || "Sem modulo/fase"}
                                           </div>
-                                          <div className="responsesExerciseMeta">
+                                          <div className="mt-1 text-sm text-muted-foreground">
                                             {exercicio.lastAnsweredAt
                                               ? `Ultima resposta: ${new Date(exercicio.lastAnsweredAt).toLocaleString("pt-BR")}`
                                               : "Sem data"}
                                           </div>
                                         </div>
 
-                                        <div className="responsesExerciseToggleMeta">
-                                          <span className="responsesStudentMetaBadge">{exercicio.totalRespostas} resposta(s)</span>
-                                          <span className="responsesStudentMetaBadge">{respostasDiretas.length} listada(s)</span>
-                                          <span className="responsesStudentChevron">
+                                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                                          <span className={responseBadgeClass}>{exercicio.totalRespostas} resposta(s)</span>
+                                          <span className={responseBadgeClass}>{respostasDiretas.length} listada(s)</span>
+                                          <span className="text-muted-foreground">
                                             {abertoExercicio ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                           </span>
                                         </div>
                                       </button>
 
                                       {abertoExercicio && (
-                                        <div className="responsesExercisePanel">
+                                        <div className="grid gap-4 border-t border-border/60 px-4 pb-4 pt-4">
                                           {carregandoRespostasDiretas ? (
-                                            <div className="loadingState responsesInnerLoading">
-                                              <div className="spinner" />
+                                            <div className={loadingStateClass}>
+                                              <div className={spinnerClass} />
                                               Carregando respostas...
                                             </div>
                                           ) : respostasDiretas.length === 0 ? (
-                                            <div className="emptyState">Nenhuma resposta listada para este exercicio.</div>
+                                            <div className={emptyStateClass}>Nenhuma resposta listada para este exercicio.</div>
                                           ) : (
-                                            <div className="responsesDirectList" role="listbox" aria-label="Respostas do exercicio">
+                                            <div className="grid gap-2" role="listbox" aria-label="Respostas do exercicio">
                                               {respostasDiretas.map((resposta, respostaIndex) => {
                                                 const value = getRespostaDiretaValue(resposta);
                                                 const selecionada = seletorValue === value;
@@ -2740,25 +2798,34 @@ export default function ExerciciosPage() {
                                                   <button
                                                     key={`${resposta.answerId}-${resposta.questionId}`}
                                                     type="button"
-                                                    className={`responsesDirectRow ${selecionada ? "isSelected" : ""}`}
+                                                    className={cn(
+                                                      "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition",
+                                                      selecionada
+                                                        ? "border-primary/40 bg-primary/10 text-foreground"
+                                                        : "border-border/70 bg-background/80 text-muted-foreground hover:border-primary/30 hover:bg-accent hover:text-foreground"
+                                                    )}
                                                     style={directRowAnimationStyle}
                                                     onClick={() => {
                                                       setSeletorRespostaDireta((prev) => ({ ...prev, [directKey]: value }));
                                                       navegarParaRespostaDireta(exercicio.id, aluno.id, value);
                                                     }}
                                                   >
-                                                    <span className="responsesDirectRowLabel">{getRespostaDiretaLabel(resposta)}</span>
-                                                    {selecionada ? <span className="responsesDirectRowBadge">Selecionada</span> : null}
+                                                    <span className="font-medium">{getRespostaDiretaLabel(resposta)}</span>
+                                                    {selecionada ? (
+                                                      <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+                                                        Selecionada
+                                                      </span>
+                                                    ) : null}
                                                   </button>
                                                 );
                                               })}
                                             </div>
                                           )}
 
-                                          <div className="responsesExerciseActions">
+                                          <div className="flex justify-end">
                                             <button
                                               type="button"
-                                              className="responsesOpenBtn small"
+                                              className={cn(secondaryButtonClass, "px-3 py-2 text-xs")}
                                               onClick={() =>
                                                 navigate(`/dashboard/exercicios/${exercicio.id}`, {
                                                   state: {
@@ -2781,10 +2848,10 @@ export default function ExerciciosPage() {
                             )}
 
                             {!loadingRespostasExercicios && respostasExerciciosAluno.length > 0 && (
-                              <div className="responsesPagination">
+                              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                                 <button
                                   type="button"
-                                  className="responsesPageBtn"
+                                  className={cn(secondaryButtonClass, "px-3 py-2 text-xs")}
                                   disabled={respostasExercicioPage <= 1}
                                   onClick={() => setRespostasExercicioPage((p) => Math.max(1, p - 1))}
                                 >
@@ -2795,7 +2862,7 @@ export default function ExerciciosPage() {
                                 </span>
                                 <button
                                   type="button"
-                                  className="responsesPageBtn"
+                                  className={cn(secondaryButtonClass, "px-3 py-2 text-xs")}
                                   disabled={respostasExercicioPage >= respostasExercicioPagination.totalPages}
                                   onClick={() =>
                                     setRespostasExercicioPage((p) => Math.min(respostasExercicioPagination.totalPages, p + 1))
@@ -2812,10 +2879,10 @@ export default function ExerciciosPage() {
                   })}
                 </div>
 
-                <div className="responsesPagination">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                   <button
                     type="button"
-                    className="responsesPageBtn"
+                    className={cn(secondaryButtonClass, "px-3 py-2 text-xs")}
                     disabled={respostasAlunoPage <= 1}
                     onClick={() => setRespostasAlunoPage((p) => Math.max(1, p - 1))}
                   >
@@ -2826,7 +2893,7 @@ export default function ExerciciosPage() {
                   </span>
                   <button
                     type="button"
-                    className="responsesPageBtn"
+                    className={cn(secondaryButtonClass, "px-3 py-2 text-xs")}
                     disabled={respostasAlunoPage >= respostasAlunoPagination.totalPages}
                     onClick={() => setRespostasAlunoPage((p) => Math.min(respostasAlunoPagination.totalPages, p + 1))}
                   >
@@ -2840,12 +2907,12 @@ export default function ExerciciosPage() {
         {/* FILTROS DE ExercicioS */}
         {(activeSection === "lista" || activeSection === "tarefa-diaria") && (
           <>
-            <div className="filtersSection">
+            <div className={cn(panelClass, "p-4 sm:p-5")}>
               {/* Linha 1: Busca por Titulo */}
-              <div className="filterRow">
-                <div className="filterGroup" style={{ flex: 1 }}>
+              <div className="flex flex-col gap-3">
+                <div className="min-w-0">
                   <input
-                    className="exInput"
+                    className={fieldInputClass}
                     type="text"
                     placeholder={activeSection === "tarefa-diaria" ? "Buscar tarefa diaria..." : "Buscar por Titulo..."}
                     value={buscaFiltro}
@@ -2853,23 +2920,21 @@ export default function ExerciciosPage() {
                       setBuscaFiltro(e.target.value);
                       setCurrentPage(1);
                     }}
-                    style={{ width: "100%" }}
                   />
                 </div>
               </div>
 
               {/* Linha 2: Modulo, Turmas, Status */}
-              <div className="filterRow" style={{ gap: "12px" }}>
+              <div className="mt-3 flex flex-col gap-3 xl:flex-row">
                 {/* Filtro de modulo */}
-                <div className="filterGroup">
+                <div className="xl:min-w-[10rem]">
                   <select
-                    className="exSelect"
+                    className={fieldSelectClass}
                     value={moduloFiltro}
                     onChange={(e) => {
                       setModuloFiltro(e.target.value);
                       setCurrentPage(1);
                     }}
-                    style={{ minWidth: 160 }}
                   >
                     <option value="">Todos os Modulos</option>
                     {moduloFilterOptions.map((mod) => (
@@ -2882,15 +2947,14 @@ export default function ExerciciosPage() {
 
                 {/* Filtro de turmas */}
                 {turmasDisponiveis.length > 0 && (
-                  <div className="filterGroup">
+                  <div className="xl:min-w-[12rem]">
                     <select
-                      className="exSelect"
+                      className={fieldSelectClass}
                       value={turmaFiltro}
                       onChange={(e) => {
                         setTurmaFiltro(e.target.value);
                         setCurrentPage(1);
                       }}
-                      style={{ minWidth: 180 }}
                     >
                       <option value="todas">Todas as turmas</option>
                       {turmasDisponiveis.map((turma) => (
@@ -2904,15 +2968,14 @@ export default function ExerciciosPage() {
 
                 {/* Filtro de status (staff only) */}
                 {isStaff && (
-                  <div className="filterGroup">
+                  <div className="xl:min-w-[10rem]">
                     <select
-                      className="exSelect"
+                      className={fieldSelectClass}
                       value={statusFiltro}
                       onChange={(e) => {
                         setStatusFiltro(e.target.value as "todos" | "publicado" | "programado" | "rascunho");
                         setCurrentPage(1);
                       }}
-                      style={{ minWidth: 160 }}
                     >
                       <option value="todos">Todos os status</option>
                       <option value="publicado">Publicado</option>
@@ -2927,31 +2990,31 @@ export default function ExerciciosPage() {
             {/* LISTA DE ExercicioS */}
             <div>
               {loading && sourceItems.length === 0 ? (
-                <div className="loadingState">
-                  <div className="spinner" />
+                <div className={loadingStateClass}>
+                  <div className={spinnerClass} />
                                 Carregando exercicios...
                 </div>
               ) : !loading && sourceItems.length === 0 ? (
-                <div className="emptyState">
-                  <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
-                  <div className="emptyTitle">Nenhum Exercicio Disponivel</div>
-                  <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
+                <div className={emptyStateClass}>
+                  <div className={emptyIconClass}><BookOpen size={22} /></div>
+                  <div className={emptyTitleClass}>Nenhum Exercicio Disponivel</div>
+                  <p className="m-0 text-sm text-muted-foreground">
                     Volte mais tarde para novos Exercicios!
                   </p>
                 </div>
               ) : (
                 <>
                   {/* Filtros e Paginacao */}
-                  <div style={{ marginBottom: "16px" }}>
+                  <div className="mb-4">
                     {totalItemsSection === 0 ? (
-                      <div className="emptyState">
-                        <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
-                        <div className="emptyTitle">
+                      <div className={emptyStateClass}>
+                        <div className={emptyIconClass}><BookOpen size={22} /></div>
+                        <div className={emptyTitleClass}>
                           {activeSection === "tarefa-diaria"
                             ? "Nenhuma tarefa diaria encontrada"
                             : "Nenhum Exercicio encontrado"}
                         </div>
-                        <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
+                        <p className="m-0 text-sm text-muted-foreground">
                           {activeSection === "tarefa-diaria"
                             ? "Nenhuma tarefa diaria foi retornada do banco para os filtros selecionados."
                             : "Ajuste os filtros e tente naovamente."}
@@ -2959,15 +3022,14 @@ export default function ExerciciosPage() {
                       </div>
                     ) : (
                       <>
-                        <div className="exercisesListVirtualHost" ref={exercisesListVirtualHostRef}>
+                        <div className="space-y-4" ref={exercisesListVirtualHostRef}>
                           {shouldVirtualizeExercises && exercisesVirtualWindow && exercisesVirtualWindow.topSpacerHeight > 0 && (
                             <div
-                              className="exercisesListVirtualSpacer"
                               style={{ height: exercisesVirtualWindow.topSpacerHeight }}
                               aria-hidden="true"
                             />
                           )}
-                          <div className="exercisesList" ref={exercisesListGridRef}>
+                          <div className="grid gap-4 xl:grid-cols-2" ref={exercisesListGridRef}>
                             {visibleExercises.map((item, visibleIndex) => {
                             const { ex, alunoIds, hasAlunoAssignment, publishedAtMs, prazoMs } = item;
                             const alunoNames = hasAlunoAssignment ? getAlunoNames(ex) : [];
@@ -2992,7 +3054,7 @@ export default function ExerciciosPage() {
                             return (
                               <div
                                 key={ex.id}
-                                className={`exerciseCard ${canCreate ? "canEdit" : ""}`}
+                                className={exerciseCardClass(canCreate)}
                                 style={cardAnimationStyle}
                                 ref={shouldMeasureCard ? measureExerciseCardRef : undefined}
                                 onClick={() =>
@@ -3007,6 +3069,7 @@ export default function ExerciciosPage() {
                                 tabIndex={0}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
                                     navigate(`/dashboard/exercicios/${ex.id}`, {
                                       state: {
                                         from: location.pathname,
@@ -3016,18 +3079,13 @@ export default function ExerciciosPage() {
                                   }
                                 }}
                               >
-                                <div className="exerciseHeader">
-                                  <div className="exerciseInfo">
-                                    <div className="exerciseTitleContainer">
-                                      <h3 className="exerciseTitle">{ex.titulo}</h3>
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-start gap-2">
+                                      <h3 className="text-lg font-semibold text-foreground">{ex.titulo}</h3>
                                       {isStaff && isDraft && (
                                         <span
-                                          className="exerciseBadge"
-                                          style={{
-                                            background: "rgba(156, 163, 175, 0.15)",
-                                            color: "#6b7280",
-                                            borderColor: "rgba(156, 163, 175, 0.3)",
-                                          }}
+                                          className="inline-flex items-center rounded-full border border-slate-500/30 bg-slate-500/10 px-3 py-1 text-xs font-semibold text-slate-300"
                                           title="Rascunho - nao visivel para alunos"
                                         >
                                           Rascunho
@@ -3035,40 +3093,46 @@ export default function ExerciciosPage() {
                                       )}
                                       {isStaff && !isDraft && isScheduled && (
                                         <span
-                                          className="exerciseBadge"
-                                          style={{
-                                            background: "rgba(59, 130, 246, 0.1)",
-                                            color: "#3b82f6",
-                                            borderColor: "rgba(59, 130, 246, 0.2)",
-                                          }}
+                                          className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-200"
                                           title="Exercicio programado para Publicacao"
                                         >
                                           Programado
                                         </span>
                                       )}
                                     </div>
-                                    <div className="exerciseMetaLine">
-                                      <span className={`exerciseTypePill ${tipoInfo.className}`}>{tipoInfo.label}</span>
-                                      <span className="exerciseModulePill">{ex.modulo}</span>
-                                      <span className="exercisePhasePill">{ex.tema?.trim() ? ex.tema : "Sem fase"}</span>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      <span className={exerciseTypePillClass(tipoInfo.className)}>{tipoInfo.label}</span>
+                                      <span className="inline-flex items-center rounded-full border border-border/70 bg-background/75 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                                        {ex.modulo}
+                                      </span>
+                                      <span className="inline-flex items-center rounded-full border border-border/70 bg-background/75 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                                        {ex.tema?.trim() ? ex.tema : "Sem fase"}
+                                      </span>
                                       {ex.containerName && (
-                                        <span className="exerciseContainerPill">
+                                        <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200">
                                           {ex.containerName}{ex.containerDay ? ` (Dia ${ex.containerDay})` : ""}
                                         </span>
                                       )}
                                     </div>
                                   </div>
-                                  <div className="exerciseMetaAndActions">
-                                      <div className="exerciseMeta">
-                                        <div className={`exerciseDeadline ${isOverdue ? "overdue" : ""}`}>
+                                  <div className="flex flex-col gap-3 lg:items-end">
+                                      <div className="flex items-center">
+                                        <div
+                                          className={cn(
+                                            "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+                                            isOverdue
+                                              ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                                              : "border-border/70 bg-background/75 text-muted-foreground"
+                                          )}
+                                        >
                                         {prazoLabel}
                                       </div>
                                     </div>
 
                                     {canCreate && (
-                                      <div className="exerciseActions">
+                                      <div className="flex items-center gap-2">
                                         <button
-                                          className="exerciseEditBtn"
+                                          className={cn(secondaryButtonClass, "px-3 py-2")}
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             abrirModalEditOpcoes(ex);
@@ -3078,7 +3142,7 @@ export default function ExerciciosPage() {
                                           <Pencil size={14} />
                                         </button>
                                         <button
-                                          className="exerciseDeleteBtn"
+                                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/15"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleDelete(ex.id);
@@ -3092,26 +3156,26 @@ export default function ExerciciosPage() {
                                   </div>
                                 </div>
 
-                                <div className="exerciseQuestionBox">
-                                  <div className="exerciseQuestionLabel">Pergunta</div>
-                                  <p className="exerciseQuestionText">{ex.descricao?.trim() || "Sem enunciado cadastrado."}</p>
+                                <div className="grid gap-2 rounded-[24px] border border-border/70 bg-muted/20 p-4">
+                                  <div className={fieldLabelClass}>Pergunta</div>
+                                  <p className="text-sm leading-6 text-muted-foreground">{ex.descricao?.trim() || "Sem enunciado cadastrado."}</p>
                                 </div>
 
                                 {/* Badges de acesso/turmas */}
-                                <div className="exerciseAccessRow">
+                                <div className="flex flex-wrap gap-2">
                                   {hasAlunoAssignment ? (
-                                    <span className="exerciseAccessBadge isAluno" title={alunoTitle}>
+                                    <span className={accessBadgeClass("aluno")} title={alunoTitle}>
                                       {iconLabel(<UserIcon size={12} />, alunoLabel)}
                                     </span>
                                   ) : ex.turmas && ex.turmas.length > 0 ? (
                                     <>
-                                      <span className="exerciseAccessBadge isTurmas">
+                                      <span className={accessBadgeClass("turmas")}>
                                         {iconLabel(<Landmark size={12} />, `${ex.turmas.length} turma${ex.turmas.length > 1 ? "s" : ""}`)}
                                       </span>
                                       {ex.turmas.map((turma) => (
                                         <span
                                           key={turma.id}
-                                          className={`exerciseTurmaBadge ${turma.tipo === "turma" ? "isTurma" : "isParticular"}`}
+                                          className={turmaBadgeClass(turma.tipo)}
                                           title={`${turma.tipo}: ${turma.nome}`}
                                         >
                                           {turma.nome}
@@ -3119,7 +3183,7 @@ export default function ExerciciosPage() {
                                       ))}
                                     </>
                                   ) : (
-                                    <span className="exerciseAccessBadge isAll" title="Disponivel para todos os alunos">
+                                    <span className={accessBadgeClass("all")} title="Disponivel para todos os alunos">
                                       {iconLabel(<Globe size={12} />, "Para Todos")}
                                     </span>
                                   )}
@@ -3130,7 +3194,6 @@ export default function ExerciciosPage() {
                         </div>
                           {shouldVirtualizeExercises && exercisesVirtualWindow && exercisesVirtualWindow.bottomSpacerHeight > 0 && (
                             <div
-                              className="exercisesListVirtualSpacer"
                               style={{ height: exercisesVirtualWindow.bottomSpacerHeight }}
                               aria-hidden="true"
                             />
@@ -3172,26 +3235,22 @@ export default function ExerciciosPage() {
           onClose={() => setInfoOverlay(null)}
           title={infoOverlay === "dificuldade" ? "Como funciona a dificuldade" : "Como funciona a ordem"}
           size="sm"
-          footer={
-            <AnimatedButton className="exInfoModalBtn" onClick={() => setInfoOverlay(null)}>
-              Entendi
-            </AnimatedButton>
-          }
+          footer={<AnimatedButton className={primaryButtonClass} onClick={() => setInfoOverlay(null)}>Entendi</AnimatedButton>}
         >
           {infoOverlay === "dificuldade" ? (
-            <div className="exInfoModalContent">
+            <div className={modalBodyClass}>
               <p>A dificuldade minima e 1.</p>
-              <ul className="exInfoList">
+              <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
                 <li>1 = Facil</li>
                 <li>2 = Medio</li>
                 <li>3 = Dificil</li>
               </ul>
-              <p className="exInfoHint">Use 4 ou mais apenas para exercicios avancados.</p>
+              <p className="text-xs leading-5 text-muted-foreground">Use 4 ou mais apenas para exercicios avancados.</p>
             </div>
           ) : (
-            <div className="exInfoModalContent">
+            <div className={modalBodyClass}>
               <p>A ordem define a posicao do exercicio dentro da mesma fase/modulo.</p>
-              <ul className="exInfoList">
+              <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
                 <li>A menor ordem permitida e 1.</li>
                 <li>Menor ordem aparece primeiro.</li>
               </ul>
@@ -3206,26 +3265,26 @@ export default function ExerciciosPage() {
           title={`Editar: ${modalEditOpcoes.exercicio?.titulo ?? "Exercício"}`}
           size="sm"
         >
-          <div className="exActionChoiceModal">
-            <p className="exActionChoiceLead">
+          <div className={modalBodyClass}>
+            <p className="text-sm text-muted-foreground">
               O que deseja fazer com este exercício?
             </p>
             <AnimatedButton
-              className="exActionChoiceBtn exActionChoiceBtnPrimary"
+              className={primaryButtonClass}
               onClick={handleEscolherEditar}
             >
               {iconLabel(<PenLine size={16} />, "Editar Exercício")}
             </AnimatedButton>
-            <small className="exActionChoiceHint">
+            <small className={helperTextClass}>
               Alterar título, descrição, tipo, dificuldade e demais atributos.
             </small>
             <AnimatedButton
-              className="exActionChoiceBtn exActionChoiceBtnSecondary"
+              className={secondaryButtonClass}
               onClick={handleEscolherRealocar}
             >
               {iconLabel(<RefreshCcw size={16} />, "Realocar Exercício")}
             </AnimatedButton>
-            <small className="exActionChoiceHint">
+            <small className={helperTextClass}>
               Mover o exercício para outra fase, módulo ou curso.
             </small>
           </div>
@@ -3240,13 +3299,13 @@ export default function ExerciciosPage() {
           footer={
             <>
               <AnimatedButton
-                className="exModalFooterBtn exModalFooterBtnGhost"
+                className={modalFooterGhostButtonClass}
                 onClick={fecharModalEditarAtributos}
               >
                 Cancelar
               </AnimatedButton>
               <AnimatedButton
-                className="exModalFooterBtn exModalFooterBtnPrimary"
+                className={modalFooterPrimaryButtonClass}
                 disabled={editAttrSaving || editAttrTitulo.trim().length < 2}
                 onClick={confirmarEditarAtributos}
               >
@@ -3257,36 +3316,35 @@ export default function ExerciciosPage() {
             </>
           }
         >
-          <div className="exEditAttrModalBody">
+          <div className={modalBodyClass}>
             {editAttrErro && (
-              <div className="exEditAttrErro">{editAttrErro}</div>
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">{editAttrErro}</div>
             )}
 
-            <div className="exInputGroup">
-              <span className="exLabel">Título</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Título</span>
               <input
-                className="exInput"
+                className={fieldInputClass}
                 value={editAttrTitulo}
                 onChange={(e) => setEditAttrTitulo(e.target.value)}
                 placeholder="Título do exercício"
               />
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Descrição</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Descrição</span>
               <textarea
-                className="exInput"
+                className={fieldTextareaClass}
                 value={editAttrDescricao}
                 onChange={(e) => setEditAttrDescricao(e.target.value)}
                 placeholder="Descrição do exercício"
                 rows={3}
-                style={{ resize: "vertical" }}
               />
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Tipo de componente</span>
-              <div style={{ display: "flex", gap: 12 }}>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Tipo de componente</span>
+              <div className={radioRowClass}>
                 <AnimatedRadioLabel
                   name="editAttrComponenteInterativo"
                   value="escrita"
@@ -3307,8 +3365,8 @@ export default function ExerciciosPage() {
             </div>
 
             {editAttrComponenteInterativo === "multipla" && (
-              <div className="exInputGroup">
-                <span className="exLabel">Questões</span>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Questões</span>
                 {editAttrMultiplaQuestoes.map((q, qi) => (
                   <MultipleChoiceQuestionEditor
                     key={qi}
@@ -3346,7 +3404,7 @@ export default function ExerciciosPage() {
                   />
                 ))}
                 <AnimatedButton
-                  className="exActionChoiceBtn exActionChoiceBtnSecondary"
+                  className={secondaryButtonClass}
                   style={{ marginTop: 8, alignSelf: "flex-start" }}
                   onClick={() => setEditAttrMultiplaQuestoes([
                     ...editAttrMultiplaQuestoes,
@@ -3358,20 +3416,20 @@ export default function ExerciciosPage() {
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="exInputGroup">
-                <span className="exLabel">Prazo</span>
+            <div className={compactRowClass}>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Prazo</span>
                 <input
-                  className="exInput"
+                  className={fieldInputClass}
                   type="datetime-local"
                   value={editAttrPrazo}
                   onChange={(e) => setEditAttrPrazo(e.target.value)}
                 />
               </div>
-              <div className="exInputGroup">
-                <span className="exLabel">Dificuldade</span>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Dificuldade</span>
                 <AnimatedSelect
-                  className="exSelect"
+                  className={fieldSelectClass}
                   value={editAttrDifficulty}
                   onChange={(e) => setEditAttrDifficulty(e.target.value)}
                 >
@@ -3383,11 +3441,11 @@ export default function ExerciciosPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="exInputGroup">
-                <span className="exLabel">Ordem</span>
+            <div className={compactRowClass}>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Ordem</span>
                 <input
-                  className="exInput"
+                  className={fieldInputClass}
                   type="number"
                   min={1}
                   value={editAttrIndexOrder}
@@ -3395,10 +3453,10 @@ export default function ExerciciosPage() {
                   placeholder="Ex: 1"
                 />
               </div>
-              <div className="exInputGroup">
-                <span className="exLabel">Pontos</span>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Pontos</span>
                 <input
-                  className="exInput"
+                  className={fieldInputClass}
                   type="number"
                   min={0}
                   value={editAttrPointsRedeem}
@@ -3408,35 +3466,35 @@ export default function ExerciciosPage() {
               </div>
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">URL do Vídeo</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>URL do Vídeo</span>
               <input
-                className="exInput"
+                className={fieldInputClass}
                 value={editAttrVideoUrl}
                 onChange={(e) => setEditAttrVideoUrl(e.target.value)}
                 placeholder="https://..."
               />
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Período do exercício</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Período do exercício</span>
               <input
-                className="exInput"
+                className={fieldInputClass}
                 type="datetime-local"
                 value={editAttrExercisePeriod}
                 onChange={(e) => setEditAttrExercisePeriod(e.target.value)}
               />
             </div>
 
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-foreground">
                 <AnimatedToggle
                   checked={editAttrIsFinalExercise}
                   onChange={() => setEditAttrIsFinalExercise(!editAttrIsFinalExercise)}
                 />
                 Exercício final
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+              <label className="inline-flex items-center gap-2 text-sm text-foreground">
                 <AnimatedToggle
                   checked={editAttrIsDailyTask}
                   onChange={() => setEditAttrIsDailyTask(!editAttrIsDailyTask)}
@@ -3456,13 +3514,13 @@ export default function ExerciciosPage() {
           footer={
             <>
               <AnimatedButton
-                className="exModalFooterBtn exModalFooterBtnGhost"
+                className={modalFooterGhostButtonClass}
                 onClick={fecharModalRealocar}
               >
                 Cancelar
               </AnimatedButton>
               <AnimatedButton
-                className="exModalFooterBtn exModalFooterBtnPrimary"
+                className={modalFooterPrimaryButtonClass}
                 disabled={realocSaving || !realocFaseId}
                 onClick={confirmarRealocar}
               >
@@ -3473,15 +3531,15 @@ export default function ExerciciosPage() {
             </>
           }
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <p style={{ fontSize: 14, color: "var(--muted)", margin: 0 }}>
+          <div className={modalBodyClass}>
+            <p className="m-0 text-sm text-muted-foreground">
               Selecione o novo destino para o exercício.
             </p>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Curso</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Curso</span>
               <AnimatedSelect
-                className="exSelect"
+                className={fieldSelectClass}
                 value={realocCursoId}
                 onChange={(e) => handleRealocCursoChange(e.target.value)}
               >
@@ -3492,10 +3550,10 @@ export default function ExerciciosPage() {
               </AnimatedSelect>
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Módulo</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Módulo</span>
               <AnimatedSelect
-                className="exSelect"
+                className={fieldSelectClass}
                 value={realocModuloId}
                 onChange={(e) => handleRealocModuloChange(e.target.value)}
                 disabled={!realocCursoId}
@@ -3507,10 +3565,10 @@ export default function ExerciciosPage() {
               </AnimatedSelect>
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Fase</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Fase</span>
               <AnimatedSelect
-                className="exSelect"
+                className={fieldSelectClass}
                 value={realocFaseId}
                 onChange={(e) => setRealocFaseId(e.target.value)}
                 disabled={!realocModuloId}

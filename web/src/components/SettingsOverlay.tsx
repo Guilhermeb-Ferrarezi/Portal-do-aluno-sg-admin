@@ -1,7 +1,18 @@
 import React from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, m } from "framer-motion";
 import { getRole } from "../auth/auth";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import {
   alterarMinhaSenha,
   atualizarMeuPerfil,
@@ -47,7 +58,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import "../pages/Perfil.css";
 
 type SettingsSection = "conta" | "seguranca" | "configuracoes" | "aparencia" | "desempenho" | "turmas";
 
@@ -70,7 +80,7 @@ type ProfileSettings = {
 const SETTINGS_KEY = "perfil_settings";
 
 const iconLabel = (icon: React.ReactNode, label: string) => (
-  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+  <span className="inline-flex items-center gap-1.5">
     {icon}
     <span>{label}</span>
   </span>
@@ -428,16 +438,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [isOpen, activeSection, refreshCoverAspectRatio]);
-
-  // Close on Escape
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !modalSenha && !logoutConfirmOpen) onClose();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, modalSenha, logoutConfirmOpen, onClose]);
 
   // Lock body scroll
   React.useEffect(() => {
@@ -865,6 +865,48 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const editorCoverSrc = pendingCoverPreviewUrl || currentCoverSrc;
   const coverZoomMax = Math.max(220, Math.ceil(coverMinZoom) + 180);
   const profileInitial = (formData.nome || formData.usuario || "?").trim().charAt(0).toUpperCase();
+  const roleLabel = roleLabelText(role);
+  const settingsCardClass = "rounded-[24px] border border-border/70 bg-card/95 p-5 shadow-sm";
+  const settingsItemClass =
+    "flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-background/80 p-4 max-[900px]:flex-col max-[900px]:items-start";
+  const settingsActionsClass = "mt-4 flex flex-wrap gap-3 max-[640px]:flex-col";
+  const settingsTitleClass = "text-sm font-semibold text-foreground";
+  const settingsTextClass = "text-sm leading-6 text-muted-foreground";
+  const formLabelClass = "text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground";
+  const formInputClass =
+    "min-h-11 w-full rounded-xl border border-input bg-background/80 px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/30 placeholder:text-muted-foreground/70";
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  const primaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
+  const navItemClass = (active: boolean, danger = false) =>
+    cn(
+      "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition",
+      active
+        ? "bg-primary/10 text-primary"
+        : danger
+          ? "text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 dark:text-rose-300 dark:hover:text-rose-200"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+    );
+  const mobileItemClass = (danger = false) =>
+    cn(
+      "grid w-full grid-cols-[28px_minmax(0,1fr)_24px] items-center gap-3 px-4 py-3 text-left transition",
+      danger
+        ? "text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 dark:text-rose-300 dark:hover:text-rose-200"
+        : "text-foreground hover:bg-muted/60"
+    );
+  const metaBadgeClass = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold";
+  const overlayButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm backdrop-blur transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  const floatingIconButtonClass =
+    "inline-flex size-10 items-center justify-center rounded-full border border-border/70 bg-background/90 text-foreground shadow-sm backdrop-blur transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  const dropdownContentClass =
+    "w-52 min-w-52 rounded-2xl border border-border/70 bg-popover/95 p-1 shadow-xl shadow-black/20 backdrop-blur";
+  const accountSummaryFields = [
+    { label: "Nome exibido", value: formData.nome || "Nao informado" },
+    { label: "E-mail", value: formData.usuario || "Nao informado" },
+    { label: "Cargo", value: roleLabel },
+  ];
 
   React.useEffect(() => {
     if (!coverViewerOpen || !editorCoverSrc) {
@@ -896,59 +938,46 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
     };
   }, [coverViewerOpen, editorCoverSrc, coverAspectRatio]);
 
-  const buildDismissOverlayClickHandler =
-    (onDismiss: () => void) => (event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return;
-      onDismiss();
-    };
-
-  const buildDismissOverlayKeyDownHandler =
-    (onDismiss: () => void) => (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      if (event.target !== event.currentTarget) return;
-      event.preventDefault();
-      onDismiss();
-    };
-
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <m.div
-          className="settingsOverlay"
-          onClick={onClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <m.div
-            className="settingsPanel"
-            onClick={(e) => e.stopPropagation()}
-            initial={{ opacity: 0, scale: 0.97, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          >
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        overlayClassName="z-[10001] bg-black/72 backdrop-blur-md sm:p-6"
+        className="z-[10002] h-dvh max-h-dvh w-screen max-w-none gap-0 overflow-hidden border-none bg-background/95 p-0 shadow-2xl shadow-black/40 sm:h-[min(86vh,840px)] sm:max-h-[86vh] sm:w-[min(1100px,calc(100vw-3rem))] sm:rounded-[28px]"
+        showCloseButton={false}
+      >
+            <DialogTitle className="sr-only">Configurações da conta</DialogTitle>
             {/* Close button */}
-            <button className="settingsCloseBtn" onClick={onClose} aria-label="Fechar configurações">
+            <button
+              className={cn(overlayButtonClass, "absolute right-4 top-4 z-20 hidden sm:inline-flex")}
+              onClick={onClose}
+              aria-label="Fechar configurações"
+            >
               <X size={20} />
-              <span className="settingsCloseHint">ESC</span>
+              <span className="rounded-md border border-border/70 bg-muted/70 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                ESC
+              </span>
             </button>
 
-            <div className="settingsMobileHeader">
+            <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-background/90 px-4 py-4 sm:px-5 lg:hidden">
               {mobileSection ? (
                 <button
-                  className="settingsBackBtn"
+                  className={floatingIconButtonClass}
                   onClick={() => setMobileSection(null)}
                   aria-label="Voltar"
                 >
                   <ChevronLeft size={20} />
                 </button>
               ) : (
-                <span className="settingsBackSpacer" />
+                <span className="size-10" aria-hidden="true" />
               )}
-              <h2 className="settingsMobileTitle">{mobileTitle}</h2>
-              <span className="settingsBackSpacer" />
+              <h2 className="text-base font-bold tracking-tight text-foreground">{mobileTitle}</h2>
+              <button
+                className={floatingIconButtonClass}
+                onClick={onClose}
+                aria-label="Fechar configurações"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <AnimatedToast
@@ -959,27 +988,26 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
             />
 
             {loading ? (
-              <div style={{ display: "grid", placeItems: "center", padding: 48, color: "var(--muted)" }}>
+              <div className="grid place-items-center px-8 py-12 text-sm text-muted-foreground">
                 Carregando...
               </div>
             ) : erro ? (
-              <div style={{ display: "grid", placeItems: "center", padding: 48, color: "var(--red)" }}>
+              <div className="grid place-items-center px-8 py-12 text-sm font-medium text-rose-600 dark:text-rose-300">
                 Erro ao carregar: {erro}
               </div>
             ) : (
-              <div
-                className="settingsLayout"
-                data-mobile-view={mobileSection ? "section" : "list"}
-              >
+              <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[260px_minmax(0,1fr)]">
                 {/* LEFT NAV */}
-                <nav className="settingsNav">
+                <nav className="hidden min-h-0 flex-col border-r border-border/70 bg-muted/20 px-4 py-6 lg:flex">
                   {Object.entries(groups).map(([group, items]) => (
-                    <div key={group} className="settingsNavGroup">
-                      <div className="settingsNavLabel">{group}</div>
+                    <div key={group} className="mb-2">
+                      <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                        {group}
+                      </div>
                       {items.map((item) => (
                         <button
                           key={item.key}
-                          className={`settingsNavItem ${activeSection === item.key ? "active" : ""}`}
+                          className={navItemClass(activeSection === item.key)}
                           onClick={() => handleSectionChange(item.key)}
                         >
                           {item.icon}
@@ -988,10 +1016,12 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                       ))}
                     </div>
                   ))}
-                  <div className="settingsNavGroup">
-                    <div className="settingsNavLabel">CONTA</div>
+                  <div className="mb-2">
+                    <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                      CONTA
+                    </div>
                     <button
-                      className="settingsNavItem settingsNavLogout"
+                      className={navItemClass(false, true)}
                       type="button"
                       onClick={logoutAction}
                     >
@@ -1001,8 +1031,8 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   </div>
                 </nav>
 
-                <div className="settingsMobileList">
-                  <div className="settingsMobileSearch">
+                <div className={cn("min-h-0 overflow-y-auto px-4 pb-8 pt-3 lg:hidden", mobileSection && "hidden")}>
+                  <div className="mb-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-background/80 px-3 py-3 text-muted-foreground">
                     <Search size={16} />
                     <input
                       type="text"
@@ -1010,21 +1040,26 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                       value={mobileQuery}
                       onChange={(e) => setMobileQuery(e.target.value)}
                       aria-label="Buscar configurações"
+                      className="w-full border-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                     />
                   </div>
                   {filteredGroups.map(([group, items]) => (
-                    <div key={group} className="settingsMobileGroup">
-                      <div className="settingsMobileGroupTitle">{group}</div>
-                      <div className="settingsMobileCard">
+                    <div key={group} className="mb-5">
+                      <div className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                        {group}
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm">
                         {items.map((item) => (
                           <button
                             key={item.key}
-                            className="settingsMobileItem"
+                            className={mobileItemClass()}
                             onClick={() => handleSectionChange(item.key)}
                           >
-                            <span className="settingsMobileItemIcon">{item.icon}</span>
-                            <span className="settingsMobileItemLabel">{item.label}</span>
-                            <span className="settingsMobileItemChevron">
+                            <span className="inline-flex items-center justify-center text-muted-foreground">
+                              {item.icon}
+                            </span>
+                            <span className="truncate text-sm font-medium">{item.label}</span>
+                            <span className="inline-flex items-center justify-end text-muted-foreground">
                               <ChevronRight size={18} />
                             </span>
                           </button>
@@ -1032,13 +1067,15 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                       </div>
                     </div>
                   ))}
-                  <div className="settingsMobileGroup">
-                    <div className="settingsMobileGroupTitle">CONTA</div>
-                    <div className="settingsMobileCard">
-                      <button className="settingsMobileItem settingsMobileLogout" onClick={logoutAction}>
-                        <span className="settingsMobileItemIcon"><LogOut size={16} /></span>
-                        <span className="settingsMobileItemLabel">Sair</span>
-                        <span className="settingsMobileItemChevron">
+                  <div className="mb-5">
+                    <div className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                      CONTA
+                    </div>
+                    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm">
+                      <button className={mobileItemClass(true)} onClick={logoutAction}>
+                        <span className="inline-flex items-center justify-center"><LogOut size={16} /></span>
+                        <span className="truncate text-sm font-medium">Sair</span>
+                        <span className="inline-flex items-center justify-end opacity-70">
                           <ChevronRight size={18} />
                         </span>
                       </button>
@@ -1047,29 +1084,43 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                 </div>
 
                 {/* RIGHT CONTENT */}
-                <div className="settingsContent">
+                <div
+                  className={cn(
+                    "min-h-0 overflow-y-auto px-4 pb-8 pt-4 sm:px-6 lg:block lg:px-8 lg:py-8",
+                    isMobile && !mobileSection && "hidden"
+                  )}
+                >
 
                   {/* MINHA CONTA */}
                   {activeSection === "conta" && (
                     <>
-                      <h2 className="settingsSectionTitle">Minha Conta</h2>
-                      <div className="profilePreviewCard">
-                        <div className="profileHero">
+                      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-2">
+                          <h2 className="text-2xl font-bold tracking-tight text-foreground">Minha Conta</h2>
+                          <p className="text-sm text-muted-foreground">
+                            Gerencie seus dados, foto de perfil e banner do portal.
+                          </p>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+                        >
+                          {roleLabel}
+                        </Badge>
+                      </div>
+                      <Card className="gap-0 overflow-visible rounded-[28px] border-border/70 bg-card/95 py-0 shadow-xl shadow-black/10 ring-0">
+                        <div className="relative">
                           <input
                             ref={coverPictureFileInputRef}
                             type="file"
                             accept="image/*"
-                            style={{ display: "none" }}
+                            className="sr-only"
                             onChange={handleCoverSelected}
                           />
                           <div
                             ref={coverPreviewBannerRef}
-                            className="profilePreviewBanner profilePreviewBannerBtn"
-                            onClick={(event) => {
-                              const target = event.target as HTMLElement | null;
-                              if (target?.closest(".profileBannerMenu")) return;
-                              handleOpenCover();
-                            }}
+                            className="relative min-h-[176px] overflow-hidden rounded-t-[28px] border-b border-border/70 bg-gradient-to-br from-primary via-primary/80 to-primary/50 p-4 transition sm:min-h-[220px] sm:p-6"
+                            onClick={handleOpenCover}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => {
@@ -1090,44 +1141,61 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                                 : undefined
                             }
                           >
-                            <div className="profileBannerHoverOverlay">
-                              <div className="profileBannerMenuTrigger">
-                                <Camera size={14} />
-                                <span>Mudar banner</span>
-                              </div>
-                              <div className="profileBannerMenu" role="menu" aria-label="Ações do banner">
-                                <button
-                                  type="button"
-                                  className="profileBannerMenuItem"
-                                  onClick={handleChooseCoverClick}
-                                  disabled={pictureActionLoading}
-                                >
-                                  <FolderOpen size={14} />
-                                  <span>Alterar</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="profileBannerMenuItem danger"
-                                  onClick={handleRemoveCover}
-                                  disabled={pictureActionLoading || !currentCoverSrc}
-                                >
-                                  <Trash2 size={14} />
-                                  <span>Remover</span>
-                                </button>
-                              </div>
+                            <div className="flex min-h-[176px] items-start justify-end sm:min-h-[220px]">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    data-cover-menu-trigger="true"
+                                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/40 px-3 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur transition hover:bg-black/55"
+                                    onClick={(event) => event.stopPropagation()}
+                                    onKeyDown={(event) => event.stopPropagation()}
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    disabled={pictureActionLoading}
+                                  >
+                                    <Camera size={14} />
+                                    <span>{currentCoverSrc ? "Mudar banner" : "Adicionar banner"}</span>
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className={dropdownContentClass}>
+                                  <DropdownMenuLabel>Banner</DropdownMenuLabel>
+                                  <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={handleChooseCoverClick} disabled={pictureActionLoading}>
+                                      <FolderOpen />
+                                      Alterar imagem
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={handleOpenCover}
+                                      disabled={!currentCoverSrc}
+                                    >
+                                      <Eye />
+                                      Ajustar enquadramento
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={handleRemoveCover}
+                                      disabled={pictureActionLoading || !currentCoverSrc}
+                                    >
+                                      <Trash2 />
+                                      Remover banner
+                                    </DropdownMenuItem>
+                                  </DropdownMenuGroup>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
-                          <div className="profilePreviewAvatarWrap">
+                          <div className="absolute left-4 top-[118px] sm:left-6 sm:top-[146px]">
                             <input
                               ref={profilePictureFileInputRef}
                               type="file"
                               accept="image/*"
-                              style={{ display: "none" }}
+                              className="sr-only"
                               onChange={handlePictureSelected}
                             />
                             <button
                               type="button"
-                              className="profilePreviewAvatar profilePreviewAvatarButton"
+                              className="grid size-24 place-items-center overflow-hidden rounded-full border-4 border-background bg-primary text-3xl font-black text-primary-foreground shadow-xl shadow-black/30 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70 sm:size-28"
                               onClick={() => currentPictureSrc && setPictureViewerOpen(true)}
                               title="Ver foto de perfil"
                               aria-label="Ver foto de perfil"
@@ -1137,12 +1205,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                                 <img
                                   src={currentPictureSrc}
                                   alt="Foto de perfil"
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                    borderRadius: "999px",
-                                  }}
+                                  className="size-full rounded-full object-cover"
                                   onError={() => {
                                     setPictureLoadError(true);
                                   }}
@@ -1151,102 +1214,105 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                                 <span aria-hidden="true">{profileInitial}</span>
                               )}
                             </button>
-                            <button
-                              type="button"
-                              className="profileAvatarMenuBtn"
-                              onClick={() => setPictureMenuOpen(true)}
-                              title="Ações da foto"
-                              aria-label="Ações da foto"
-                              disabled={pictureActionLoading}
-                            >
-                              <Camera size={14} />
-                            </button>
-                            {pictureMenuOpen && (
-                              <>
+                            <DropdownMenu open={pictureMenuOpen} onOpenChange={setPictureMenuOpen}>
+                              <DropdownMenuTrigger asChild>
                                 <button
                                   type="button"
-                                  className="profilePhotoMenuBackdrop"
-                                  onClick={() => setPictureMenuOpen(false)}
-                                  aria-label="Fechar menu de foto"
-                                />
-                                <div className="profilePhotoMenu" role="menu" aria-label="Ações da foto">
-                                  <button
-                                    type="button"
-                                    className="profilePhotoMenuItem"
+                                  className={cn(floatingIconButtonClass, "absolute bottom-1 right-1 size-10")}
+                                  title="Ações da foto"
+                                  aria-label="Ações da foto"
+                                  disabled={pictureActionLoading}
+                                >
+                                  <Camera size={14} />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" sideOffset={8} className={dropdownContentClass}>
+                                <DropdownMenuLabel>Foto de perfil</DropdownMenuLabel>
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem
                                     onClick={() => {
                                       setPictureMenuOpen(false);
                                       setPictureViewerOpen(true);
                                     }}
                                     disabled={!currentPictureSrc}
                                   >
-                                    <Eye size={16} />
-                                    <span>Mostrar foto</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="profilePhotoMenuItem"
-                                    onClick={handleTakePictureClick}
-                                    disabled={pictureActionLoading}
-                                  >
-                                    <Camera size={16} />
-                                    <span>Tirar foto</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="profilePhotoMenuItem"
-                                    onClick={handleChoosePictureClick}
-                                    disabled={pictureActionLoading}
-                                  >
-                                    <FolderOpen size={16} />
-                                    <span>Carregar foto</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="profilePhotoMenuItem danger"
+                                    <Eye />
+                                    Mostrar foto
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={handleTakePictureClick} disabled={pictureActionLoading}>
+                                    <Camera />
+                                    Tirar foto
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={handleChoosePictureClick} disabled={pictureActionLoading}>
+                                    <FolderOpen />
+                                    Carregar foto
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    variant="destructive"
                                     onClick={handleRemovePicture}
                                     disabled={pictureActionLoading || !currentPictureSrc}
                                   >
-                                    <Trash2 size={16} />
-                                    <span>Remover foto</span>
-                                  </button>
+                                    <Trash2 />
+                                    Remover foto
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <span className="absolute bottom-2 left-2 inline-flex size-5 rounded-full border-[3px] border-background bg-emerald-500" />
+                          </div>
+                        </div>
+                        <CardContent className="flex flex-col gap-5 px-4 pb-4 pt-16 sm:px-6 sm:pb-6 sm:pt-20">
+                          <div className="min-w-0 space-y-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h3 className="min-w-0 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
+                                {formData.nome || "Sem nome definido"}
+                              </h3>
+                              <Badge
+                                variant="secondary"
+                                className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+                              >
+                                {roleLabel}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground sm:text-base">
+                              {formData.usuario || "Sem e-mail cadastrado"}
+                            </p>
+                            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                              Clique no banner para visualizar ou ajustar o enquadramento.
+                            </p>
+                          </div>
+                          <div className="overflow-hidden rounded-2xl border border-border/70 bg-border/80">
+                            <div className="grid gap-px sm:grid-cols-3">
+                              {accountSummaryFields.map((field) => (
+                                <div key={field.label} className="min-w-0 bg-background/80 px-4 py-4">
+                                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                    {field.label}
+                                  </div>
+                                  <div className="break-words text-sm font-semibold text-foreground sm:text-base">
+                                    {field.value}
+                                  </div>
                                 </div>
-                              </>
-                            )}
-                            <div className="profilePreviewStatus" />
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                        <div className="profilePreviewFields">
-                          <div className="profileField">
-                            <div className="profileFieldLabel">Nome Exibido</div>
-                            <div className="profileFieldValue">{formData.nome}</div>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2">
+                              <span className={formLabelClass}>Bio</span>
+                              <textarea
+                                className={cn(formInputClass, "min-h-28 resize-y")}
+                                rows={3}
+                                value={formData.bio}
+                                placeholder="Escreva uma breve descrição sobre você..."
+                                onChange={(e) =>
+                                  setFormData((prev) => ({ ...prev, bio: e.target.value }))
+                                }
+                              />
+                            </div>
                           </div>
-                          <div className="profileFieldDivider" />
-                          <div className="profileField">
-                            <div className="profileFieldLabel">E-mail</div>
-                            <div className="profileFieldValue">{formData.usuario}</div>
-                          </div>
-                          <div className="profileFieldDivider" />
-                          <div className="profileField">
-                            <div className="profileFieldLabel">Cargo</div>
-                            <div className="profileFieldValue">{roleLabelText(role)}</div>
-                          </div>
-                        </div>
-                        <div className="profileEditorArea">
-                          <div className="formGroup">
-                            <span className="formLabel">Bio</span>
-                            <textarea
-                              className="formInput"
-                              rows={3}
-                              value={formData.bio}
-                              placeholder="Escreva uma breve descrição sobre você..."
-                              onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, bio: e.target.value }))
-                              }
-                            />
-                          </div>
-                          <div className="settingsActions">
+                          <div className={settingsActionsClass}>
                             <AnimatedButton
-                              className="btnSalvar"
+                              className={primaryButtonClass}
                               onClick={handleSaveProfile}
                               disabled={savingSettings}
                               loading={savingSettings}
@@ -1254,23 +1320,23 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                               {savingSettings ? "Salvando..." : "Salvar perfil"}
                             </AnimatedButton>
                           </div>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
                     </>
                   )}
 
                   {/* SEGURANÇA */}
                   {activeSection === "seguranca" && (
                     <>
-                      <h2 className="settingsSectionTitle">Segurança</h2>
-                      <section className="perfilCard">
-                        <div className="securityContent">
-                          <div className="securityItem">
-                            <div className="securityInfo">
-                              <h3>Alterar Senha</h3>
-                              <p>Mantenha sua conta segura com uma senha forte</p>
+                      <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Segurança</h2>
+                      <section className={settingsCardClass}>
+                        <div className="flex flex-col gap-4">
+                          <div className={settingsItemClass}>
+                            <div className="space-y-1">
+                              <h3 className={settingsTitleClass}>Alterar Senha</h3>
+                              <p className={settingsTextClass}>Mantenha sua conta segura com uma senha forte</p>
                             </div>
-                            <AnimatedButton className="altBtn" onClick={() => setModalSenha(true)}>
+                            <AnimatedButton className={secondaryButtonClass} onClick={() => setModalSenha(true)}>
                               Alterar
                             </AnimatedButton>
                           </div>
@@ -1282,33 +1348,33 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   {/* CONFIGURAÇÕES (Notificações + Compacto) */}
                   {activeSection === "configuracoes" && (
                     <>
-                      <h2 className="settingsSectionTitle">Configurações</h2>
-                      <section className="perfilCard">
-                        <div className="settingsGrid">
-                          <div className="settingsItem">
-                            <div className="settingsInfo">
-                              <h3>Notificações por e-mail</h3>
-                              <p>Receba alertas sobre novas atividades e avisos</p>
+                      <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Configurações</h2>
+                      <section className={settingsCardClass}>
+                        <div className="flex flex-col gap-4">
+                          <div className={settingsItemClass}>
+                            <div className="space-y-1">
+                              <h3 className={settingsTitleClass}>Notificações por e-mail</h3>
+                              <p className={settingsTextClass}>Receba alertas sobre novas atividades e avisos</p>
                             </div>
                             <AnimatedToggle
                               checked={settings.emailNotificacoes}
                               onChange={(checked) => setSettings((prev) => ({ ...prev, emailNotificacoes: checked }))}
                             />
                           </div>
-                          <div className="settingsItem">
-                            <div className="settingsInfo">
-                              <h3>Notificações no app</h3>
-                              <p>Mostre avisos dentro do portal quando houver novidades</p>
+                          <div className={settingsItemClass}>
+                            <div className="space-y-1">
+                              <h3 className={settingsTitleClass}>Notificações no app</h3>
+                              <p className={settingsTextClass}>Mostre avisos dentro do portal quando houver novidades</p>
                             </div>
                             <AnimatedToggle
                               checked={settings.pushNotificacoes}
                               onChange={(checked) => setSettings((prev) => ({ ...prev, pushNotificacoes: checked }))}
                             />
                           </div>
-                          <div className="settingsItem">
-                            <div className="settingsInfo">
-                              <h3>Modo compacto</h3>
-                              <p>Reduza o espaçamento para ver mais conteúdo</p>
+                          <div className={settingsItemClass}>
+                            <div className="space-y-1">
+                              <h3 className={settingsTitleClass}>Modo compacto</h3>
+                              <p className={settingsTextClass}>Reduza o espaçamento para ver mais conteúdo</p>
                             </div>
                             <AnimatedToggle
                               checked={settings.modoCompacto}
@@ -1316,12 +1382,12 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                             />
                           </div>
                         </div>
-                        <div className="settingsActions">
-                          <AnimatedButton className="btnCancel" onClick={handleResetSettings}>
+                        <div className={settingsActionsClass}>
+                          <AnimatedButton className={secondaryButtonClass} onClick={handleResetSettings}>
                             Restaurar padrões
                           </AnimatedButton>
                           <AnimatedButton
-                            className="btnSalvar"
+                            className={primaryButtonClass}
                             onClick={handleSaveSettings}
                             disabled={savingSettings}
                             loading={savingSettings}
@@ -1336,16 +1402,16 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   {/* APARÊNCIA */}
                   {activeSection === "aparencia" && (
                     <>
-                      <h2 className="settingsSectionTitle">Aparência</h2>
-                      <section className="perfilCard">
-                        <div className="settingsGrid">
-                          <div className="settingsItem">
-                            <div className="settingsInfo">
-                              <h3>Tema</h3>
-                              <p>Escolha como prefere visualizar o portal</p>
+                      <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Aparência</h2>
+                      <section className={settingsCardClass}>
+                        <div className="flex flex-col gap-4">
+                          <div className={settingsItemClass}>
+                            <div className="space-y-1">
+                              <h3 className={settingsTitleClass}>Tema</h3>
+                              <p className={settingsTextClass}>Escolha como prefere visualizar o portal</p>
                             </div>
                             <AnimatedSelect
-                              className="settingsSelect"
+                              className={cn(formInputClass, "min-w-[180px] pr-8")}
                               value={settings.temaPreferido}
                               onChange={(e) =>
                                 setSettings((prev) => ({
@@ -1359,15 +1425,15 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                               <option value="escuro">Escuro</option>
                             </AnimatedSelect>
                           </div>
-                          <div className="settingsItem">
-                            <div className="settingsInfo">
-                              <h3>Cor preferida</h3>
-                              <p>Escolha a cor de destaque do portal</p>
+                          <div className={settingsItemClass}>
+                            <div className="space-y-1">
+                              <h3 className={settingsTitleClass}>Cor preferida</h3>
+                              <p className={settingsTextClass}>Escolha a cor de destaque do portal</p>
                             </div>
-                            <div className="settingsColorControl">
+                            <div className="inline-flex items-center gap-3">
                               <input
                                 type="color"
-                                className="settingsColorInput"
+                                className="size-11 rounded-xl border border-border/70 bg-transparent p-1"
                                 value={settings.corPreferida}
                                 onChange={(e) =>
                                   setSettings((prev) => ({
@@ -1378,7 +1444,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                               />
                               <input
                                 type="text"
-                                className="settingsColorHex"
+                                className={cn(formInputClass, "h-11 w-28 lowercase")}
                                 value={settings.corPreferida}
                                 onChange={(e) =>
                                   setSettings((prev) => ({
@@ -1397,12 +1463,12 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                             </div>
                           </div>
                         </div>
-                        <div className="settingsActions">
-                          <AnimatedButton className="btnCancel" onClick={handleResetSettings}>
+                        <div className={settingsActionsClass}>
+                          <AnimatedButton className={secondaryButtonClass} onClick={handleResetSettings}>
                             Restaurar padrões
                           </AnimatedButton>
                           <AnimatedButton
-                            className="btnSalvar"
+                            className={primaryButtonClass}
                             onClick={handleSaveSettings}
                             disabled={savingSettings}
                             loading={savingSettings}
@@ -1417,45 +1483,59 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   {/* DESEMPENHO */}
                   {activeSection === "desempenho" && (
                     <>
-                      <h2 className="settingsSectionTitle">Seu Desempenho</h2>
+                      <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Seu Desempenho</h2>
                       {statsLoading ? (
-                        <div style={{ display: "grid", placeItems: "center", padding: 32, color: "var(--muted)" }}>
+                        <div className={cn(settingsCardClass, "grid place-items-center px-8 py-12 text-sm text-muted-foreground")}>
                           Carregando estatísticas...
                         </div>
                       ) : statsError ? (
-                        <div style={{ display: "grid", placeItems: "center", padding: 32, color: "var(--red)" }}>
+                        <div className={cn(settingsCardClass, "grid place-items-center px-8 py-12 text-sm font-medium text-rose-600 dark:text-rose-300")}>
                           {statsError}
                         </div>
                       ) : (
-                        <div className="statsGrid">
-                          <div className="statCard">
-                            <div className="statIcon"><CheckCircle size={18} /></div>
-                            <div className="statInfo">
-                              <div className="statValue">{stats.exerciciosFeitos}</div>
-                              <div className="statLabel">Exercícios Feitos</div>
-                            </div>
-                          </div>
-                          <div className="statCard">
-                            <div className="statIcon">*</div>
-                            <div className="statInfo">
-                              <div className="statValue">
-                                {stats.notaMedia === null ? "-" : `${stats.notaMedia.toFixed(1)}/10`}
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                          <div className={settingsCardClass}>
+                            <div className="flex items-start gap-3">
+                              <div className="inline-flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <CheckCircle size={18} />
                               </div>
-                              <div className="statLabel">Nota Média</div>
+                              <div className="space-y-1">
+                                <div className="text-2xl font-black tracking-tight text-foreground">{stats.exerciciosFeitos}</div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Exercícios Feitos</div>
+                              </div>
                             </div>
                           </div>
-                          <div className="statCard">
-                            <div className="statIcon"><Users size={18} /></div>
-                            <div className="statInfo">
-                              <div className="statValue">{stats.turmasInscritas}</div>
-                              <div className="statLabel">Turmas Inscritas</div>
+                          <div className={settingsCardClass}>
+                            <div className="flex items-start gap-3">
+                              <div className="inline-flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-lg font-bold text-primary">*</div>
+                              <div className="space-y-1">
+                                <div className="text-2xl font-black tracking-tight text-foreground">
+                                {stats.notaMedia === null ? "-" : `${stats.notaMedia.toFixed(1)}/10`}
+                                </div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Nota Média</div>
+                              </div>
                             </div>
                           </div>
-                          <div className="statCard">
-                            <div className="statIcon"><Flame size={18} /></div>
-                            <div className="statInfo">
-                              <div className="statValue">{stats.diasSequencia}</div>
-                              <div className="statLabel">Dias de Sequência</div>
+                          <div className={settingsCardClass}>
+                            <div className="flex items-start gap-3">
+                              <div className="inline-flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <Users size={18} />
+                              </div>
+                              <div className="space-y-1">
+                                <div className="text-2xl font-black tracking-tight text-foreground">{stats.turmasInscritas}</div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Turmas Inscritas</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className={settingsCardClass}>
+                            <div className="flex items-start gap-3">
+                              <div className="inline-flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <Flame size={18} />
+                              </div>
+                              <div className="space-y-1">
+                                <div className="text-2xl font-black tracking-tight text-foreground">{stats.diasSequencia}</div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Dias de Sequência</div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1466,26 +1546,36 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   {/* TURMAS */}
                   {activeSection === "turmas" && (
                     <>
-                      <h2 className="settingsSectionTitle">Turmas Inscritas</h2>
+                      <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Turmas Inscritas</h2>
                       {turmas.length === 0 ? (
-                        <div className="emptyState">
-                          <div className="emptyIcon" style={{ display: "inline-flex" }}><BookOpen size={22} /></div>
-                          <p>Você não está inscrito em nenhuma turma</p>
+                        <div className={cn(settingsCardClass, "flex flex-col items-center gap-3 border-dashed px-8 py-12 text-center")}>
+                          <div className="inline-flex rounded-full bg-muted p-4 text-muted-foreground"><BookOpen size={22} /></div>
+                          <p className="text-sm text-muted-foreground">Você não está inscrito em nenhuma turma</p>
                         </div>
                       ) : (
-                        <div className="turmasList">
+                        <div className="flex flex-col gap-3">
                           {turmas.map((turma) => (
-                            <div key={turma.id} className="turmaItem">
-                              <div className="turmaIcon">{turma.tipo === "turma" ? <Users size={16} /> : <UserIcon size={16} />}</div>
-                              <div className="turmaInfo">
-                                <h3 className="turmaNome">{turma.nome}</h3>
-                                <div className="turmaMeta">
-                                  <span className="badge badgeCategoria">
-                                    {turma.categoria === "programacao" ? iconLabel(<Laptop size={14} />, "Programação") : iconLabel(<Monitor size={14} />, "Informática")}
-                                  </span>
-                                  <span className="badge badgeTipo">
+                            <div key={turma.id} className="flex items-start gap-4 rounded-[24px] border border-border/70 bg-card/95 p-4 shadow-sm">
+                              <div className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                {turma.tipo === "turma" ? <Users size={16} /> : <UserIcon size={16} />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="text-base font-semibold text-foreground">{turma.nome}</h3>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(metaBadgeClass, "border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300")}
+                                  >
+                                    {turma.categoria === "programacao"
+                                      ? iconLabel(<Laptop size={14} />, "Programação")
+                                      : iconLabel(<Monitor size={14} />, "Informática")}
+                                  </Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(metaBadgeClass, "border-violet-300/60 bg-violet-500/10 text-violet-700 dark:border-violet-500/30 dark:text-violet-300")}
+                                  >
                                     {turma.tipo === "turma" ? "Grupo" : "Particular"}
-                                  </span>
+                                  </Badge>
                                 </div>
                               </div>
                             </div>
@@ -1498,93 +1588,108 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                 </div>
               </div>
             )}
-          </m.div>
+          </DialogContent>
 
           {/* MODAL DE ALTERAR SENHA */}
-          {modalSenha && (
-            <div
-              className="modalOverlay"
-              onClick={buildDismissOverlayClickHandler(closeSenhaModal)}
-              onKeyDown={buildDismissOverlayKeyDownHandler(closeSenhaModal)}
-              role="button"
-              tabIndex={0}
-              style={{ zIndex: 10002 }}
+          <Dialog open={modalSenha} onOpenChange={(open) => !open && closeSenhaModal()}>
+            <DialogContent
+              overlayClassName="z-[10002] bg-black/70 backdrop-blur-sm"
+              className="z-[10003] max-w-[500px] gap-0 border-border/70 bg-card/95 p-0"
+              showCloseButton={false}
             >
-              <div className="modalContent">
-                <h3>Alterar Senha</h3>
-                <div className="formGroup">
-                  <span className="formLabel">Senha Atual</span>
-                  <input type="password" placeholder="Digite sua senha atual" className="formInput" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} autoComplete="current-password" />
+                <DialogHeader className="border-b border-border/70">
+                  <DialogTitle>Alterar Senha</DialogTitle>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Atualize sua senha e mantenha sua conta protegida.
+                  </p>
+                </DialogHeader>
+                <div className="flex flex-col gap-4 px-6 py-5">
+                <div className="flex flex-col gap-2">
+                  <span className={formLabelClass}>Senha Atual</span>
+                  <input type="password" placeholder="Digite sua senha atual" className={formInputClass} value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} autoComplete="current-password" />
                 </div>
-                <div className="formGroup">
-                  <span className="formLabel">Nova Senha</span>
-                  <input type="password" placeholder="Digite sua nova senha" className="formInput" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" />
-                  {novaSenha && novaSenha.length < 6 && <small className="formHint error">{iconLabel(<XCircle size={12} />, "Mínimo 6 caracteres")}</small>}
-                  {novaSenha && novaSenha.length >= 6 && <small className="formHint success">{iconLabel(<CheckCircle size={12} />, "Senha forte")}</small>}
+                <div className="flex flex-col gap-2">
+                  <span className={formLabelClass}>Nova Senha</span>
+                  <input type="password" placeholder="Digite sua nova senha" className={formInputClass} value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" />
+                  {novaSenha && novaSenha.length < 6 && <small className="inline-flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-300">{iconLabel(<XCircle size={12} />, "Mínimo 6 caracteres")}</small>}
+                  {novaSenha && novaSenha.length >= 6 && <small className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-300">{iconLabel(<CheckCircle size={12} />, "Senha forte")}</small>}
                 </div>
-                <div className="formGroup">
-                  <span className="formLabel">Confirmar Nova Senha</span>
-                  <input type="password" placeholder="Confirme sua nova senha" className="formInput" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} autoComplete="new-password" />
-                  {confirmarSenha && novaSenha === confirmarSenha && <small className="formHint success">{iconLabel(<CheckCircle size={12} />, "Senhas coincidem")}</small>}
-                  {confirmarSenha && novaSenha !== confirmarSenha && <small className="formHint error">{iconLabel(<XCircle size={12} />, "As senhas não coincidem")}</small>}
+                <div className="flex flex-col gap-2">
+                  <span className={formLabelClass}>Confirmar Nova Senha</span>
+                  <input type="password" placeholder="Confirme sua nova senha" className={formInputClass} value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} autoComplete="new-password" />
+                  {confirmarSenha && novaSenha === confirmarSenha && <small className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-300">{iconLabel(<CheckCircle size={12} />, "Senhas coincidem")}</small>}
+                  {confirmarSenha && novaSenha !== confirmarSenha && <small className="inline-flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-300">{iconLabel(<XCircle size={12} />, "As senhas não coincidem")}</small>}
                 </div>
-                <div style={{ marginTop: 16, padding: 12, borderRadius: 8, backgroundColor: "rgba(0,0,0,0.05)", border: "1px solid var(--line)" }}>
-                  <p style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 600, color: "var(--text)" }}>Requisitos:</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
-                    <div style={{ color: senhaAtual ? "#16a34a" : "var(--muted)" }}>{senhaAtual ? <CheckCircle size={14} /> : <Circle size={12} />} Senha atual preenchida</div>
-                    <div style={{ color: novaSenha && novaSenha.length >= 6 ? "#16a34a" : "var(--muted)" }}>{novaSenha && novaSenha.length >= 6 ? <CheckCircle size={14} /> : <Circle size={12} />} Nova senha com 6+ caracteres</div>
-                    <div style={{ color: confirmarSenha && novaSenha === confirmarSenha ? "#16a34a" : "var(--muted)" }}>{confirmarSenha && novaSenha === confirmarSenha ? <CheckCircle size={14} /> : <Circle size={12} />} Confirmação igual</div>
+                <div className="mt-4 rounded-xl border border-border/70 bg-muted/35 p-3">
+                  <p className="mb-2 text-sm font-semibold text-foreground">Requisitos:</p>
+                  <div className="flex flex-col gap-2 text-xs">
+                    <div className={cn("inline-flex items-center gap-1.5", senhaAtual ? "text-emerald-600 dark:text-emerald-300" : "text-muted-foreground")}>{senhaAtual ? <CheckCircle size={14} /> : <Circle size={12} />} Senha atual preenchida</div>
+                    <div className={cn("inline-flex items-center gap-1.5", novaSenha && novaSenha.length >= 6 ? "text-emerald-600 dark:text-emerald-300" : "text-muted-foreground")}>{novaSenha && novaSenha.length >= 6 ? <CheckCircle size={14} /> : <Circle size={12} />} Nova senha com 6+ caracteres</div>
+                    <div className={cn("inline-flex items-center gap-1.5", confirmarSenha && novaSenha === confirmarSenha ? "text-emerald-600 dark:text-emerald-300" : "text-muted-foreground")}>{confirmarSenha && novaSenha === confirmarSenha ? <CheckCircle size={14} /> : <Circle size={12} />} Confirmação igual</div>
                   </div>
                 </div>
-                <div className="modalActions">
-                  <AnimatedButton type="button" className="btnCancel" onClick={closeSenhaModal}>Cancelar</AnimatedButton>
-                  <AnimatedButton type="button" className="btnConfirm" onClick={handleChangeSenha} disabled={savingSenha} loading={savingSenha}>
+                </div>
+                <DialogFooter className="max-[640px]:flex-col">
+                  <AnimatedButton type="button" className={secondaryButtonClass} onClick={closeSenhaModal}>Cancelar</AnimatedButton>
+                  <AnimatedButton type="button" className={primaryButtonClass} onClick={handleChangeSenha} disabled={savingSenha} loading={savingSenha}>
                     {savingSenha ? iconLabel(<Loader2 size={14} />, "Alterando...") : iconLabel(<CheckCircle size={14} />, "Alterar Senha")}
                   </AnimatedButton>
-                </div>
-              </div>
-            </div>
-          )}
-          {pictureViewerOpen && currentPictureSrc && (
-            <div
-              className="profilePhotoViewerOverlay"
-              onClick={buildDismissOverlayClickHandler(() => setPictureViewerOpen(false))}
-              onKeyDown={buildDismissOverlayKeyDownHandler(() => setPictureViewerOpen(false))}
-              role="button"
-              tabIndex={0}
-              style={{ zIndex: 10003 }}
+                </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={pictureViewerOpen && Boolean(currentPictureSrc)}
+            onOpenChange={(open) => !open && setPictureViewerOpen(false)}
+          >
+            <DialogContent
+              overlayClassName="z-[10003] bg-slate-950/82 backdrop-blur-sm"
+              className="z-[10004] w-[min(560px,calc(100vw-2rem))] max-w-none gap-3 border-none bg-transparent p-0 shadow-none"
+              showCloseButton={false}
             >
-              <div className="profilePhotoViewerContent">
-                <img src={currentPictureSrc} alt="Foto de perfil ampliada" />
+                <DialogTitle className="sr-only">Foto de perfil ampliada</DialogTitle>
+                <img
+                  src={currentPictureSrc}
+                  alt="Foto de perfil ampliada"
+                  className="w-full rounded-[24px] border border-white/15 bg-slate-950 object-contain shadow-2xl shadow-black/40"
+                />
                 <AnimatedButton
-                  className="btnCancel"
+                  className={secondaryButtonClass}
                   type="button"
                   onClick={() => setPictureViewerOpen(false)}
                 >
                   Fechar
                 </AnimatedButton>
-              </div>
-            </div>
-          )}
-          {coverViewerOpen && editorCoverSrc && (
-            <div
-              className="profilePhotoViewerOverlay"
-              onClick={buildDismissOverlayClickHandler(handleCloseCoverEditor)}
-              onKeyDown={buildDismissOverlayKeyDownHandler(handleCloseCoverEditor)}
-              role="button"
-              tabIndex={0}
-              style={{ zIndex: 10003 }}
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={coverViewerOpen && Boolean(editorCoverSrc)}
+            onOpenChange={(open) => !open && handleCloseCoverEditor()}
+          >
+            <DialogContent
+              overlayClassName="z-[10003] bg-slate-950/82 backdrop-blur-sm"
+              className="z-[10004] w-[min(760px,calc(100vw-2rem))] max-w-none gap-0 overflow-hidden border-white/10 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/50"
+              showCloseButton={false}
             >
-              <div className="coverEditorModal">
-                <div className="coverEditorHeader">
-                  <h3>Editar banner</h3>
-                  <button type="button" className="settingsCloseBtn" onClick={handleCloseCoverEditor} aria-label="Fechar editor de banner">
+                <div className="flex items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
+                  <div className="space-y-1">
+                    <DialogTitle className="pr-0 text-lg font-bold text-white">Editar banner</DialogTitle>
+                    <p className="text-sm leading-6 text-slate-400">
+                      Arraste a imagem para reposicionar e ajuste o zoom antes de salvar.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={cn(overlayButtonClass, "border-white/10 bg-white/5 px-3 py-2 text-slate-200 hover:bg-white/10 hover:text-white")}
+                    onClick={handleCloseCoverEditor}
+                    aria-label="Fechar editor de banner"
+                  >
                     <X size={18} />
                   </button>
                 </div>
+                <div className="flex flex-col gap-4 px-5 py-5">
                 <div
                   ref={coverEditorViewportRef}
-                  className="coverEditorViewport"
+                  className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900"
                   style={{ aspectRatio: coverAspectRatio }}
                   onPointerDown={handleCoverDragStart}
                   onPointerMove={handleCoverDragMove}
@@ -1592,7 +1697,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   onPointerCancel={handleCoverDragEnd}
                 >
                   <div
-                    className="coverEditorImage"
+                    className="absolute inset-0 bg-cover bg-no-repeat"
                     style={{
                       backgroundImage: `url(${editorCoverSrc})`,
                       backgroundSize: `${Math.max(coverDraftZoom, coverMinZoom)}%`,
@@ -1600,62 +1705,67 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                     }}
                   />
                   <div
-                    className="coverEditorFrame"
+                    className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-white/80 ring-inset"
                     aria-hidden="true"
                   />
                 </div>
-                <div className="coverEditorControls">
+                <div className="flex items-center gap-3">
                   <input
                     type="range"
+                    className="w-full accent-primary"
                     min={String(Math.ceil(coverMinZoom))}
                     max={String(coverZoomMax)}
                     value={coverDraftZoom}
                     onChange={(e) => setCoverDraftZoom(Math.max(Number(e.target.value), Math.ceil(coverMinZoom)))}
                   />
-                  <span>{coverDraftZoom}%</span>
+                  <span className="min-w-12 text-right text-xs font-semibold text-slate-300">{coverDraftZoom}%</span>
                 </div>
-                <div className="coverEditorActions">
-                  <button type="button" className="coverEditorGhostBtn" onClick={handleResetCoverPosition}>
+                </div>
+                <DialogFooter className="justify-between border-t border-white/10 bg-white/2 px-5 py-4 max-[640px]:flex-col">
+                  <button type="button" className="text-sm font-semibold text-slate-300 transition hover:text-white" onClick={handleResetCoverPosition}>
                     Redefinir
                   </button>
-                  <AnimatedButton
-                    type="button"
-                    className="btnCancel"
-                    onClick={handleCloseCoverEditor}
-                  >
-                    Cancelar
-                  </AnimatedButton>
-                  <AnimatedButton
-                    type="button"
-                    className="btnSalvar"
-                    onClick={() => void handleApplyCoverPosition()}
-                    disabled={pictureActionLoading}
-                  >
-                    {pictureActionLoading ? "Aplicando..." : "Aplicar"}
-                  </AnimatedButton>
-                </div>
-              </div>
-            </div>
-          )}
-          {cameraModalOpen && (
-            <div
-              className="profilePhotoViewerOverlay"
-              style={{ zIndex: 10004 }}
-              onClick={buildDismissOverlayClickHandler(closeCameraModal)}
-              onKeyDown={buildDismissOverlayKeyDownHandler(closeCameraModal)}
-              role="button"
-              tabIndex={0}
+                  <div className="flex flex-wrap justify-end gap-3 max-[640px]:w-full max-[640px]:flex-col">
+                    <AnimatedButton
+                      type="button"
+                      className={secondaryButtonClass}
+                      onClick={handleCloseCoverEditor}
+                    >
+                      Cancelar
+                    </AnimatedButton>
+                    <AnimatedButton
+                      type="button"
+                      className={primaryButtonClass}
+                      onClick={() => void handleApplyCoverPosition()}
+                      disabled={pictureActionLoading}
+                    >
+                      {pictureActionLoading ? "Aplicando..." : "Aplicar"}
+                    </AnimatedButton>
+                  </div>
+                </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={cameraModalOpen} onOpenChange={(open) => !open && closeCameraModal()}>
+            <DialogContent
+              overlayClassName="z-[10004] bg-slate-950/82 backdrop-blur-sm"
+              className="z-[10005] w-[min(560px,calc(100vw-2rem))] max-w-none gap-4 border-none bg-transparent p-0 shadow-none"
+              showCloseButton={false}
             >
-              <div className="profileCameraModal">
-                <div className="profileCameraPreview">
-                  {cameraLoading && <div className="profileCameraLoading">Abrindo câmera...</div>}
-                  <video ref={profileCameraVideoRef} autoPlay playsInline muted />
-                  <canvas ref={profileCameraCanvasRef} style={{ display: "none" }} />
+                <DialogTitle className="sr-only">Capturar foto de perfil</DialogTitle>
+                <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl shadow-black/50">
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
+                  {cameraLoading && (
+                    <div className="absolute inset-0 z-10 grid place-items-center bg-slate-950/75 text-sm font-semibold text-white">
+                      Abrindo câmera...
+                    </div>
+                  )}
+                  <video ref={profileCameraVideoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+                  <canvas ref={profileCameraCanvasRef} className="hidden" />
                 </div>
-                <div className="profileCameraActions">
+                <div className="flex flex-wrap gap-3 border-t border-white/10 bg-slate-950/90 p-4 max-[640px]:flex-col">
                   <AnimatedButton
                     type="button"
-                    className="btnCancel"
+                    className={secondaryButtonClass}
                     onClick={closeCameraModal}
                     disabled={pictureActionLoading}
                   >
@@ -1663,7 +1773,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                   </AnimatedButton>
                   <AnimatedButton
                     type="button"
-                    className="btnSalvar"
+                    className={primaryButtonClass}
                     onClick={handleCaptureFromCamera}
                     disabled={pictureActionLoading || cameraLoading}
                     loading={pictureActionLoading}
@@ -1671,9 +1781,9 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                     Capturar
                   </AnimatedButton>
                 </div>
-              </div>
-            </div>
-          )}
+                </div>
+            </DialogContent>
+          </Dialog>
           <ConfirmModal
             isOpen={logoutConfirmOpen}
             title="Sair da conta"
@@ -1688,12 +1798,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
               onLogout();
             }}
           />
-        </m.div>
-      )}
-    </AnimatePresence>,
-    document.body
+    </Dialog>
   );
 }
-
-
-

@@ -1,5 +1,7 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
@@ -35,7 +37,6 @@ import { AnimatedButton, AnimatedToast } from "../components/animate-ui";
 import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown, Eye, Package, RefreshCw } from "lucide-react";
 import CriarExercicioForm from "../components/CriarExercicioForm";
 import CriarTurmaForm from "../components/CriarTurmaForm";
-import "./EstruturaCurso.css";
 
 type AbaEstrutura = "curso" | "modulo" | "fase" | "exercicios" | "conteiners" | "turmas";
 type AbaTipoContainer = "normal" | "daily";
@@ -116,6 +117,7 @@ export default function EstruturaCursoPage() {
   const [paginaFases, setPaginaFases] = React.useState(1);
   const [itensFases, setItensFases] = React.useState(5);
   const [detalheModal, setDetalheModal] = React.useState<DetalheModalState>(null);
+  const [confirmarDeleteDetalhe, setConfirmarDeleteDetalhe] = React.useState(false);
   const [deletandoDetalhe, setDeletandoDetalhe] = React.useState(false);
 
   // Exercises for selected phase
@@ -902,18 +904,12 @@ export default function EstruturaCursoPage() {
 
   async function handleDeletarDetalhe() {
     if (!detalheModal || deletandoDetalhe) return;
-
-    const nome = detalheModal.item.nome || "item";
     const tipoLabel =
       detalheModal.tipo === "curso"
         ? "curso"
         : detalheModal.tipo === "modulo"
           ? "módulo"
           : "fase";
-
-    if (!window.confirm(`Tem certeza que deseja deletar ${tipoLabel} "${nome}"?`)) {
-      return;
-    }
 
     try {
       setDeletandoDetalhe(true);
@@ -954,6 +950,7 @@ export default function EstruturaCursoPage() {
       }
 
       setToastMsg({ type: "success", msg: `${tipoLabel} deletado com sucesso` });
+      setConfirmarDeleteDetalhe(false);
       setDetalheModal(null);
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : `Erro ao deletar ${tipoLabel}` });
@@ -962,9 +959,150 @@ export default function EstruturaCursoPage() {
     }
   }
 
+  const stageTabs: Array<{ key: AbaEstrutura; label: string; icon: React.ComponentType<{ size?: number }> }> = [
+    { key: "curso", label: "Cursos", icon: Plus },
+    { key: "modulo", label: "Módulos", icon: Layers },
+    { key: "fase", label: "Fase", icon: GitBranch },
+    { key: "exercicios", label: "Exercícios", icon: PenLine },
+    { key: "conteiners", label: "Contêiners", icon: Package },
+    { key: "turmas", label: "Turmas", icon: School },
+  ];
+
+  const pageClass =
+    "mx-auto flex w-full max-w-[1280px] flex-col gap-4 p-1.5 font-[Manrope,Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] max-md:gap-3";
+  const tabsClass =
+    "flex max-w-full flex-wrap items-center gap-2 rounded-[20px] border border-border/60 bg-muted/30 p-1.5 max-md:flex-col max-md:items-stretch max-md:rounded-2xl max-md:p-2.5";
+  const tabsLabelClass = "px-2 text-[11px] font-extrabold tracking-[0.18em] text-muted-foreground";
+  const tabButtonClass = (active: boolean) =>
+    cn(
+      "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-bold text-foreground transition hover:-translate-y-0.5 max-md:w-full max-md:rounded-xl",
+      active
+        ? "border-primary/50 bg-primary/15 shadow-sm"
+        : "border-transparent bg-background/60 hover:border-primary/30 hover:bg-muted"
+    );
+  const overviewGridClass = "grid gap-2.5 sm:grid-cols-3";
+  const overviewCardClass = "flex flex-col gap-1 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3";
+  const overviewLabelClass = "text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground";
+  const overviewValueClass = "text-[clamp(1.5rem,3vw,1.95rem)] leading-none font-semibold tracking-tight text-foreground";
+  const gridClass = "grid gap-3.5 xl:grid-cols-2";
+  const gridTopAlignedClass = cn(gridClass, "items-start");
+  const cardClass =
+    "flex min-h-fit flex-col rounded-[18px] border border-border/70 bg-card/90 p-5 shadow-sm max-md:rounded-xl max-md:p-3.5";
+  const cardHeadClass = "mb-3.5";
+  const cardTitleClass = "text-[clamp(1.35rem,2.2vw,2rem)] leading-tight font-semibold tracking-tight text-foreground";
+  const cardDescriptionClass = "mt-1 text-sm text-muted-foreground";
+  const compactTitleClass = "m-0 text-base font-semibold text-foreground";
+  const compactDescriptionClass = "m-0 text-xs text-muted-foreground";
+  const controlClass =
+    "w-full rounded-xl border border-input bg-background px-3.5 py-3 text-sm text-foreground transition placeholder:text-muted-foreground/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/20";
+  const selectClass = cn(controlClass, "appearance-none");
+  const formClass = cn(
+    "flex flex-col gap-2.5",
+    "[&>span]:mt-0.5 [&>span]:text-[11px] [&>span]:font-bold [&>span]:uppercase [&>span]:tracking-[0.14em] [&>span]:text-foreground/80",
+    "[&>input]:w-full [&>input]:rounded-xl [&>input]:border [&>input]:border-input [&>input]:bg-background [&>input]:px-3.5 [&>input]:py-3 [&>input]:text-sm [&>input]:text-foreground [&>input]:transition [&>input]:placeholder:text-muted-foreground/80 [&>input]:focus-visible:border-ring [&>input]:focus-visible:outline-none [&>input]:focus-visible:ring-4 [&>input]:focus-visible:ring-ring/20",
+    "[&>textarea]:min-h-24 [&>textarea]:w-full [&>textarea]:resize-y [&>textarea]:rounded-xl [&>textarea]:border [&>textarea]:border-input [&>textarea]:bg-background [&>textarea]:px-3.5 [&>textarea]:py-3 [&>textarea]:text-sm [&>textarea]:text-foreground [&>textarea]:transition [&>textarea]:placeholder:text-muted-foreground/80 [&>textarea]:focus-visible:border-ring [&>textarea]:focus-visible:outline-none [&>textarea]:focus-visible:ring-4 [&>textarea]:focus-visible:ring-ring/20",
+    "[&>select]:w-full [&>select]:appearance-none [&>select]:rounded-xl [&>select]:border [&>select]:border-input [&>select]:bg-background [&>select]:px-3.5 [&>select]:py-3 [&>select]:text-sm [&>select]:text-foreground [&>select]:transition [&>select]:focus-visible:border-ring [&>select]:focus-visible:outline-none [&>select]:focus-visible:ring-4 [&>select]:focus-visible:ring-ring/20"
+  );
+  const switchRowClass = "mt-1 inline-flex items-center gap-3 self-start";
+  const switchInputClass = "peer sr-only";
+  const switchTrackClass =
+    "inline-flex h-7 w-12 items-center rounded-full border border-border bg-muted px-1 transition peer-checked:border-primary/60 peer-checked:bg-primary/15 peer-focus-visible:ring-4 peer-focus-visible:ring-ring/20";
+  const switchThumbClass = "size-5 rounded-full bg-foreground/90 shadow-sm transition peer-checked:translate-x-5";
+  const switchTextClass = "text-sm font-semibold text-foreground";
+  const infoBoxClass = "rounded-xl border border-accent/25 bg-accent/10 px-3 py-2.5";
+  const infoBoxTitleClass = "text-sm font-semibold text-foreground";
+  const infoBoxTextClass = "mt-1 text-xs text-muted-foreground";
+  const submitButtonClass =
+    "mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
+  const clearFilterButtonClass =
+    "self-start rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground";
+  const selectedInfoClass = "rounded-xl border border-accent/25 bg-accent/10 px-4 py-3";
+  const selectedLabelClass = "text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground";
+  const selectedMetaClass = "text-xs text-muted-foreground";
+  const selectedActionClass =
+    "mt-2 inline-flex items-center gap-2 self-start rounded-xl border border-border/60 bg-background px-3 py-2 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-muted";
+  const viewerListClass = "flex max-h-[360px] flex-col gap-2 overflow-auto pr-1";
+  const viewerListSpacedClass = cn(viewerListClass, "mt-2.5");
+  const viewerEmptyClass = "rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-sm text-muted-foreground break-words";
+  const loadingClass =
+    "inline-flex items-center gap-2.5 rounded-lg border border-dashed border-border/60 bg-muted/40 px-3.5 py-3 text-sm text-muted-foreground";
+  const loadingIconClass = "animate-spin";
+  const viewerItemClass = (active = false) =>
+    cn(
+      "flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-sm max-md:items-start",
+      active && "border-primary/60 bg-primary/10"
+    );
+  const viewerItemStaticClass = "flex w-full cursor-default items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-3 py-2.5 max-md:items-start";
+  const viewerItemTitleClass = "min-w-0 flex-1 break-words font-mono text-[0.95rem] font-medium text-foreground";
+  const viewerItemMetaClass = "shrink-0 text-xs text-muted-foreground sm:text-sm";
+  const viewerRowClass = "flex items-center gap-1.5 max-md:items-start";
+  const reorderButtonsClass = "flex shrink-0 flex-col gap-0.5";
+  const reorderButtonClass =
+    "flex size-6 items-center justify-center rounded-md border border-border/60 bg-card p-0 text-muted-foreground transition hover:border-primary/50 hover:bg-primary/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-30";
+  const reorderDangerButtonClass =
+    "flex size-7 shrink-0 items-center justify-center rounded-md border border-red-200 bg-transparent p-0 text-red-600 transition hover:border-red-400 hover:bg-red-500/10 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30 dark:border-red-900/60 dark:text-red-400";
+  const phaseExercisePanelClass = "mt-4 border-t border-border/50 pt-3.5";
+  const exercisePanelHeadClass = "mb-2 flex flex-col gap-1";
+  const containerSwitchRowClass = "inline-flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground";
+  const containerCheckboxClass = "size-4 accent-primary";
+  const containerExerciseListClass =
+    "flex max-h-[260px] flex-col gap-1 overflow-y-auto rounded-xl border border-border/60 bg-background/60 p-2";
+  const containerExerciseOptionClass = (selected: boolean) =>
+    cn(
+      "flex cursor-pointer items-center gap-2.5 rounded-lg border px-2 py-1.5 text-sm transition max-md:flex-wrap max-md:items-start",
+      selected ? "border-primary/40 bg-primary/10" : "border-transparent hover:bg-primary/5"
+    );
+  const containerExerciseInputClass = "peer sr-only";
+  const containerExerciseCheckClass =
+    "inline-flex size-[18px] shrink-0 items-center justify-center rounded-md border border-border bg-muted transition after:block after:size-2 after:rounded-[3px] after:bg-transparent after:content-[''] peer-checked:border-primary/60 peer-checked:bg-primary/15 peer-checked:after:bg-primary peer-focus-visible:ring-4 peer-focus-visible:ring-ring/20";
+  const containerExerciseTitleClass = "min-w-0 flex-1 break-words text-sm font-medium text-foreground";
+  const containerSelectedWrapClass = "mt-2.5 rounded-xl border border-border/50 bg-card/80 p-2.5";
+  const containerSelectedHeadClass = "mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground";
+  const containerSelectedListClass = "flex flex-col gap-1.5";
+  const containerSelectedItemClass =
+    "flex items-center gap-2.5 rounded-lg border border-border/40 bg-muted/40 p-1.5 max-md:items-start";
+  const containerSelectedInfoClass = "min-w-0 flex flex-col";
+  const containerSelectedTitleClass = "break-words text-sm font-semibold text-foreground";
+  const containerActionRowClass = "mb-2.5 flex flex-wrap gap-2";
+  const containerHeaderActionsClass = "inline-flex flex-wrap items-center gap-2 max-md:w-full max-md:justify-end";
+  const containerActionButtonClass = (active = false) =>
+    cn(
+      "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:pointer-events-none disabled:opacity-50 max-sm:w-full max-sm:justify-center",
+      active
+        ? "border-primary/45 bg-primary/12 text-foreground"
+        : "border-border/60 bg-muted/40 text-foreground hover:border-primary/40 hover:bg-primary/10"
+    );
+  const containerAddPanelClass = "mb-2.5 rounded-xl border border-border/50 bg-muted/30 p-2.5";
+  const containerAddActionsClass = "mt-2.5";
+  const containerGroupsClass = "mt-2.5 flex max-h-[min(58vh,680px)] flex-col gap-2.5 overflow-y-auto pr-1";
+  const containerGroupCardClass = "rounded-xl border border-border/60 bg-card/90 p-3.5 transition hover:border-primary/40";
+  const containerGroupHeaderClass = "mb-2.5 flex items-center justify-between gap-2.5 max-md:flex-col max-md:items-stretch";
+  const containerGroupInfoClass = "flex flex-wrap items-center gap-2";
+  const containerDeleteButtonClass =
+    "flex size-7 items-center justify-center rounded-lg border border-border/60 bg-transparent text-muted-foreground transition hover:border-red-300 hover:bg-red-500/10 hover:text-red-400";
+  const containerGroupExercisesClass = "flex flex-col gap-1 border-l-2 border-primary/35 pl-2.5";
+  const containerExerciseItemClass = "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition hover:bg-primary/5 max-md:items-start";
+  const containerExerciseItemInfoClass = "flex min-w-0 flex-1 items-center justify-between gap-2 max-md:flex-col max-md:items-start";
+  const containerFooterClass = "mt-2 border-t border-border/40 pt-2 text-xs font-medium text-muted-foreground";
+  const detailsGridClass = "flex flex-col gap-2.5";
+  const detailRowClass = "flex flex-col gap-1 rounded-xl border border-border/60 bg-muted/40 px-3 py-2.5";
+  const detailLabelClass = "text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground";
+  const detailValueClass = "break-words text-sm font-semibold text-foreground";
+  const detailHintClass = "rounded-xl border border-dashed border-primary/35 bg-primary/5 px-3 py-2.5 text-xs text-muted-foreground";
+  const modalGhostButtonClass =
+    "inline-flex min-h-[42px] min-w-[130px] items-center justify-center gap-2 rounded-xl border border-border/65 bg-muted/40 text-foreground hover:border-primary/35";
+  const modalDangerButtonClass =
+    "inline-flex min-h-[42px] min-w-[130px] items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 text-destructive hover:border-destructive/60";
+  const renderDetailRow = (label: string, value: React.ReactNode) => (
+    <div className={detailRowClass}>
+      <span className={detailLabelClass}>{label}</span>
+      <strong className={detailValueClass}>{value}</strong>
+    </div>
+  );
+
   return (
     <DashboardLayout title="Estrutura do Curso" subtitle="Criação e listagem separadas por página">
-      <div className="estruturaContainerSingle">
+      <div className={pageClass}>
         <AnimatedToast
           message={toastMsg?.msg || null}
           type={toastMsg?.type || "success"}
@@ -972,62 +1110,56 @@ export default function EstruturaCursoPage() {
           onClose={() => setToastMsg(null)}
         />
 
-        <div className="estruturaTabs" role="tablist" aria-label="Etapas de estrutura">
-          <button type="button" className={`estruturaTabBtn ${abaAtiva === "curso" ? "active" : ""}`} onClick={() => navigate(rotaAba("curso"))}>
-            <Plus size={16} /> Cursos
-          </button>
-          <button type="button" className={`estruturaTabBtn ${abaAtiva === "modulo" ? "active" : ""}`} onClick={() => navigate(rotaAba("modulo"))}>
-            <Layers size={16} /> Módulos
-          </button>
-          <button type="button" className={`estruturaTabBtn ${abaAtiva === "fase" ? "active" : ""}`} onClick={() => navigate(rotaAba("fase"))}>
-            <GitBranch size={16} /> Fase
-          </button>
-          <button type="button" className={`estruturaTabBtn ${abaAtiva === "exercicios" ? "active" : ""}`} onClick={() => navigate(rotaAba("exercicios"))}>
-            <PenLine size={16} /> Exercícios
-          </button>
-          <button type="button" className={`estruturaTabBtn ${abaAtiva === "conteiners" ? "active" : ""}`} onClick={() => navigate(rotaAba("conteiners"))}>
-            <Package size={16} /> Contêiners
-          </button>
-          <button type="button" className={`estruturaTabBtn ${abaAtiva === "turmas" ? "active" : ""}`} onClick={() => navigate(rotaAba("turmas"))}>
-            <School size={16} /> Turmas
-          </button>
+        <div className={tabsClass} role="tablist" aria-label="Etapas de estrutura">
+          <span className={tabsLabelClass}>EXIBIR:</span>
+          {stageTabs.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              className={tabButtonClass(abaAtiva === key)}
+              onClick={() => navigate(rotaAba(key))}
+            >
+              <Icon size={16} />
+              {label}
+            </button>
+          ))}
         </div>
 
-        <div className="estruturaOverview" aria-label="Resumo da estrutura">
-          <div className="estruturaOverviewCard">
-            <span>Cursos</span>
-            <strong>{globalStats.cursos}</strong>
+        <div className={overviewGridClass} aria-label="Resumo da estrutura">
+          <div className={overviewCardClass}>
+            <span className={overviewLabelClass}>Cursos</span>
+            <strong className={overviewValueClass}>{globalStats.cursos}</strong>
           </div>
-          <div className="estruturaOverviewCard">
-            <span>Módulos</span>
-            <strong>{globalStats.modulos}</strong>
+          <div className={overviewCardClass}>
+            <span className={overviewLabelClass}>Módulos</span>
+            <strong className={overviewValueClass}>{globalStats.modulos}</strong>
           </div>
-          <div className="estruturaOverviewCard">
-            <span>Fases</span>
-            <strong>{globalStats.fases}</strong>
+          <div className={overviewCardClass}>
+            <span className={overviewLabelClass}>Fases</span>
+            <strong className={overviewValueClass}>{globalStats.fases}</strong>
           </div>
         </div>
 
         {abaAtiva === "curso" && (
-          <div className="estruturaGrid">
-            <div className="estruturaCard containerPhaseListCard">
-              <div className="estruturaCardHead">
-                <h2>Criar Curso</h2>
-                <p>Formulário de criação de curso.</p>
+          <div className={gridClass}>
+            <div className={cardClass}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Criar Curso</h2>
+                <p className={cardDescriptionClass}>Formulário de criação de curso.</p>
               </div>
-              <form onSubmit={handleCriarCurso} className="estruturaForm">
+              <form onSubmit={handleCriarCurso} className={formClass}>
                 <span>Nome do curso *</span>
                 <input value={novoCursoNome} onChange={(e) => setNovoCursoNome(e.target.value)} placeholder="Ex: Programação Full Stack" />
 
                 <span>Descrição</span>
                 <textarea value={novoCursoDescricao} onChange={(e) => setNovoCursoDescricao(e.target.value)} placeholder="Opcional" />
 
-                <label className="estruturaSwitchRow">
-                  <input type="checkbox" className="estruturaSwitchInput" checked={novoCursoPago} onChange={(e) => setNovoCursoPago(e.target.checked)} />
-                  <span className="estruturaSwitchTrack" aria-hidden="true">
-                    <span className="estruturaSwitchThumb" />
+                <label className={switchRowClass}>
+                  <input type="checkbox" className={switchInputClass} checked={novoCursoPago} onChange={(e) => setNovoCursoPago(e.target.checked)} />
+                  <span className={switchTrackClass} aria-hidden="true">
+                    <span className={switchThumbClass} />
                   </span>
-                  <span className="estruturaSwitchText">{novoCursoPago ? "Curso pago" : "Curso gratuito"}</span>
+                  <span className={switchTextClass}>{novoCursoPago ? "Curso pago" : "Curso gratuito"}</span>
                 </label>
 
                 <span>Duração (horas)</span>
@@ -1044,9 +1176,9 @@ export default function EstruturaCursoPage() {
                 </select>
 
                 {!novoCursoPago && (
-                  <div className="estruturaInfoBox">
-                    <span>Turmas via Cadastro</span>
-                    <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "4px 0 0" }}>
+                  <div className={infoBoxClass}>
+                    <span className={infoBoxTitleClass}>Turmas via Cadastro</span>
+                    <p className={infoBoxTextClass}>
                       Cursos gratuitos têm turmas criadas via cadastro de alunos.
                     </p>
                   </div>
@@ -1062,50 +1194,50 @@ export default function EstruturaCursoPage() {
                 <span>Preço (R$)</span>
                 <input type="number" min={0} step="0.01" value={novoCursoPreco} onChange={(e) => setNovoCursoPreco(e.target.value ? Number(e.target.value) : "")} placeholder={novoCursoPago ? "Ex: 497.00" : "0 (gratuito)"} />
 
-                <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoCurso}>
+                <AnimatedButton className={submitButtonClass} type="submit" disabled={criandoCurso}>
                   {criandoCurso ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar curso</>}
                 </AnimatedButton>
               </form>
             </div>
 
-            <div className="estruturaCard">
-              <div className="estruturaCardHead">
-                <h2>Cursos Disponíveis</h2>
+            <div className={cardClass}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Cursos Disponíveis</h2>
               </div>
               {cursoSelecionado && (
-                <div className="estruturaSelectedInfo">
-                  <span className="estruturaSelectedLabel">Curso selecionado:</span>
+                <div className={selectedInfoClass}>
+                  <span className={selectedLabelClass}>Curso selecionado:</span>
                   <strong>{cursoSelecionado.nome}</strong>
-                  <span className="viewerItemMeta">{cursoSelecionado.isPaid ? "Pago" : "Gratuito"}{cursoSelecionado.durationHours ? ` • ${cursoSelecionado.durationHours}h` : ""}{cursoSelecionado.price != null && cursoSelecionado.price > 0 ? ` • R$ ${Number(cursoSelecionado.price).toFixed(2)}` : ""}</span>
+                  <span className={selectedMetaClass}>{cursoSelecionado.isPaid ? "Pago" : "Gratuito"}{cursoSelecionado.durationHours ? ` • ${cursoSelecionado.durationHours}h` : ""}{cursoSelecionado.price != null && cursoSelecionado.price > 0 ? ` • R$ ${Number(cursoSelecionado.price).toFixed(2)}` : ""}</span>
                   <AnimatedButton
                     type="button"
-                    className="estruturaSelectedAction"
+                    className={selectedActionClass}
                     onClick={() => setDetalheModal({ tipo: "curso", item: cursoSelecionado })}
                   >
                     <Eye size={16} /> Ver detalhes
                   </AnimatedButton>
                 </div>
               )}
-              <div className="viewerList" style={{ marginTop: 10 }}>
+              <div className={viewerListSpacedClass}>
                 {carregandoCursos ? (
-                  <div className="estruturaLoadingCursos" role="status" aria-live="polite">
-                    <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                  <div className={loadingClass} role="status" aria-live="polite">
+                    <Loader2 size={18} className={loadingIconClass} />
                     <span>Carregando cursos...</span>
                   </div>
                 ) : paginaCursosItens.length === 0 ? (
-                  <div className="viewerEmpty">Nenhum curso encontrado.</div>
+                  <div className={viewerEmptyClass}>Nenhum curso encontrado.</div>
                 ) : (
                   paginaCursosItens.map((curso) => (
                     <button
                       key={curso.id}
                       type="button"
-                      className={`viewerItem ${curso.id === courseIdSelecionado ? "active" : ""}`}
+                      className={viewerItemClass(curso.id === courseIdSelecionado)}
                       onClick={() => {
                         setCourseIdSelecionado(curso.id);
                       }}
                     >
-                      <span className="viewerItemTitle">{curso.nome}</span>
-                      <span className="viewerItemMeta">{curso.isPaid ? "Pago" : "Gratuito"}</span>
+                      <span className={viewerItemTitleClass}>{curso.nome}</span>
+                      <span className={viewerItemMetaClass}>{curso.isPaid ? "Pago" : "Gratuito"}</span>
                     </button>
                   ))
                 )}
@@ -1122,13 +1254,13 @@ export default function EstruturaCursoPage() {
         )}
 
         {abaAtiva === "modulo" && (
-          <div className="estruturaGrid">
-            <div className="estruturaCard">
-              <div className="estruturaCardHead">
-                <h2>Criar Módulo</h2>
-                <p>Formulário de criação de módulo.</p>
+          <div className={gridClass}>
+            <div className={cardClass}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Criar Módulo</h2>
+                <p className={cardDescriptionClass}>Formulário de criação de módulo.</p>
               </div>
-              <form onSubmit={handleCriarModulo} className="estruturaForm">
+              <form onSubmit={handleCriarModulo} className={formClass}>
                 <span>Curso *</span>
                 <PaginatedSelect
                   value={courseIdSelecionado}
@@ -1166,18 +1298,18 @@ export default function EstruturaCursoPage() {
                 <span>Descrição</span>
                 <textarea value={novoModuloDescricao} onChange={(e) => setNovoModuloDescricao(e.target.value)} placeholder="Opcional" />
 
-                <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoModulo}>
+                <AnimatedButton className={submitButtonClass} type="submit" disabled={criandoModulo}>
                   {criandoModulo ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar módulo</>}
                 </AnimatedButton>
               </form>
             </div>
 
-            <div className="estruturaCard">
-              <div className="estruturaCardHead">
-                <h2>Módulos Disponíveis</h2>
-                <p>Filtre e visualize os módulos do curso selecionado.</p>
+            <div className={cardClass}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Módulos Disponíveis</h2>
+                <p className={cardDescriptionClass}>Filtre e visualize os módulos do curso selecionado.</p>
               </div>
-              <div className="estruturaForm">
+              <div className={formClass}>
                 <PaginatedSelect
                   value={filtroModuloId}
                   onChange={setFiltroModuloId}
@@ -1191,28 +1323,28 @@ export default function EstruturaCursoPage() {
                   emptyText="Nenhum módulo para selecionar"
                 />
                 {filtroModuloId && (
-                  <button type="button" className="filtroLimparBtn" onClick={() => setFiltroModuloId("")}>
+                  <button type="button" className={clearFilterButtonClass} onClick={() => setFiltroModuloId("")}>
                     Limpar filtro
                   </button>
                 )}
               </div>
-              <div className="viewerList" style={{ marginTop: 10 }}>
+              <div className={viewerListSpacedClass}>
                 {!courseIdSelecionado ? (
-                  <div className="viewerEmpty">Selecione um curso para listar módulos.</div>
+                  <div className={viewerEmptyClass}>Selecione um curso para listar módulos.</div>
                 ) : carregandoModulos ? (
-                  <div className="estruturaLoadingCursos" role="status" aria-live="polite">
-                    <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                  <div className={loadingClass} role="status" aria-live="polite">
+                    <Loader2 size={18} className={loadingIconClass} />
                     <span>Carregando módulos...</span>
                   </div>
                 ) : paginaModulosItens.length === 0 ? (
-                  <div className="viewerEmpty">Nenhum módulo encontrado.</div>
+                  <div className={viewerEmptyClass}>Nenhum módulo encontrado.</div>
                 ) : (
                   paginaModulosItens.map((mod, idx) => (
-                    <div key={mod.id} className="viewerItemRow">
-                      <div className="reorderBtns">
+                    <div key={mod.id} className={viewerRowClass}>
+                      <div className={reorderButtonsClass}>
                         <button
                           type="button"
-                          className="reorderBtn"
+                          className={reorderButtonClass}
                           title="Mover para cima"
                           disabled={reordenando || (idx === 0 && paginaModulos === 1)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarModulo(mod.id, "up"); }}
@@ -1221,7 +1353,7 @@ export default function EstruturaCursoPage() {
                         </button>
                         <button
                           type="button"
-                          className="reorderBtn"
+                          className={reorderButtonClass}
                           title="Mover para baixo"
                           disabled={reordenando || (idx === paginaModulosItens.length - 1 && paginaModulos * itensModulos >= totalModulosPaginacao)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarModulo(mod.id, "down"); }}
@@ -1231,14 +1363,14 @@ export default function EstruturaCursoPage() {
                       </div>
                       <button
                         type="button"
-                        className={`viewerItem ${mod.id === moduloIdSelecionado ? "active" : ""}`}
+                        className={viewerItemClass(mod.id === moduloIdSelecionado)}
                         onClick={() => {
                           setModuloIdSelecionado(mod.id);
                           setDetalheModal({ tipo: "modulo", item: mod });
                         }}
                       >
-                        <span className="viewerItemTitle">{mod.nome}</span>
-                        <span className="viewerItemMeta">#{mod.indexOrder}</span>
+                        <span className={viewerItemTitleClass}>{mod.nome}</span>
+                        <span className={viewerItemMetaClass}>#{mod.indexOrder}</span>
                       </button>
                     </div>
                   ))
@@ -1256,13 +1388,13 @@ export default function EstruturaCursoPage() {
         )}
 
         {abaAtiva === "fase" && (
-          <div className="estruturaGrid">
-            <div className="estruturaCard">
-              <div className="estruturaCardHead">
-                <h2>Criar Fase</h2>
-                <p>Formulário de criação de fase.</p>
+          <div className={gridClass}>
+            <div className={cardClass}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Criar Fase</h2>
+                <p className={cardDescriptionClass}>Formulário de criação de fase.</p>
               </div>
-              <form onSubmit={handleCriarFase} className="estruturaForm">
+              <form onSubmit={handleCriarFase} className={formClass}>
                 <span>Curso *</span>
                 <PaginatedSelect
                   value={courseIdSelecionado}
@@ -1331,18 +1463,18 @@ export default function EstruturaCursoPage() {
 
                 {/* Semana removida da criação conforme correções.md - editar somente na lista */}
 
-                <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoFase || !moduloIdSelecionado}>
+                <AnimatedButton className={submitButtonClass} type="submit" disabled={criandoFase || !moduloIdSelecionado}>
                   {criandoFase ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar fase</>}
                 </AnimatedButton>
               </form>
             </div>
 
-            <div className="estruturaCard">
-              <div className="estruturaCardHead">
-                <h2>Fases Disponíveis</h2>
-                <p>Filtre e visualize as fases do módulo selecionado.</p>
+            <div className={cardClass}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Fases Disponíveis</h2>
+                <p className={cardDescriptionClass}>Filtre e visualize as fases do módulo selecionado.</p>
               </div>
-              <div className="estruturaForm">
+              <div className={formClass}>
                 <PaginatedSelect
                   value={filtroFaseId}
                   onChange={setFiltroFaseId}
@@ -1356,28 +1488,28 @@ export default function EstruturaCursoPage() {
                   emptyText="Nenhuma fase para selecionar"
                 />
                 {filtroFaseId && (
-                  <button type="button" className="filtroLimparBtn" onClick={() => setFiltroFaseId("")}>
+                  <button type="button" className={clearFilterButtonClass} onClick={() => setFiltroFaseId("")}>
                     Limpar filtro
                   </button>
                 )}
               </div>
-              <div className="viewerList" style={{ marginTop: 10 }}>
+              <div className={viewerListSpacedClass}>
                 {!moduloIdSelecionado ? (
-                  <div className="viewerEmpty">Selecione um módulo para listar fases.</div>
+                  <div className={viewerEmptyClass}>Selecione um módulo para listar fases.</div>
                 ) : carregandoFases ? (
-                  <div className="estruturaLoadingCursos" role="status" aria-live="polite">
-                    <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                  <div className={loadingClass} role="status" aria-live="polite">
+                    <Loader2 size={18} className={loadingIconClass} />
                     <span>Carregando fases...</span>
                   </div>
                 ) : paginaFasesItens.length === 0 ? (
-                  <div className="viewerEmpty">Nenhuma fase encontrada.</div>
+                  <div className={viewerEmptyClass}>Nenhuma fase encontrada.</div>
                 ) : (
                   paginaFasesItens.map((fase, idx) => (
-                    <div key={fase.id} className="viewerItemRow">
-                      <div className="reorderBtns">
+                    <div key={fase.id} className={viewerRowClass}>
+                      <div className={reorderButtonsClass}>
                         <button
                           type="button"
-                          className="reorderBtn"
+                          className={reorderButtonClass}
                           title="Mover para cima"
                           disabled={reordenando || (idx === 0 && paginaFases === 1)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarFase(fase.id, "up"); }}
@@ -1386,7 +1518,7 @@ export default function EstruturaCursoPage() {
                         </button>
                         <button
                           type="button"
-                          className="reorderBtn"
+                          className={reorderButtonClass}
                           title="Mover para baixo"
                           disabled={reordenando || (idx === paginaFasesItens.length - 1 && paginaFases * itensFases >= totalFasesPaginacao)}
                           onClick={(e) => { e.stopPropagation(); handleReordenarFase(fase.id, "down"); }}
@@ -1396,14 +1528,14 @@ export default function EstruturaCursoPage() {
                       </div>
                       <button
                         type="button"
-                        className={`viewerItem ${fase.id === faseIdParaExercicios ? "active" : ""}`}
+                        className={viewerItemClass(fase.id === faseIdParaExercicios)}
                         onClick={() => {
                           setFaseIdParaExercicios(fase.id);
                           setDetalheModal({ tipo: "fase", item: fase });
                         }}
                       >
-                        <span className="viewerItemTitle">{fase.nome}</span>
-                        <span className="viewerItemMeta">Semana {fase.weekNumber}</span>
+                        <span className={viewerItemTitleClass}>{fase.nome}</span>
+                        <span className={viewerItemMetaClass}>Semana {fase.weekNumber}</span>
                       </button>
                     </div>
                   ))
@@ -1419,21 +1551,21 @@ export default function EstruturaCursoPage() {
 
               {/* Exercises for selected phase */}
               {faseIdParaExercicios && (
-                <div style={{ marginTop: 16, borderTop: "1px solid color-mix(in srgb, var(--line) 40%, transparent)", paddingTop: 14 }}>
-                  <div className="estruturaCardHead" style={{ padding: "0 0 8px" }}>
-                    <h3 style={{ fontSize: "1rem", margin: 0 }}>Exercícios da Fase</h3>
-                    <p style={{ fontSize: "0.82rem", margin: 0 }}>Exercícios vinculados à fase selecionada. Reordene com as setas.</p>
+                <div className={phaseExercisePanelClass}>
+                  <div className={exercisePanelHeadClass}>
+                    <h3 className={compactTitleClass}>Exercícios da Fase</h3>
+                    <p className={compactDescriptionClass}>Exercícios vinculados à fase selecionada. Reordene com as setas.</p>
                   </div>
-                  <div className="viewerList">
+                  <div className={viewerListClass}>
                     {exerciciosFase.length === 0 ? (
-                      <div className="viewerEmpty">Nenhum exercício vinculado a esta fase.</div>
+                      <div className={viewerEmptyClass}>Nenhum exercício vinculado a esta fase.</div>
                     ) : (
                       exerciciosFase.map((ex, idx) => (
-                        <div key={ex.id} className="viewerItemRow">
-                          <div className="reorderBtns">
+                        <div key={ex.id} className={viewerRowClass}>
+                          <div className={reorderButtonsClass}>
                             <button
                               type="button"
-                              className="reorderBtn"
+                              className={reorderButtonClass}
                               title="Mover para cima"
                               disabled={reordenando || idx === 0}
                               onClick={(e) => { e.stopPropagation(); handleReordenarExercicio(ex.id, "up"); }}
@@ -1442,7 +1574,7 @@ export default function EstruturaCursoPage() {
                             </button>
                             <button
                               type="button"
-                              className="reorderBtn"
+                              className={reorderButtonClass}
                               title="Mover para baixo"
                               disabled={reordenando || idx === exerciciosFase.length - 1}
                               onClick={(e) => { e.stopPropagation(); handleReordenarExercicio(ex.id, "down"); }}
@@ -1450,9 +1582,9 @@ export default function EstruturaCursoPage() {
                               <ChevronDown size={14} />
                             </button>
                           </div>
-                          <div className="viewerItem" style={{ cursor: "default" }}>
-                            <span className="viewerItemTitle">{ex.titulo}</span>
-                            <span className="viewerItemMeta">Ordem #{ex.indexOrder}{ex.difficulty != null ? ` • Dif. ${ex.difficulty}` : ""}</span>
+                          <div className={viewerItemStaticClass}>
+                            <span className={viewerItemTitleClass}>{ex.titulo}</span>
+                            <span className={viewerItemMetaClass}>Ordem #{ex.indexOrder}{ex.difficulty != null ? ` • Dif. ${ex.difficulty}` : ""}</span>
                           </div>
                         </div>
                       ))
@@ -1465,19 +1597,19 @@ export default function EstruturaCursoPage() {
         )}
 
         {abaAtiva === "exercicios" && (
-          <div className="estruturaGrid">
+          <div className={gridClass}>
             <CriarExercicioForm />
           </div>
         )}
 
         {abaAtiva === "conteiners" && (
-          <div className="estruturaGrid estruturaGridTopAligned">
-            <div className="estruturaCard">
-              <div className="estruturaCardHead">
-                <h2>Criar Container</h2>
-                <p>Agrupe exercícios em um container dentro de uma fase.</p>
+          <div className={gridTopAlignedClass}>
+            <div className={cardClass}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Criar Container</h2>
+                <p className={cardDescriptionClass}>Agrupe exercícios em um container dentro de uma fase.</p>
               </div>
-              <form onSubmit={handleCriarContainer} className="estruturaForm">
+              <form onSubmit={handleCriarContainer} className={formClass}>
                 <span>Curso *</span>
                 <PaginatedSelect
                   value={courseIdSelecionado}
@@ -1563,24 +1695,24 @@ export default function EstruturaCursoPage() {
                 <span>Dia Alvo</span>
                 <input type="number" min={1} value={novoContainerDia} onChange={(e) => setNovoContainerDia(e.target.value ? Number(e.target.value) : "")} placeholder="Número do dia" />
 
-                <label className="containerSwitchRow">
-                  <input type="checkbox" checked={novoContainerIsDailyTask} onChange={(e) => setNovoContainerIsDailyTask(e.target.checked)} />
+                <label className={containerSwitchRowClass}>
+                  <input className={containerCheckboxClass} type="checkbox" checked={novoContainerIsDailyTask} onChange={(e) => setNovoContainerIsDailyTask(e.target.checked)} />
                   <span>Tarefa Diária</span>
                 </label>
 
                 <span>Exercícios *</span>
                 {!faseIdParaContainers ? (
-                  <div className="viewerEmpty">Selecione uma fase para ver exercícios.</div>
+                  <div className={viewerEmptyClass}>Selecione uma fase para ver exercícios.</div>
                 ) : exerciciosPermitidosNovoContainer.length === 0 ? (
-                  <div className="viewerEmpty">Nenhum exercício nesta fase.</div>
+                  <div className={viewerEmptyClass}>Nenhum exercício nesta fase.</div>
                 ) : (
-                  <div className="containerExerciseList">
+                  <div className={containerExerciseListClass}>
                     {exerciciosPermitidosNovoContainer.map((ex) => {
                       const selecionado = novoContainerExerciseIds.includes(ex.id);
                       return (
-                      <label key={ex.id} className={`containerExerciseOption ${selecionado ? "isSelected" : ""}`}>
+                      <label key={ex.id} className={containerExerciseOptionClass(selecionado)}>
                         <input
-                          className="containerExerciseInput"
+                          className={containerExerciseInputClass}
                           type="checkbox"
                           checked={selecionado}
                           onChange={(e) => {
@@ -1591,9 +1723,9 @@ export default function EstruturaCursoPage() {
                             }
                           }}
                         />
-                        <span className="containerExerciseCheck" aria-hidden="true" />
-                        <span className="containerExerciseTitle">{ex.titulo}</span>
-                        <span className="viewerItemMeta">#{ex.indexOrder}</span>
+                        <span className={containerExerciseCheckClass} aria-hidden="true" />
+                        <span className={containerExerciseTitleClass}>{ex.titulo}</span>
+                        <span className={cn(viewerItemMetaClass, "max-md:w-full max-md:pl-7 max-md:text-left")}>#{ex.indexOrder}</span>
                       </label>
                     );
                     })}
@@ -1601,17 +1733,17 @@ export default function EstruturaCursoPage() {
                 )}
 
                 {exerciciosSelecionadosContainer.length > 0 && (
-                  <div className="containerSelectedWrap">
-                    <div className="containerSelectedHead">
+                  <div className={containerSelectedWrapClass}>
+                    <div className={containerSelectedHeadClass}>
                       Ordem dos exercícios no container
                     </div>
-                    <div className="containerSelectedList">
+                    <div className={containerSelectedListClass}>
                       {exerciciosSelecionadosContainer.map((ex, idx) => (
-                        <div key={ex.id} className="containerSelectedItem">
-                          <div className="reorderBtns containerReorderBtns">
+                        <div key={ex.id} className={containerSelectedItemClass}>
+                          <div className={reorderButtonsClass}>
                             <button
                               type="button"
-                              className="reorderBtn"
+                              className={reorderButtonClass}
                               title="Mover para cima"
                               disabled={idx === 0}
                               onClick={() => handleReordenarNovoContainerExercise(ex.id, "up")}
@@ -1620,7 +1752,7 @@ export default function EstruturaCursoPage() {
                             </button>
                             <button
                               type="button"
-                              className="reorderBtn"
+                              className={reorderButtonClass}
                               title="Mover para baixo"
                               disabled={idx === exerciciosSelecionadosContainer.length - 1}
                               onClick={() => handleReordenarNovoContainerExercise(ex.id, "down")}
@@ -1628,9 +1760,9 @@ export default function EstruturaCursoPage() {
                               <ChevronDown size={14} />
                             </button>
                           </div>
-                          <div className="containerSelectedInfo">
-                            <span className="containerSelectedTitle">{ex.titulo}</span>
-                            <span className="viewerItemMeta">Posição #{idx + 1}</span>
+                          <div className={containerSelectedInfoClass}>
+                            <span className={containerSelectedTitleClass}>{ex.titulo}</span>
+                            <span className={viewerItemMetaClass}>Posição #{idx + 1}</span>
                           </div>
                         </div>
                       ))}
@@ -1638,71 +1770,63 @@ export default function EstruturaCursoPage() {
                   </div>
                 )}
 
-                <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={criandoContainer || !faseIdParaContainers || novoContainerExerciseIds.length === 0}>
+                <AnimatedButton className={submitButtonClass} type="submit" disabled={criandoContainer || !faseIdParaContainers || novoContainerExerciseIds.length === 0}>
                   {criandoContainer ? <><Loader2 size={16} /> Criando...</> : <><Plus size={16} /> Criar Container</>}
                 </AnimatedButton>
               </form>
             </div>
 
-            <div className="estruturaCard containerListCard">
-              <div className="estruturaCardHead">
-                <h2>Containers da Fase</h2>
-                <p>Containers agrupando exercícios da fase selecionada.</p>
+            <div className={cn(cardClass, "self-start")}>
+              <div className={cardHeadClass}>
+                <h2 className={cardTitleClass}>Containers da Fase</h2>
+                <p className={cardDescriptionClass}>Containers agrupando exercícios da fase selecionada.</p>
               </div>
               {!faseIdParaContainers ? (
-                <div className="viewerEmpty">Selecione uma fase para ver containers.</div>
+                <div className={viewerEmptyClass}>Selecione uma fase para ver containers.</div>
               ) : carregandoContainers ? (
-                <div className="estruturaLoadingCursos" role="status" aria-live="polite">
-                  <Loader2 size={18} className="estruturaLoadingCursosIcon" />
+                <div className={loadingClass} role="status" aria-live="polite">
+                  <Loader2 size={18} className={loadingIconClass} />
                   <span>Carregando containers...</span>
                 </div>
               ) : containers.length === 0 ? (
-                <div className="viewerEmpty">Nenhum container encontrado para esta fase.</div>
+                <div className={viewerEmptyClass}>Nenhum container encontrado para esta fase.</div>
               ) : (
                 <>
-                <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                <div className={containerActionRowClass}>
                   <button
                     type="button"
-                    className="containerActionBtn"
+                    className={containerActionButtonClass(abaTipoContainer === "normal")}
                     aria-pressed={abaTipoContainer === "normal"}
                     onClick={() => setAbaTipoContainer("normal")}
-                    style={abaTipoContainer === "normal" ? {
-                      borderColor: "color-mix(in srgb, var(--primary) 44%, var(--line))",
-                      background: "color-mix(in srgb, var(--primary) 12%, var(--card))",
-                    } : undefined}
                   >
                     Containers Normais
                   </button>
                   <button
                     type="button"
-                    className="containerActionBtn"
+                    className={containerActionButtonClass(abaTipoContainer === "daily")}
                     aria-pressed={abaTipoContainer === "daily"}
                     onClick={() => setAbaTipoContainer("daily")}
-                    style={abaTipoContainer === "daily" ? {
-                      borderColor: "color-mix(in srgb, var(--primary) 44%, var(--line))",
-                      background: "color-mix(in srgb, var(--primary) 12%, var(--card))",
-                    } : undefined}
                   >
                     Containers de Tarefa Diária
                   </button>
                 </div>
 
-                <div className="containerHeaderActions" style={{ marginBottom: 10 }}>
+                <div className={cn(containerHeaderActionsClass, "mb-2.5")}>
                   <button
                     type="button"
-                    className="containerActionBtn"
+                    className={containerActionButtonClass()}
                     onClick={() => {
                       if (!faseIdParaContainers) return;
                       void refreshContainersData(faseIdParaContainers, { silent: false });
                     }}
                     disabled={!faseIdParaContainers || carregandoContainers || atualizandoContainers}
                   >
-                    {atualizandoContainers ? <Loader2 size={14} className="estruturaLoadingCursosIcon" /> : <RefreshCw size={14} />}
+                    {atualizandoContainers ? <Loader2 size={14} className={loadingIconClass} /> : <RefreshCw size={14} />}
                     Atualizar
                   </button>
                   <button
                     type="button"
-                    className="containerActionBtn"
+                    className={containerActionButtonClass()}
                     onClick={handleToggleContainerEditorGlobal}
                     disabled={containersFiltradosPorTipo.length === 0 || atualizandoContainers}
                   >
@@ -1712,7 +1836,7 @@ export default function EstruturaCursoPage() {
                 </div>
 
                 {containersFiltradosPorTipo.length === 0 && (
-                  <div className="viewerEmpty" style={{ marginBottom: 10 }}>
+                  <div className={cn(viewerEmptyClass, "mb-2.5")}>
                     {abaTipoContainer === "daily"
                       ? "Nenhum container de tarefa diária encontrado para esta fase."
                       : "Nenhum container normal encontrado para esta fase."}
@@ -1720,19 +1844,19 @@ export default function EstruturaCursoPage() {
                 )}
 
                 {containerEditorKey && containersFiltradosPorTipo.length > 0 && (
-                  <div className="containerAddPanel">
-                    <div className="containerSelectedHead">Adicionar novos exercícios</div>
+                  <div className={containerAddPanelClass}>
+                    <div className={containerSelectedHeadClass}>Adicionar novos exercícios</div>
 
-                    <span style={{ display: "block", marginBottom: 8, fontSize: "0.82rem", color: "var(--muted)" }}>
+                    <span className="mb-2 block text-xs text-muted-foreground">
                       Container de destino
                     </span>
                     <select
+                      className={cn(selectClass, "mb-2.5")}
                       value={containerEditorKey}
                       onChange={(e) => {
                         setContainerEditorKey(e.target.value);
                         setContainerEditorExerciseIds([]);
                       }}
-                      style={{ width: "100%", marginBottom: 10 }}
                     >
                       {containersFiltradosPorTipo.map((container, idx) => {
                         const key = getContainerGroupKey(container);
@@ -1746,16 +1870,16 @@ export default function EstruturaCursoPage() {
                     </select>
 
                     {exerciciosPermitidosNaoAlocados.length === 0 ? (
-                      <div className="viewerEmpty">Todos os exercícios da fase já estão em containers.</div>
+                      <div className={viewerEmptyClass}>Todos os exercícios da fase já estão em containers.</div>
                     ) : (
                       <>
-                        <div className="containerExerciseList">
+                        <div className={containerExerciseListClass}>
                           {exerciciosPermitidosNaoAlocados.map((ex) => {
                               const selecionado = containerEditorExerciseIds.includes(ex.id);
                               return (
-                                <label key={`global-add-${ex.id}`} className={`containerExerciseOption ${selecionado ? "isSelected" : ""}`}>
+                                <label key={`global-add-${ex.id}`} className={containerExerciseOptionClass(selecionado)}>
                                   <input
-                                    className="containerExerciseInput"
+                                    className={containerExerciseInputClass}
                                     type="checkbox"
                                     checked={selecionado}
                                     onChange={(e) => {
@@ -1766,17 +1890,17 @@ export default function EstruturaCursoPage() {
                                       }
                                     }}
                                   />
-                                  <span className="containerExerciseCheck" aria-hidden="true" />
-                                  <span className="containerExerciseTitle">{ex.titulo}</span>
-                                  <span className="viewerItemMeta">#{ex.indexOrder}</span>
+                                  <span className={containerExerciseCheckClass} aria-hidden="true" />
+                                  <span className={containerExerciseTitleClass}>{ex.titulo}</span>
+                                  <span className={cn(viewerItemMetaClass, "max-md:w-full max-md:pl-7 max-md:text-left")}>#{ex.indexOrder}</span>
                                 </label>
                               );
                             })}
                         </div>
-                        <div className="containerAddActions">
+                        <div className={containerAddActionsClass}>
                           <AnimatedButton
                             type="button"
-                            className="estruturaSubmitBtn"
+                            className={submitButtonClass}
                             disabled={salvandoContainerEditor || containerEditorExerciseIds.length === 0}
                             onClick={handleAdicionarExerciciosNoContainer}
                           >
@@ -1789,33 +1913,37 @@ export default function EstruturaCursoPage() {
                 )}
 
                 {containersFiltradosPorTipo.length > 0 && (
-                  <div className="containerGroupList containerGroupListScrollable">
+                  <div className={containerGroupsClass}>
                     {containersPaginados.map((container, i) => (
-                      <div key={`${container.name}-${container.containerDateTargetInt}-${i}`} className="containerGroupCard">
-                        <div className="containerGroupHeader">
-                          <div className="containerGroupInfo">
+                      <div key={`${container.name}-${container.containerDateTargetInt}-${i}`} className={containerGroupCardClass}>
+                        <div className={containerGroupHeaderClass}>
+                          <div className={containerGroupInfoClass}>
                             <strong>{container.name}</strong>
                             {container.containerDateTargetInt != null && (
-                              <span className="containerDayBadge">Dia {container.containerDateTargetInt}</span>
+                              <Badge variant="outline" className="border-sky-400/30 bg-sky-500/10 text-sky-200">
+                                Dia {container.containerDateTargetInt}
+                              </Badge>
                             )}
                             {container.isDailyTask && (
-                              <span className="containerDailyBadge">Tarefa Diária</span>
+                              <Badge variant="outline" className="border-amber-400/30 bg-amber-500/10 text-amber-200">
+                                Tarefa Diária
+                              </Badge>
                             )}
                           </div>
-                          <div className="containerHeaderActions">
-                            <button type="button" className="containerDeleteBtn" onClick={() => handleDeletarContainer(container)} title="Deletar container">
+                          <div className={containerHeaderActionsClass}>
+                            <button type="button" className={containerDeleteButtonClass} onClick={() => handleDeletarContainer(container)} title="Deletar container">
                               <Trash2 size={14} />
                             </button>
                           </div>
                         </div>
 
-                        <div className="containerGroupExercises">
+                        <div className={containerGroupExercisesClass}>
                           {container.exercises.map((ex, idx) => (
-                            <div key={ex.containerTaskId} className="containerExerciseItem">
-                              <div className="reorderBtns containerReorderBtns">
+                            <div key={ex.containerTaskId} className={containerExerciseItemClass}>
+                              <div className={reorderButtonsClass}>
                                 <button
                                   type="button"
-                                  className="reorderBtn"
+                                  className={reorderButtonClass}
                                   title="Mover para cima"
                                   disabled={reordenando || idx === 0}
                                   onClick={() => handleReordenarExercicioContainer(ex.id, "up")}
@@ -1824,7 +1952,7 @@ export default function EstruturaCursoPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="reorderBtn"
+                                  className={reorderButtonClass}
                                   title="Mover para baixo"
                                   disabled={reordenando || idx === container.exercises.length - 1}
                                   onClick={() => handleReordenarExercicioContainer(ex.id, "down")}
@@ -1832,24 +1960,23 @@ export default function EstruturaCursoPage() {
                                   <ChevronDown size={14} />
                                 </button>
                               </div>
-                              <div className="containerExerciseItemInfo">
-                                <span className="viewerItemTitle">{ex.title}</span>
-                                <span className="viewerItemMeta">#{ex.indexOrder ?? "-"}</span>
+                              <div className={containerExerciseItemInfoClass}>
+                                <span className={viewerItemTitleClass}>{ex.title}</span>
+                                <span className={viewerItemMetaClass}>#{ex.indexOrder ?? "-"}</span>
                               </div>
                               <button
                                 type="button"
-                                className="reorderBtn"
+                                className={reorderDangerButtonClass}
                                 title="Remover exercício do container"
                                 disabled={reordenando}
                                 onClick={() => handleRemoveExercicioFromContainer(ex.containerTaskId, ex.title)}
-                                style={{ color: "#dc2626", borderColor: "#fca5a5", flexShrink: 0 }}
                               >
                                 <Trash2 size={14} />
                               </button>
                             </div>
                           ))}
                         </div>
-                        <div className="containerGroupFooter">
+                        <div className={containerFooterClass}>
                           {container.exercises.length} exercício{container.exercises.length !== 1 ? "s" : ""}
                         </div>
                       </div>
@@ -1870,7 +1997,7 @@ export default function EstruturaCursoPage() {
         )}
 
         {abaAtiva === "turmas" && (
-          <div className="estruturaGrid">
+          <div className={gridClass}>
             <CriarTurmaForm />
           </div>
         )}
@@ -1898,9 +2025,35 @@ export default function EstruturaCursoPage() {
           isDangerous
         />
 
+        <ConfirmDialog
+          isOpen={confirmarDeleteDetalhe}
+          onClose={() => {
+            if (deletandoDetalhe) return;
+            setConfirmarDeleteDetalhe(false);
+          }}
+          onConfirm={handleDeletarDetalhe}
+          title={
+            detalheModal
+              ? `Deletar ${detalheModal.tipo === "curso" ? "curso" : detalheModal.tipo === "modulo" ? "módulo" : "fase"}`
+              : "Deletar item"
+          }
+          message={
+            detalheModal
+              ? `Tem certeza que deseja deletar ${detalheModal.tipo === "curso" ? "o curso" : detalheModal.tipo === "modulo" ? "o módulo" : "a fase"} "${detalheModal.item.nome || "item"}"?`
+              : "Tem certeza que deseja deletar este item?"
+          }
+          confirmText="Deletar"
+          cancelText="Cancelar"
+          isLoading={deletandoDetalhe}
+          isDangerous
+        />
+
         <Modal
           isOpen={!!detalheModal}
-          onClose={() => setDetalheModal(null)}
+          onClose={() => {
+            setConfirmarDeleteDetalhe(false);
+            setDetalheModal(null);
+          }}
           title={
             detalheModal
               ? detalheModal.tipo === "curso"
@@ -1913,10 +2066,20 @@ export default function EstruturaCursoPage() {
           size="md"
           footer={
             <>
-              <AnimatedButton className="estruturaModalBtn estruturaModalBtnGhost" onClick={() => setDetalheModal(null)}>
+              <AnimatedButton
+                className={modalGhostButtonClass}
+                onClick={() => {
+                  setConfirmarDeleteDetalhe(false);
+                  setDetalheModal(null);
+                }}
+              >
                 Fechar
               </AnimatedButton>
-              <AnimatedButton className="estruturaModalBtn estruturaModalBtnDanger" onClick={handleDeletarDetalhe} disabled={deletandoDetalhe}>
+              <AnimatedButton
+                className={modalDangerButtonClass}
+                onClick={() => setConfirmarDeleteDetalhe(true)}
+                disabled={deletandoDetalhe}
+              >
                 {deletandoDetalhe ? (
                   <>
                     <Loader2 size={14} /> Deletando...
@@ -1931,109 +2094,52 @@ export default function EstruturaCursoPage() {
           }
         >
           {detalheModal && (
-            <div className="estruturaDetalhesGrid">
-              <div className="estruturaDetalheRow">
-                <span>ID</span>
-                <strong>{detalheModal.item.id}</strong>
-              </div>
-              <div className="estruturaDetalheRow">
-                <span>Nome</span>
-                <strong>{detalheModal.item.nome}</strong>
-              </div>
+            <div className={detailsGridClass}>
+              {renderDetailRow("ID", detalheModal.item.id)}
+              {renderDetailRow("Nome", detalheModal.item.nome)}
 
               {detalheModal.tipo === "curso" && (
                 <>
-                  <div className="estruturaDetalheRow">
-                    <span>Descrição</span>
-                    <strong>{detalheModal.item.descricao?.trim() || "Sem descrição"}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Tipo</span>
-                    <strong>{detalheModal.item.isPaid ? "Pago" : "Gratuito"}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Duração</span>
-                    <strong>{detalheModal.item.durationHours ? `${detalheModal.item.durationHours}h` : "-"}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Nível</span>
-                    <strong>{detalheModal.item.level || "-"}</strong>
-                  </div>
+                  {renderDetailRow("Descrição", detalheModal.item.descricao?.trim() || "Sem descrição")}
+                  {renderDetailRow("Tipo", detalheModal.item.isPaid ? "Pago" : "Gratuito")}
+                  {renderDetailRow("Duração", detalheModal.item.durationHours ? `${detalheModal.item.durationHours}h` : "-")}
+                  {renderDetailRow("Nível", detalheModal.item.level || "-")}
                   {detalheModal.item.isPaid && (
-                    <div className="estruturaDetalheRow">
-                      <span>Foco</span>
-                      <strong>{detalheModal.item.focus || "-"}</strong>
-                    </div>
+                    renderDetailRow("Foco", detalheModal.item.focus || "-")
                   )}
-                  <div className="estruturaDetalheRow">
-                    <span>Preço</span>
-                    <strong>{detalheModal.item.price != null ? `R$ ${Number(detalheModal.item.price).toFixed(2)}` : "Gratuito"}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Módulos vinculados</span>
-                    <strong>{courseIdSelecionado === detalheModal.item.id ? modulosCurso.length : "-"}</strong>
-                  </div>
+                  {renderDetailRow("Preço", detalheModal.item.price != null ? `R$ ${Number(detalheModal.item.price).toFixed(2)}` : "Gratuito")}
+                  {renderDetailRow("Módulos vinculados", courseIdSelecionado === detalheModal.item.id ? modulosCurso.length : "-")}
                 </>
               )}
 
               {detalheModal.tipo === "modulo" && (
                 <>
-                  <div className="estruturaDetalheRow">
-                    <span>Curso ID</span>
-                    <strong>{detalheModal.item.courseId}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Ordem</span>
-                    <strong>#{detalheModal.item.indexOrder}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Descrição</span>
-                    <strong>{detalheModal.item.descricao?.trim() || "Sem descrição"}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Fases vinculadas</span>
-                    <strong>{moduloIdSelecionado === detalheModal.item.id ? fasesModulo.length : "-"}</strong>
-                  </div>
+                  {renderDetailRow("Curso ID", detalheModal.item.courseId)}
+                  {renderDetailRow("Ordem", `#${detalheModal.item.indexOrder}`)}
+                  {renderDetailRow("Descrição", detalheModal.item.descricao?.trim() || "Sem descrição")}
+                  {renderDetailRow("Fases vinculadas", moduloIdSelecionado === detalheModal.item.id ? fasesModulo.length : "-")}
                 </>
               )}
 
               {detalheModal.tipo === "fase" && (
                 <>
-                  <div className="estruturaDetalheRow">
-                    <span>Módulo ID</span>
-                    <strong>{detalheModal.item.moduleId}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Semana</span>
-                    <strong>{detalheModal.item.weekNumber}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Ordem</span>
-                    <strong>#{detalheModal.item.indexOrder}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Admin autoriza</span>
-                    <strong>{detalheModal.item.adminAuthorize ? "Sim" : "Não"}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Criada em</span>
-                    <strong>{detalheModal.item.createdAt ? new Date(detalheModal.item.createdAt).toLocaleString("pt-BR") : "-"}</strong>
-                  </div>
-                  <div className="estruturaDetalheRow">
-                    <span>Atualizada em</span>
-                    <strong>{detalheModal.item.updatedAt ? new Date(detalheModal.item.updatedAt).toLocaleString("pt-BR") : "-"}</strong>
-                  </div>
+                  {renderDetailRow("Módulo ID", detalheModal.item.moduleId)}
+                  {renderDetailRow("Semana", detalheModal.item.weekNumber)}
+                  {renderDetailRow("Ordem", `#${detalheModal.item.indexOrder}`)}
+                  {renderDetailRow("Admin autoriza", detalheModal.item.adminAuthorize ? "Sim" : "Não")}
+                  {renderDetailRow("Criada em", detalheModal.item.createdAt ? new Date(detalheModal.item.createdAt).toLocaleString("pt-BR") : "-")}
+                  {renderDetailRow("Atualizada em", detalheModal.item.updatedAt ? new Date(detalheModal.item.updatedAt).toLocaleString("pt-BR") : "-")}
                 </>
               )}
 
               {detalheModal.tipo === "curso" && cursoSelecionado && courseIdSelecionado === detalheModal.item.id && (
-                <div className="estruturaDetalheHint">
+                <div className={detailHintClass}>
                   Curso selecionado atualmente para criação de módulos.
                 </div>
               )}
 
               {detalheModal.tipo === "modulo" && moduloSelecionado && moduloIdSelecionado === detalheModal.item.id && (
-                <div className="estruturaDetalheHint">
+                <div className={detailHintClass}>
                   Módulo selecionado atualmente para criação de fases.
                 </div>
               )}

@@ -1,5 +1,9 @@
 import React from "react";
-import { createPortal } from "react-dom";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   AnimatedButton,
   AnimatedToast,
@@ -24,7 +28,7 @@ interface CriarTurmaFormProps {
 
 export default function CriarTurmaForm({ onCreated }: CriarTurmaFormProps) {
   const iconLabel = (icon: React.ReactNode, label: string) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span className="inline-flex items-center gap-1.5">
       {icon}
       <span>{label}</span>
     </span>
@@ -159,6 +163,17 @@ export default function CriarTurmaForm({ onCreated }: CriarTurmaFormProps) {
   }
 
   const disabled = saving || !nome.trim() || !courseIdSelecionado || !moduloIdSelecionado;
+  const fieldLabelClass = "text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground";
+  const helperTextClass = "text-xs leading-5 text-muted-foreground";
+  const inputClass =
+    "h-11 rounded-xl border-border/70 bg-background/80 text-foreground shadow-none transition placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
+  const selectClass = "h-11 w-full rounded-xl border border-border/70 bg-background/80 px-3 text-sm text-foreground shadow-none outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/30";
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  const primaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
+  const allFilteredSelected =
+    alunosFiltrados.length > 0 && alunosFiltrados.every((aluno) => alunosSelecionados.includes(aluno.id));
 
   return (
     <>
@@ -169,228 +184,274 @@ export default function CriarTurmaForm({ onCreated }: CriarTurmaFormProps) {
         onClose={() => setToastMsg(null)}
       />
 
-      <div className="estruturaCard" style={{ gridColumn: "1 / -1" }}>
-        <div className="estruturaCardHead">
-          <h2>Criar Nova Turma</h2>
-          <p>Preencha os dados para criar uma nova turma.</p>
-        </div>
+      <Card className="col-span-full rounded-[28px] border-border/70 bg-card/95 shadow-sm">
+        <CardHeader className="border-b border-border/70">
+          <CardTitle>Criar Nova Turma</CardTitle>
+          <CardDescription>Preencha os dados para criar uma nova turma.</CardDescription>
+        </CardHeader>
 
-        <form onSubmit={handleSubmit} className="estruturaForm">
-          <span>Nome da Turma *</span>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="ex: Turma A 2024"
-            required
-          />
+        <CardContent className="pt-5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <label className="flex flex-col gap-2 lg:col-span-2">
+                <span className={fieldLabelClass}>Nome da Turma *</span>
+                <Input
+                  className={inputClass}
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="ex: Turma A 2024"
+                  required
+                />
+              </label>
 
-          <span>Curso *</span>
-          <AnimatedSelect
-            className="turmaSelect"
-            value={courseIdSelecionado}
-            onChange={(e) => setCourseIdSelecionado(e.target.value)}
-          >
-            <option value="" disabled>Selecione um curso</option>
-            {cursos
-              .filter((c) => !c.isPaid)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-          </AnimatedSelect>
-
-          <span>Módulo Inicial</span>
-          <input
-            className="turmaSelect"
-            value={modulosCurso.length > 0 ? `${modulosCurso[0].indexOrder}. ${modulosCurso[0].nome}` : "Nenhum módulo disponível"}
-            readOnly
-            disabled
-            style={{ opacity: 0.7, cursor: "not-allowed" }}
-          />
-          <small style={{ fontSize: 12, color: "var(--muted)" }}>
-            A turma sempre inicia no primeiro módulo do curso.
-          </small>
-
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 8 }}>
-            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
-              Configuração de Cronograma (Opcional)
-            </h3>
-
-            <span>Data de Início da Turma</span>
-            <input
-              type="date"
-              value={dataInicio}
-              onChange={(e) => setDataInicio(e.target.value)}
-            />
-            <small style={{ fontSize: 12, color: "var(--muted)" }}>
-              Data em que a turma começa (para liberação semanal de exercícios)
-            </small>
-
-            <span>Duração do Cronograma (semanas)</span>
-            <input
-              type="number"
-              min="1"
-              max="52"
-              value={duracaoSemanas}
-              onChange={(e) => setDuracaoSemanas(parseInt(e.target.value) || 12)}
-            />
-
-            <button
-              type="button"
-              className={`turmaCronoToggle ${cronogramaAtivo ? "isActive" : ""}`}
-              onClick={() => setCronogramaAtivo((prev) => !prev)}
-              aria-pressed={cronogramaAtivo}
-            >
-              <span className="turmaCronoSwitch" aria-hidden="true">
-                <span className="turmaCronoThumb" />
-              </span>
-              <span className="turmaCronoLabel">Ativar Cronograma Automático</span>
-            </button>
-            <small style={{ fontSize: 12, color: "var(--muted)" }}>
-              Se ativado, os exercícios serão liberados automaticamente conforme o cronograma
-            </small>
-          </div>
-
-          <AnimatedButton className="estruturaSubmitBtn" type="submit" disabled={disabled}>
-            {saving
-              ? iconLabel(<Loader2 size={16} />, "Criando...")
-              : iconLabel(<Plus size={16} />, "Criar Turma")}
-          </AnimatedButton>
-        </form>
-      </div>
-
-      {/* Modal Adicionar Alunos após criação */}
-      {modalAdicionarAberto &&
-        createPortal(
-          <div
-            className="modalOverlay"
-            onClick={(e) => {
-              if (e.target !== e.currentTarget) return;
-              fecharModalAdicionar();
-            }}
-            onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                e.preventDefault();
-                fecharModalAdicionar();
-              }
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="modalContent">
-              {/* Header */}
-              <div className="modalHeader">
-                <div className="modalHeaderLeft">
-                  <h3>Adicionar Alunos</h3>
-                  <span className="modalHeaderSub">{turmaAcabadaCriar?.nome}</span>
-                </div>
-                {alunosSelecionados.length > 0 && (
-                  <span className="modalSelectedBadge">
-                    <UserPlus size={14} />
-                    {alunosSelecionados.length} selecionado{alunosSelecionados.length !== 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
-
-              {alunosDisponiveis.length === 0 ? (
-                <div className="alunosEmptyState">
-                  <Users size={48} />
-                  <p>Nenhum aluno disponível para adicionar.</p>
-                </div>
-              ) : (
-                <>
-                  {/* Search & Select All */}
-                  <div className="modalToolbar">
-                    <div className="modalSearchWrap">
-                      <Search size={16} className="modalSearchIcon" />
-                      <input
-                        className="modalSearchInput"
-                        type="text"
-                        placeholder="Buscar aluno por nome ou usuário..."
-                        value={buscaAluno}
-                        onChange={(e) => setBuscaAluno(e.target.value)}
-                      />
-                    </div>
-                    <div className="modalSelectAllRow">
-                      <span className="modalCountText">
-                        {alunosFiltrados.length} aluno{alunosFiltrados.length !== 1 ? "s" : ""} encontrado{alunosFiltrados.length !== 1 ? "s" : ""}
-                      </span>
-                      <button
-                        type="button"
-                        className="modalSelectAllBtn"
-                        onClick={() => {
-                          const todosIds = alunosFiltrados.map((a) => a.id);
-                          const todosSelecionados = todosIds.every((id) => alunosSelecionados.includes(id));
-                          if (todosSelecionados) {
-                            setAlunosSelecionados(alunosSelecionados.filter((id) => !todosIds.includes(id)));
-                          } else {
-                            setAlunosSelecionados([...new Set([...alunosSelecionados, ...todosIds])]);
-                          }
-                        }}
-                      >
-                        {alunosFiltrados.map((a) => a.id).every((id) => alunosSelecionados.includes(id))
-                          ? "Desmarcar todos"
-                          : "Selecionar todos"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Student list */}
-                  <div className="alunosSelectorList">
-                    {alunosFiltrados.map((aluno) => {
-                        const isSelected = alunosSelecionados.includes(aluno.id);
-                        return (
-                          <label
-                            key={aluno.id}
-                            className={`alunoCheckboxItem${isSelected ? " selected" : ""}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setAlunosSelecionados([...alunosSelecionados, aluno.id]);
-                                } else {
-                                  setAlunosSelecionados(alunosSelecionados.filter((id) => id !== aluno.id));
-                                }
-                              }}
-                            />
-                            <span className="alunoCustomCheck">
-                              {isSelected && <Check size={14} strokeWidth={3} />}
-                            </span>
-                            <span className="alunoCheckboxAvatar">
-                              {aluno.nome.slice(0, 1).toUpperCase()}
-                            </span>
-                            <div className="alunoCheckboxInfo">
-                              <div className="alunoCheckboxName">{aluno.nome}</div>
-                              <div className="alunoCheckboxUser">@{aluno.usuario ?? aluno.nome}</div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                  </div>
-                </>
-              )}
-
-              <div className="modalActions">
-                <AnimatedButton onClick={fecharModalAdicionar} className="modalBtnCancel" disabled={adicionando}>
-                  Pular por enquanto
-                </AnimatedButton>
-                <AnimatedButton
-                  onClick={handleAdicionarAlunos}
-                  className="modalBtnConfirm"
-                  disabled={adicionando || alunosSelecionados.length === 0}
+              <label className="flex flex-col gap-2">
+                <span className={fieldLabelClass}>Curso *</span>
+                <AnimatedSelect
+                  className={selectClass}
+                  value={courseIdSelecionado}
+                  onChange={(e) => setCourseIdSelecionado(e.target.value)}
                 >
-                  {adicionando
-                    ? iconLabel(<Loader2 size={16} />, "Adicionando...")
-                    : iconLabel(<UserPlus size={16} />, `Adicionar (${alunosSelecionados.length})`)}
-                </AnimatedButton>
+                  <option value="" disabled>Selecione um curso</option>
+                  {cursos
+                    .filter((c) => !c.isPaid)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                      </option>
+                    ))}
+                </AnimatedSelect>
+              </label>
+
+              <div className="flex flex-col gap-2">
+                <span className={fieldLabelClass}>Módulo Inicial</span>
+                <Input
+                  className={cn(inputClass, "cursor-not-allowed opacity-70")}
+                  value={
+                    modulosCurso.length > 0
+                      ? `${modulosCurso[0].indexOrder}. ${modulosCurso[0].nome}`
+                      : "Nenhum módulo disponível"
+                  }
+                  readOnly
+                  disabled
+                />
+                <p className={helperTextClass}>A turma sempre inicia no primeiro módulo do curso.</p>
               </div>
             </div>
-          </div>,
-          document.body
-        )}
+
+            <div className="rounded-[24px] border border-border/70 bg-muted/25 p-4 sm:p-5">
+              <div className="mb-4 space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">Configuração de Cronograma</h3>
+                <p className={helperTextClass}>Opcional, para liberação semanal automática de exercícios.</p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-2">
+                  <span className={fieldLabelClass}>Data de Início da Turma</span>
+                  <Input
+                    className={inputClass}
+                    type="date"
+                    value={dataInicio}
+                    onChange={(e) => setDataInicio(e.target.value)}
+                  />
+                  <p className={helperTextClass}>
+                    Data em que a turma começa para cálculo do cronograma.
+                  </p>
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className={fieldLabelClass}>Duração do Cronograma</span>
+                  <Input
+                    className={inputClass}
+                    type="number"
+                    min="1"
+                    max="52"
+                    value={duracaoSemanas}
+                    onChange={(e) => setDuracaoSemanas(parseInt(e.target.value) || 12)}
+                  />
+                  <p className={helperTextClass}>Defina a quantidade de semanas da trilha.</p>
+                </label>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center justify-between gap-4 rounded-2xl border px-4 py-4 text-left transition",
+                    cronogramaAtivo
+                      ? "border-primary/40 bg-primary/10"
+                      : "border-border/70 bg-background/80 hover:bg-muted/50"
+                  )}
+                  onClick={() => setCronogramaAtivo((prev) => !prev)}
+                  aria-pressed={cronogramaAtivo}
+                >
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-foreground">Ativar Cronograma Automático</div>
+                    <div className={helperTextClass}>
+                      Se ativado, os exercícios serão liberados conforme o planejamento.
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      "relative inline-flex h-7 w-12 shrink-0 rounded-full border transition",
+                      cronogramaAtivo ? "border-primary/50 bg-primary" : "border-border bg-muted"
+                    )}
+                    aria-hidden="true"
+                  >
+                    <span
+                      className={cn(
+                        "absolute left-0.5 top-0.5 size-5 rounded-full bg-background shadow-sm transition",
+                        cronogramaAtivo && "translate-x-5"
+                      )}
+                    />
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <AnimatedButton className={cn(primaryButtonClass, "self-start")} type="submit" disabled={disabled}>
+              {saving
+                ? iconLabel(<Loader2 size={16} />, "Criando...")
+                : iconLabel(<Plus size={16} />, "Criar Turma")}
+            </AnimatedButton>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Dialog open={modalAdicionarAberto} onOpenChange={(open) => !open && fecharModalAdicionar()}>
+        <DialogContent
+          overlayClassName="bg-black/70 backdrop-blur-sm"
+          className="max-w-[720px] gap-0 border-border/70 bg-card/95 p-0"
+          showCloseButton={false}
+        >
+          <DialogHeader className="border-b border-border/70">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <DialogTitle>Adicionar Alunos</DialogTitle>
+                <p className="text-sm leading-6 text-muted-foreground">{turmaAcabadaCriar?.nome}</p>
+              </div>
+              {alunosSelecionados.length > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+                >
+                  <UserPlus />
+                  {alunosSelecionados.length} selecionado{alunosSelecionados.length !== 1 ? "s" : ""}
+                </Badge>
+              )}
+            </div>
+          </DialogHeader>
+
+          {alunosDisponiveis.length === 0 ? (
+            <div className="grid place-items-center gap-3 px-6 py-12 text-center text-muted-foreground">
+              <div className="inline-flex size-16 items-center justify-center rounded-full bg-muted/60">
+                <Users size={28} />
+              </div>
+              <p className="max-w-sm text-sm leading-6">
+                Nenhum aluno disponível para adicionar agora.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 px-6 py-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                  <Input
+                    className={cn(inputClass, "pl-9")}
+                    type="text"
+                    placeholder="Buscar aluno por nome ou usuário..."
+                    value={buscaAluno}
+                    onChange={(e) => setBuscaAluno(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 lg:justify-end">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {alunosFiltrados.length} aluno{alunosFiltrados.length !== 1 ? "s" : ""} encontrado{alunosFiltrados.length !== 1 ? "s" : ""}
+                  </span>
+                  <AnimatedButton
+                    type="button"
+                    className={secondaryButtonClass}
+                    onClick={() => {
+                      const todosIds = alunosFiltrados.map((a) => a.id);
+                      if (allFilteredSelected) {
+                        setAlunosSelecionados(alunosSelecionados.filter((id) => !todosIds.includes(id)));
+                      } else {
+                        setAlunosSelecionados([...new Set([...alunosSelecionados, ...todosIds])]);
+                      }
+                    }}
+                  >
+                    {allFilteredSelected ? "Desmarcar todos" : "Selecionar todos"}
+                  </AnimatedButton>
+                </div>
+              </div>
+
+              <div className="max-h-[360px] overflow-y-auto rounded-[24px] border border-border/70 bg-background/70 p-2">
+                <div className="flex flex-col gap-2">
+                  {alunosFiltrados.map((aluno) => {
+                    const isSelected = alunosSelecionados.includes(aluno.id);
+
+                    return (
+                      <label
+                        key={aluno.id}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-3 rounded-2xl border px-3 py-3 transition",
+                          isSelected
+                            ? "border-primary/40 bg-primary/10"
+                            : "border-border/60 bg-background/60 hover:bg-muted/50"
+                        )}
+                      >
+                        <input
+                          className="sr-only"
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAlunosSelecionados([...alunosSelecionados, aluno.id]);
+                            } else {
+                              setAlunosSelecionados(alunosSelecionados.filter((id) => id !== aluno.id));
+                            }
+                          }}
+                        />
+                        <span
+                          className={cn(
+                            "inline-flex size-5 shrink-0 items-center justify-center rounded-md border transition",
+                            isSelected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background text-transparent"
+                          )}
+                        >
+                          <Check size={14} strokeWidth={3} />
+                        </span>
+                        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                          {aluno.nome.slice(0, 1).toUpperCase()}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-foreground">{aluno.nome}</div>
+                          <div className="truncate text-sm text-muted-foreground">@{aluno.usuario ?? aluno.nome}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="max-[640px]:flex-col">
+            <AnimatedButton onClick={fecharModalAdicionar} className={secondaryButtonClass} disabled={adicionando}>
+              Pular por enquanto
+            </AnimatedButton>
+            <AnimatedButton
+              onClick={handleAdicionarAlunos}
+              className={primaryButtonClass}
+              disabled={adicionando || alunosSelecionados.length === 0}
+            >
+              {adicionando
+                ? iconLabel(<Loader2 size={16} />, "Adicionando...")
+                : iconLabel(<UserPlus size={16} />, `Adicionar (${alunosSelecionados.length})`)}
+            </AnimatedButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

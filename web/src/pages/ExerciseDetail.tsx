@@ -1,6 +1,10 @@
 import React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCcw, Save, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { getRole } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import { AnimatedToast } from "../components/animate-ui";
@@ -12,7 +16,6 @@ import {
   type Exercicio,
   type ExerciseAnswersByStudent,
 } from "../services/api";
-import "./ExerciseDetail.css";
 
 type EditingAnswer = {
   answerText: string;
@@ -438,26 +441,54 @@ export default function ExerciseDetail() {
     navigate("/dashboard/exercicios");
   }
 
+  const selectClass =
+    "h-11 w-full rounded-xl border border-input bg-background/80 px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60";
+  const textareaClass =
+    "min-h-[110px] w-full rounded-2xl border border-input bg-background/80 px-3 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60";
+  const panelClass = "rounded-[28px] border border-border/70 bg-card/95 shadow-sm";
+  const mutedPanelClass = "rounded-2xl border border-border/70 bg-muted/25";
+
   return (
     <DashboardLayout
       title="Painel de Respostas"
       subtitle={exercicio ? `Respostas do exercício: ${exercicio.titulo}` : "Carregando..."}
     >
-      <div className="exerciseDetailContainer">
-        <div className="rvTopBar">
-          <button className="edBackBtn" onClick={handleBack}>
-            <ArrowLeft size={16} /> Voltar
-          </button>
-          <button className="refreshBtn" onClick={() => void load()} disabled={loading}>
-            {loading ? <Loader2 size={16} /> : <RefreshCcw size={16} />} Atualizar
-          </button>
-
-          <div className="rvStats">
-            <span>Alunos: {stats.totalAlunos}</span>
-            <span>Respostas: {stats.totalAnswers}</span>
-            <span>Pendentes: {stats.pendentes}</span>
-            <span>Corretas: {stats.corretas}</span>
-            <span>Incorretas: {stats.incorretas}</span>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-xl border-border/70 bg-background/80 px-4"
+            onClick={handleBack}
+          >
+            <ArrowLeft size={16} />
+            Voltar
+          </Button>
+          <Button
+            type="button"
+            className="h-10 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+            onClick={() => void load()}
+            disabled={loading}
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
+            Atualizar
+          </Button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Badge variant="outline" className="h-8 rounded-full px-3 text-xs font-semibold">
+              Alunos: {stats.totalAlunos}
+            </Badge>
+            <Badge variant="outline" className="h-8 rounded-full px-3 text-xs font-semibold">
+              Respostas: {stats.totalAnswers}
+            </Badge>
+            <Badge variant="outline" className="h-8 rounded-full px-3 text-xs font-semibold">
+              Pendentes: {stats.pendentes}
+            </Badge>
+            <Badge variant="outline" className="h-8 rounded-full px-3 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
+              Corretas: {stats.corretas}
+            </Badge>
+            <Badge variant="outline" className="h-8 rounded-full px-3 text-xs font-semibold text-rose-600 dark:text-rose-300">
+              Incorretas: {stats.incorretas}
+            </Badge>
           </div>
         </div>
 
@@ -474,24 +505,33 @@ export default function ExerciseDetail() {
           onClose={() => setOkMsg(null)}
         />
         {legacyMode && (
-          <div className="exMessage">
+          <div className="rounded-2xl border border-amber-300/60 bg-amber-50/70 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
             Exibindo respostas do fluxo legado (submissões). Edição em lote/por questão indisponível nesta origem.
           </div>
         )}
 
         {!canReview ? (
-          <div className="emptyState">Esta tela é exclusiva de administração.</div>
+          <div className={`${panelClass} px-6 py-10 text-center text-sm text-muted-foreground`}>
+            Esta tela é exclusiva de administração.
+          </div>
         ) : loading ? (
-          <div className="loadingState">Carregando respostas...</div>
+          <div className={`${panelClass} flex items-center justify-center gap-3 px-6 py-10 text-sm font-medium text-muted-foreground`}>
+            <Loader2 size={18} className="animate-spin" />
+            Carregando respostas...
+          </div>
         ) : (
           <>
-            <div className="rvFilters">
-              <div className="rvFilterField">
-                <span className="rvFilterLabel">Filtro: Busca</span>
-                <div className="rvSearch">
-                  <Search size={14} />
-                  <input
-                    className="rvInput"
+            <div className="grid gap-3 lg:grid-cols-[minmax(280px,1.3fr)_repeat(3,minmax(0,1fr))]">
+              <div className={`${panelClass} p-4`}>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Filtro: Busca
+                </label>
+                <div className="flex h-11 items-center overflow-hidden rounded-xl border border-input bg-background/80 px-4 transition focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
+                  <span className="flex w-5 shrink-0 items-center justify-center text-muted-foreground">
+                    <Search size={15} aria-hidden="true" />
+                  </span>
+                  <Input
+                    className="h-full min-w-0 rounded-none border-0 bg-transparent px-0 pl-2 shadow-none dark:bg-transparent focus-visible:border-0 focus-visible:ring-0"
                     value={query}
                     onChange={(e) => {
                       setQuery(e.target.value);
@@ -502,10 +542,12 @@ export default function ExerciseDetail() {
                 </div>
               </div>
 
-              <div className="rvFilterField">
-                <span className="rvFilterLabel">Filtro: Aluno</span>
+              <div className={`${panelClass} p-4`}>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Filtro: Aluno
+                </label>
                 <select
-                  className="rvSelect"
+                  className={selectClass}
                   value={studentFilter}
                   onChange={(e) => {
                     setStudentFilter(e.target.value);
@@ -521,10 +563,12 @@ export default function ExerciseDetail() {
                 </select>
               </div>
 
-              <div className="rvFilterField">
-                <span className="rvFilterLabel">Filtro: Questão</span>
+              <div className={`${panelClass} p-4`}>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Filtro: Questão
+                </label>
                 <select
-                  className="rvSelect"
+                  className={selectClass}
                   value={questionFilter}
                   onChange={(e) => setQuestionFilter(e.target.value)}
                 >
@@ -537,10 +581,12 @@ export default function ExerciseDetail() {
                 </select>
               </div>
 
-              <div className="rvFilterField">
-                <span className="rvFilterLabel">Filtro: Status</span>
+              <div className={`${panelClass} p-4`}>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Filtro: Status
+                </label>
                 <select
-                  className="rvSelect"
+                  className={selectClass}
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value as "todos" | "corrigida" | "pendente");
@@ -554,18 +600,47 @@ export default function ExerciseDetail() {
               </div>
             </div>
 
-            <div className="rvFilters" style={{ marginTop: -2 }}>
-              <div className="rvFilterField">
-                <span className="rvFilterLabel">Filtro: Data inicial</span>
-                <input className="rvInput" type="datetime-local" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className={`${panelClass} p-4`}>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Filtro: Data inicial
+                </label>
+                <Input
+                  className="h-11 rounded-xl border-input bg-background/80"
+                  type="datetime-local"
+                  value={dateFrom}
+                  onChange={(e) => {
+                    setDateFrom(e.target.value);
+                    setPage(1);
+                  }}
+                />
               </div>
-              <div className="rvFilterField">
-                <span className="rvFilterLabel">Filtro: Data final</span>
-                <input className="rvInput" type="datetime-local" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+              <div className={`${panelClass} p-4`}>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Filtro: Data final
+                </label>
+                <Input
+                  className="h-11 rounded-xl border-input bg-background/80"
+                  type="datetime-local"
+                  value={dateTo}
+                  onChange={(e) => {
+                    setDateTo(e.target.value);
+                    setPage(1);
+                  }}
+                />
               </div>
-              <div className="rvFilterField">
-                <span className="rvFilterLabel">Filtro: Ordenação</span>
-                <select className="rvSelect" value={sort} onChange={(e) => { setSort(e.target.value as any); setPage(1); }}>
+              <div className={`${panelClass} p-4`}>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Filtro: Ordenação
+                </label>
+                <select
+                  className={selectClass}
+                  value={sort}
+                  onChange={(e) => {
+                    setSort(e.target.value as "recent" | "oldest" | "student");
+                    setPage(1);
+                  }}
+                >
                   <option value="recent">Mais recentes</option>
                   <option value="oldest">Mais antigas</option>
                   <option value="student">Por aluno</option>
@@ -574,49 +649,68 @@ export default function ExerciseDetail() {
             </div>
 
             {!legacyMode && (
-              <div className="rvBatchBar">
-                <label className="rvCheckLabel">
-                  <input type="checkbox" checked={allVisibleIds.length > 0 && allVisibleIds.every((x) => selectedIds.has(x))} onChange={toggleSelectAllVisible} />
+              <div className={`${panelClass} flex flex-wrap items-center gap-3 px-4 py-3`}>
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-border accent-[var(--primary)]"
+                    checked={allVisibleIds.length > 0 && allVisibleIds.every((x) => selectedIds.has(x))}
+                    onChange={toggleSelectAllVisible}
+                  />
                   Selecionar visíveis ({selectedIds.size})
                 </label>
-                <select className="rvSelect small" value={batchIsCorrect} onChange={(e) => setBatchIsCorrect(e.target.value as any)}>
+                <select
+                  className={cn(selectClass, "min-w-[200px]")}
+                  value={batchIsCorrect}
+                  onChange={(e) => setBatchIsCorrect(e.target.value as "null" | "true" | "false")}
+                >
                   <option value="null">Sem correção</option>
                   <option value="true">Marcar como correta</option>
                   <option value="false">Marcar como incorreta</option>
                 </select>
-                <button className="edPrimaryBtn" disabled={savingBatch || selectedIds.size === 0} onClick={() => void salvarBatch()}>
-                  {savingBatch ? <Loader2 size={14} /> : <Save size={14} />} Salvar em lote
-                </button>
+                <Button
+                  type="button"
+                  className="h-10 rounded-xl bg-blue-600 px-4 text-white hover:bg-blue-500"
+                  disabled={savingBatch || selectedIds.size === 0}
+                  onClick={() => void salvarBatch()}
+                >
+                  {savingBatch ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  Salvar em lote
+                </Button>
               </div>
             )}
 
             {visibleAnswersByStudent.length === 0 ? (
-              <div className="emptyState">Nenhuma resposta encontrada para este exercício.</div>
+              <div className={`${panelClass} px-6 py-10 text-center text-sm text-muted-foreground`}>
+                Nenhuma resposta encontrada para este exercício.
+              </div>
             ) : (
-              <div className="rvGrid">
+              <div className="space-y-4">
                 {visibleAnswersByStudent.map((aluno) => {
                   const isOpen = openStudentIds.has(aluno.alunoId);
                   return (
-                    <div key={aluno.alunoId} className="rvStudentCard">
+                    <div key={aluno.alunoId} className={`${panelClass} p-3`}>
                       <button
                         type="button"
-                        className="rvStudentToggle"
+                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-muted/35 px-4 py-3 text-left transition hover:bg-muted/55"
                         onClick={() => toggleStudent(aluno.alunoId)}
                       >
-                        <div>
-                          <h3 className="rvStudentName">{aluno.alunoNome}</h3>
-                          <div className="rvStudentEmail">{aluno.alunoEmail}</div>
+                        <div className="space-y-1">
+                          <h3 className="text-base font-semibold text-foreground">{aluno.alunoNome}</h3>
+                          <div className="text-sm text-muted-foreground">{aluno.alunoEmail}</div>
                         </div>
-                        <div className="rvStudentMeta">
-                          <span className="rvCount">{aluno.answers.length} questão(ões)</span>
-                          <span className="rvStudentChevron">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="h-7 rounded-full px-3 text-xs font-semibold">
+                            {aluno.answers.length} questão(ões)
+                          </Badge>
+                          <span className="inline-flex items-center text-muted-foreground">
                             {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </span>
                         </div>
                       </button>
 
                       {isOpen && (
-                        <div className="rvAnswers">
+                        <div className="mt-3 space-y-3">
                           {aluno.answers.map((a) => {
                             const options = a.options ?? [];
                             const isDissertativa = options.length === 0;
@@ -626,46 +720,80 @@ export default function ExerciseDetail() {
                             const perguntaPreview =
                               perguntaCurta.length > 78 ? `${perguntaCurta.slice(0, 78)}...` : perguntaCurta;
                             return (
-                              <div key={a.id} className="rvAnswerCard">
-                                <div className="rvAnswerToggleRow">
+                              <div key={a.id} className={`${mutedPanelClass} p-3`}>
+                                <div className="grid grid-cols-[auto_1fr] gap-2 items-center">
                                   {!legacyMode && (
-                                    <span className="rvCheckLabel rvCheckCompact">
-                                      <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} />
+                                    <span className="inline-flex items-center justify-center">
+                                      <input
+                                        type="checkbox"
+                                        className="size-4 rounded border-border accent-[var(--primary)]"
+                                        checked={selectedIds.has(a.id)}
+                                        onChange={() => toggleSelect(a.id)}
+                                      />
                                     </span>
                                   )}
                                   <button
                                     type="button"
-                                    className="rvAnswerToggle"
+                                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-left transition hover:bg-muted/40"
                                     onClick={() => toggleAnswer(a.id)}
                                   >
-                                    <div className="rvAnswerToggleMain">
-                                      <span className="rvAnswerId">Resposta #{a.id}</span>
-                                      <span className="rvAnswerQuestionBadge">Pergunta {a.questionId}</span>
-                                      {perguntaPreview ? <span className="rvAnswerPreview">{perguntaPreview}</span> : null}
+                                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                        Resposta #{a.id}
+                                      </span>
+                                      <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-semibold">
+                                        Pergunta {a.questionId}
+                                      </Badge>
+                                      {perguntaPreview ? (
+                                        <span className="min-w-0 truncate text-xs text-muted-foreground md:max-w-[28rem]">
+                                          {perguntaPreview}
+                                        </span>
+                                      ) : null}
                                     </div>
-                                    <span className="rvStudentChevron">
+                                    <span className="inline-flex items-center text-muted-foreground">
                                       {isAnswerOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                     </span>
                                   </button>
                                 </div>
 
                                 {isAnswerOpen && (
-                                  <>
-                                    <div className="rvQuestionBlock">
-                                      <div className="rvQuestionNumber">Pergunta {a.questionId}</div>
-                                      <div className="rvQuestion">{a.question}</div>
+                                  <div className="mt-3 space-y-3">
+                                    <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-3">
+                                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-300">
+                                        Pergunta {a.questionId}
+                                      </div>
+                                      <div className="text-sm font-medium leading-6 text-foreground">{a.question}</div>
                                     </div>
 
                                     {options.length > 0 && (
-                                      <div className="rvOptionsList">
+                                      <div className="space-y-2">
                                         {options.map((opt) => {
                                           const isSelected =
                                             String(opt.id) === selectedOptionId || String(opt.position) === selectedOptionId;
                                           return (
-                                            <div key={opt.id} className={`rvOptionItem ${isSelected ? "selected" : ""}`}>
-                                              <span className={`rvOptionBullet ${isSelected ? "selected" : ""}`}>{isSelected ? "●" : "○"}</span>
-                                              <span className="rvOptionText">{opt.text}</span>
-                                              {isSelected && <span className="rvOptionTag">Selecionada</span>}
+                                            <div
+                                              key={opt.id}
+                                              className={cn(
+                                                "flex items-center gap-3 rounded-2xl border px-3 py-2.5",
+                                                isSelected
+                                                  ? "border-blue-300/60 bg-blue-500/10"
+                                                  : "border-border/70 bg-background/70"
+                                              )}
+                                            >
+                                              <span
+                                                className={cn(
+                                                  "text-xs font-bold",
+                                                  isSelected ? "text-emerald-500" : "text-muted-foreground"
+                                                )}
+                                              >
+                                                {isSelected ? "●" : "○"}
+                                              </span>
+                                              <span className="flex-1 text-sm text-foreground">{opt.text}</span>
+                                              {isSelected && (
+                                                <Badge className="rounded-full bg-blue-600/90 px-2.5 text-[11px] text-white">
+                                                  Selecionada
+                                                </Badge>
+                                              )}
                                             </div>
                                           );
                                         })}
@@ -673,7 +801,7 @@ export default function ExerciseDetail() {
                                     )}
 
                                     <textarea
-                                      className="rvTextarea"
+                                      className={textareaClass}
                                       value={editing[a.id]?.answerText ?? ""}
                                       onChange={
                                         legacyMode
@@ -693,9 +821,11 @@ export default function ExerciseDetail() {
 
                                     {isDissertativa && (
                                       <>
-                                        <div className="rvFieldLabel">Feedback para o aluno</div>
+                                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                          Feedback para o aluno
+                                        </div>
                                         <textarea
-                                          className="rvTextarea rvFeedbackTextarea"
+                                          className={cn(textareaClass, "min-h-[88px]")}
                                           value={editing[a.id]?.feedback ?? ""}
                                           onChange={
                                             legacyMode
@@ -716,9 +846,9 @@ export default function ExerciseDetail() {
                                     )}
 
                                     {!legacyMode ? (
-                                      <div className="rvControls">
+                                      <div className="flex flex-wrap items-center gap-2">
                                         <select
-                                          className="rvSelect small"
+                                          className={cn(selectClass, "min-w-[180px]")}
                                           value={editing[a.id]?.selectedOption ?? ""}
                                           onChange={(e) =>
                                             setEditing((prev) => ({
@@ -732,14 +862,14 @@ export default function ExerciseDetail() {
                                         >
                                           <option value="">Sem opção</option>
                                           {options.map((opt) => (
-                                            <option key={opt.id} value={String(opt.position)}>
-                                              {opt.position}. {opt.text}
+                                            <option key={opt.id} value={String(opt.position ?? opt.id)}>
+                                              {(opt.position ?? opt.id)}. {opt.text}
                                             </option>
                                           ))}
                                         </select>
 
                                         <select
-                                          className="rvSelect small"
+                                          className={cn(selectClass, "min-w-[180px]")}
                                           value={editing[a.id]?.isCorrect ?? "null"}
                                           onChange={(e) =>
                                             setEditing((prev) => ({
@@ -756,18 +886,24 @@ export default function ExerciseDetail() {
                                           <option value="false">Incorreta</option>
                                         </select>
 
-                                        <button className="edPrimaryBtn" onClick={() => void salvarAnswer(a.id)} disabled={savingId === a.id}>
-                                          {savingId === a.id ? <Loader2 size={14} /> : <Save size={14} />} Salvar
-                                        </button>
+                                        <Button
+                                          type="button"
+                                          className="h-10 rounded-xl bg-blue-600 px-4 text-white hover:bg-blue-500"
+                                          onClick={() => void salvarAnswer(a.id)}
+                                          disabled={savingId === a.id}
+                                        >
+                                          {savingId === a.id ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                          Salvar
+                                        </Button>
 
                                         {(editing[a.id]?.isCorrect === "true" || a.isCorrect === true) && (
-                                          <span className="rvOk">
+                                          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/60 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300">
                                             <CheckCircle2 size={14} /> Correta
                                           </span>
                                         )}
                                       </div>
                                     ) : null}
-                                  </>
+                                  </div>
                                 )}
                               </div>
                             );
@@ -780,16 +916,43 @@ export default function ExerciseDetail() {
               </div>
             )}
 
-            <div className="rvPagination">
-              <button className="edBackBtn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</button>
-              <span>Página {pagination.page} de {pagination.totalPages} ({pagination.total} itens)</span>
-              <button className="edBackBtn" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}>Próxima</button>
-              <select className="rvSelect small" value={String(limit)} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}>
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+            <div className={`${panelClass} flex flex-wrap items-center gap-3 px-4 py-3`}>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-xl border-border/70 bg-background/80 px-4"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                Página {pagination.page} de {pagination.totalPages} ({pagination.total} itens)
+              </p>
+              <div className="ml-auto flex flex-wrap items-center gap-3">
+                <select
+                  className={cn(selectClass, "w-[100px]")}
+                  value={String(limit)}
+                  onChange={(e) => {
+                    setLimit(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-xl border-border/70 bg-background/80 px-4"
+                  disabled={page >= pagination.totalPages}
+                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
           </>
         )}

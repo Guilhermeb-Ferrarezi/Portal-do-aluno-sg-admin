@@ -1,73 +1,75 @@
 import React from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  BookOpen,
+  Calendar,
+  Loader2,
+  Pencil,
+  RefreshCcw,
+  Save,
+  Trash2,
+  User as UserIcon,
+  Users,
+  X,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
+import { FadeInUp, PulseLoader, AnimatedToast } from "../components/animate-ui";
+import ConfirmModal from "../components/ConfirmModal";
 import {
-  FadeInUp,
-  PulseLoader,
-  AnimatedButton,
-  AnimatedToast,
-  AnimatedSelect,
-  AnimatedToggle,
-} from "../components/animate-ui";
-import {
-  RefreshCcw,
-  Loader2,
-  Save,
-  Plus,
-  X,
-  BookOpen,
-  Users,
-  User as UserIcon,
-  Pencil,
-  Trash2,
-  Calendar,
-  ArrowRight,
-} from "lucide-react";
-import {
-  listarTurmas,
-  criarTurma,
+  adicionarAlunosNaTurma,
   atualizarTurma,
+  configurarCronograma,
+  criarTurma,
   deletarTurma,
   getRole,
   listarAlunos,
-  adicionarAlunosNaTurma,
-  configurarCronograma,
-  obterCronograma,
   listarCursos,
-  listarModulosPorCurso,
   listarExercicios,
+  listarModulosPorCurso,
+  listarTurmas,
+  obterCronograma,
+  type Curso,
+  type Exercicio,
+  type Modulo,
   type Turma,
   type User,
-  type Curso,
-  type Modulo,
-  type Exercicio,
 } from "../services/api";
-import ConfirmModal from "../components/ConfirmModal";
-import "./Turmas.css";
 
 export default function TurmasPage() {
   const navigate = useNavigate();
   const role = getRole();
-  const iconLabel = (icon: React.ReactNode, label: string) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      {icon}
-      <span>{label}</span>
-    </span>
-  );
   const canCreate = role === "admin";
+
+  const panelClass = "rounded-[28px] border border-border/70 bg-card/95 shadow-sm";
+  const fieldClass =
+    "h-11 w-full rounded-xl border border-input bg-background/80 px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60";
+  const textMutedClass = "text-sm leading-6 text-muted-foreground";
+
+  const formCardRef = React.useRef<HTMLDivElement | null>(null);
 
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
-  const [toastMsg, setToastMsg] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-
-  // Paginação
+  const [toastMsg, setToastMsg] = React.useState<{
+    type: "success" | "error";
+    msg: string;
+  } | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(5);
-
-  // Form
   const [nome, setNome] = React.useState("");
   const [tipo, setTipo] = React.useState<"turma" | "particular">("turma");
   const [categoria, setCategoria] = React.useState<"programacao" | "informatica">("programacao");
@@ -78,26 +80,18 @@ export default function TurmasPage() {
   const [modulosCurso, setModulosCurso] = React.useState<Modulo[]>([]);
   const [courseIdSelecionado, setCourseIdSelecionado] = React.useState("");
   const [moduloIdSelecionado, setModuloIdSelecionado] = React.useState("");
-
-
-  // Cronograma
   const [, setExerciciosDisponiveis] = React.useState<Exercicio[]>([]);
   const [exerciciosSelecionados, setExerciciosSelecionados] = React.useState<string[]>([]);
   const [semanaExercicios, setSemanaExercicios] = React.useState(1);
   const [, setCarregandoExercicios] = React.useState(false);
-
   const [dataInicio, setDataInicio] = React.useState("");
   const [duracaoSemanas, setDuracaoSemanas] = React.useState(12);
   const [cronogramaAtivo, setCronogramaAtivo] = React.useState(false);
-
-  // Modal
   const [modalDeletar, setModalDeletar] = React.useState<{
     isOpen: boolean;
     turmaId: string | null;
     turmaNome: string | null;
   }>({ isOpen: false, turmaId: null, turmaNome: null });
-
-  // Modal Adicionar Alunos
   const [modalAdicionarAberto, setModalAdicionarAberto] = React.useState(false);
   const [turmaAcabadaCriar, setTurmaAcabadaCriar] = React.useState<Turma | null>(null);
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
@@ -117,7 +111,10 @@ export default function TurmasPage() {
         setCurrentPage(data.pagination.totalPages);
       }
     } catch (e) {
-      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao carregar turmas" });
+      setToastMsg({
+        type: "error",
+        msg: e instanceof Error ? e.message : "Erro ao carregar turmas",
+      });
     } finally {
       setLoading(false);
     }
@@ -174,12 +171,11 @@ export default function TurmasPage() {
       return;
     }
     carregarModulosDoCurso(courseIdSelecionado).catch((e) => {
-      console.error("Erro ao carregar módulos do curso:", e);
+      console.error("Erro ao carregar modulos do curso:", e);
       setModulosCurso([]);
       setModuloIdSelecionado("");
     });
   }, [courseIdSelecionado, role]);
-
 
   async function adicionarExerciciosNoCronograma(turmaId: string) {
     if (exerciciosSelecionados.length === 0) return;
@@ -202,7 +198,7 @@ export default function TurmasPage() {
     });
 
     const atuais = mapa[semanaFinal] ?? [];
-    const novos = exerciciosSelecionados.filter((id) => !atuais.includes(id));
+    const novos = exerciciosSelecionados.filter((itemId) => !atuais.includes(itemId));
     mapa[semanaFinal] = [...atuais, ...novos];
 
     const semanas = Object.entries(mapa)
@@ -219,7 +215,7 @@ export default function TurmasPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nome.trim()) {
-      setToastMsg({ type: 'error', msg: "Nome da turma é obrigatório" });
+      setToastMsg({ type: "error", msg: "Nome da turma e obrigatorio" });
       return;
     }
 
@@ -229,8 +225,6 @@ export default function TurmasPage() {
 
       if (editandoId) {
         const atualizarDados: any = { nome, tipo, categoria, descricao: descricao || null };
-
-        // Adicionar campos de cronograma
         atualizarDados.data_inicio = dataInicio || null;
         atualizarDados.duracao_semanas = duracaoSemanas;
         atualizarDados.cronograma_ativo = cronogramaAtivo;
@@ -242,21 +236,21 @@ export default function TurmasPage() {
         if (exerciciosSelecionados.length > 0) {
           try {
             await adicionarExerciciosNoCronograma(editandoId);
-            setToastMsg({ type: 'success', msg: "Turma atualizada e exercicios adicionados!" });
+            setToastMsg({
+              type: "success",
+              msg: "Turma atualizada e exercicios adicionados!",
+            });
           } catch (err) {
-            console.error("Erro ao adicionar exercícios no cronograma:", err);
-            setToastMsg({ type: 'success', msg: "Turma atualizada!" });
-            setToastMsg({ type: 'error', msg: "Falha ao Adicionar exercícios ao cronograma." });
+            console.error("Erro ao adicionar exercicios no cronograma:", err);
+            setToastMsg({ type: "error", msg: "Falha ao adicionar exercicios ao cronograma." });
           }
         } else {
-          setToastMsg({ type: 'success', msg: "Turma atualizada!" });
+          setToastMsg({ type: "success", msg: "Turma atualizada!" });
         }
 
         setEditandoId(null);
       } else {
         const criarDados: any = { nome, tipo, categoria, descricao: descricao || null };
-
-        // Adicionar campos de cronograma
         criarDados.data_inicio = dataInicio || null;
         criarDados.duracao_semanas = duracaoSemanas;
         criarDados.cronograma_ativo = cronogramaAtivo;
@@ -269,14 +263,16 @@ export default function TurmasPage() {
         if (exerciciosSelecionados.length > 0 && turmaCriada) {
           try {
             await adicionarExerciciosNoCronograma(turmaCriada.id);
-            setToastMsg({ type: 'success', msg: "Turma criada e exercicios adicionados! Agora adicione alunos." });
+            setToastMsg({
+              type: "success",
+              msg: "Turma criada e exercicios adicionados! Agora adicione alunos.",
+            });
           } catch (err) {
-            console.error("Erro ao adicionar exercícios no cronograma:", err);
-            setToastMsg({ type: 'success', msg: "Turma criada! Agora adicione alunos." });
-            setToastMsg({ type: 'error', msg: "Falha ao Adicionar exercícios ao cronograma." });
+            console.error("Erro ao adicionar exercicios no cronograma:", err);
+            setToastMsg({ type: "error", msg: "Falha ao adicionar exercicios ao cronograma." });
           }
         } else {
-          setToastMsg({ type: 'success', msg: "Turma criada! Agora adicione alunos." });
+          setToastMsg({ type: "success", msg: "Turma criada! Agora adicione alunos." });
         }
 
         if (turmaCriada) {
@@ -296,12 +292,9 @@ export default function TurmasPage() {
       setCronogramaAtivo(false);
       setExerciciosSelecionados([]);
       setSemanaExercicios(1);
-
-      if (editandoId) {
-        await load();
-      }
+      await load();
     } catch (e) {
-      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao salvar turma" });
+      setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao salvar turma" });
     } finally {
       setSaving(false);
     }
@@ -312,13 +305,13 @@ export default function TurmasPage() {
     setTipo(turma.tipo);
     setCategoria(turma.categoria);
     setDescricao(turma.descricao || "");
-    setDataInicio(turma.dataInicio ? turma.dataInicio.split('T')[0] : "");
+    setDataInicio(turma.dataInicio ? turma.dataInicio.split("T")[0] : "");
     setDuracaoSemanas(turma.duracaoSemanas || 12);
     setCronogramaAtivo(turma.cronogramaAtivo || false);
     setCourseIdSelecionado(turma.courseId || "");
     if (turma.courseId) {
       carregarModulosDoCurso(turma.courseId, turma.currentModuleId || "").catch((e) =>
-        console.error("Erro ao carregar módulos da turma:", e)
+        console.error("Erro ao carregar modulos da turma:", e)
       );
     } else {
       setModuloIdSelecionado("");
@@ -326,8 +319,7 @@ export default function TurmasPage() {
     setEditandoId(turma.id);
 
     setTimeout(() => {
-      const formElement = document.querySelector(".turmaFormCard");
-      formElement?.scrollIntoView({ behavior: "smooth", block: "start" });
+      formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
   }
 
@@ -339,17 +331,18 @@ export default function TurmasPage() {
     setDataInicio("");
     setDuracaoSemanas(12);
     setCronogramaAtivo(false);
-    if (cursos[0]?.id) {
-      setCourseIdSelecionado(cursos[0].id);
+    const firstCourseId = cursos[0]?.id ?? "";
+    setCourseIdSelecionado(firstCourseId);
+    if (firstCourseId) {
+      void carregarModulosDoCurso(firstCourseId);
     } else {
-      setCourseIdSelecionado("");
+      setModuloIdSelecionado("");
     }
-    setModuloIdSelecionado("");
     setEditandoId(null);
   }
 
-  function abrirModalDeletar(id: string, nome: string) {
-    setModalDeletar({ isOpen: true, turmaId: id, turmaNome: nome });
+  function abrirModalDeletar(id: string, nomeAtual: string) {
+    setModalDeletar({ isOpen: true, turmaId: id, turmaNome: nomeAtual });
   }
 
   function fecharModalDeletar() {
@@ -362,17 +355,21 @@ export default function TurmasPage() {
     try {
       setSaving(true);
       await deletarTurma(modalDeletar.turmaId);
-      setToastMsg({ type: 'success', msg: "Turma deletada com sucesso!" });
+      setToastMsg({ type: "success", msg: "Turma deletada com sucesso!" });
       fecharModalDeletar();
       await load();
     } catch (e) {
-      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao deletar turma" });
+      setToastMsg({
+        type: "error",
+        msg: e instanceof Error ? e.message : "Erro ao deletar turma",
+      });
     } finally {
       setSaving(false);
     }
   }
 
-  function fecharModalAdicionar() {
+  function fecharModalAdicionar(force = false) {
+    if (adicionando && !force) return;
     setModalAdicionarAberto(false);
     setTurmaAcabadaCriar(null);
     setAlunosSelecionados([]);
@@ -385,392 +382,445 @@ export default function TurmasPage() {
     try {
       setAdicionando(true);
       await adicionarAlunosNaTurma(turmaAcabadaCriar.id, alunosSelecionados);
-      setToastMsg({ type: 'success', msg: "Alunos adicionados com sucesso!" });
-      fecharModalAdicionar();
+      setToastMsg({ type: "success", msg: "Alunos adicionados com sucesso!" });
+      fecharModalAdicionar(true);
       await load();
     } catch (e) {
-      setToastMsg({ type: 'error', msg: e instanceof Error ? e.message : "Erro ao adicionar alunos" });
+      setToastMsg({
+        type: "error",
+        msg: e instanceof Error ? e.message : "Erro ao adicionar alunos",
+      });
     } finally {
       setAdicionando(false);
     }
   }
 
-
-  const disabled =
-    saving || !nome.trim() || !courseIdSelecionado || !moduloIdSelecionado;
-
-  const emptyTitle =
-    role === "aluno"
-      ? "Não registrado em nenhuma turma"
-      : "Nenhuma turma registrada";
+  const disabled = saving || !nome.trim() || !courseIdSelecionado || !moduloIdSelecionado;
+  const emptyTitle = role === "aluno" ? "Nao registrado em nenhuma turma" : "Nenhuma turma registrada";
   const emptyDescription = !canCreate
-    ? "Você ainda não está registrado em nenhuma turma. Aguarde administrador adicioná-lo a uma turma."
-    : "Crie turmas através da página Estrutura do Curso.";
+    ? "Voce ainda nao esta registrado em nenhuma turma. Aguarde administrador adiciona-lo a uma turma."
+    : "Crie turmas atraves da pagina Estrutura do Curso.";
 
   return (
-    <DashboardLayout
-      title="Turmas"
-      subtitle="Gerencie suas turmas e alunos"
-    >
+    <DashboardLayout title="Turmas" subtitle="Gerencie suas turmas e alunos">
       <FadeInUp duration={0.28}>
-        <div className="turmasContainer">
+        <div className="space-y-6">
           <AnimatedToast
             message={toastMsg?.msg || null}
-            type={toastMsg?.type || 'success'}
+            type={toastMsg?.type || "success"}
             duration={3000}
             onClose={() => setToastMsg(null)}
           />
-          {/* HEADER */}
-          <div className="turmasHeader">
-            <div />
-            <button className="refreshBtn" onClick={load} disabled={loading}>
-            {loading
-              ? iconLabel(<Loader2 size={16} />, "Carregando...")
-              : iconLabel(<RefreshCcw size={16} />, "Atualizar")}
-            </button>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+              onClick={load}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Carregando...
+                </>
+              ) : (
+                <>
+                  <RefreshCcw size={16} />
+                  Atualizar
+                </>
+              )}
+            </Button>
           </div>
 
-          {/* FORMULÁRIO - apenas edição */}
-          {canCreate && editandoId && (
-            <div className="turmaFormCard">
-              <h2 className="turmaFormTitle">
-                {editandoId ? "Editar Turma" : "Criar Nova Turma"}
-              </h2>
+          {canCreate && editandoId ? (
+            <section ref={formCardRef} className={`${panelClass} p-6 sm:p-7`}>
+              <div className="mb-6 flex flex-col gap-2">
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Editar Turma</h2>
+                <p className={textMutedClass}>
+                  Ajuste os dados da turma, modulo inicial e configuracoes do cronograma automatico.
+                </p>
+              </div>
 
-              <form onSubmit={handleSubmit} className="turmaForm">
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Nome da Turma *</span>
-                  <input
-                    className="turmaInput"
-                    placeholder="ex: Turma A 2024"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    required
-                  />
-                </div>
-
-                {/* Campo Tipo comentado conforme correções.md
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Tipo *</span>
-                  <AnimatedSelect
-                    className="turmaSelect"
-                    value={tipo}
-                    onChange={(e) => setTipo(e.target.value as "turma" | "particular")}
-                  >
-                    <option value="turma">Turma (Grupo)</option>
-                    <option value="particular">Particular</option>
-                  </AnimatedSelect>
-                </div>
-                */}
-
-                {/* Campo Categoria removido conforme correções.md */}
-
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Curso *</span>
-                  <AnimatedSelect
-                    className="turmaSelect"
-                    value={courseIdSelecionado}
-                    onChange={(e) => setCourseIdSelecionado(e.target.value)}
-                  >
-                    <option value="">Selecione um curso</option>
-                    {cursos.filter((curso) => !curso.isPaid).map((curso) => (
-                      <option key={curso.id} value={curso.id}>
-                        {curso.nome}
-                      </option>
-                    ))}
-                  </AnimatedSelect>
-                </div>
-
-                <div className="turmaInputGroup">
-                  <span className="turmaLabel">Módulo Inicial</span>
-                  <AnimatedSelect
-                    className="turmaSelect"
-                    value={moduloIdSelecionado}
-                    disabled={true}
-                    onChange={() => {}}
-                  >
-                    <option value="">Selecione um módulo</option>
-                    {modulosCurso.map((mod) => (
-                      <option key={mod.id} value={mod.id}>
-                        {mod.indexOrder}. {mod.nome}
-                      </option>
-                    ))}
-                  </AnimatedSelect>
-                  <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                    Módulo inicial é definido automaticamente. Apenas exibição.
-                  </small>
-                </div>
-
-                {/* Campo Descrição removido conforme correções.md */}
-
-                {/* CRONOGRAMA */}
-                <div style={{ borderTop: "1px solid var(--border)" }}>
-                  <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>
-                    Configuração de Cronograma (Opcional)
-                  </h3>
-
-                  <div className="turmaInputGroup">
-                    <span className="turmaLabel">Data de Início da Turma</span>
-                    <input
-                      type="date"
-                      className="turmaInput"
-                      value={dataInicio}
-                      onChange={(e) => setDataInicio(e.target.value)}
+              <form onSubmit={handleSubmit} className="grid gap-5">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold text-foreground">Nome da Turma *</span>
+                    <Input
+                      className={fieldClass}
+                      placeholder="ex: Turma A 2024"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      required
                     />
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Data em que a turma começa (para liberação semanal de exercícios)
-                    </small>
-                  </div>
+                  </label>
 
-                  <div className="turmaInputGroup">
-                    <span className="turmaLabel">Duração do Cronograma (semanas)</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="52"
-                      className="turmaInput"
-                      value={duracaoSemanas}
-                      onChange={(e) => setDuracaoSemanas(parseInt(e.target.value) || 12)}
-                    />
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Quantas semanas terá o cronograma (padrão: 12 semanas)
-                    </small>
-                  </div>
-
-                  <div className="turmaInputGroup">
-                    <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <AnimatedToggle
-                        checked={cronogramaAtivo}
-                        onChange={setCronogramaAtivo}
-                      />
-                      <span className="turmaLabel" style={{ margin: 0 }}>Ativar Cronograma Automático</span>
-                    </span>
-                    <small style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, display: "block" }}>
-                      Se ativado, os exercícios serão liberados automaticamente conforme o cronograma
-                    </small>
-                  </div>
-                </div>
-
-                <div className="turmaActions">
-                  <AnimatedButton
-                    type="submit"
-                    className="turmaSubmitBtn"
-                    disabled={disabled}
-                  >
-                    {saving
-                      ? iconLabel(<Loader2 size={16} />, "Salvando...")
-                      : editandoId
-                        ? iconLabel(<Save size={16} />, "Atualizar Turma")
-                        : iconLabel(<Plus size={16} />, "Criar Turma")}
-                  </AnimatedButton>
-                  {editandoId && (
-                    <AnimatedButton
-                      type="button"
-                      className="turmaCancelBtn"
-                      onClick={handleCancel}
-                      disabled={saving}
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold text-foreground">Curso *</span>
+                    <select
+                      className={fieldClass}
+                      value={courseIdSelecionado}
+                      onChange={(e) => setCourseIdSelecionado(e.target.value)}
                     >
-                      {iconLabel(<X size={16} />, "Cancelar")}
-                    </AnimatedButton>
-                  )}
+                      <option value="">Selecione um curso</option>
+                      {cursos
+                        .filter((curso) => !curso.isPaid)
+                        .map((curso) => (
+                          <option key={curso.id} value={curso.id}>
+                            {curso.nome}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold text-foreground">Modulo Inicial</span>
+                    <select
+                      className={fieldClass}
+                      value={moduloIdSelecionado}
+                      disabled
+                      onChange={() => undefined}
+                    >
+                      <option value="">Selecione um modulo</option>
+                      {modulosCurso.map((mod) => (
+                        <option key={mod.id} value={mod.id}>
+                          {mod.indexOrder}. {mod.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-muted-foreground">
+                      Modulo inicial e definido automaticamente. Apenas exibicao.
+                    </span>
+                  </label>
+                </div>
+
+                <div className="rounded-[24px] border border-border/70 bg-muted/35 p-5">
+                  <div className="mb-4 flex flex-col gap-1">
+                    <h3 className="text-base font-semibold text-foreground">
+                      Configuracao de Cronograma
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Defina a data de inicio e a duracao do plano semanal da turma.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-5 lg:grid-cols-2">
+                    <label className="flex flex-col gap-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        Data de Inicio da Turma
+                      </span>
+                      <Input
+                        type="date"
+                        className={fieldClass}
+                        value={dataInicio}
+                        onChange={(e) => setDataInicio(e.target.value)}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        Data em que a turma comeca, usada para liberacao semanal de exercicios.
+                      </span>
+                    </label>
+
+                    <label className="flex flex-col gap-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        Duracao do Cronograma (semanas)
+                      </span>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="52"
+                        className={fieldClass}
+                        value={duracaoSemanas}
+                        onChange={(e) => setDuracaoSemanas(parseInt(e.target.value, 10) || 12)}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        Quantas semanas tera o cronograma. Padrao: 12 semanas.
+                      </span>
+                    </label>
+                  </div>
+
+                  <label className="mt-5 flex items-start gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+                    <input
+                      type="checkbox"
+                      className="mt-1 size-4 rounded border-border text-primary focus:ring-2 focus:ring-primary/25"
+                      checked={cronogramaAtivo}
+                      onChange={(e) => setCronogramaAtivo(e.target.checked)}
+                    />
+                    <span className="flex flex-col gap-1">
+                      <span className="text-sm font-semibold text-foreground">
+                        Ativar Cronograma Automatico
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Se ativado, os exercicios sao liberados automaticamente conforme o cronograma.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Button type="submit" className="h-11 rounded-xl px-4" disabled={disabled}>
+                    {saving ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        Atualizar Turma
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                    onClick={handleCancel}
+                    disabled={saving}
+                  >
+                    <X size={16} />
+                    Cancelar
+                  </Button>
                 </div>
               </form>
-            </div>
-          )}
+            </section>
+          ) : null}
 
-
-
-          {/* LISTA DE TURMAS */}
-          <div>
+          <section>
             {loading && turmas.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "2rem" }}>
+              <div className={`${panelClass} px-6 py-14 text-center`}>
                 <PulseLoader size="large" text="Carregando turmas..." />
               </div>
             ) : !loading && totalItems === 0 ? (
-              <div className="emptyState">
-                <div className="emptyIcon" style={{ display: "inline-flex" }}>
+              <div className={`${panelClass} flex flex-col items-center gap-3 px-6 py-14 text-center`}>
+                <span className="inline-flex rounded-full bg-muted p-4 text-muted-foreground">
                   <BookOpen size={22} />
-                </div>
-                <div className="emptyTitle">{emptyTitle}</div>
-                <p style={{ margin: "8px 0 0 0", color: "var(--muted)" }}>
-                  {emptyDescription}
-                </p>
+                </span>
+                <div className="text-lg font-semibold text-foreground">{emptyTitle}</div>
+                <p className="max-w-xl text-sm text-muted-foreground">{emptyDescription}</p>
               </div>
             ) : (
               <>
-                <div className="turmasList">
-                  {turmas.map((turma, i) => (
-                      <FadeInUp key={turma.id} delay={i * 0.05}>
-                        <div className="turmaCard">
-                          <div className="turmaCardHeader">
-                            <div className="turmaCardInfo">
-                              <h3 className="turmaCardTitle">{turma.nome}</h3>
-                              <span className={`turmaBadge tipo-${turma.tipo}`}>
-                                {turma.tipo === "turma"
-                                  ? iconLabel(<Users size={14} />, "Grupo")
-                                  : iconLabel(<UserIcon size={14} />, "Particular")}
-                              </span>
-                            </div>
-                            {canCreate && (
-                              <div className="turmaCardActions">
-                                <AnimatedButton
-                                  className="turmaEditBtn"
-                                  onClick={() => handleEdit(turma)}
-                                  title="Editar turma"
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {turmas.map((turma, index) => (
+                    <FadeInUp key={turma.id} delay={index * 0.05}>
+                      <article className={`${panelClass} flex h-full flex-col p-6`}>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 space-y-3">
+                            <div className="space-y-2">
+                              <h3 className="truncate text-xl font-bold tracking-tight text-foreground">
+                                {turma.nome}
+                              </h3>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge
+                                  className={cn(
+                                    "rounded-full px-3 py-1",
+                                    turma.tipo === "turma"
+                                      ? "border-primary/25 bg-primary/10 text-primary"
+                                      : "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300"
+                                  )}
                                 >
-                                  <Pencil size={16} />
-                                </AnimatedButton>
-                                <AnimatedButton
-                                  className="turmaDeleteBtn"
-                                  onClick={() => abrirModalDeletar(turma.id, turma.nome)}
-                                  title="Deletar turma"
-                                >
-                                  <Trash2 size={16} />
-                                </AnimatedButton>
+                                  {turma.tipo === "turma" ? (
+                                    <>
+                                      <Users size={14} />
+                                      Grupo
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserIcon size={14} />
+                                      Particular
+                                    </>
+                                  )}
+                                </Badge>
                               </div>
+                            </div>
+
+                            {turma.descricao ? (
+                              <p className="text-sm leading-6 text-muted-foreground">{turma.descricao}</p>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                Sem descricao cadastrada para esta turma.
+                              </p>
                             )}
                           </div>
 
-                          {turma.descricao && (
-                            <p className="turmaCardDescription">{turma.descricao}</p>
-                          )}
+                          {canCreate ? (
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="size-10 rounded-xl border-border/70 bg-background/80"
+                                onClick={() => handleEdit(turma)}
+                                title="Editar turma"
+                              >
+                                <Pencil size={16} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="size-10 rounded-xl"
+                                onClick={() => abrirModalDeletar(turma.id, turma.nome)}
+                                title="Deletar turma"
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
 
-                          <div className="turmaCardStats">
-                            <div className="statItem">
-                              <span className="statIcon" style={{ display: "inline-flex" }}>
-                                <Users size={18} />
-                              </span>
-                              <span className="statText">Alunos</span>
-                            </div>
-                            <div className="statItem">
-                              <span className="statIcon" style={{ display: "inline-flex" }}>
-                                <Calendar size={18} />
-                              </span>
-                              <span className="statText">
-                                {new Date(turma.createdAt).toLocaleDateString("pt-BR", {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                              </span>
-                            </div>
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <div className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm text-foreground">
+                            <Users size={16} className="text-muted-foreground" />
+                            <span>Alunos</span>
                           </div>
-
-                          <div className="turmaCardFooter">
-                            <AnimatedButton
-                              className="turmaViewBtn"
-                              onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
-                            >
-                              {iconLabel(<ArrowRight size={16} />, "Ver Detalhes")}
-                            </AnimatedButton>
+                          <div className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm text-foreground">
+                            <Calendar size={16} className="text-muted-foreground" />
+                            <span>
+                              {new Date(turma.createdAt).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
                           </div>
                         </div>
-                      </FadeInUp>
-                    ))}
+
+                        <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-border/70 pt-5">
+                          <Button
+                            type="button"
+                            className="h-11 rounded-xl px-4"
+                            onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
+                          >
+                            <ArrowRight size={16} />
+                            Ver Detalhes
+                          </Button>
+                        </div>
+                      </article>
+                    </FadeInUp>
+                  ))}
                 </div>
 
-                <Pagination
-                  currentPage={currentPage}
-                  itemsPerPage={itemsPerPage}
-                  totalItems={totalItems}
-                  onPageChange={setCurrentPage}
-                  onItemsPerPageChange={setItemsPerPage}
-                />
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={currentPage}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={totalItems}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={setItemsPerPage}
+                  />
+                </div>
               </>
             )}
-          </div>
+          </section>
 
-          {/* MODAL DE CONFIRMAÇÃO */}
           <ConfirmModal
             isOpen={modalDeletar.isOpen}
             title="Deletar Turma"
-            message={`Tem certeza que deseja deletar "${modalDeletar.turmaNome}"? Todos os alunos serão removidos desta turma.`}
+            message={`Tem certeza que deseja deletar "${modalDeletar.turmaNome}"? Todos os alunos serao removidos desta turma.`}
             confirmText="Deletar"
             cancelText="Cancelar"
             onConfirm={confirmarDeletar}
             onCancel={fecharModalDeletar}
-            danger={true}
+            danger
             isLoading={saving}
           />
 
-          {/* MODAL ADICIONAR ALUNOS */}
-          {modalAdicionarAberto && createPortal(
-            <div
-              className="modalOverlay"
-              onClick={(e) => {
-                if (e.target !== e.currentTarget) return;
-                fecharModalAdicionar();
-              }}
-              onKeyDown={(e) => {
-                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                  e.preventDefault();
-                  fecharModalAdicionar();
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="modalContent">
-                <h3>Adicionar alunos à turma: {turmaAcabadaCriar?.nome}</h3>
+          <Dialog
+            open={modalAdicionarAberto}
+            onOpenChange={(open) => (open ? setModalAdicionarAberto(true) : fecharModalAdicionar())}
+          >
+            <DialogContent className="max-w-2xl p-0">
+              <DialogHeader className="border-b border-border/70 pb-4">
+                <DialogTitle>
+                  Adicionar alunos a turma: {turmaAcabadaCriar?.nome}
+                </DialogTitle>
+                <DialogDescription>
+                  Selecione os alunos que devem entrar nesta turma agora.
+                </DialogDescription>
+              </DialogHeader>
 
-                {alunosDisponiveis.length === 0 ? (
-                  <p style={{ color: "var(--muted)", textAlign: "center" }}>
-                    Nenhum aluno disponível para adicionar.
-                  </p>
-                ) : (
-                  <div className="alunosSelectorList">
-                    {alunosDisponiveis.map((aluno) => (
-                      <label key={aluno.id} className="alunoCheckboxItem">
+              {alunosDisponiveis.length === 0 ? (
+                <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  Nenhum aluno disponivel para adicionar.
+                </div>
+              ) : (
+                <div className="max-h-[420px] space-y-3 overflow-y-auto px-6 pb-2">
+                  {alunosDisponiveis.map((aluno) => {
+                    const selecionado = alunosSelecionados.includes(aluno.id);
+
+                    return (
+                      <label
+                        key={aluno.id}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-4 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 transition",
+                          selecionado && "border-primary/30 bg-primary/5"
+                        )}
+                      >
                         <input
                           type="checkbox"
-                          checked={alunosSelecionados.includes(aluno.id)}
+                          className="size-4 rounded border-border text-primary focus:ring-2 focus:ring-primary/25"
+                          checked={selecionado}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setAlunosSelecionados([...alunosSelecionados, aluno.id]);
-                            } else {
-                              setAlunosSelecionados(
-                                alunosSelecionados.filter((id) => id !== aluno.id)
-                              );
+                              setAlunosSelecionados((prev) => [...prev, aluno.id]);
+                              return;
                             }
+
+                            setAlunosSelecionados((prev) =>
+                              prev.filter((selectedId) => selectedId !== aluno.id)
+                            );
                           }}
                         />
-                        <span className="alunoCheckboxAvatar">
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-sm font-bold text-primary">
                           {aluno.nome.slice(0, 1).toUpperCase()}
                         </span>
-                        <div className="alunoCheckboxInfo">
-                          <div className="alunoCheckboxName">{aluno.nome}</div>
-                          <div className="alunoCheckboxUser">@{aluno.usuario}</div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-foreground">
+                            {aluno.nome}
+                          </div>
+                          <div className="truncate text-sm text-muted-foreground">@{aluno.usuario}</div>
                         </div>
                       </label>
-                    ))}
-                  </div>
-                )}
-
-                <div className="modalActions">
-                  <AnimatedButton
-                    onClick={fecharModalAdicionar}
-                    className="modalBtnCancel"
-                    disabled={adicionando}
-                  >
-                    Pular por enquanto
-                  </AnimatedButton>
-                  <AnimatedButton
-                    onClick={handleAdicionarAlunos}
-                    className="modalBtnConfirm"
-                    disabled={adicionando || alunosSelecionados.length === 0}
-                  >
-                    {adicionando ? iconLabel(<Loader2 size={16} />, "Adicionando...") : "Adicionar"}
-                  </AnimatedButton>
+                    );
+                  })}
                 </div>
-              </div>
-            </div>,
-            document.body
-          )}
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                  onClick={() => fecharModalAdicionar()}
+                  disabled={adicionando}
+                >
+                  Pular por enquanto
+                </Button>
+                <Button
+                  type="button"
+                  className="h-11 rounded-xl px-4"
+                  onClick={handleAdicionarAlunos}
+                  disabled={adicionando || alunosSelecionados.length === 0}
+                >
+                  {adicionando ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Adicionando...
+                    </>
+                  ) : (
+                    "Adicionar"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </FadeInUp>
     </DashboardLayout>
   );
 }
-
-
-

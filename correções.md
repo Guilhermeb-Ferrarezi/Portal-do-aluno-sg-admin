@@ -1,3 +1,19 @@
+# Ajuste 2026-03-25 (deploy_and_push.sh no Linux local)
+
+## Ajustes aplicados
+
+- `deploy_and_push.sh` agora muda para a pasta do proprio script antes de executar, entao ele funciona mesmo quando chamado fora da raiz do repositorio.
+- Quando o `.env` nao existe, o script cria automaticamente um arquivo local de desenvolvimento com `JWT_SECRET`, portas e credenciais alinhadas ao `docker-compose.yml`.
+- O fluxo de git ficou menos agressivo para uso local: o script avisa quando ha alteracoes nao commitadas e pergunta separadamente se deve sincronizar com o remoto antes do deploy.
+- A deteccao de Docker Compose agora aceita tanto `docker compose` quanto `docker-compose`, e a mensagem de erro no Linux passou a orientar exatamente como subir o daemon.
+
+## Validacao desse ajuste
+
+- `bash -n deploy_and_push.sh`
+- `./deploy_and_push.sh` com o Docker desligado -> criou `.env` automaticamente e exibiu a orientacao `sudo systemctl enable --now docker`
+- `docker compose config`
+- Nao foi possivel validar `docker compose up -d --build` nesta task porque o daemon Docker estava inativo no host
+
 # Correcao 2026-03-20 (Ticket de presence vinculado ao cliente)
 
 ## Objetivo

@@ -1,7 +1,13 @@
 import React from "react";
-import { X, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+
 import ConfirmModal from "../ConfirmModal";
-import "./ExerciseComponents.css";
 
 export type Option = {
   letter: string;
@@ -32,139 +38,119 @@ export default function MultipleChoiceQuestionEditor({
   disabled = false,
 }: MultipleChoiceQuestionEditorProps) {
   const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
+
   return (
-    <div
-      className="mcqEditorContainer"
-      style={{
-        background: "var(--card)",
-        border: "1px solid var(--line)",
-        borderRadius: "8px",
-        padding: "16px",
-        marginBottom: "16px",
-      }}
-    >
-      <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>Questão {questionIndex + 1}</span>
-        {onRemoveQuestao && (
-          <button
-            type="button"
-            onClick={() => setShowConfirmDelete(true)}
-            disabled={disabled}
-            title="Remover questão"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "24px",
-              height: "24px",
-              padding: 0,
-              background: "#fecaca",
-              color: "#991b1b",
-              border: "1px solid #fca5a5",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "16px",
-              fontWeight: 600,
-            }}
-          >
-            <X size={16} />
-          </button>
-        )}
-      </h4>
-
-      {/* Campos de opções */}
-      {opcoes.map((opcao, oIndex) => (
-        <div key={`op-${opcao.letter}-${oIndex}`} style={{ marginBottom: "12px" }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>
-            Opção {opcao.letter}
-          </label>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <input
-              type="text"
-              placeholder={`Digite a Opção ${opcao.letter}...`}
-              value={opcao.text}
-              onChange={(e) => onChangeOpcao(oIndex, e.target.value)}
-              disabled={disabled}
-              style={{
-                flex: 1,
-                padding: "8px",
-                border: "1px solid #d1d5db",
-                borderRadius: "4px",
-                fontSize: "14px",
-                fontFamily: "inherit",
-                boxSizing: "border-box",
-              }}
-            />
-            {onRemoveOpcao && opcoes.length > 2 && (
-              <button
-                type="button"
-                onClick={() => onRemoveOpcao(oIndex)}
-                disabled={disabled}
-                style={{
-                  padding: "8px 12px",
-                  background: "#fee2e2",
-                  color: "#991b1b",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
+    <Card className="border border-border/70 bg-card/95 py-0 shadow-sm">
+      <CardContent className="space-y-5 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Questão {questionIndex + 1}
+            </p>
+            <h4 className="text-sm font-semibold text-foreground">
+              Configure as opções e marque a resposta correta.
+            </h4>
           </div>
+          {onRemoveQuestao && (
+            <Button
+              type="button"
+              onClick={() => setShowConfirmDelete(true)}
+              disabled={disabled}
+              title="Remover questão"
+              aria-label={`Remover questão ${questionIndex + 1}`}
+              size="icon-sm"
+              variant="destructive"
+              className="shrink-0"
+            >
+              <X size={16} />
+            </Button>
+          )}
         </div>
-      ))}
 
-      {/* Radio buttons para resposta correta */}
-      <div style={{ marginBottom: "12px" }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 0, marginBottom: "8px" }}>
-          Resposta Correta:
-        </p>
-        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-          {opcoes.map((opcao) => (
-            <label key={opcao.letter} style={{ display: "flex", alignItems: "center", fontSize: "14px", cursor: "pointer" }}>
-              <input
-                type="radio"
-                name={`respostaCorreta_${questionIndex}`}
-                value={opcao.letter}
-                checked={respostaCorreta === opcao.letter}
-                onChange={(e) => onChangeCorreta(e.target.value)}
-                disabled={disabled}
-                style={{ marginRight: "6px", cursor: "pointer" }}
-              />
-              {opcao.letter}
-            </label>
+        <div className="space-y-4">
+          {opcoes.map((opcao, oIndex) => (
+            <div key={`op-${opcao.letter}-${oIndex}`} className="space-y-2">
+              <Label
+                htmlFor={`mcq-option-${questionIndex}-${opcao.letter}`}
+                className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              >
+                Opção {opcao.letter}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id={`mcq-option-${questionIndex}-${opcao.letter}`}
+                  type="text"
+                  placeholder={`Digite a opção ${opcao.letter}...`}
+                  value={opcao.text}
+                  onChange={(e) => onChangeOpcao(oIndex, e.target.value)}
+                  disabled={disabled}
+                  className="h-10 bg-background/70"
+                />
+                {onRemoveOpcao && opcoes.length > 2 && (
+                  <Button
+                    type="button"
+                    onClick={() => onRemoveOpcao(oIndex)}
+                    disabled={disabled}
+                    size="icon-sm"
+                    variant="destructive"
+                    aria-label={`Remover opção ${opcao.letter}`}
+                    title={`Remover opção ${opcao.letter}`}
+                    className="shrink-0"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                )}
+              </div>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Botões de ação */}
-      <div style={{ display: "flex", gap: "8px" }}>
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Resposta correta
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {opcoes.map((opcao) => (
+              <label
+                key={opcao.letter}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors",
+                  disabled && "cursor-not-allowed opacity-60",
+                  respostaCorreta === opcao.letter
+                    ? "border-primary/45 bg-primary/10 text-primary"
+                    : "border-border bg-background hover:bg-accent hover:text-foreground"
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`respostaCorreta_${questionIndex}`}
+                  value={opcao.letter}
+                  checked={respostaCorreta === opcao.letter}
+                  onChange={(e) => onChangeCorreta(e.target.value)}
+                  disabled={disabled}
+                  className="size-4 accent-[var(--primary)]"
+                />
+                {opcao.letter}
+              </label>
+            ))}
+          </div>
+        </div>
+
         {onAddOpcao && (
-          <button
+          <Button
             type="button"
             onClick={onAddOpcao}
             disabled={disabled || opcoes.length >= 5}
-            style={{
-              padding: "6px 12px",
-              background: "#dbeafe",
-              color: "#0c4a6e",
-              border: "1px solid #93c5fd",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontWeight: 500,
-            }}
+            variant="outline"
+            size="sm"
+            className="w-fit"
           >
-            + Opção
-          </button>
+            <Plus size={14} />
+            Adicionar opção
+          </Button>
         )}
-      </div>
+      </CardContent>
 
-      {/* Modal de confirmação */}
       <ConfirmModal
         isOpen={showConfirmDelete}
         title="Remover questão"
@@ -178,6 +164,6 @@ export default function MultipleChoiceQuestionEditor({
         }}
         onCancel={() => setShowConfirmDelete(false)}
       />
-    </div>
+    </Card>
   );
 }

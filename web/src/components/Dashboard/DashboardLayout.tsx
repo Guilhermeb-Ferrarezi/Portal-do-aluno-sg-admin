@@ -123,12 +123,13 @@ export default function DashboardLayout({
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
   const isEstruturaCurso = location.pathname.startsWith("/dashboard/estrutura-curso");
   const isActivityLogs = location.pathname === "/dashboard/logs";
+  const isTurmas = location.pathname.startsWith("/dashboard/turmas");
 
   React.useEffect(() => {
-    if (isEstruturaCurso || isExercicios || location.pathname === "/dashboard/turmas") {
+    if (isEstruturaCurso || isExercicios || isTurmas) {
       setEstruturaOpen(true);
     }
-  }, [isEstruturaCurso, isExercicios, location.pathname]);
+  }, [isEstruturaCurso, isExercicios, isTurmas]);
 
   React.useEffect(() => {
     if (isAdminUsers || isCreateUser) {
@@ -185,7 +186,7 @@ export default function DashboardLayout({
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-5">
+        <div className="flex min-h-[5rem] items-center justify-between gap-3 border-b border-white/8 px-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-primary/12 text-primary-foreground shadow-[0_12px_28px_-18px_rgba(225,29,46,0.75)]">
               <GraduationCap size={20} />
@@ -302,7 +303,7 @@ export default function DashboardLayout({
               <div className="flex flex-col gap-2">
                 <button
                   className={sectionToggleClass(
-                    isEstruturaCurso || isExercicios || location.pathname === "/dashboard/turmas"
+                    isEstruturaCurso || isExercicios || isTurmas
                   )}
                   onClick={() => setEstruturaOpen((v) => !v)}
                   type="button"
@@ -337,7 +338,7 @@ export default function DashboardLayout({
                       <span className="truncate">Exercicios</span>
                     </Link>
                     <Link
-                      className={navItemClass(location.pathname === "/dashboard/turmas", true)}
+                      className={navItemClass(isTurmas, true)}
                       to="/dashboard/turmas"
                     >
                       <span className="grid size-4 shrink-0 place-items-center" aria-hidden="true">
@@ -362,7 +363,7 @@ export default function DashboardLayout({
         <div className="border-t border-white/8 p-4" ref={sbBottomRef}>
           <div className="flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3 shadow-[0_18px_42px_-32px_rgba(0,0,0,0.95)]">
             <button
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl text-left transition hover:bg-white/[0.04]"
+              className="cursor-pointer flex min-w-0 flex-1 items-center gap-3 rounded-2xl text-left transition hover:bg-white/[0.04]"
               type="button"
               onClick={() => setProfilePopupOpen((v) => !v)}
               aria-label="Ver perfil"
@@ -384,7 +385,7 @@ export default function DashboardLayout({
             </button>
 
             <button
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white"
+              className="cursor-pointer inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white"
               type="button"
               onClick={() => setSettingsOpen(true)}
               title="Configuracoes"

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +18,41 @@ export default function Pagination({
   onPageChange,
   onItemsPerPageChange,
 }: PaginationProps) {
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const [jumpPage, setJumpPage] = useState(String(currentPage));
+  const itemsPerPageId = useId();
+  const jumpToPageId = useId();
+  const allowedPageSizes = [5, 10, 20, 50] as const;
+  const normalizeItemsPerPage = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return allowedPageSizes[0];
+    if (allowedPageSizes.includes(value as (typeof allowedPageSizes)[number])) return value;
+    if (value >= 50) return 50;
+    if (value >= 20) return 20;
+    if (value >= 10) return 10;
+    return 5;
+  };
+
+  const safeItemsPerPage = normalizeItemsPerPage(itemsPerPage);
+  const safeTotalItems = Number.isFinite(totalItems) && totalItems > 0 ? Math.floor(totalItems) : 0;
+  const totalPages = Math.max(1, Math.ceil(safeTotalItems / safeItemsPerPage));
+  const safeCurrentPage = Number.isFinite(currentPage)
+    ? Math.min(Math.max(Math.floor(currentPage), 1), totalPages)
+    : 1;
+  const [jumpPage, setJumpPage] = useState(String(safeCurrentPage));
 
   useEffect(() => {
-    setJumpPage(String(currentPage));
-  }, [currentPage]);
+    if (itemsPerPage !== safeItemsPerPage) {
+      onItemsPerPageChange(safeItemsPerPage);
+    }
+  }, [itemsPerPage, onItemsPerPageChange, safeItemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage !== safeCurrentPage) {
+      onPageChange(safeCurrentPage);
+    }
+  }, [currentPage, onPageChange, safeCurrentPage]);
+
+  useEffect(() => {
+    setJumpPage(String(safeCurrentPage));
+  }, [safeCurrentPage]);
 
   useEffect(() => {
     const value = jumpPage.trim();
@@ -33,42 +62,42 @@ export default function Pagination({
     if (Number.isNaN(parsed)) return;
 
     const nextPage = Math.min(Math.max(parsed, 1), totalPages);
-    if (nextPage === currentPage) return;
+    if (nextPage === safeCurrentPage) return;
 
     const timer = window.setTimeout(() => {
       onPageChange(nextPage);
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [jumpPage, currentPage, totalPages, onPageChange]);
+  }, [jumpPage, onPageChange, safeCurrentPage, totalPages]);
 
   const visiblePages = useMemo(() => {
     if (totalPages <= 3) return Array.from({ length: totalPages }, (_, i) => i + 1);
-    const start = Math.min(currentPage, totalPages - 2);
+    const start = Math.min(safeCurrentPage, totalPages - 2);
     return [start, start + 1, start + 2];
-  }, [currentPage, totalPages]);
+  }, [safeCurrentPage, totalPages]);
 
-  if (totalItems === 0) return null;
+  if (safeTotalItems === 0) return null;
 
   return (
     <div className="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex w-full items-center justify-start">
         <span className="text-sm font-medium text-muted-foreground">
-          Exibindo {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} a{" "}
-          {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} itens
+          Exibindo {Math.min((safeCurrentPage - 1) * safeItemsPerPage + 1, safeTotalItems)} a{" "}
+          {Math.min(safeCurrentPage * safeItemsPerPage, safeTotalItems)} de {safeTotalItems} itens
         </span>
       </div>
 
       <div className="flex w-full flex-col items-center gap-4 md:flex-row md:justify-between md:gap-3">
         <div className="flex items-center gap-2.5">
-          <label htmlFor="itemsPerPage" className="text-sm font-medium text-muted-foreground">
+          <label htmlFor={itemsPerPageId} className="text-sm font-medium text-muted-foreground">
             Itens por pagina:
           </label>
           <select
-            id="itemsPerPage"
-            value={itemsPerPage}
+            id={itemsPerPageId}
+            value={safeItemsPerPage}
             onChange={(e) => {
-              onItemsPerPageChange(parseInt(e.target.value, 10));
+              onItemsPerPageChange(normalizeItemsPerPage(parseInt(e.target.value, 10)));
               onPageChange(1);
             }}
             className="h-10 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground outline-none transition hover:border-border/80 hover:bg-muted/40 focus:border-primary focus:ring-3 focus:ring-ring/30"
@@ -85,8 +114,8 @@ export default function Pagination({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
+            onClick={() => onPageChange(safeCurrentPage - 1)}
+            disabled={safeCurrentPage === 1}
             className="rounded-full px-3.5 font-bold"
             title="Pagina anterior"
           >
@@ -99,10 +128,10 @@ export default function Pagination({
                 type="button"
                 key={page}
                 onClick={() => onPageChange(page)}
-                variant={page === currentPage ? "default" : "ghost"}
+                variant={page === safeCurrentPage ? "default" : "ghost"}
                 size="sm"
                 className="min-w-9 rounded-full px-3 font-bold"
-                aria-current={page === currentPage ? "page" : undefined}
+                aria-current={page === safeCurrentPage ? "page" : undefined}
               >
                 {page}
               </Button>
@@ -113,8 +142,8 @@ export default function Pagination({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            onClick={() => onPageChange(safeCurrentPage + 1)}
+            disabled={safeCurrentPage === totalPages}
             className="rounded-full px-3.5 font-bold"
             title="Proxima pagina"
           >
@@ -123,11 +152,11 @@ export default function Pagination({
         </div>
 
         <div className="flex items-center justify-center gap-2 md:justify-end">
-          <label htmlFor="jumpToPage" className="text-sm font-semibold text-muted-foreground">
+          <label htmlFor={jumpToPageId} className="text-sm font-semibold text-muted-foreground">
             Pagina:
           </label>
           <Input
-            id="jumpToPage"
+            id={jumpToPageId}
             type="number"
             min={1}
             max={totalPages}

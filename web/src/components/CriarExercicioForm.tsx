@@ -1,7 +1,9 @@
 import React from "react";
+import { cn } from "@/lib/utils";
 import Pagination from "./Pagination";
 import PaginatedSelect from "./PaginatedSelect";
 import MultipleChoiceQuestion from "./Exercise/MultipleChoiceQuestion";
+import MultipleChoiceQuestionEditor from "./Exercise/MultipleChoiceQuestionEditor";
 import ExerciseAIDraftGenerator from "./ExerciseAIDraftGenerator";
 import {
   ScaleIn,
@@ -17,7 +19,6 @@ import {
   Monitor,
   PenLine,
   ListChecks,
-  Trash2,
   Eye,
   Sparkles,
   BookOpen,
@@ -41,7 +42,6 @@ import {
   type Turma,
 } from "../services/api";
 import { useToastActions } from "../contexts/ToastContext";
-import "../pages/Exercises.css";
 
 type CategoriaExercicio = "programacao" | "informatica";
 type RequiredFieldKey = "titulo" | "descricao" | "curso" | "modulo" | "fase" | "prazo" | "multipla" | "ordem";
@@ -84,11 +84,115 @@ interface CriarExercicioFormProps {
 export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProps) {
   const { addToast } = useToastActions();
   const iconLabel = (icon: React.ReactNode, label: string) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span className="inline-flex items-center gap-1.5">
       {icon}
       <span>{label}</span>
     </span>
   );
+  const formCardClass =
+    "rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.12)] sm:p-6";
+  const titleClass = "text-2xl font-black tracking-[-0.03em] text-foreground sm:text-[1.9rem]";
+  const formGridClass = "grid gap-5";
+  const fieldGroupClass = "flex flex-col gap-2";
+  const fieldLabelClass = "text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground";
+  const fieldInputClass =
+    "h-11 w-full rounded-2xl border border-border/70 bg-background/80 px-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-3 focus:ring-ring/30";
+  const fieldTextareaClass = cn(fieldInputClass, "min-h-28 h-auto py-3 leading-6");
+  const warningControlClass = "border-amber-300/80 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10";
+  const warningTextClass = "text-xs font-medium text-amber-700 dark:text-amber-300";
+  const rowClass = "grid gap-4 xl:grid-cols-3";
+  const compactRowClass = "grid gap-4 md:grid-cols-2";
+  const radioRowClass = "mt-2 flex flex-wrap gap-3";
+  const toggleGroupClass = (warning = false) =>
+    cn(
+      "grid max-h-[22rem] gap-2 overflow-y-auto rounded-[24px] border border-border/70 bg-muted/25 p-3 pr-2",
+      warning && "border-amber-300/80 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10"
+    );
+  const toggleOptionClass = (active: boolean) =>
+    cn(
+      "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition",
+      active
+        ? "border-primary/45 bg-primary/10 text-foreground shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.12)]"
+        : "border-border/70 bg-background/75 text-muted-foreground hover:border-primary/30 hover:bg-accent hover:text-foreground"
+    );
+  const toggleDotClass = (active: boolean) =>
+    cn(
+      "inline-flex size-4 shrink-0 items-center justify-center rounded-full border transition",
+      active
+        ? "border-primary/60 bg-primary/10 shadow-[0_0_0_4px_rgba(var(--primary-rgb),0.12)]"
+        : "border-border/70 bg-background/80"
+    );
+  const toggleDotInnerClass = (active: boolean) =>
+    cn("size-2 rounded-full transition", active ? "bg-primary" : "bg-transparent");
+  const toggleLabelClass = "inline-flex items-center gap-2 text-sm font-medium";
+  const courseSectionClass = "grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.9fr)] xl:items-start";
+  const courseListColumnClass = "flex flex-col gap-3";
+  const courseSidebarClass = "flex flex-col gap-3";
+  const courseFilterRowClass = "grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]";
+  const courseActionsClass = "mt-3 flex flex-col gap-3";
+  const coursePaginationSummaryClass =
+    "flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-xs font-medium text-muted-foreground";
+  const courseSelectedClass = (hasSelection: boolean) =>
+    cn(
+      "grid gap-1 rounded-2xl border px-4 py-3",
+      hasSelection
+        ? "border-emerald-300/70 bg-emerald-50/60 dark:border-emerald-500/25 dark:bg-emerald-500/10"
+        : "border-border/70 bg-muted/35"
+    );
+  const courseSelectedLabelClass = "text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground";
+  const courseSelectedValueClass = "text-sm font-semibold text-foreground";
+  const courseQuickStatsClass = "grid gap-3 sm:grid-cols-2";
+  const courseQuickStatCardClass = "grid gap-1 rounded-2xl border border-border/70 bg-background/75 px-4 py-3";
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  const courseDetailsPanelClass = "mt-3 grid gap-4 rounded-[24px] border border-border/70 bg-muted/20 p-4";
+  const courseDetailsGridClass = "grid gap-3 sm:grid-cols-2 xl:grid-cols-4";
+  const courseDetailItemClass = "grid gap-1 rounded-2xl border border-border/70 bg-background/75 px-4 py-3";
+  const courseDescriptionClass = "text-sm leading-6 text-muted-foreground";
+  const courseModulesPreviewClass = "grid gap-2";
+  const courseModulesChipsClass = "flex flex-wrap gap-2";
+  const courseModuleChipClass = (isMore = false) =>
+    cn(
+      "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+      isMore
+        ? "border-primary/30 bg-primary/10 text-primary"
+        : "border-border/70 bg-background/75 text-muted-foreground"
+    );
+  const fieldWarnWrapClass = (warning = false) =>
+    cn(
+      "rounded-[24px] transition",
+      warning && "rounded-[24px] border border-amber-300/80 bg-amber-50/60 p-2 dark:border-amber-500/30 dark:bg-amber-500/10"
+    );
+  const statusToggleClass = (active: boolean) =>
+    cn(
+      "flex h-full cursor-pointer items-start gap-3 rounded-[24px] border px-4 py-4 text-left transition",
+      active
+        ? "border-primary/45 bg-primary/10"
+        : "border-border/70 bg-background/80 hover:border-primary/30 hover:bg-accent/60"
+    );
+  const statusToggleContentClass = "flex min-w-0 flex-col gap-1";
+  const statusToggleTitleClass = "text-sm font-semibold text-foreground";
+  const statusToggleDescriptionClass = "text-sm leading-6 text-muted-foreground";
+  const sectionHintClass = "text-xs leading-5 text-muted-foreground";
+  const containerToggleShellClass = (disabled: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-2xl border px-4 py-3 transition",
+      disabled
+        ? "cursor-not-allowed border-border/50 bg-muted/25 opacity-60"
+        : "cursor-pointer border-border/70 bg-background/70 hover:border-primary/30 hover:bg-accent/50"
+    );
+  const containerToggleTextClass = "text-sm font-medium text-foreground select-none";
+  const containerSummaryClass = "mt-2 rounded-2xl border border-border/60 bg-background/70 p-3";
+  const containerSummaryHeadClass =
+    "mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground";
+  const containerSummaryListClass = "flex flex-col gap-1.5";
+  const containerSummaryItemClass =
+    "flex items-center gap-2.5 rounded-xl border border-border/50 bg-muted/35 px-3 py-2 text-sm";
+  const containerSummaryOrderClass = "min-w-7 shrink-0 text-xs font-bold text-primary";
+  const containerSummaryTitleClass = "flex-1 text-foreground";
+  const submitButtonClass =
+    "inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
+  const subtleHintClass = "text-xs text-slate-500 dark:text-slate-400";
 
   const [titulo, setTitulo] = React.useState("");
   const [descricao, setDescricao] = React.useState("");
@@ -139,6 +243,33 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
   const createDepsLoadedRef = React.useRef(false);
   const createDepsLoadingRef = React.useRef(false);
+
+  function updateMultiplaQuestaoOpcao(qIndex: number, oIndex: number, value: string) {
+    setMultiplaQuestoes((prev) =>
+      prev.map((questao, index) =>
+        index !== qIndex
+          ? questao
+          : {
+              ...questao,
+              opcoes: questao.opcoes.map((opcao, optionIndex) =>
+                optionIndex !== oIndex ? opcao : { ...opcao, text: value }
+              ),
+            }
+      )
+    );
+  }
+
+  function updateMultiplaQuestaoCorreta(qIndex: number, value: string) {
+    setMultiplaQuestoes((prev) =>
+      prev.map((questao, index) =>
+        index !== qIndex ? questao : { ...questao, respostaCorreta: value }
+      )
+    );
+  }
+
+  function removeMultiplaQuestao(qIndex: number) {
+    setMultiplaQuestoes((prev) => prev.filter((_, index) => index !== qIndex));
+  }
 
   const moduloSelecionado = React.useMemo(
     () => modulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? moduloSelecionadoCache ?? todosModulosDisponiveis.find((m) => m.id === moduloIdSelecionado) ?? null,
@@ -277,7 +408,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     if (!Number.isFinite(params.phaseIdNum) || params.phaseIdNum <= 0) {
       warnings.fase = "Selecione uma fase.";
     }
-    if (!prazo) {
+    if (isDailyTaskEfetivo && !prazo) {
       warnings.prazo = "Prazo obrigatorio.";
     }
     if (componenteInterativo === "multipla" && multiplaQuestoes.some((q) => !q.respostaCorreta || q.opcoes.some((o) => !o.text))) {
@@ -317,6 +448,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
   const isDailyTaskForcadoPorContainer = containerSelecionado?.isDailyTask === true;
   const isDailyTaskEfetivo = isDailyTask || isDailyTaskForcadoPorContainer;
+  const prazoObrigatorio = isDailyTaskEfetivo;
 
   const opcoesDificuldade = React.useMemo(() => {
     const opcoes = [
@@ -507,6 +639,14 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     }
   }, [cursoSelecionado]);
 
+  React.useEffect(() => {
+    if (cursosGratuitosDisponiveis.length === 0) return;
+    const cursoAtualValido = cursosGratuitosDisponiveis.some((curso) => curso.id === cursoIdSelecionado);
+    if (!cursoAtualValido) {
+      handleSelecionarCurso(cursosGratuitosDisponiveis[0]!.id);
+    }
+  }, [cursosGratuitosDisponiveis, cursoIdSelecionado]);
+
   React.useEffect(() => { setCursoCardsPagina(1); }, [cursoCardsFiltro]);
   React.useEffect(() => { if (cursoCardsPagina > cursosCardsTotalPaginas) setCursoCardsPagina(cursosCardsTotalPaginas); }, [cursoCardsPagina, cursosCardsTotalPaginas]);
 
@@ -595,6 +735,12 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     setContainerSelecionadoKey("");
     showErrorToast(CONTAINER_BLOCKED_MESSAGE);
   }, [adicionarEmContainer, dificuldadeBloqueadaParaContainer]);
+
+  React.useEffect(() => {
+    if (!prazoObrigatorio) {
+      clearFieldWarning("prazo");
+    }
+  }, [prazoObrigatorio]);
 
   React.useEffect(() => {
     if (!adicionarEmContainer) return;
@@ -703,7 +849,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
         course_id: courseIdNum,
         modulo: moduloNome,
         tema: faseNome,
-        prazo: prazo ? new Date(prazo).toISOString() : null,
+        prazo: prazoObrigatorio && prazo ? new Date(prazo).toISOString() : null,
         video_url: videoUrlLimpa || null,
         difficulty: dificuldadeNum,
         index_order: ordemFinal,
@@ -763,7 +909,13 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     }
   }
 
-  const disabled = saving || !titulo.trim() || !cursoIdSelecionado || !moduloIdSelecionado || !faseIdSelecionada || !prazo;
+  const disabled =
+    saving ||
+    !titulo.trim() ||
+    !cursoIdSelecionado ||
+    !moduloIdSelecionado ||
+    !faseIdSelecionada ||
+    (prazoObrigatorio && !prazo);
   const aiDifficultyValue = parseDifficultyValue(difficulty);
   const hasAIDraftOverwriteContent =
     componenteInterativo === "multipla"
@@ -779,35 +931,35 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       : Boolean(titulo.trim() || descricao.trim() || difficulty.trim() || pointsRedeem.trim());
 
   return (
-    <div className="estruturaCard" style={{ gridColumn: "1 / -1" }}>
+    <div className="col-span-full">
       <FadeInUp duration={0.28}>
-        <div className="createExerciseCard">
-          <h2 className="exFormTitle">Criar novo exercicio</h2>
+        <div className={formCardClass}>
+          <h2 className={titleClass}>Criar novo exercicio</h2>
 
-          <div className="exFormGrid">
-            <div className="exInputGroup">
-              <span className="exLabel">Nome do exercício *</span>
+          <div className={formGridClass}>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Nome do exercício *</span>
               <input
-                className={`exInput ${fieldWarnings.titulo ? "isWarning" : ""}`}
+                className={cn(fieldInputClass, fieldWarnings.titulo && warningControlClass)}
                 placeholder="ex: Exercicio 15.3: Layout Responsivo"
                 value={titulo}
                 onChange={(e) => { setTitulo(e.target.value); clearFieldWarning("titulo"); }}
               />
-              {fieldWarnings.titulo && <small className="exFieldWarning">{fieldWarnings.titulo}</small>}
+              {fieldWarnings.titulo && <small className={warningTextClass}>{fieldWarnings.titulo}</small>}
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Pergunta *</span>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Pergunta *</span>
               <textarea
-                className={`exTextarea ${fieldWarnings.descricao ? "isWarning" : ""}`}
+                className={cn(fieldTextareaClass, fieldWarnings.descricao && warningControlClass)}
                 placeholder="Descreva a pergunta do exercício em detalhes..."
                 value={descricao}
                 onChange={(e) => { setDescricao(e.target.value); clearFieldWarning("descricao"); }}
               />
-              {fieldWarnings.descricao && <small className="exFieldWarning">{fieldWarnings.descricao}</small>}
+              {fieldWarnings.descricao && <small className={warningTextClass}>{fieldWarnings.descricao}</small>}
             </div>
 
-            <div className="exInputGroup" style={{ gridColumn: "1 / -1" }}>
+            <div className={fieldGroupClass}>
               <ExerciseAIDraftGenerator
                 courseId={cursoIdSelecionado}
                 moduleId={moduloIdSelecionado}
@@ -823,9 +975,9 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
             {/* TIPO DE EXERCICIO - Programacao */}
             {categoria === "programacao" && (
               <>
-                <div className="exInputGroup">
-                  <span className="exLabel">Tipo de Exercicio</span>
-                  <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                <div className={fieldGroupClass}>
+                  <span className={fieldLabelClass}>Tipo de Exercicio</span>
+                  <div className={radioRowClass}>
                     <AnimatedRadioLabel name="tipoExCriar" value="escrita" checked={componenteInterativo === "escrita"} onChange={(e) => setComponenteInterativo(e.target.value)} label="Escrita" icon={<PenLine size={14} />} />
                     <AnimatedRadioLabel name="tipoExCriar" value="multipla" checked={componenteInterativo === "multipla"} onChange={(e) => setComponenteInterativo(e.target.value)} label="Multipla Escolha" icon={<ListChecks size={14} />} />
                   </div>
@@ -833,97 +985,111 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
                 {componenteInterativo === "multipla" && (
                   <ScaleIn>
-                    <>
-                      <div style={{ background: "var(--background-secondary)", border: "1px solid #fcd34d", borderRadius: "8px", padding: "14px", marginTop: "12px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#ffffff", margin: "0 0 12px 0" }}>
-                          {iconLabel(<ListChecks size={14} />, "Configurar Questoes de Multipla Escolha:")}
-                        </p>
-                        {multiplaQuestoes.map((questao, qIndex) => (
-                          <div key={`prog-q-${qIndex}`} style={{ background: "var(--card)", padding: "12px", borderRadius: "6px", marginBottom: "12px", border: "1px solid #fde68a" }}>
-                            <h4 style={{ margin: "0 0 8px 0", fontSize: 13 }}>Questao {qIndex + 1}</h4>
-                            <div style={{ marginBottom: "8px" }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Opcoes:</span>
-                              {questao.opcoes.map((opcao, oIndex) => (
-                                <input key={`prog-op-${qIndex}-${opcao.letter}`} className="exInput" type="text" value={opcao.text} onChange={(e) => { const n = [...multiplaQuestoes]; n[qIndex].opcoes[oIndex].text = e.target.value; setMultiplaQuestoes(n); }} placeholder={`Opcao ${opcao.letter}`} style={{ marginBottom: "6px" }} />
-                              ))}
-                            </div>
-                            <div style={{ marginBottom: "8px" }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: "4px" }}>Resposta Correta:</span>
-                              <AnimatedSelect className="exSelect" value={questao.respostaCorreta} onChange={(e) => { const n = [...multiplaQuestoes]; n[qIndex].respostaCorreta = e.target.value; setMultiplaQuestoes(n); }}>
-                                <option value="">-- Selecione --</option>
-                                {questao.opcoes.map((o) => (<option key={o.letter} value={o.letter}>{o.letter}: {o.text}</option>))}
-                              </AnimatedSelect>
-                            </div>
-                            {multiplaQuestoes.length > 1 && (
-                              <button type="button" onClick={() => setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex))} style={{ padding: "6px 12px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-                                {iconLabel(<Trash2 size={14} />, "Remover Questao")}
-                              </button>
-                            )}
-                          </div>
-                        ))}
+                    <div className="mt-3 space-y-3">
+                      <div className="space-y-3 rounded-2xl border border-amber-200/70 bg-amber-50/60 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <ListChecks size={14} className="text-amber-700 dark:text-amber-300" />
+                          <span>Configurar questões de múltipla escolha</span>
+                        </div>
+                        <div className="space-y-3">
+                          {multiplaQuestoes.map((questao, qIndex) => (
+                            <MultipleChoiceQuestionEditor
+                              key={`prog-q-${qIndex}`}
+                              questionIndex={qIndex}
+                              opcoes={questao.opcoes}
+                              respostaCorreta={questao.respostaCorreta}
+                              onChangeOpcao={(oIndex, value) =>
+                                updateMultiplaQuestaoOpcao(qIndex, oIndex, value)
+                              }
+                              onChangeCorreta={(value) =>
+                                updateMultiplaQuestaoCorreta(qIndex, value)
+                              }
+                              onRemoveQuestao={
+                                multiplaQuestoes.length > 1
+                                  ? () => removeMultiplaQuestao(qIndex)
+                                  : undefined
+                              }
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ background: "var(--background-secondary)", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px", marginTop: "12px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#166534", margin: "0 0 12px 0" }}>{iconLabel(<Eye size={14} />, "Pre-visualizacao:")}</p>
-                        {multiplaQuestoes.map((questao, idx) => (
-                          <div key={`preview-${idx}`} style={{ marginBottom: "16px" }}>
-                            <MultipleChoiceQuestion question={`Q${idx + 1}: ${descricao.trim() || "Enunciado do exercício"}`} options={questao.opcoes} selectedAnswer="" onAnswer={() => {}} />
-                          </div>
-                        ))}
+                      <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <Eye size={14} className="text-emerald-700 dark:text-emerald-300" />
+                          <span>Pré-visualização</span>
+                        </div>
+                        <div className="mt-3 space-y-4">
+                          {multiplaQuestoes.map((questao, idx) => (
+                            <div key={`preview-${idx}`}>
+                              <MultipleChoiceQuestion
+                                question={`Q${idx + 1}: ${descricao.trim() || "Enunciado do exercício"}`}
+                                options={questao.opcoes}
+                                selectedAnswer=""
+                                onAnswer={() => {}}
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </>
+                    </div>
                   </ScaleIn>
                 )}
-                {fieldWarnings.multipla && <small className="exFieldWarning">{fieldWarnings.multipla}</small>}
+                {fieldWarnings.multipla && <small className={warningTextClass}>{fieldWarnings.multipla}</small>}
               </>
             )}
 
             {/* TIPO DE EXERCICIO - Informatica */}
             {categoria === "informatica" && (
               <>
-                <div className="exInputGroup">
-                  <span className="exLabel">Componente Interativo</span>
-                  <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
+                <div className={fieldGroupClass}>
+                  <span className={fieldLabelClass}>Componente Interativo</span>
+                  <div className={radioRowClass}>
                     <AnimatedRadioLabel name="compInfoCriar" value="escrita" checked={componenteInterativo === "escrita"} onChange={(e) => setComponenteInterativo(e.target.value)} label="Escrita" icon={<PenLine size={14} />} />
                     <AnimatedRadioLabel name="compInfoCriar" value="multipla" checked={componenteInterativo === "multipla"} onChange={(e) => setComponenteInterativo(e.target.value)} label="Multipla Escolha" icon={<ListChecks size={14} />} />
                   </div>
                 </div>
 
                 <ConditionalFieldAnimation isVisible={componenteInterativo === "multipla"}>
-                  <div style={{ background: "#f9fafb", border: "2px dashed #e5e7eb", borderRadius: "12px", padding: "20px", marginTop: "16px" }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 0, marginBottom: "16px" }}>
-                      {iconLabel(<ListChecks size={14} />, "Criar Questoes")} ({multiplaQuestoes.length})
-                    </p>
-                    {multiplaQuestoes.map((questao, qIndex) => (
-                      <div key={`info-q-${qIndex}`} style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
-                        <h4 style={{ marginTop: 0, marginBottom: "12px", color: "#1f2937" }}>Questao {qIndex + 1}</h4>
-                        {questao.opcoes.map((opcao, oIndex) => (
-                          <div key={`info-op-${qIndex}-${opcao.letter}`} style={{ marginBottom: "12px" }}>
-                            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>Opcao {opcao.letter}</label>
-                            <input type="text" placeholder={`Digite a Opcao ${opcao.letter}...`} value={opcao.text} onChange={(e) => { const n = [...multiplaQuestoes]; n[qIndex].opcoes[oIndex].text = e.target.value; setMultiplaQuestoes(n); }} style={{ width: "100%", padding: "8px", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "14px", fontFamily: "inherit", boxSizing: "border-box" }} />
-                          </div>
-                        ))}
-                        <div style={{ marginBottom: "12px" }}>
-                          <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 0, marginBottom: "8px" }}>Resposta Correta:</p>
-                          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                            {questao.opcoes.map((opcao) => (
-                              <label key={opcao.letter} style={{ display: "flex", alignItems: "center", fontSize: "14px", cursor: "pointer" }}>
-                                <input type="radio" name={`respostaCorreta_criar_${qIndex}`} value={opcao.letter} checked={questao.respostaCorreta === opcao.letter} onChange={(e) => { const n = [...multiplaQuestoes]; n[qIndex].respostaCorreta = e.target.value; setMultiplaQuestoes(n); }} style={{ marginRight: "6px", cursor: "pointer" }} />
-                                {opcao.letter}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        {multiplaQuestoes.length > 1 && (
-                          <button type="button" onClick={() => setMultiplaQuestoes(multiplaQuestoes.filter((_, i) => i !== qIndex))} style={{ padding: "6px 12px", background: "#fecaca", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: "4px", cursor: "pointer", fontSize: "12px", fontWeight: 500 }}>
-                            {iconLabel(<Trash2 size={14} />, "Remover Questao")}
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                  <div className="mt-4 space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-5 dark:border-slate-500/20 dark:bg-slate-500/5">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <ListChecks size={14} className="text-slate-700 dark:text-slate-300" />
+                      <span>Criar questões ({multiplaQuestoes.length})</span>
+                    </div>
+                    <div className="space-y-3">
+                      {multiplaQuestoes.map((questao, qIndex) => (
+                        <MultipleChoiceQuestionEditor
+                          key={`info-q-${qIndex}`}
+                          questionIndex={qIndex}
+                          opcoes={questao.opcoes}
+                          respostaCorreta={questao.respostaCorreta}
+                          onChangeOpcao={(oIndex, value) =>
+                            updateMultiplaQuestaoOpcao(qIndex, oIndex, value)
+                          }
+                          onChangeCorreta={(value) =>
+                            updateMultiplaQuestaoCorreta(qIndex, value)
+                          }
+                          onRemoveQuestao={
+                            multiplaQuestoes.length > 1
+                              ? () => removeMultiplaQuestao(qIndex)
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </div>
                     {multiplaQuestoes.length > 0 && descricao.trim() && (
-                      <div style={{ background: "var(--card)", border: "2px solid var(--line)", borderRadius: "8px", padding: "16px", marginTop: "16px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#0c4a6e", marginTop: 0, marginBottom: "12px" }}>{iconLabel(<Eye size={14} />, "PREVIEW - Como o aluno vai ver:")}</p>
-                        <MultipleChoiceQuestion question={`Q1: ${descricao.trim()}`} options={multiplaQuestoes[0].opcoes} onAnswer={() => {}} />
+                      <div className="rounded-2xl border border-sky-200/70 bg-sky-50/60 p-4 dark:border-sky-500/20 dark:bg-sky-500/5">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <Eye size={14} className="text-sky-700 dark:text-sky-300" />
+                          <span>Preview do aluno</span>
+                        </div>
+                        <div className="mt-3">
+                          <MultipleChoiceQuestion
+                            question={`Q1: ${descricao.trim()}`}
+                            options={multiplaQuestoes[0].opcoes}
+                            selectedAnswer=""
+                            onAnswer={() => {}}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -932,111 +1098,150 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
             )}
 
             {/* CURSO / MODULO / FASE / PRAZO */}
-            <div className="exInputRow">
-              <div className="exInputGroup">
-                <span className="exLabel">Curso *</span>
-                <div className="exCoursesFilterRow">
-                  <input
-                    className="exInput"
-                    value={cursoCardsFiltro}
-                    onChange={(e) => setCursoCardsFiltro(e.target.value)}
-                    placeholder="Filtrar cursos por nome ou descrição"
-                  />
-                  {cursoCardsFiltro.trim() && (
-                    <button type="button" className="exCoursesFilterClearBtn" onClick={() => setCursoCardsFiltro("")}>
-                      Limpar
-                    </button>
-                  )}
-                </div>
-                <div className={`exToggleGroup ${fieldWarnings.curso ? "isWarning" : ""}`}>
-                  {cursosTogglePaginados.map((curso) => {
-                    const cursoCategoria = inferCategoriaFromCourseName(curso.nome);
-                    const isAtivo = curso.id === cursoIdSelecionado;
-                    return (
-                      <label key={curso.id} className={`exToggleOption ${isAtivo ? "active" : ""}`}>
-                        <input
-                          className="exToggleInput"
-                          type="radio"
-                          name="course_id_criar"
-                          value={curso.id}
-                          checked={isAtivo}
-                          onChange={() => handleSelecionarCurso(curso.id)}
-                        />
-                        <span className="exToggleDot" aria-hidden="true" />
-                        <span className="exToggleLabel">
-                          {iconLabel(cursoCategoria === "informatica" ? <Monitor size={14} /> : <Laptop size={14} />, curso.nome)}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {fieldWarnings.curso && <small className="exFieldWarning">{fieldWarnings.curso}</small>}
-                <div className="exCourseCardsActions">
-                  <div className={`exCourseCardsSelected ${cursoSelecionado ? "" : "isEmpty"}`}>
-                    <span className="exCourseCardsSelectedLabel">
-                      {iconLabel(<BookOpen size={13} />, cursoSelecionado ? "Curso selecionado" : "Selecao de curso")}
-                    </span>
-                    <strong className="exCourseCardsSelectedValue">
-                      {cursoSelecionado ? cursoSelecionado.nome : "Selecione um curso para ver detalhes"}
-                    </strong>
-                  </div>
-                  <button type="button" className="exCourseDetailsBtn" onClick={() => setMostrarDetalhesCurso((prev) => !prev)} disabled={!cursoSelecionado}>
-                    {iconLabel(<Eye size={14} />, mostrarDetalhesCurso ? "Ocultar detalhes" : "Ver detalhes")}
-                  </button>
-                </div>
-                {cursosToggleFiltrados.length === 0 && (
-                  <small style={{ color: "#94a3b8", marginTop: "6px" }}>Nenhum curso encontrado no banco.</small>
-                )}
-                <Pagination
-                  currentPage={cursoCardsPagina}
-                  itemsPerPage={cursoCardsItensPorPagina}
-                  totalItems={cursosToggleFiltrados.length}
-                  onPageChange={setCursoCardsPagina}
-                  onItemsPerPageChange={setCursoCardsItensPorPagina}
-                />
-                <ConditionalFieldAnimation isVisible={Boolean(cursoSelecionado && mostrarDetalhesCurso)}>
-                  <div className="exCourseDetailsPanel">
-                    <div className="exCourseDetailsGrid">
-                      <div className="exCourseDetailItem">
-                        <small>Categoria</small>
-                        <strong>{inferCategoriaFromCourseName(cursoSelecionado?.nome) === "informatica" ? "Informática" : "Programação"}</strong>
-                      </div>
-                      <div className="exCourseDetailItem">
-                        <small>Modelo</small>
-                        <strong>{cursoSelecionado?.isPaid ? "Pago" : "Gratuito"}</strong>
-                      </div>
-                      <div className="exCourseDetailItem">
-                        <small>Módulos cadastrados</small>
-                        <strong>{modulosDoCursoSelecionado.length}</strong>
-                      </div>
-                      <div className="exCourseDetailItem">
-                        <small>ID do curso</small>
-                        <strong>{cursoSelecionado?.id}</strong>
-                      </div>
+            <div className={rowClass}>
+              <div className={cn(fieldGroupClass, "xl:col-span-3")}>
+                <span className={fieldLabelClass}>Curso *</span>
+                <div className={courseSectionClass}>
+                  <div className={courseListColumnClass}>
+                    <div className={courseFilterRowClass}>
+                      <input
+                        className={fieldInputClass}
+                        value={cursoCardsFiltro}
+                        onChange={(e) => setCursoCardsFiltro(e.target.value)}
+                        placeholder="Filtrar cursos por nome ou descrição"
+                      />
+                      {cursoCardsFiltro.trim() && (
+                        <button type="button" className={secondaryButtonClass} onClick={() => setCursoCardsFiltro("")}>
+                          Limpar
+                        </button>
+                      )}
                     </div>
-                    {cursoSelecionado?.descricao && <p className="exCourseDescription">{cursoSelecionado.descricao}</p>}
-                    {modulosDoCursoSelecionado.length > 0 && (
-                      <div className="exCourseModulesPreview">
-                        <small>Trilha de modulos</small>
-                        <div className="exCourseModulesChips">
-                          {modulosDoCursoSelecionado.slice(0, 5).map((m) => (
-                            <span key={m.id} className="exCourseModuleChip">{m.nome}</span>
-                          ))}
-                          {modulosDoCursoSelecionado.length > 5 && (
-                            <span className="exCourseModuleChip isMore">+{modulosDoCursoSelecionado.length - 5} modulos</span>
-                          )}
+
+                    <div className={toggleGroupClass(Boolean(fieldWarnings.curso))}>
+                      {cursosTogglePaginados.map((curso) => {
+                        const cursoCategoria = inferCategoriaFromCourseName(curso.nome);
+                        const isAtivo = curso.id === cursoIdSelecionado;
+                        return (
+                          <label key={curso.id} className={toggleOptionClass(isAtivo)}>
+                            <input
+                              className="sr-only"
+                              type="radio"
+                              name="course_id_criar"
+                              value={curso.id}
+                              checked={isAtivo}
+                              onChange={() => handleSelecionarCurso(curso.id)}
+                            />
+                            <span className={toggleDotClass(isAtivo)} aria-hidden="true">
+                              <span className={toggleDotInnerClass(isAtivo)} />
+                            </span>
+                            <span className={toggleLabelClass}>
+                              {iconLabel(cursoCategoria === "informatica" ? <Monitor size={14} /> : <Laptop size={14} />, curso.nome)}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    {fieldWarnings.curso && <small className={warningTextClass}>{fieldWarnings.curso}</small>}
+                    {cursosToggleFiltrados.length === 0 && (
+                      <small className={subtleHintClass}>Nenhum curso encontrado no banco.</small>
+                    )}
+                    {cursosToggleFiltrados.length > 0 && (
+                      <div className={coursePaginationSummaryClass}>
+                        <span>
+                          Exibindo {Math.min((cursoCardsPagina - 1) * cursoCardsItensPorPagina + 1, cursosToggleFiltrados.length)} a{" "}
+                          {Math.min(cursoCardsPagina * cursoCardsItensPorPagina, cursosToggleFiltrados.length)} de {cursosToggleFiltrados.length} cursos
+                        </span>
+                        <span>
+                          Página {cursoCardsPagina} de {cursosCardsTotalPaginas}
+                        </span>
+                      </div>
+                    )}
+                    {cursosToggleFiltrados.length > 0 && (
+                      <Pagination
+                        currentPage={cursoCardsPagina}
+                        itemsPerPage={cursoCardsItensPorPagina}
+                        totalItems={cursosToggleFiltrados.length}
+                        onPageChange={setCursoCardsPagina}
+                        onItemsPerPageChange={setCursoCardsItensPorPagina}
+                      />
+                    )}
+                  </div>
+
+                  <div className={courseSidebarClass}>
+                    <div className={courseSelectedClass(Boolean(cursoSelecionado))}>
+                      <span className={courseSelectedLabelClass}>
+                        {iconLabel(<BookOpen size={13} />, cursoSelecionado ? "Curso selecionado" : "Selecao de curso")}
+                      </span>
+                      <strong className={courseSelectedValueClass}>
+                        {cursoSelecionado ? cursoSelecionado.nome : "Selecione um curso para ver detalhes"}
+                      </strong>
+                    </div>
+
+                    {cursoSelecionado && (
+                      <div className={courseQuickStatsClass}>
+                        <div className={courseQuickStatCardClass}>
+                          <small>Categoria</small>
+                          <strong>{inferCategoriaFromCourseName(cursoSelecionado.nome) === "informatica" ? "Informática" : "Programação"}</strong>
+                        </div>
+                        <div className={courseQuickStatCardClass}>
+                          <small>Módulos</small>
+                          <strong>{modulosDoCursoSelecionado.length}</strong>
                         </div>
                       </div>
                     )}
+
+                    <div className={courseActionsClass}>
+                      <button type="button" className={secondaryButtonClass} onClick={() => setMostrarDetalhesCurso((prev) => !prev)} disabled={!cursoSelecionado}>
+                        {iconLabel(<Eye size={14} />, mostrarDetalhesCurso ? "Ocultar detalhes" : "Ver detalhes")}
+                      </button>
+                    </div>
+
+                    <ConditionalFieldAnimation isVisible={Boolean(cursoSelecionado && mostrarDetalhesCurso)}>
+                      <div className={courseDetailsPanelClass}>
+                        <div className={courseDetailsGridClass}>
+                          <div className={courseDetailItemClass}>
+                            <small>Categoria</small>
+                            <strong>{inferCategoriaFromCourseName(cursoSelecionado?.nome) === "informatica" ? "Informática" : "Programação"}</strong>
+                          </div>
+                          <div className={courseDetailItemClass}>
+                            <small>Modelo</small>
+                            <strong>{cursoSelecionado?.isPaid ? "Pago" : "Gratuito"}</strong>
+                          </div>
+                          <div className={courseDetailItemClass}>
+                            <small>Módulos cadastrados</small>
+                            <strong>{modulosDoCursoSelecionado.length}</strong>
+                          </div>
+                          <div className={courseDetailItemClass}>
+                            <small>ID do curso</small>
+                            <strong>{cursoSelecionado?.id}</strong>
+                          </div>
+                        </div>
+                        {cursoSelecionado?.descricao && <p className={courseDescriptionClass}>{cursoSelecionado.descricao}</p>}
+                        {modulosDoCursoSelecionado.length > 0 && (
+                          <div className={courseModulesPreviewClass}>
+                            <small>Trilha de modulos</small>
+                            <div className={courseModulesChipsClass}>
+                              {modulosDoCursoSelecionado.slice(0, 5).map((m) => (
+                                <span key={m.id} className={courseModuleChipClass()}>{m.nome}</span>
+                              ))}
+                              {modulosDoCursoSelecionado.length > 5 && (
+                                <span className={courseModuleChipClass(true)}>+{modulosDoCursoSelecionado.length - 5} modulos</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </ConditionalFieldAnimation>
                   </div>
-                </ConditionalFieldAnimation>
+                </div>
               </div>
             </div>
 
-            <div className="exInputRow">
-              <div className="exInputGroup">
-                <span className="exLabel">Modulo *</span>
-                <div className={`exFieldWarnWrap ${fieldWarnings.modulo ? "isWarning" : ""}`}>
+            <div className={rowClass}>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Modulo *</span>
+                <div className={fieldWarnWrapClass(Boolean(fieldWarnings.modulo))}>
                   <PaginatedSelect
                     value={moduloIdSelecionado}
                     onChange={(value) => {
@@ -1068,12 +1273,12 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                     }}
                   />
                 </div>
-                {fieldWarnings.modulo && <small className="exFieldWarning">{fieldWarnings.modulo}</small>}
+                {fieldWarnings.modulo && <small className={warningTextClass}>{fieldWarnings.modulo}</small>}
               </div>
 
-              <div className="exInputGroup">
-                <span className="exLabel">Fase *</span>
-                <div className={`exFieldWarnWrap ${fieldWarnings.fase ? "isWarning" : ""}`}>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Fase *</span>
+                <div className={fieldWarnWrapClass(Boolean(fieldWarnings.fase))}>
                   <PaginatedSelect
                     value={faseIdSelecionada}
                     onChange={(value) => {
@@ -1103,26 +1308,38 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                     }}
                   />
                 </div>
-                {fieldWarnings.fase && <small className="exFieldWarning">{fieldWarnings.fase}</small>}
+                {fieldWarnings.fase && <small className={warningTextClass}>{fieldWarnings.fase}</small>}
               </div>
 
-              <div className="exInputGroup">
-                <span className="exLabel">Prazo (Valido apenas nas tarefas diarias) *</span>
-                <input className={`exInput ${fieldWarnings.prazo ? "isWarning" : ""}`} type="datetime-local" value={prazo} onChange={(e) => { setPrazo(e.target.value); clearFieldWarning("prazo"); }} />
-                {fieldWarnings.prazo && <small className="exFieldWarning">{fieldWarnings.prazo}</small>}
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Prazo {prazoObrigatorio ? "*" : ""}</span>
+                <input
+                  className={cn(
+                    fieldInputClass,
+                    !prazoObrigatorio && "opacity-70",
+                    fieldWarnings.prazo && warningControlClass
+                  )}
+                  type="datetime-local"
+                  value={prazo}
+                  onChange={(e) => {
+                    setPrazo(e.target.value);
+                    clearFieldWarning("prazo");
+                  }}
+                />
+                <small className={sectionHintClass}>
+                  {prazoObrigatorio
+                    ? "Obrigatório enquanto o exercício estiver marcado como tarefa diária."
+                    : "Preencha só se este exercício for uma tarefa diária."}
+                </small>
+                {fieldWarnings.prazo && <small className={warningTextClass}>{fieldWarnings.prazo}</small>}
               </div>
             </div>
 
-             <div className="exInputRow">
-              {/*<div className="exInputGroup">
-                <span className="exLabel">Video URL</span>
-                <input className="exInput" type="url" placeholder="https://..." value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} /> 
-                <small style={{ color: "#666", marginTop: "4px" }}>Link opcional de apoio para este exercicio.</small>
-              </div> */} 
-              <div className="exInputGroup">
-                <span className="exLabel">Dificuldade</span>
+            <div className={compactRowClass}>
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Dificuldade</span>
                 <AnimatedSelect
-                  className="exSelect"
+                  className={fieldInputClass}
                   value={difficulty}
                   onChange={(e) => {
                     const proximaDificuldade = e.target.value;
@@ -1141,35 +1358,26 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                   ))}
                 </AnimatedSelect>
                 {adicionarEmContainer && (
-                  <small style={{ color: "#64748b", marginTop: "4px" }}>
+                  <small className={subtleHintClass}>
                     Com container ativo, somente a dificuldade normal pode ser usada.
                   </small>
                 )}
               </div>
-            </div>
-
-            <div className="exInputRow">
-              <div className="exInputGroup">
-                <span className="exLabel">Pontos de resgate</span>
-                <input className="exInput" type="number" min="0" placeholder="0" value={pointsRedeem} onChange={(e) => setPointsRedeem(e.target.value)} />
+              <div className={fieldGroupClass}>
+                <span className={fieldLabelClass}>Pontos de resgate</span>
+                <input className={fieldInputClass} type="number" min="0" placeholder="0" value={pointsRedeem} onChange={(e) => setPointsRedeem(e.target.value)} />
+                <small className={sectionHintClass}>Valor entregue ao aluno quando o exercício for concluído.</small>
               </div>
             </div>
 
-            <div className="exInputGroup">
-              <span className="exLabel">Container (opcional)</span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <label style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  cursor: !faseIdSelecionada || containersDaFase.length === 0 || carregandoContainersFase ? "not-allowed" : "pointer",
-                  opacity: !faseIdSelecionada || containersDaFase.length === 0 || carregandoContainersFase ? 0.6 : 1,
-                  transition: "all 0.2s",
-                  padding: "12px 14px",
-                  backgroundColor: "var(--card)",
-                  border: "1px solid color-mix(in srgb, var(--line) 40%, transparent)",
-                  borderRadius: 8,
-                }}>
+            <div className={fieldGroupClass}>
+              <span className={fieldLabelClass}>Container (opcional)</span>
+              <div className="flex flex-col gap-2">
+                <label
+                  className={containerToggleShellClass(
+                    !faseIdSelecionada || containersDaFase.length === 0 || carregandoContainersFase
+                  )}
+                >
                   <AnimatedToggle
                     checked={adicionarEmContainer}
                     onChange={(checked) => {
@@ -1182,13 +1390,13 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                     }}
                     disabled={!faseIdSelecionada || containersDaFase.length === 0 || carregandoContainersFase}
                   />
-                  <span style={{ fontWeight: 500, fontSize: "0.95rem", color: "var(--foreground)", userSelect: "none" }}>Adicionar a um container</span>
+                  <span className={containerToggleTextClass}>Adicionar a um container</span>
                 </label>
 
                 {adicionarEmContainer && (
                   <>
                     <AnimatedSelect
-                      className="exSelect"
+                      className={fieldInputClass}
                       value={containerSelecionadoKey}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -1215,50 +1423,19 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
 
                     {containerSelecionadoKey && (() => {
                       if (!containerSelecionado || containerSelecionado.exercises.length === 0) {
-                        return <small style={{ color: "#64748b" }}>Nenhum exercício neste container.</small>;
+                        return <small className={subtleHintClass}>Nenhum exercício neste container.</small>;
                       }
 
                       return (
-                        <div style={{
-                          marginTop: 8,
-                          padding: "10px 12px",
-                          backgroundColor: "var(--card)",
-                          borderRadius: 8,
-                          border: "1px solid color-mix(in srgb, var(--line) 40%, transparent)",
-                        }}>
-                          <div style={{
-                            fontSize: "0.78rem",
-                            fontWeight: 600,
-                            color: "var(--muted)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                            marginBottom: 8,
-                          }}>
+                        <div className={containerSummaryClass}>
+                          <div className={containerSummaryHeadClass}>
                             {containerSelecionado.exercises.length} exercício{containerSelecionado.exercises.length !== 1 ? "s" : ""} neste container
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div className={containerSummaryListClass}>
                             {containerSelecionado.exercises.map((exercise) => (
-                              <div
-                                key={exercise.containerTaskId}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 10,
-                                  padding: "8px 10px",
-                                  backgroundColor: "color-mix(in srgb, var(--background-secondary) 60%, transparent)",
-                                  border: "1px solid color-mix(in srgb, var(--line) 30%, transparent)",
-                                  borderRadius: 6,
-                                  fontSize: "0.85rem",
-                                }}
-                              >
-                                <span style={{
-                                  fontWeight: 700,
-                                  color: "var(--primary)",
-                                  fontSize: "0.8rem",
-                                  minWidth: 28,
-                                  flexShrink: 0,
-                                }}>#{exercise.indexOrder ?? "?"}</span>
-                                <span style={{ flex: 1, color: "var(--foreground)" }}>{exercise.title}</span>
+                              <div key={exercise.containerTaskId} className={containerSummaryItemClass}>
+                                <span className={containerSummaryOrderClass}>#{exercise.indexOrder ?? "?"}</span>
+                                <span className={containerSummaryTitleClass}>{exercise.title}</span>
                               </div>
                             ))}
                           </div>
@@ -1269,21 +1446,21 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 )}
 
                 {!faseIdSelecionada && (
-                  <small style={{ color: "#64748b" }}>Selecione uma fase para carregar os containers.</small>
+                  <small className={subtleHintClass}>Selecione uma fase para carregar os containers.</small>
                 )}
                 {faseIdSelecionada && carregandoContainersFase && (
-                  <small style={{ color: "#64748b" }}>Carregando containers da fase...</small>
+                  <small className={subtleHintClass}>Carregando containers da fase...</small>
                 )}
                 {faseIdSelecionada && !carregandoContainersFase && containersDaFase.length === 0 && (
-                  <small style={{ color: "#64748b" }}>Nenhum container encontrado para esta fase.</small>
+                  <small className={subtleHintClass}>Nenhum container encontrado para esta fase.</small>
                 )}
               </div>
             </div>
 
-            <div className="exInputRow">
-              <div className="exInputGroup">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className={fieldGroupClass}>
                 <div
-                  className={`exStatusToggle ${isFinalExercise ? "isActive" : ""}`}
+                  className={statusToggleClass(isFinalExercise)}
                   role="button"
                   tabIndex={0}
                   onClick={() => setIsFinalExercise(!isFinalExercise)}
@@ -1295,15 +1472,15 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                   }}
                 >
                   <AnimatedToggle checked={isFinalExercise} onChange={setIsFinalExercise} />
-                  <span className="exStatusToggleContent">
-                    <span className="exStatusToggleTitle">Exercicio final</span>
-                    <span className="exStatusToggleDescription">Marque se este for o exercicio de fechamento da fase.</span>
+                  <span className={statusToggleContentClass}>
+                    <span className={statusToggleTitleClass}>Exercicio final</span>
+                    <span className={statusToggleDescriptionClass}>Marque se este for o exercicio de fechamento da fase.</span>
                   </span>
                 </div>
               </div>
-              <div className="exInputGroup">
+              <div className={fieldGroupClass}>
                 <div
-                  className={`exStatusToggle ${isDailyTaskEfetivo ? "isActive" : ""}`}
+                  className={statusToggleClass(isDailyTaskEfetivo)}
                   role="button"
                   tabIndex={0}
                   onClick={() => handleChangeIsDailyTask(!isDailyTaskEfetivo)}
@@ -1315,9 +1492,9 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                   }}
                 >
                   <AnimatedToggle checked={isDailyTaskEfetivo} onChange={handleChangeIsDailyTask} />
-                  <span className="exStatusToggleContent">
-                    <span className="exStatusToggleTitle">Tarefas diárias</span>
-                    <span className="exStatusToggleDescription">
+                  <span className={statusToggleContentClass}>
+                    <span className={statusToggleTitleClass}>Tarefas diárias</span>
+                    <span className={statusToggleDescriptionClass}>
                       {isDailyTaskForcadoPorContainer
                         ? "Ligado automaticamente porque o container selecionado e de tarefa diaria."
                         : "Mostra este exercicio na aba de tarefa diaria."}
@@ -1327,8 +1504,8 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "12px" }}>
-              <AnimatedButton className="exSubmitBtn" onClick={handleSubmit} disabled={disabled} loading={saving} style={{ flex: 1 }}>
+            <div className="flex gap-3">
+              <AnimatedButton className={cn(submitButtonClass, "flex-1")} onClick={handleSubmit} disabled={disabled} loading={saving}>
                 {iconLabel(<Sparkles size={16} />, "Publicar Exercicio")}
               </AnimatedButton>
             </div>

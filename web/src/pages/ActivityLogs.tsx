@@ -1,8 +1,11 @@
 import React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
-import { AnimatedButton } from "../components/animate-ui/AnimatedButton";
 import { ScaleIn } from "../components/animate-ui/ScaleIn";
 import { listarActivityLogs, type ActivityLog } from "../services/api";
 import {
@@ -22,6 +25,7 @@ import {
   ClipboardList,
   Paperclip,
   RefreshCcw,
+  Loader2,
   LogIn,
   LogOut,
   KeyRound,
@@ -29,7 +33,6 @@ import {
   ImageUp,
   ImageMinus,
 } from "lucide-react";
-import "./ActivityLogs.css";
 
 type Filters = {
   q: string;
@@ -90,30 +93,145 @@ const ENTITY_OPTIONS = [
   { value: "badge", label: "Medalha" },
 ];
 
-const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
-  create: { icon: <Plus size={14} />, label: "Criação", className: "actionCreate" },
-  update: { icon: <Pencil size={14} />, label: "Atualização", className: "actionUpdate" },
-  delete: { icon: <Trash2 size={14} />, label: "Exclusão", className: "actionDelete" },
-  duplicate: { icon: <Copy size={14} />, label: "Duplicação", className: "actionDuplicate" },
-  login: { icon: <LogIn size={14} />, label: "Login", className: "actionAuth" },
-  login_failed: { icon: <ShieldCheck size={14} />, label: "Falha no login", className: "actionDanger" },
-  logout: { icon: <LogOut size={14} />, label: "Logout", className: "actionAuth" },
-  token_refresh: { icon: <RefreshCcw size={14} />, label: "Refresh token", className: "actionInfo" },
-  password_change: { icon: <KeyRound size={14} />, label: "Troca de senha", className: "actionSecurity" },
-  profile_update: { icon: <User size={14} />, label: "Perfil atualizado", className: "actionInfo" },
-  profile_picture_upload: { icon: <ImageUp size={14} />, label: "Upload de foto", className: "actionInfo" },
-  profile_picture_update: { icon: <ImageUp size={14} />, label: "Foto atualizada", className: "actionInfo" },
-  profile_picture_remove: { icon: <ImageMinus size={14} />, label: "Foto removida", className: "actionWarning" },
-  profile_cover_upload: { icon: <ImageUp size={14} />, label: "Banner atualizado", className: "actionInfo" },
-  user_create: { icon: <Plus size={14} />, label: "Usuário criado", className: "actionCreate" },
-  user_update: { icon: <Pencil size={14} />, label: "Usuário atualizado", className: "actionUpdate" },
-  user_delete: { icon: <Trash2 size={14} />, label: "Usuário removido", className: "actionDelete" },
-  badge_create: { icon: <Plus size={14} />, label: "Medalha criada", className: "actionCreate" },
-  badge_update: { icon: <Pencil size={14} />, label: "Medalha atualizada", className: "actionUpdate" },
-  badge_delete: { icon: <Trash2 size={14} />, label: "Medalha excluída", className: "actionDelete" },
-  badge_holder_create: { icon: <Plus size={14} />, label: "Medalha atribuída", className: "actionAuth" },
-  badge_holder_update: { icon: <Pencil size={14} />, label: "Medalha alterada", className: "actionUpdate" },
-  badge_holder_delete: { icon: <Trash2 size={14} />, label: "Medalha removida", className: "actionDelete" },
+const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; surfaceClass: string; badgeClass: string }> = {
+  create: {
+    icon: <Plus size={14} />,
+    label: "Criação",
+    surfaceClass: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-300",
+    badgeClass: "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300",
+  },
+  update: {
+    icon: <Pencil size={14} />,
+    label: "Atualização",
+    surfaceClass: "bg-blue-500/12 text-blue-600 dark:text-blue-300",
+    badgeClass: "border-blue-300/60 bg-blue-500/10 text-blue-700 dark:border-blue-500/30 dark:text-blue-300",
+  },
+  delete: {
+    icon: <Trash2 size={14} />,
+    label: "Exclusão",
+    surfaceClass: "bg-rose-500/12 text-rose-600 dark:text-rose-300",
+    badgeClass: "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300",
+  },
+  duplicate: {
+    icon: <Copy size={14} />,
+    label: "Duplicação",
+    surfaceClass: "bg-amber-500/12 text-amber-600 dark:text-amber-300",
+    badgeClass: "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300",
+  },
+  login: {
+    icon: <LogIn size={14} />,
+    label: "Login",
+    surfaceClass: "bg-primary/12 text-primary",
+    badgeClass: "border-primary/25 bg-primary/10 text-primary",
+  },
+  login_failed: {
+    icon: <ShieldCheck size={14} />,
+    label: "Falha no login",
+    surfaceClass: "bg-rose-500/12 text-rose-600 dark:text-rose-300",
+    badgeClass: "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300",
+  },
+  logout: {
+    icon: <LogOut size={14} />,
+    label: "Logout",
+    surfaceClass: "bg-primary/12 text-primary",
+    badgeClass: "border-primary/25 bg-primary/10 text-primary",
+  },
+  token_refresh: {
+    icon: <RefreshCcw size={14} />,
+    label: "Refresh token",
+    surfaceClass: "bg-sky-500/12 text-sky-600 dark:text-sky-300",
+    badgeClass: "border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300",
+  },
+  password_change: {
+    icon: <KeyRound size={14} />,
+    label: "Troca de senha",
+    surfaceClass: "bg-orange-500/12 text-orange-600 dark:text-orange-300",
+    badgeClass: "border-orange-300/60 bg-orange-500/10 text-orange-700 dark:border-orange-500/30 dark:text-orange-300",
+  },
+  profile_update: {
+    icon: <User size={14} />,
+    label: "Perfil atualizado",
+    surfaceClass: "bg-sky-500/12 text-sky-600 dark:text-sky-300",
+    badgeClass: "border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300",
+  },
+  profile_picture_upload: {
+    icon: <ImageUp size={14} />,
+    label: "Upload de foto",
+    surfaceClass: "bg-sky-500/12 text-sky-600 dark:text-sky-300",
+    badgeClass: "border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300",
+  },
+  profile_picture_update: {
+    icon: <ImageUp size={14} />,
+    label: "Foto atualizada",
+    surfaceClass: "bg-sky-500/12 text-sky-600 dark:text-sky-300",
+    badgeClass: "border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300",
+  },
+  profile_picture_remove: {
+    icon: <ImageMinus size={14} />,
+    label: "Foto removida",
+    surfaceClass: "bg-orange-500/12 text-orange-600 dark:text-orange-300",
+    badgeClass: "border-orange-300/60 bg-orange-500/10 text-orange-700 dark:border-orange-500/30 dark:text-orange-300",
+  },
+  profile_cover_upload: {
+    icon: <ImageUp size={14} />,
+    label: "Banner atualizado",
+    surfaceClass: "bg-sky-500/12 text-sky-600 dark:text-sky-300",
+    badgeClass: "border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300",
+  },
+  user_create: {
+    icon: <Plus size={14} />,
+    label: "Usuário criado",
+    surfaceClass: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-300",
+    badgeClass: "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300",
+  },
+  user_update: {
+    icon: <Pencil size={14} />,
+    label: "Usuário atualizado",
+    surfaceClass: "bg-blue-500/12 text-blue-600 dark:text-blue-300",
+    badgeClass: "border-blue-300/60 bg-blue-500/10 text-blue-700 dark:border-blue-500/30 dark:text-blue-300",
+  },
+  user_delete: {
+    icon: <Trash2 size={14} />,
+    label: "Usuário removido",
+    surfaceClass: "bg-rose-500/12 text-rose-600 dark:text-rose-300",
+    badgeClass: "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300",
+  },
+  badge_create: {
+    icon: <Plus size={14} />,
+    label: "Medalha criada",
+    surfaceClass: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-300",
+    badgeClass: "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300",
+  },
+  badge_update: {
+    icon: <Pencil size={14} />,
+    label: "Medalha atualizada",
+    surfaceClass: "bg-blue-500/12 text-blue-600 dark:text-blue-300",
+    badgeClass: "border-blue-300/60 bg-blue-500/10 text-blue-700 dark:border-blue-500/30 dark:text-blue-300",
+  },
+  badge_delete: {
+    icon: <Trash2 size={14} />,
+    label: "Medalha excluída",
+    surfaceClass: "bg-rose-500/12 text-rose-600 dark:text-rose-300",
+    badgeClass: "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300",
+  },
+  badge_holder_create: {
+    icon: <Plus size={14} />,
+    label: "Medalha atribuída",
+    surfaceClass: "bg-primary/12 text-primary",
+    badgeClass: "border-primary/25 bg-primary/10 text-primary",
+  },
+  badge_holder_update: {
+    icon: <Pencil size={14} />,
+    label: "Medalha alterada",
+    surfaceClass: "bg-blue-500/12 text-blue-600 dark:text-blue-300",
+    badgeClass: "border-blue-300/60 bg-blue-500/10 text-blue-700 dark:border-blue-500/30 dark:text-blue-300",
+  },
+  badge_holder_delete: {
+    icon: <Trash2 size={14} />,
+    label: "Medalha removida",
+    surfaceClass: "bg-rose-500/12 text-rose-600 dark:text-rose-300",
+    badgeClass: "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300",
+  },
 };
 
 const ENTITY_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -223,6 +341,32 @@ function normalizeMetadata(metadata: ActivityLog["metadata"]): MetadataEntry[] {
     .sort((a, b) => a.key.localeCompare(b.key, "pt-BR"));
 }
 
+function roleBadgeClass(role: string | null | undefined) {
+  if (role === "admin") {
+    return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
+  }
+  if (role === "professor") {
+    return "border-violet-300/60 bg-violet-500/10 text-violet-700 dark:border-violet-500/30 dark:text-violet-300";
+  }
+  return "border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300";
+}
+
+function metadataTypeClass(type: MetadataEntry["type"]) {
+  switch (type) {
+    case "texto":
+      return "border-blue-300/60 bg-blue-500/10 text-blue-700 dark:border-blue-500/30 dark:text-blue-300";
+    case "numero":
+      return "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300";
+    case "booleano":
+      return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
+    case "lista":
+    case "objeto":
+      return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
+    default:
+      return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
+  }
+}
+
 export default function ActivityLogsPage() {
   const [logSection, setLogSection] = React.useState<LogSection>("users");
   const [logs, setLogs] = React.useState<ActivityLog[]>([]);
@@ -298,6 +442,10 @@ export default function ActivityLogsPage() {
     return actions;
   }, [logs]);
 
+  const panelClass = "rounded-[28px] border border-border/70 bg-card/95 shadow-sm";
+  const filterFieldClass =
+    "h-10 w-full rounded-xl border border-input bg-background/80 px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/30";
+
   return (
     <DashboardLayout
       title="Logs de Atividade"
@@ -308,96 +456,96 @@ export default function ActivityLogsPage() {
       }
     >
       <FadeInUp duration={0.28}>
-        <div className="alContainer">
-          <div className="alSectionTabs" role="tablist" aria-label="Secoes de logs">
+        <div className="space-y-6">
+          <div className="inline-flex max-w-full flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/95 p-2 shadow-sm" role="tablist" aria-label="Secoes de logs">
             <button
               type="button"
               role="tab"
               aria-selected={logSection === "users"}
-              className={`alSectionTab ${logSection === "users" ? "active" : ""}`}
+              className={cn(
+                "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition",
+                logSection === "users"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
               onClick={() => handleSectionChange("users")}
             >
-              <span style={{ display: "inline-flex" }}>
-                <User size={15} />
-              </span>
+              <span className="inline-flex"><User size={15} /></span>
               Logs de usuarios
             </button>
             <button
               type="button"
               role="tab"
               aria-selected={logSection === "staff"}
-              className={`alSectionTab ${logSection === "staff" ? "active" : ""}`}
+              className={cn(
+                "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition",
+                logSection === "staff"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
               onClick={() => handleSectionChange("staff")}
             >
-              <span style={{ display: "inline-flex" }}>
-                <ShieldCheck size={15} />
-              </span>
+              <span className="inline-flex"><ShieldCheck size={15} /></span>
               Logs de admin/professor
             </button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="alStats">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <ScaleIn delay={0}>
-              <div className="alStatCard">
-                <div className="alStatIcon alStatIconTotal">
+              <div className={`${panelClass} flex items-center gap-4 p-5`}>
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-slate-500/10 text-slate-600 dark:text-slate-300">
                   <span>Σ</span>
                 </div>
-                <div className="alStatInfo">
-                  <span className="alStatValue">{totalItems}</span>
-                  <span className="alStatLabel">Total de Logs</span>
+                <div className="min-w-0">
+                  <div className="text-2xl font-bold tracking-tight text-foreground">{totalItems}</div>
+                  <div className="text-xs font-medium text-muted-foreground">Total de Logs</div>
                 </div>
               </div>
             </ScaleIn>
             <ScaleIn delay={0.05}>
-              <div className="alStatCard">
-                <div className="alStatIcon alStatIconCreate">
+              <div className={`${panelClass} flex items-center gap-4 p-5`}>
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
                   <span>+</span>
                 </div>
-                <div className="alStatInfo">
-                  <span className="alStatValue">{stats.create || 0}</span>
-                  <span className="alStatLabel">Criações</span>
+                <div className="min-w-0">
+                  <div className="text-2xl font-bold tracking-tight text-foreground">{stats.create || 0}</div>
+                  <div className="text-xs font-medium text-muted-foreground">Criações</div>
                 </div>
               </div>
             </ScaleIn>
             <ScaleIn delay={0.1}>
-              <div className="alStatCard">
-                <div className="alStatIcon alStatIconUpdate">
-                  <span style={{ display: "inline-flex" }}>
-                    <Pencil size={16} />
-                  </span>
+              <div className={`${panelClass} flex items-center gap-4 p-5`}>
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-300">
+                  <span className="inline-flex"><Pencil size={16} /></span>
                 </div>
-                <div className="alStatInfo">
-                  <span className="alStatValue">{stats.update || 0}</span>
-                  <span className="alStatLabel">Atualizações</span>
+                <div className="min-w-0">
+                  <div className="text-2xl font-bold tracking-tight text-foreground">{stats.update || 0}</div>
+                  <div className="text-xs font-medium text-muted-foreground">Atualizações</div>
                 </div>
               </div>
             </ScaleIn>
             <ScaleIn delay={0.15}>
-              <div className="alStatCard">
-                <div className="alStatIcon alStatIconDelete">
-                  <span style={{ display: "inline-flex" }}>
-                    <Trash2 size={16} />
-                  </span>
+              <div className={`${panelClass} flex items-center gap-4 p-5`}>
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-300">
+                  <span className="inline-flex"><Trash2 size={16} /></span>
                 </div>
-                <div className="alStatInfo">
-                  <span className="alStatValue">{stats.delete || 0}</span>
-                  <span className="alStatLabel">Exclusões</span>
+                <div className="min-w-0">
+                  <div className="text-2xl font-bold tracking-tight text-foreground">{stats.delete || 0}</div>
+                  <div className="text-xs font-medium text-muted-foreground">Exclusões</div>
                 </div>
               </div>
             </ScaleIn>
           </div>
 
-          {/* Search & Filter Bar */}
-          <div className="alToolbar">
-            <div className="alSearchRow">
-              <div className="alSearchWrap">
-                <span className="alSearchIcon" style={{ display: "inline-flex" }}>
+          <div className={`${panelClass} p-4`}>
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-[260px] flex-1">
+                <span className="pointer-events-none absolute left-3 top-1/2 inline-flex -translate-y-1/2 text-muted-foreground">
                   <Search size={16} />
                 </span>
-                <input
+                <Input
                   type="text"
-                  className="alSearchInput"
+                  className="h-11 rounded-xl border-input bg-background/80 pl-10 pr-10"
                   placeholder="Buscar por usuário, ação, entidade..."
                   value={draft.q}
                   onChange={(e) => setDraft((prev) => ({ ...prev, q: e.target.value }))}
@@ -405,7 +553,7 @@ export default function ActivityLogsPage() {
                 />
                 {draft.q && (
                   <button
-                    className="alSearchClear"
+                    className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     onClick={() => setDraft((prev) => ({ ...prev, q: "" }))}
                     aria-label="Limpar busca"
                   >
@@ -413,28 +561,44 @@ export default function ActivityLogsPage() {
                   </button>
                 )}
               </div>
-              <AnimatedButton className="alBtnFilter" onClick={() => setShowFilters(!showFilters)}>
-                <span className="alFilterIcon" style={{ display: "inline-flex" }}>
+              <Button
+                type="button"
+                variant="outline"
+                className="relative h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <span className="inline-flex">
                   <SlidersHorizontal size={16} />
                 </span>
                 Filtros
-                {hasActiveFilters && <span className="alFilterDot" />}
-              </AnimatedButton>
-              <AnimatedButton className="alBtnPrimary" onClick={aplicarFiltros}>
+                {hasActiveFilters && <span className="absolute right-2 top-2 size-2 rounded-full bg-primary" />}
+              </Button>
+              <Button
+                type="button"
+                className="h-11 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+                onClick={aplicarFiltros}
+              >
                 Buscar
-              </AnimatedButton>
-              <AnimatedButton className="alBtnRefresh" onClick={carregarLogs} title="Atualizar">
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-11 rounded-xl border-border/70 bg-background/80"
+                onClick={carregarLogs}
+                title="Atualizar"
+              >
                 <RefreshCcw size={16} />
-              </AnimatedButton>
+              </Button>
             </div>
 
             {showFilters && (
-              <div className="alFiltersPanel">
-                <div className="alFiltersGrid">
-                  <div className="alFilterGroup">
-                    <span className="alFilterLabel">Ação</span>
+              <div className="mt-4 border-t border-border/70 pt-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="space-y-2">
+                    <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ação</span>
                     <select
-                      className="alFilterSelect"
+                      className={filterFieldClass}
                       value={draft.action}
                       onChange={(e) => setDraft((prev) => ({ ...prev, action: e.target.value }))}
                     >
@@ -445,10 +609,10 @@ export default function ActivityLogsPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="alFilterGroup">
-                    <span className="alFilterLabel">Entidade</span>
+                  <div className="space-y-2">
+                    <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Entidade</span>
                     <select
-                      className="alFilterSelect"
+                      className={filterFieldClass}
                       value={draft.entityType}
                       onChange={(e) => setDraft((prev) => ({ ...prev, entityType: e.target.value }))}
                     >
@@ -459,66 +623,70 @@ export default function ActivityLogsPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="alFilterGroup">
-                    <span className="alFilterLabel">Actor ID</span>
-                    <input
+                  <div className="space-y-2">
+                    <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actor ID</span>
+                    <Input
                       type="text"
-                      className="alFilterInput"
+                      className="h-10 rounded-xl border-input bg-background/80"
                       placeholder="ID do usuário"
                       value={draft.actorId}
                       onChange={(e) => setDraft((prev) => ({ ...prev, actorId: e.target.value }))}
                       onKeyDown={handleKeyDown}
                     />
                   </div>
-                  <div className="alFilterGroup">
-                    <span className="alFilterLabel">De</span>
-                    <input
+                  <div className="space-y-2">
+                    <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">De</span>
+                    <Input
                       type="datetime-local"
-                      className="alFilterInput"
+                      className="h-10 rounded-xl border-input bg-background/80"
                       value={draft.from}
                       onChange={(e) => setDraft((prev) => ({ ...prev, from: e.target.value }))}
                     />
                   </div>
-                  <div className="alFilterGroup">
-                    <span className="alFilterLabel">Até</span>
-                    <input
+                  <div className="space-y-2">
+                    <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Até</span>
+                    <Input
                       type="datetime-local"
-                      className="alFilterInput"
+                      className="h-10 rounded-xl border-input bg-background/80"
                       value={draft.to}
                       onChange={(e) => setDraft((prev) => ({ ...prev, to: e.target.value }))}
                     />
                   </div>
                 </div>
                 {hasActiveFilters && (
-                  <button className="alClearFilters" onClick={limparFiltros}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="mt-3 h-9 rounded-xl px-3 text-primary hover:text-primary"
+                    onClick={limparFiltros}
+                  >
                     Limpar todos os filtros
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Content */}
           {loading ? (
-            <div className="alLoadingState">
-              <div className="alSpinner" />
+            <div className={`${panelClass} flex flex-col items-center gap-4 px-6 py-14 text-sm text-muted-foreground`}>
+              <Loader2 size={28} className="animate-spin text-primary" />
               <span>Carregando logs...</span>
             </div>
           ) : erro ? (
-            <div className="alErrorState">
-              <span className="alErrorIcon">!</span>
-              <span className="alErrorText">Erro: {erro}</span>
-              <AnimatedButton className="alBtnPrimary" onClick={carregarLogs}>
+            <div className={`${panelClass} flex flex-col items-center gap-4 px-6 py-14 text-center`}>
+              <span className="flex size-12 items-center justify-center rounded-full bg-rose-500/10 text-xl font-bold text-rose-600 dark:text-rose-300">!</span>
+              <span className="text-sm font-medium text-rose-700 dark:text-rose-300">Erro: {erro}</span>
+              <Button type="button" className="h-10 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90" onClick={carregarLogs}>
                 Tentar novamente
-              </AnimatedButton>
+              </Button>
             </div>
           ) : logs.length === 0 ? (
-            <div className="alEmptyState">
-              <span className="alEmptyIcon" style={{ display: "inline-flex" }}>
+            <div className={`${panelClass} flex flex-col items-center gap-3 border-dashed px-6 py-14 text-center`}>
+              <span className="inline-flex rounded-full bg-muted p-4 text-muted-foreground">
                 <ClipboardList size={20} />
               </span>
-              <span className="alEmptyTitle">Nenhum log encontrado</span>
-              <span className="alEmptyText">
+              <span className="text-base font-semibold text-foreground">Nenhum log encontrado</span>
+              <span className="max-w-md text-sm text-muted-foreground">
                 {hasActiveFilters
                   ? "Tente ajustar os filtros para encontrar o que procura."
                   : logSection === "users"
@@ -526,20 +694,20 @@ export default function ActivityLogsPage() {
                     : "Ainda nao ha registros de atividade de admin/professor."}
               </span>
               {hasActiveFilters && (
-                <AnimatedButton className="alBtnGhost" onClick={limparFiltros}>
+                <Button type="button" variant="outline" className="h-10 rounded-xl border-border/70 bg-background/80 px-4" onClick={limparFiltros}>
                   Limpar filtros
-                </AnimatedButton>
+                </Button>
               )}
             </div>
           ) : (
             <>
-              {/* Timeline List */}
-              <div className="alTimeline">
+              <div className="space-y-3">
                 {logs.map((log) => {
                   const actionCfg = ACTION_CONFIG[log.action] || {
-                    icon: "?",
+                    icon: <Paperclip size={14} />,
                     label: log.action,
-                    className: "actionDefault",
+                    surfaceClass: "bg-slate-500/10 text-slate-600 dark:text-slate-300",
+                    badgeClass: "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300",
                   };
                   const entityCfg = ENTITY_CONFIG[log.entityType] || {
                     icon: <Paperclip size={14} />,
@@ -553,133 +721,136 @@ export default function ActivityLogsPage() {
                   return (
                     <div
                       key={log.id}
-                      className={`alLogCard ${isExpanded ? "alLogCardExpanded" : ""}`}
+                      className={cn(
+                        `${panelClass} cursor-pointer p-4 transition`,
+                        isExpanded && "border-primary/25 shadow-md"
+                      )}
                       onClick={() => setExpandedRow(isExpanded ? null : log.id)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
                           setExpandedRow(isExpanded ? null : log.id);
                         }
                       }}
                     >
-                      <div className="alLogMain">
-                        {/* Action indicator */}
-                        <div className={`alLogAction ${actionCfg.className}`}>
-                          <span className="alLogActionIcon">{actionCfg.icon}</span>
+                      <div className="flex gap-4">
+                        <div className={cn("mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl", actionCfg.surfaceClass)}>
+                          {actionCfg.icon}
                         </div>
 
-                        {/* Content */}
-                        <div className="alLogContent">
-                          <div className="alLogHeader">
-                            <div className="alLogSummary">
-                              <span className="alLogActor">{actorName}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-foreground">{actorName}</span>
                               {log.actorRole && (
-                                <span className={`alLogRole role-${log.actorRole}`}>
+                                <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", roleBadgeClass(log.actorRole))}>
                                   {log.actorRole}
-                                </span>
+                                </Badge>
                               )}
-                              <span className={`alLogActionLabel ${actionCfg.className}`}>
+                              <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", actionCfg.badgeClass)}>
                                 {actionCfg.label}
-                              </span>
-                              <span className="alLogEntity">
+                              </Badge>
+                              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                                 {entityCfg.icon} {entityCfg.label}
                               </span>
                             </div>
-                            <div className="alLogTime">
-                              <span className="alLogTimeAgo">{timeAgo(log.createdAt)}</span>
-                            </div>
+                            <div className="text-xs font-medium text-muted-foreground">{timeAgo(log.createdAt)}</div>
                           </div>
 
-                          <div className="alLogMeta">
+                          <div className="mt-3 flex flex-wrap gap-2">
                             {log.actorUsuario && (
-                              <span className="alLogMetaItem">@{log.actorUsuario}</span>
+                              <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium">
+                                @{log.actorUsuario}
+                              </Badge>
                             )}
                             {log.entityId && (
-                              <span className="alLogMetaItem" title={log.entityId}>
+                              <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium" title={log.entityId}>
                                 ID: {truncate(log.entityId, 12)}
-                              </span>
+                              </Badge>
                             )}
                             {log.ipAddress && (
-                              <span className="alLogMetaItem">IP: {log.ipAddress}</span>
+                              <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium">
+                                IP: {log.ipAddress}
+                              </Badge>
                             )}
                             {hasMetadata && (
-                              <span className="alLogMetaItem alLogMetaExpand">
+                              <Badge variant="outline" className="rounded-full border-primary/25 bg-primary/8 px-2.5 text-[11px] font-medium text-primary">
                                 {isExpanded ? "▾ Menos" : "▸ Detalhes"}
-                              </span>
+                              </Badge>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Expanded details */}
                       {isExpanded && (
-                        <div className="alLogDetails">
-                          <div className="alLogDetailsGrid">
-                            <div className="alLogDetailItem">
-                              <span className="alLogDetailLabel">Data/Hora</span>
-                              <span className="alLogDetailValue">{formatDate(log.createdAt)}</span>
+                        <div className="mt-4 border-t border-border/70 pt-4">
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Data/Hora</span>
+                              <span className="text-sm text-foreground">{formatDate(log.createdAt)}</span>
                             </div>
-                            <div className="alLogDetailItem">
-                              <span className="alLogDetailLabel">ID do Log</span>
-                              <span className="alLogDetailValue alLogDetailMono">{log.id}</span>
+                            <div className="space-y-1">
+                              <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">ID do Log</span>
+                              <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.id}</span>
                             </div>
                             {log.actorId && (
-                              <div className="alLogDetailItem">
-                                <span className="alLogDetailLabel">Actor ID</span>
-                                <span className="alLogDetailValue alLogDetailMono">{log.actorId}</span>
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actor ID</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.actorId}</span>
                               </div>
                             )}
                             {log.entityId && (
-                              <div className="alLogDetailItem">
-                                <span className="alLogDetailLabel">Entity ID</span>
-                                <span className="alLogDetailValue alLogDetailMono">{log.entityId}</span>
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Entity ID</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.entityId}</span>
                               </div>
                             )}
                             {log.userAgent && (
-                              <div className="alLogDetailItem">
-                                <span className="alLogDetailLabel">Sistema Operacional</span>
-                                <span className="alLogDetailValue">
-                                  {detectOSFromUserAgent(log.userAgent)}
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Sistema Operacional</span>
+                                <span className="text-sm text-foreground">{detectOSFromUserAgent(log.userAgent)}</span>
+                              </div>
+                            )}
+                            {log.userAgent && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Navegador</span>
+                                <span className="text-sm text-foreground">{detectBrowserFromUserAgent(log.userAgent)}</span>
+                              </div>
+                            )}
+                            {log.userAgent && (
+                              <div className="space-y-1 md:col-span-2">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">User Agent</span>
+                                <span className="block rounded-xl border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground break-all">
+                                  {log.userAgent}
                                 </span>
-                              </div>
-                            )}
-                            {log.userAgent && (
-                              <div className="alLogDetailItem">
-                                <span className="alLogDetailLabel">Navegador</span>
-                                <span className="alLogDetailValue">
-                                  {detectBrowserFromUserAgent(log.userAgent)}
-                                </span>
-                              </div>
-                            )}
-                            {log.userAgent && (
-                              <div className="alLogDetailItem alLogDetailFull">
-                                <span className="alLogDetailLabel">User Agent</span>
-                                <span className="alLogDetailValue alLogDetailMono">{log.userAgent}</span>
                               </div>
                             )}
                             {hasMetadata && (
-                              <div className="alLogDetailItem alLogDetailFull">
-                                <span className="alLogDetailLabel">Metadata</span>
-                                <div className="alMetadataTable" role="table" aria-label="Metadados do log">
-                                  <div className="alMetadataHeader" role="row">
+                              <div className="space-y-2 md:col-span-2">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Metadata</span>
+                                <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/35" role="table" aria-label="Metadados do log">
+                                  <div className="hidden grid-cols-[minmax(130px,1.2fr)_90px_minmax(160px,2fr)] gap-3 border-b border-border/70 bg-muted/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:grid" role="row">
                                     <span role="columnheader">Campo</span>
                                     <span role="columnheader">Tipo</span>
                                     <span role="columnheader">Valor</span>
                                   </div>
                                   {metadataEntries.map((entry) => (
-                                    <div key={entry.key} className="alMetadataRow" role="row">
-                                      <span className="alMetadataKey" role="cell">
+                                    <div key={entry.key} className="grid gap-2 border-b border-border/70 px-4 py-3 last:border-b-0 md:grid-cols-[minmax(130px,1.2fr)_90px_minmax(160px,2fr)] md:items-center md:gap-3" role="row">
+                                      <span className="font-mono text-xs text-foreground" role="cell">
                                         {entry.key}
                                       </span>
-                                      <span className={`alMetadataType type-${entry.type}`} role="cell">
+                                      <span role="cell">
+                                        <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", metadataTypeClass(entry.type))}>
                                         {entry.type}
+                                        </Badge>
                                       </span>
-                                      <span className="alMetadataValue" role="cell" title={entry.valueLabel}>
+                                      <span className="text-xs text-foreground" role="cell" title={entry.valueLabel}>
                                         {entry.valueLabel}
                                       </span>
                                       {(entry.type === "objeto" || entry.type === "lista") && (
-                                        <pre className="alMetadataPre">
+                                        <pre className="md:col-span-3 mt-1 overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
                                           {JSON.stringify(entry.rawValue, null, 2)}
                                         </pre>
                                       )}

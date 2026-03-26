@@ -1,5 +1,4 @@
 import React, { useEffect, useReducer, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { AnimatePresence, m } from "framer-motion";
 import { Settings, Shield, User } from "lucide-react";
 import { obterUsuarioAtual, type UserMe } from "../services/api";
@@ -42,7 +41,7 @@ function RoleIcon({ role }: { role: string | null }) {
 const popupClass =
   "fixed z-[10000] w-[300px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-white/10 bg-slate-900/95 text-white shadow-[0_24px_64px_rgba(0,0,0,0.48)] backdrop-blur max-md:w-[280px]";
 const actionButtonClass =
-  "inline-flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white";
+  "cursor-pointer inline-flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white";
 
 export default function ProfilePopup({
   name,
@@ -148,7 +147,7 @@ export default function ProfilePopup({
     ? { left: 16, bottom: 90 }
     : { bottom: position.bottom, left: position.left };
 
-  return createPortal(
+  return (
     <AnimatePresence>
       <m.div
         ref={popupRef}
@@ -227,7 +226,6 @@ export default function ProfilePopup({
           </div>
         </div>
       </m.div>
-    </AnimatePresence>,
-    document.body,
+    </AnimatePresence>
   );
 }

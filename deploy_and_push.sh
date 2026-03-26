@@ -2,12 +2,16 @@
 
 set -u
 
-# ================== CONFIG ==================
-BRANCH="master"
-DEPLOY_CMD=(docker compose up -d --build)
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Se você usa o binário antigo:
-# DEPLOY_CMD=(docker-compose up -d --build)
+# ================== CONFIG ==================
+DEFAULT_BRANCH="$(git branch --show-current 2>/dev/null || echo master)"
+BRANCH="${BRANCH:-$DEFAULT_BRANCH}"
+ENV_FILE=".env"
+DEPLOY_CMD=()
+LOGS_CMD="docker compose logs api"
+RESTART_CMD="docker compose down && docker compose up -d --build"
 # ===========================================
 
 print_header() {
@@ -24,8 +28,8 @@ fail() {
   echo "FALHOU. Abortando."
   echo "====================================="
   echo "Dicas:"
-  echo " - Logs: docker compose logs api"
-  echo " - Reiniciar: docker compose down && docker compose up -d --build"
+  echo " - Logs: $LOGS_CMD"
+  echo " - Reiniciar: $RESTART_CMD"
   echo
   exit 1
 }
@@ -37,6 +41,84 @@ ask_yes_no() {
   [[ "$resp" =~ ^[sS]$ ]]
 }
 
+setup_compose_cmd() {
+  if docker compose version >/dev/null 2>&1; then
+    DEPLOY_CMD=(docker compose up -d --build)
+    LOGS_CMD="docker compose logs api"
+    RESTART_CMD="docker compose down && docker compose up -d --build"
+    return
+  fi
+
+  if command -v docker-compose >/dev/null 2>&1; then
+    DEPLOY_CMD=(docker-compose up -d --build)
+    LOGS_CMD="docker-compose logs api"
+    RESTART_CMD="docker-compose down && docker-compose up -d --build"
+    return
+  fi
+
+  echo "[ERRO] Docker Compose nao encontrado."
+  exit 1
+}
+
+ensure_local_env_file() {
+  if [[ -f "$ENV_FILE" ]]; then
+    return
+  fi
+
+  cat > "$ENV_FILE" <<'EOF'
+# Arquivo local criado automaticamente pelo deploy_and_push.sh
+# Ajuste os valores abaixo se precisar apontar para outro ambiente.
+JWT_SECRET=portal-do-aluno-local-dev
+PRESENCE_PROXY_SECRET=portal-do-aluno-local-proxy
+POSTGRES_DB=portal_santos_tech
+POSTGRES_USER=iasg
+POSTGRES_PASSWORD=iasg123
+DB_NAME=portal_santos_tech
+DB_USER=iasg
+DB_PASSWORD=iasg123
+DB_SSL=disable
+IA_SG_DB_PORT=15432
+DOCKER_DB_PROXY_PORT=15432
+IA_SG_API_PORT=3001
+IA_SG_WEB_PORT=8080
+IA_SG_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:5173
+VITE_API_URL=/api
+EOF
+
+  echo "[INFO] .env nao existia e foi criado com defaults locais."
+}
+
+ensure_docker_running() {
+  local docker_info_output=""
+
+  if docker_info_output="$(docker info 2>&1)"; then
+    return
+  fi
+
+  echo "[ERRO] Docker nao esta acessivel."
+  if [[ "$docker_info_output" == *"permission denied"* ]] || [[ "$docker_info_output" == *"/var/run/docker.sock"* ]]; then
+    echo "Seu usuario nao tem permissao para acessar o daemon Docker."
+    echo "No Linux, adicione o usuario ao grupo docker e reabra a sessao:"
+    echo "  sudo usermod -aG docker \$USER"
+    echo "Depois, faca logout/login (ou rode 'newgrp docker') e tente novamente."
+    echo
+    echo "Se precisar testar sem relogar, rode o script com sudo."
+    exit 1
+  fi
+
+  if command -v systemctl >/dev/null 2>&1 && [[ "$(uname -s)" == "Linux" ]]; then
+    echo "No Linux, tente iniciar com:"
+    echo "  sudo systemctl enable --now docker"
+  else
+    echo "Inicie o Docker Desktop/daemon e tente novamente."
+  fi
+  exit 1
+}
+
+has_local_changes() {
+  ! git diff --quiet || ! git diff --cached --quiet
+}
+
 print_header
 
 # ----- Verifica Git -----
@@ -45,11 +127,15 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-# ----- Verifica Docker -----
-if ! docker info >/dev/null 2>&1; then
-  echo "[ERRO] Docker não está rodando. Inicie o Docker/daemon."
+# ----- Repo git? -----
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "[ERRO] Este diretório não parece ser um repositório Git."
   exit 1
 fi
+
+setup_compose_cmd
+ensure_local_env_file
+ensure_docker_running
 
 echo "Branch alvo: $BRANCH"
 if ! ask_yes_no "Deseja rodar o deploy na branch $BRANCH? (s/n): "; then
@@ -57,17 +143,26 @@ if ! ask_yes_no "Deseja rodar o deploy na branch $BRANCH? (s/n): "; then
   exit 0
 fi
 
-# ----- Repo git? -----
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "[ERRO] Este diretório não parece ser um repositório Git."
-  exit 1
+if [[ "$(git branch --show-current)" != "$BRANCH" ]]; then
+  echo
+  echo "=== GIT: checkout ==="
+  git checkout "$BRANCH" || fail
+fi
+
+if has_local_changes; then
+  echo
+  echo "[AVISO] Existem alteracoes locais nao commitadas:"
+  git status --short
 fi
 
 echo
-echo "=== GIT: checkout + pull ==="
-git fetch || fail
-git checkout "$BRANCH" || fail
-git pull --rebase --autostash || fail
+if ask_yes_no "Deseja sincronizar com o remoto antes do deploy? (s/n): "; then
+  echo "=== GIT: fetch + pull ==="
+  git fetch || fail
+  git pull --rebase --autostash || fail
+else
+  echo "Seguindo com o codigo local atual."
+fi
 
 echo
 echo "=== DEPLOY COM DOCKER ==="
@@ -86,7 +181,7 @@ echo
 echo "Acesse em:"
 echo "Frontend: http://localhost:8080"
 echo "API: http://localhost:3001"
-echo "Logs: docker compose logs api"
+echo "Logs: $LOGS_CMD"
 echo
 
 if ! ask_yes_no "Os containers estão rodando corretamente? (s/n): "; then
