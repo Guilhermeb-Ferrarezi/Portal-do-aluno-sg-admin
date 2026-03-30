@@ -4,7 +4,77 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./public/faviconPreto.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Painel - Portal Santos Tech</title>
+    <title>Painel - Portal Santos Tech</title>
+    <script>
+      (function () {
+        const reloadKey = "portal:asset-reload";
+        const reloadParam = "__asset_reload";
+
+        const canUseSessionStorage = () => {
+          try {
+            return typeof window.sessionStorage !== "undefined";
+          } catch {
+            return false;
+          }
+        };
+
+        const hasReloaded = () =>
+          canUseSessionStorage() && window.sessionStorage.getItem(reloadKey) === "1";
+
+        const markReloaded = () => {
+          if (!canUseSessionStorage()) return;
+          window.sessionStorage.setItem(reloadKey, "1");
+        };
+
+        const shouldReloadForAsset = (url) =>
+          typeof url === "string" && /\/assets\/.+\.(css|js)(\?|$)/i.test(url);
+
+        const reloadForFreshAssets = () => {
+          if (hasReloaded()) return;
+
+          markReloaded();
+
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.set(reloadParam, String(Date.now()));
+          window.location.replace(nextUrl.toString());
+        };
+
+        window.addEventListener(
+          "error",
+          (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLLinkElement || target instanceof HTMLScriptElement)) return;
+
+            const targetUrl = target.href || target.src;
+            if (!shouldReloadForAsset(targetUrl)) return;
+
+            reloadForFreshAssets();
+          },
+          true,
+        );
+
+        window.addEventListener("vite:preloadError", (event) => {
+          event.preventDefault();
+          reloadForFreshAssets();
+        });
+
+        window.addEventListener("unhandledrejection", (event) => {
+          const reason =
+            event.reason instanceof Error
+              ? event.reason.message
+              : typeof event.reason === "string"
+                ? event.reason
+                : "";
+
+          if (!/(chunkloaderror|failed to fetch dynamically imported module|importing a module script failed)/i.test(reason)) {
+            return;
+          }
+
+          event.preventDefault();
+          reloadForFreshAssets();
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
