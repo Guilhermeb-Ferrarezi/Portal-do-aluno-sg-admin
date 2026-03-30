@@ -693,6 +693,15 @@ export default function TurmasPage() {
                         <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-border/70 pt-5">
                           <Button
                             type="button"
+                            variant="outline"
+                            className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                            onClick={() => navigate(`/dashboard/turmas/${turma.id}?tab=sala-de-aula`)}
+                          >
+                            <BookOpen size={16} />
+                            Sala de aula
+                          </Button>
+                          <Button
+                            type="button"
                             className="h-11 rounded-xl px-4"
                             onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
                           >

@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   BookOpen,
@@ -26,7 +26,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import TurmaClassroomsPanel from "@/components/turmas/TurmaClassroomsPanel";
 import { FadeInUp, AnimatedToast } from "../components/animate-ui";
 import ConfirmModal from "../components/ConfirmModal";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
@@ -53,6 +55,12 @@ type TurmaComAlunos = Turma & {
   alunos: TurmaAluno[];
   exercicios: Array<{ id: string; titulo: string; modulo: string }>;
 };
+
+type TurmaDetailTab = "info" | "alunos" | "sala-de-aula";
+
+function isTurmaDetailTab(value: string | null): value is TurmaDetailTab {
+  return value === "info" || value === "alunos" || value === "sala-de-aula";
+}
 
 function isAlunoStartable(aluno: TurmaAluno) {
   return (
@@ -173,8 +181,10 @@ function getModuleWeekLabel(modulo: Modulo, fases: Fase[]) {
 export default function TurmaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const role = getRole();
   const canManageTurmas = role === "admin" || role === "professor";
+  const canManageClassrooms = role === "admin";
   const backPath = canManageTurmas ? "/dashboard/turmas" : "/dashboard";
 
   const [turma, setTurma] = React.useState<TurmaComAlunos | null>(null);
@@ -194,9 +204,10 @@ export default function TurmaDetailPage() {
   const [alunoParaRemover, setAlunoParaRemover] = React.useState<TurmaAluno | null>(null);
   const [removendoAlunoId, setRemovendoAlunoId] = React.useState<string | null>(null);
   const [alunosParaIniciar, setAlunosParaIniciar] = React.useState<string[]>([]);
-  const [abaSelecionada, setAbaSelecionada] = React.useState<"info" | "alunos">("info");
 
   const panelClass = "rounded-[28px] border border-border/70 bg-card/95 shadow-sm";
+  const requestedTab = searchParams.get("tab");
+  const abaSelecionada: TurmaDetailTab = isTurmaDetailTab(requestedTab) ? requestedTab : "info";
 
   const iconLabel = (icon: React.ReactNode, label: string) => (
     <span className="inline-flex items-center gap-2">
@@ -434,6 +445,23 @@ export default function TurmaDetailPage() {
     setAlunosParaIniciar(alunosIniciaveis.map((aluno) => aluno.id));
   }
 
+  function handleAbaSelecionadaChange(value: string) {
+    if (!isTurmaDetailTab(value)) return;
+
+    setSearchParams(
+      (currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+        if (value === "info") {
+          nextParams.delete("tab");
+        } else {
+          nextParams.set("tab", value);
+        }
+        return nextParams;
+      },
+      { replace: true }
+    );
+  }
+
   if (loading && !turma) {
     return (
       <DashboardLayout title="Carregando..." subtitle="">
@@ -456,6 +484,21 @@ export default function TurmaDetailPage() {
   }
 
   const categoriaBadge = turma.categoria ? getCategoriaBadge(turma.categoria) : null;
+  const detailTabs: Array<{ key: TurmaDetailTab; label: string; icon: React.ComponentType<{ size?: number }> }> = [
+    { key: "info", label: "Informacoes", icon: Info },
+    { key: "alunos", label: "Alunos", icon: Users },
+    { key: "sala-de-aula", label: "Sala de aula", icon: BookOpen },
+  ];
+  const detailTabsClass =
+    "flex max-w-full flex-wrap items-center gap-2 rounded-[20px] border border-border/60 bg-muted/30 p-1.5 max-md:flex-col max-md:items-stretch max-md:rounded-2xl max-md:p-2.5";
+  const detailTabsLabelClass = "px-2 text-[11px] font-extrabold tracking-[0.18em] text-muted-foreground";
+  const detailTabButtonClass = (active: boolean) =>
+    cn(
+      "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-bold text-foreground transition hover:-translate-y-0.5 max-md:w-full max-md:rounded-xl",
+      active
+        ? "border-primary/50 bg-primary/15 shadow-sm"
+        : "border-transparent bg-background/60 hover:border-primary/30 hover:bg-muted"
+    );
 
   return (
     <DashboardLayout
@@ -467,44 +510,23 @@ export default function TurmaDetailPage() {
           <AnimatedToast message={erro} type="error" onClose={() => setErro(null)} />
           <AnimatedToast message={okMsg} type="success" onClose={() => setOkMsg(null)} />
 
-          {(canManageTurmas || role === "aluno") && (
-            <div
-              role="tablist"
-              aria-label="Visualizacao da turma"
-              className="inline-flex max-w-full flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/95 p-2 shadow-sm"
-            >
-              <Button
-                type="button"
-                variant="ghost"
-                className={cn(
-                  "rounded-xl px-4 py-2 text-sm font-semibold",
-                  abaSelecionada === "info"
-                    ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-                onClick={() => setAbaSelecionada("info")}
-              >
-                <Info size={16} />
-                Informacoes
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className={cn(
-                  "rounded-xl px-4 py-2 text-sm font-semibold",
-                  abaSelecionada === "alunos"
-                    ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-                onClick={() => setAbaSelecionada("alunos")}
-              >
-                <Users size={16} />
-                Alunos
-              </Button>
+          <Tabs value={abaSelecionada} onValueChange={handleAbaSelecionadaChange} className="gap-6">
+            <div className={detailTabsClass} role="tablist" aria-label="Visualizacao da turma">
+              <span className={detailTabsLabelClass}>EXIBIR:</span>
+              {detailTabs.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={detailTabButtonClass(abaSelecionada === key)}
+                  onClick={() => handleAbaSelecionadaChange(key)}
+                >
+                  <Icon size={16} />
+                  {label}
+                </button>
+              ))}
             </div>
-          )}
 
-          {abaSelecionada === "info" && (
+            <TabsContent value="info">
             <section className={`${panelClass} p-6 sm:p-7`}>
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -726,9 +748,9 @@ export default function TurmaDetailPage() {
                 </div>
               </div>
             </section>
-          )}
+            </TabsContent>
 
-          {abaSelecionada === "alunos" && (
+            <TabsContent value="alunos">
             <section className={`${panelClass} p-6 sm:p-7`}>
               <div className="flex flex-col gap-5 border-b border-border/70 pb-6 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
@@ -904,7 +926,19 @@ export default function TurmaDetailPage() {
                 </div>
               )}
             </section>
-          )}
+            </TabsContent>
+
+            <TabsContent value="sala-de-aula">
+              <TurmaClassroomsPanel
+                turmaId={turma.id}
+                turmaNome={turma.nome}
+                currentModuleName={moduloAtual?.nome ?? null}
+                canManage={canManageClassrooms}
+                onError={setErro}
+                onSuccess={setOkMsg}
+              />
+            </TabsContent>
+          </Tabs>
 
           <Dialog open={modalAdicionarAberto} onOpenChange={(open) => (open ? setModalAdicionarAberto(true) : fecharModalAdicionar())}>
             <DialogContent className="max-w-2xl p-0">

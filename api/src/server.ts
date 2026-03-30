@@ -15,6 +15,7 @@ import { videoaulasRouter } from "./routes/videoaulas.route";
 import { activityLogsRouter } from "./routes/activityLogs";
 import { badgesRouter } from "./routes/badges";
 import { containersRouter } from "./routes/containers.route";
+import { classRoomsRouter } from "./routes/classRooms.route";
 import { presenceRouter } from "./routes/presence";
 import { initializeDatabaseTables } from "./db/migrations";
 import { setupPresenceWebSocketServer } from "./realtime/presence";
@@ -206,6 +207,7 @@ app.use(videoaulasRouter(env.JWT_SECRET));
 app.use(activityLogsRouter(env.JWT_SECRET));
 app.use(badgesRouter(env.JWT_SECRET));
 app.use(containersRouter(env.JWT_SECRET));
+app.use(classRoomsRouter(env.JWT_SECRET));
 app.use(presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
 
 // ===== ROTAS COM /api (pra prod/proxy) =====
@@ -229,6 +231,7 @@ app.use("/api", videoaulasRouter(env.JWT_SECRET));
 app.use("/api", activityLogsRouter(env.JWT_SECRET));
 app.use("/api", badgesRouter(env.JWT_SECRET));
 app.use("/api", containersRouter(env.JWT_SECRET));
+app.use("/api", classRoomsRouter(env.JWT_SECRET));
 app.use("/api", presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
 
 // handler de 404

@@ -735,6 +735,39 @@ export type TurmaAluno = User & {
   faseInicialUnlockedAt?: string | null;
 };
 
+export type ClassRoomStatus = "rascunho" | "aberta" | "encerrada";
+
+export type ClassRoomExercise = {
+  id: string;
+  title: string;
+  description: string | null;
+  termAt: string | null;
+  isDailyTask: boolean;
+  phaseName: string | null;
+};
+
+export type ClassRoom = {
+  id: string;
+  turmaId: string;
+  nome: string;
+  createdAt: string | null;
+  isAuthorized: boolean;
+  targetLimited: string | null;
+  status: ClassRoomStatus;
+  totalExercises: number;
+  exercises: ClassRoomExercise[];
+};
+
+export type ClassRoomAvailableExercise = {
+  id: string;
+  title: string;
+  description: string | null;
+  termAt: string | null;
+  isDailyTask: boolean;
+  phaseName: string | null;
+  selected: boolean;
+};
+
 export type CronogramaSemana = {
   semana: number;
   exercicios: Array<{
@@ -883,6 +916,83 @@ export async function obterCronograma(turmaId: string) {
       cronogramaAtivo: boolean;
     };
   }>(`/turmas/${turmaId}/cronograma`);
+}
+
+export async function listarSalasDaTurma(turmaId: string) {
+  return apiFetch<{
+    turma: { id: string; nome: string };
+    items: ClassRoom[];
+  }>(`/turmas/${turmaId}/salas`);
+}
+
+export async function listarExerciciosDisponiveisSala(
+  turmaId: string,
+  params?: { roomId?: string }
+) {
+  const search = new URLSearchParams();
+  if (params?.roomId) search.set("roomId", params.roomId);
+  const query = search.toString();
+  return apiFetch<{
+    turmaId: string;
+    items: ClassRoomAvailableExercise[];
+  }>(`/turmas/${turmaId}/salas/exercicios-disponiveis${query ? `?${query}` : ""}`);
+}
+
+export async function criarSalaDaTurma(
+  turmaId: string,
+  dados: {
+    nome: string;
+    target_limited: string;
+    is_authorized: boolean;
+    exercise_ids: string[];
+  }
+) {
+  return apiFetch<{ message: string; room: Omit<ClassRoom, "exercises"> }>(
+    `/turmas/${turmaId}/salas`,
+    {
+      method: "POST",
+      body: JSON.stringify(dados),
+    }
+  );
+}
+
+export async function atualizarSalaDaTurma(
+  turmaId: string,
+  roomId: string,
+  dados: {
+    nome: string;
+    target_limited: string;
+    is_authorized: boolean;
+    exercise_ids: string[];
+  }
+) {
+  return apiFetch<{ message: string; room: Omit<ClassRoom, "exercises"> }>(
+    `/turmas/${turmaId}/salas/${roomId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(dados),
+    }
+  );
+}
+
+export async function atualizarStatusSalaDaTurma(
+  turmaId: string,
+  roomId: string,
+  dados: { is_authorized: boolean }
+) {
+  return apiFetch<{ message: string; room: Partial<ClassRoom> }>(
+    `/turmas/${turmaId}/salas/${roomId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(dados),
+    }
+  );
+}
+
+export async function deletarSalaDaTurma(turmaId: string, roomId: string) {
+  return apiFetch<{ message: string }>(`/turmas/${turmaId}/salas/${roomId}`, {
+    method: "DELETE",
+  });
 }
 
 export type User = {
