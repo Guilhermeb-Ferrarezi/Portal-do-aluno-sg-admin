@@ -498,18 +498,30 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     }));
   }
 
-  function applyAIDraft(draft: ExerciseAIDraft) {
+  function applyAIDraft(
+    draft: ExerciseAIDraft,
+    nextComponentType: "escrita" | "multipla" = componenteInterativo === "multipla" ? "multipla" : "escrita"
+  ) {
     clearFieldWarning("titulo");
     clearFieldWarning("descricao");
     clearFieldWarning("multipla");
+    if (nextComponentType !== componenteInterativo) {
+      setComponenteInterativo(nextComponentType);
+    }
     setTitulo(draft.titulo);
     setDescricao(draft.descricao);
     setDifficulty(String(draft.difficulty));
     setPointsRedeem(String(draft.pointsRedeem));
 
-    if (componenteInterativo === "multipla") {
-      setMultiplaQuestoes(mapDraftMultiplaQuestoes(draft));
+    if (nextComponentType === "multipla") {
+      if (draft.multiplaQuestoes.length > 0) {
+        setMultiplaQuestoes(mapDraftMultiplaQuestoes(draft));
+      }
       return;
+    }
+
+    if (componenteInterativo === "multipla") {
+      setMultiplaQuestoes(getDefaultMultiplaQuestoes());
     }
   }
 

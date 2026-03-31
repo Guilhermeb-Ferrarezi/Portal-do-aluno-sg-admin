@@ -3,6 +3,15 @@ import { Sparkles, Loader2 } from "lucide-react";
 import ConfirmModal from "./ConfirmModal";
 import { useExerciseAIDraftGenerator } from "../hooks/useExerciseAIDraftGenerator";
 import type { ExerciseAIDraft } from "../services/api";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ExerciseAIDraftGeneratorProps = {
   courseId: string;
@@ -12,11 +21,16 @@ type ExerciseAIDraftGeneratorProps = {
   componentType: "escrita" | "multipla";
   difficulty: number | null;
   hasContentToOverwrite: boolean;
-  onApplyDraft: (draft: ExerciseAIDraft) => void;
+  onApplyDraft: (
+    draft: ExerciseAIDraft,
+    nextComponentType?: "escrita" | "multipla"
+  ) => void;
 };
 
 export default function ExerciseAIDraftGenerator(props: ExerciseAIDraftGeneratorProps) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [suggestionOpen, setSuggestionOpen] = React.useState(false);
+  const [pendingDraft, setPendingDraft] = React.useState<ExerciseAIDraft | null>(null);
   const {
     courseId,
     moduleId,
@@ -39,6 +53,7 @@ export default function ExerciseAIDraftGenerator(props: ExerciseAIDraftGenerator
     canGenerate,
     clearMessages,
     generateDraft,
+    setDraftAppliedMessage,
   } = useExerciseAIDraftGenerator({
     courseId,
     moduleId,
@@ -48,13 +63,35 @@ export default function ExerciseAIDraftGenerator(props: ExerciseAIDraftGenerator
     difficulty,
   });
 
+  function getComponentTypeLabel(value: "escrita" | "multipla") {
+    return value === "multipla" ? "Alternativa" : "Dissertativa";
+  }
+
+  function applyDraft(
+    draft: ExerciseAIDraft,
+    nextComponentType: "escrita" | "multipla" = componentType
+  ) {
+    onApplyDraft(draft, nextComponentType);
+    setDraftAppliedMessage(
+      nextComponentType === draft.suggestedComponentType
+        ? "Rascunho aplicado no formulario."
+        : "Rascunho aplicado mantendo o tipo atual."
+    );
+  }
+
   async function runGenerate() {
     const draft = await generateDraft();
     if (!draft) {
       return;
     }
 
-    onApplyDraft(draft);
+    if (draft.suggestedComponentType !== componentType) {
+      setPendingDraft(draft);
+      setSuggestionOpen(true);
+      return;
+    }
+
+    applyDraft(draft, componentType);
   }
 
   async function handleGenerate() {
@@ -140,6 +177,76 @@ export default function ExerciseAIDraftGenerator(props: ExerciseAIDraftGenerator
           void runGenerate();
         }}
       />
+
+      <Dialog
+        open={suggestionOpen}
+        onOpenChange={(open) => {
+          setSuggestionOpen(open);
+          if (!open) {
+            setPendingDraft(null);
+          }
+        }}
+      >
+        <DialogContent showCloseButton={false} className="max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>IA sugeriu outro tipo de exercicio</DialogTitle>
+            <DialogDescription>
+              {pendingDraft
+                ? `O rascunho ficou mais adequado como ${getComponentTypeLabel(pendingDraft.suggestedComponentType)}.`
+                : "A IA sugeriu um tipo diferente para este rascunho."}
+            </DialogDescription>
+            {pendingDraft && (
+              <div className="mt-3 rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-sm leading-6 text-muted-foreground">
+                Tipo atual: <strong className="text-foreground">{getComponentTypeLabel(componentType)}</strong>
+                {" | "}
+                Sugestao da IA: <strong className="text-foreground">{getComponentTypeLabel(pendingDraft.suggestedComponentType)}</strong>
+              </div>
+            )}
+          </DialogHeader>
+          <DialogFooter className="justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => {
+                setSuggestionOpen(false);
+                setPendingDraft(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => {
+                  if (pendingDraft) {
+                    applyDraft(pendingDraft, componentType);
+                  }
+                  setSuggestionOpen(false);
+                  setPendingDraft(null);
+                }}
+              >
+                Manter tipo atual
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl"
+                onClick={() => {
+                  if (pendingDraft) {
+                    applyDraft(pendingDraft, pendingDraft.suggestedComponentType);
+                  }
+                  setSuggestionOpen(false);
+                  setPendingDraft(null);
+                }}
+              >
+                Trocar e aplicar
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

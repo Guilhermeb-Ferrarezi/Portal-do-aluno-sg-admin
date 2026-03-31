@@ -795,7 +795,7 @@ export default function TurmaClassroomsPanel({
 
       <Dialog open={editorOpen} onOpenChange={(open) => (!open ? resetEditorState() : setEditorOpen(true))}>
         <DialogContent
-          className="flex h-[min(97vh,1080px)] w-[min(96vw,72rem)] max-w-none flex-col overflow-y-auto overscroll-contain p-0 lg:overflow-hidden"
+          className="flex max-h-[min(97vh,1080px)] w-[min(96vw,72rem)] max-w-none flex-col overflow-y-auto overscroll-contain p-0"
           showCloseButton={!savingRoom}
         >
           <DialogHeader className="shrink-0 border-b border-border/70 bg-muted/20 px-5 py-5 sm:px-6">
@@ -848,9 +848,9 @@ export default function TurmaClassroomsPanel({
             </div>
           </DialogHeader>
 
-          <form className="flex flex-col lg:min-h-0 lg:flex-1" onSubmit={handleSubmitRoom}>
-            <div className="grid gap-0 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)] lg:overflow-hidden">
-            <div className="flex min-h-0 flex-col gap-4 border-b border-border/70 px-5 py-4 lg:border-r lg:border-b-0 sm:px-6">
+          <form className="flex flex-1 flex-col" onSubmit={handleSubmitRoom}>
+            <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+              <div className="flex min-h-0 flex-col gap-4 border-b border-border/70 px-5 py-4 lg:border-r lg:border-b-0 sm:px-6">
               <Card size="sm" className="rounded-[24px] border-border/70 bg-card/95 shadow-sm">
                 <CardHeader className="flex flex-col gap-2">
                   <CardTitle>Configuracao da sala</CardTitle>
@@ -901,7 +901,7 @@ export default function TurmaClassroomsPanel({
                 </CardContent>
               </Card>
 
-              <Card className="flex min-h-0 flex-1 flex-col rounded-[24px] border-border/70 bg-card/95 shadow-sm">
+              <Card className="flex flex-col rounded-[24px] border-border/70 bg-card/95 shadow-sm">
                 <CardHeader className="flex flex-col gap-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="flex min-w-0 flex-col gap-1">
@@ -1016,8 +1016,8 @@ export default function TurmaClassroomsPanel({
                   </div>
                 </CardHeader>
 
-                <CardContent className="flex min-h-0 flex-1">
-                  <ScrollArea className="rounded-[22px] border border-border/70 bg-background/70 lg:min-h-0 lg:flex-1 lg:h-auto">
+                <CardContent className="flex overflow-hidden">
+                  <ScrollArea className="max-h-[32rem] w-full rounded-[22px] border border-border/70 bg-background/70">
                     <div className="flex flex-col gap-4 p-4">
                       {loadingAvailableExercises ? (
                         Array.from({ length: 5 }).map((_, index) => (
@@ -1110,7 +1110,7 @@ export default function TurmaClassroomsPanel({
               </Card>
             </div>
 
-            <div className="flex min-h-0 flex-col gap-4 px-5 py-5 sm:px-6">
+              <div className="flex min-h-0 flex-col gap-4 px-5 py-5 sm:px-6">
               <Card className="flex min-h-0 flex-1 flex-col rounded-[24px] border-border/70 bg-card/95 shadow-sm">
                 <CardHeader className="flex flex-col gap-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -1160,8 +1160,8 @@ export default function TurmaClassroomsPanel({
                   </div>
                 </CardHeader>
 
-                <CardContent className="flex min-h-0 flex-1">
-                  <ScrollArea className="rounded-[22px] border border-border/70 bg-background/70 lg:min-h-0 lg:flex-1 lg:h-auto">
+                <CardContent className="flex min-h-0 flex-1 overflow-hidden">
+                  <ScrollArea className="min-h-[18rem] flex-1 rounded-[22px] border border-border/70 bg-background/70 lg:min-h-0 lg:h-auto">
                     <div className="flex flex-col gap-3 p-4">
                       {selectedExercises.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">

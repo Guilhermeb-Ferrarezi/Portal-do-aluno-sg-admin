@@ -217,6 +217,7 @@ export type ExerciseAIDraft = {
   descricao: string;
   difficulty: number;
   pointsRedeem: number;
+  suggestedComponentType: "escrita" | "multipla";
   multiplaQuestoes: ExerciseMultipleChoiceQuestion[];
 };
 

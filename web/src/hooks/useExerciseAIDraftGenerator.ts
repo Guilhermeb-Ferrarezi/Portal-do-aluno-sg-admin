@@ -30,8 +30,8 @@ export function useExerciseAIDraftGenerator(params: UseExerciseAIDraftGeneratorP
   const statusMessage = !contextReady
     ? "Selecione curso, modulo e fase para liberar a geracao."
     : componentType === "multipla"
-      ? "A IA vai preencher titulo, pergunta direta, dificuldade, pontos de resgate e 1 questao de multipla escolha."
-      : "A IA vai preencher titulo, pergunta direta, dificuldade e pontos de resgate da atividade escrita."
+      ? "A IA vai gerar o rascunho e pode sugerir trocar o tipo se identificar um formato melhor."
+      : "A IA vai gerar o rascunho e pode sugerir trocar o tipo se identificar um formato melhor."
   ;
 
   async function generateDraft(): Promise<ExerciseAIDraft | null> {
@@ -53,7 +53,6 @@ export function useExerciseAIDraftGenerator(params: UseExerciseAIDraftGeneratorP
         componentType,
         difficulty,
       });
-      setSuccessMessage("Rascunho aplicado no formulario.");
       return response.draft;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao gerar rascunho com IA.");
@@ -68,6 +67,11 @@ export function useExerciseAIDraftGenerator(params: UseExerciseAIDraftGeneratorP
     setSuccessMessage(null);
   }
 
+  function setDraftAppliedMessage(message = "Rascunho aplicado no formulario.") {
+    setError(null);
+    setSuccessMessage(message);
+  }
+
   return {
     prompt,
     setPrompt,
@@ -79,5 +83,6 @@ export function useExerciseAIDraftGenerator(params: UseExerciseAIDraftGeneratorP
     canGenerate,
     clearMessages,
     generateDraft,
+    setDraftAppliedMessage,
   };
 }
