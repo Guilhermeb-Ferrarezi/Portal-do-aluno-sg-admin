@@ -2114,7 +2114,7 @@ export function exerciciosRouter(jwtSecret: string) {
         }
         if (multiplaRawValue && multiplaQuestoes.length === 0) {
           return res.status(400).json({
-            message: "Formato invalido em multipla_regras para o schema novo.",
+            message: "Preencha todas as informações necessárias para a alteração.",
           });
         }
         if (multiplaQuestoes.length > 0 && (!schema.hasQuestion || !schema.hasQuestionOption)) {
@@ -2446,7 +2446,7 @@ export function exerciciosRouter(jwtSecret: string) {
         }
         if (multiplaRawValue && multiplaQuestoes.length === 0) {
           return res.status(400).json({
-            message: "Formato invalido em multipla_regras para o schema novo.",
+            message: "Preencha todas as informações necessárias para a alteração.",
           });
         }
         if (multiplaQuestoes.length > 0 && (!schema.hasQuestion || !schema.hasQuestionOption)) {
