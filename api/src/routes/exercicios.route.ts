@@ -819,12 +819,19 @@ const aiDraftResponseSchema = z.object({
 });
 
 function mapTipoExercicioToTypeExercise(tipo: string | null | undefined): number {
-  if ((tipo ?? "").toLowerCase() === "codigo") return 0;
-  return 1;
+  const normalized = (tipo ?? "").toLowerCase();
+  if (normalized === "codigo") return 0;
+  if (normalized === "multipla") return 1;
+  if (normalized === "escrita" || normalized === "texto") return 2;
+  return 2;
 }
 
 function mapTypeExerciseToTipoExercicio(value: unknown): TipoExercicio {
-  return Number(value) === 1 ? "texto" : "codigo";
+  const normalized = Number(value);
+  if (normalized === 0) return "codigo";
+  if (normalized === 1) return "multipla";
+  if (normalized === 2) return "escrita";
+  return "nenhum";
 }
 
 function getDifficultyLabel(value: number | null | undefined) {
@@ -1327,6 +1334,7 @@ function mapNewExerciseRow(
   const isDailyTask = !!row.is_daily_task || !!row.container_is_daily_task;
   const multiplaQuestoes = options.multiplaQuestoes ?? [];
   const multiplaRegras = stringifyMultiplaQuestoes(multiplaQuestoes);
+  const tipoExercicio = mapTypeExerciseToTipoExercicio(row.type_exercise);
   return {
     id: String(row.id),
     titulo: row.title,
@@ -1338,7 +1346,7 @@ function mapNewExerciseRow(
     publishedAt: null,
     publicado: true,
     isDailyTask,
-    tipoExercicio: multiplaRegras ? "multipla" : mapTypeExerciseToTipoExercicio(row.type_exercise),
+    tipoExercicio: tipoExercicio !== "nenhum" ? tipoExercicio : (multiplaRegras ? "multipla" : "nenhum"),
     categoria: "programacao",
     mouse_regras: null,
     multipla_regras: multiplaRegras,

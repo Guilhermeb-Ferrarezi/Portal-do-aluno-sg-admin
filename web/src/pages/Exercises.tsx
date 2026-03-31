@@ -258,6 +258,7 @@ export default function ExerciciosPage() {
     switch (ex.tipoExercicio) {
       case "codigo":
         return { label: "Codigo", className: "isCodigo" };
+      case "texto":
       case "escrita":
         return { label: "Escrita", className: "isEscrita" };
       case "mouse":
@@ -631,6 +632,19 @@ export default function ExerciciosPage() {
     } catch {
       return getDefaultMultiplaQuestoes();
     }
+  }
+
+  function getExerciseEditorComponentType(exercicio: Exercicio): "escrita" | "multipla" {
+    if (exercicio.tipoExercicio === "multipla") {
+      return "multipla";
+    }
+    if (exercicio.tipoExercicio === "escrita" || exercicio.tipoExercicio === "texto") {
+      return "escrita";
+    }
+    if (Boolean(exercicio.multipla_regras)) {
+      return "multipla";
+    }
+    return "escrita";
   }
 
   function mapDraftMultiplaQuestoes(draft: ExerciseAIDraft) {
@@ -1435,14 +1449,11 @@ export default function ExerciciosPage() {
     setEditAttrIsFinalExercise(exercicio.isFinalExercise === true);
     setEditAttrIsDailyTask(exercicio.isDailyTask === true);
 
-    if (exercicio.multipla_regras) {
-      setEditAttrComponenteInterativo("multipla");
-      try {
-        setEditAttrMultiplaQuestoes(getMultiplaQuestoesFromRegras(exercicio.multipla_regras));
-      } catch {
-        setEditAttrComponenteInterativo("escrita");
-        setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
-      }
+    const componentType = getExerciseEditorComponentType(exercicio);
+    setEditAttrComponenteInterativo(componentType);
+
+    if (componentType === "multipla") {
+      setEditAttrMultiplaQuestoes(getMultiplaQuestoesFromRegras(exercicio.multipla_regras));
     } else {
       setEditAttrComponenteInterativo("escrita");
       setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
@@ -1996,19 +2007,6 @@ export default function ExerciciosPage() {
                   {fieldWarnings.descricao && <small className={warningTextClass}>{fieldWarnings.descricao}</small>}
                 </div>
 
-                <div className={fieldGroupClass}>
-                  <ExerciseAIDraftGenerator
-                    courseId={cursoIdSelecionado}
-                    moduleId={moduloIdSelecionado}
-                    phaseId={faseIdSelecionada}
-                    categoria={categoria}
-                    componentType={componenteInterativo === "multipla" ? "multipla" : "escrita"}
-                    difficulty={aiDifficultyValue}
-                    hasContentToOverwrite={hasAIDraftOverwriteContent}
-                    onApplyDraft={applyAIDraft}
-                  />
-                </div>
-
                 {/* Temporariamente desativado: anexos */}
                 {/* CATEGORIA - PROGRAMACAO vs INFORMATICA */}
                 <div className={rowClass}>
@@ -2438,6 +2436,19 @@ export default function ExerciciosPage() {
                     />
                     {fieldWarnings.prazo && <small className={warningTextClass}>{fieldWarnings.prazo}</small>}
                   </div>
+                </div>
+
+                <div className={fieldGroupClass}>
+                  <ExerciseAIDraftGenerator
+                    courseId={cursoIdSelecionado}
+                    moduleId={moduloIdSelecionado}
+                    phaseId={faseIdSelecionada}
+                    categoria={categoria}
+                    componentType={componenteInterativo === "multipla" ? "multipla" : "escrita"}
+                    difficulty={aiDifficultyValue}
+                    hasContentToOverwrite={hasAIDraftOverwriteContent}
+                    onApplyDraft={applyAIDraft}
+                  />
                 </div>
 
                 <div className={compactRowClass}>

@@ -841,6 +841,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       }
 
       const exercisePeriodIso = new Date().toISOString();
+      const prazoIso = prazo ? new Date(prazo).toISOString() : new Date().toISOString();
 
       const dados: Record<string, unknown> = {
         titulo: tituloFinal,
@@ -849,7 +850,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
         course_id: courseIdNum,
         modulo: moduloNome,
         tema: faseNome,
-        prazo: prazoObrigatorio && prazo ? new Date(prazo).toISOString() : null,
+        prazo: prazoIso,
         video_url: videoUrlLimpa || null,
         difficulty: dificuldadeNum,
         index_order: ordemFinal,
@@ -957,19 +958,6 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 onChange={(e) => { setDescricao(e.target.value); clearFieldWarning("descricao"); }}
               />
               {fieldWarnings.descricao && <small className={warningTextClass}>{fieldWarnings.descricao}</small>}
-            </div>
-
-            <div className={fieldGroupClass}>
-              <ExerciseAIDraftGenerator
-                courseId={cursoIdSelecionado}
-                moduleId={moduloIdSelecionado}
-                phaseId={faseIdSelecionada}
-                categoria={categoria}
-                componentType={componenteInterativo === "multipla" ? "multipla" : "escrita"}
-                difficulty={aiDifficultyValue}
-                hasContentToOverwrite={hasAIDraftOverwriteContent}
-                onApplyDraft={applyAIDraft}
-              />
             </div>
 
             {/* TIPO DE EXERCICIO - Programacao */}
@@ -1329,10 +1317,23 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
                 <small className={sectionHintClass}>
                   {prazoObrigatorio
                     ? "Obrigatório enquanto o exercício estiver marcado como tarefa diária."
-                    : "Preencha só se este exercício for uma tarefa diária."}
+                    : "Se ficar vazio, a API recebe a data e hora atuais."}
                 </small>
                 {fieldWarnings.prazo && <small className={warningTextClass}>{fieldWarnings.prazo}</small>}
               </div>
+            </div>
+
+            <div className={fieldGroupClass}>
+              <ExerciseAIDraftGenerator
+                courseId={cursoIdSelecionado}
+                moduleId={moduloIdSelecionado}
+                phaseId={faseIdSelecionada}
+                categoria={categoria}
+                componentType={componenteInterativo === "multipla" ? "multipla" : "escrita"}
+                difficulty={aiDifficultyValue}
+                hasContentToOverwrite={hasAIDraftOverwriteContent}
+                onApplyDraft={applyAIDraft}
+              />
             </div>
 
             <div className={compactRowClass}>
