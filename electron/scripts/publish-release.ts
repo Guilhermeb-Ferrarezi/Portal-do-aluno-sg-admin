@@ -1,6 +1,6 @@
 import path from "node:path";
 import { createReadStream, existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import dotenv from "dotenv";
 import {
@@ -15,12 +15,26 @@ type PackageJson = {
   productName?: string;
 };
 
+type PackageLockJson = {
+  version?: string;
+  packages?: Record<string, { version?: string }>;
+};
+
 type ReleaseArtifact = {
   fileName: string;
   objectName?: string;
   filePath: string;
   contentType: string;
   cacheControl: string;
+};
+
+type ReleaseBumpType = "major" | "minor" | "patch";
+
+type ReleaseCliOptions = {
+  bump: ReleaseBumpType | null;
+  explicitVersion: string | null;
+  useCurrentVersion: boolean;
+  dryRun: boolean;
 };
 
 const DEFAULT_UPDATES_PREFIX = "desktop/painel/win";
@@ -30,6 +44,7 @@ const electronRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(electronRoot, "..");
 const releaseDir = path.join(electronRoot, "release");
 const packageJsonPath = path.join(electronRoot, "package.json");
+const packageLockJsonPath = path.join(electronRoot, "package-lock.json");
 
 dotenv.config({ path: path.join(repoRoot, ".env") });
 dotenv.config({ path: path.join(electronRoot, ".env"), override: true });
@@ -125,6 +140,154 @@ async function runCommand(command: string, args: string[], cwd: string) {
 async function readPackageJson() {
   const raw = await readFile(packageJsonPath, "utf8");
   return JSON.parse(raw) as PackageJson;
+}
+
+function parseReleaseCliOptions(argv: string[]): ReleaseCliOptions {
+  let bump: ReleaseBumpType | null = null;
+  let explicitVersion: string | null = null;
+  let useCurrentVersion = false;
+  let dryRun = false;
+
+  for (const argument of argv) {
+    if (!argument.startsWith("--")) {
+      if (explicitVersion) {
+        throw new Error("Informe apenas uma versao explicita por comando.");
+      }
+
+      explicitVersion = argument.trim() || null;
+      continue;
+    }
+
+    if (argument === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+
+    if (argument === "--use-current-version") {
+      useCurrentVersion = true;
+      continue;
+    }
+
+    if (argument.startsWith("--version=")) {
+      if (explicitVersion) {
+        throw new Error("Nao combine argumento posicional com --version.");
+      }
+
+      explicitVersion = argument.slice("--version=".length).trim() || null;
+      continue;
+    }
+
+    if (argument.startsWith("--bump=")) {
+      const bumpValue = argument.slice("--bump=".length).trim();
+      if (bumpValue === "major" || bumpValue === "minor" || bumpValue === "patch") {
+        bump = bumpValue;
+        continue;
+      }
+
+      throw new Error(`Tipo de bump invalido: ${bumpValue}`);
+    }
+  }
+
+  if (explicitVersion && useCurrentVersion) {
+    throw new Error("Use apenas uma estrategia de versao: --version ou --use-current-version.");
+  }
+
+  if (explicitVersion && bump) {
+    throw new Error("Nao combine --version com --bump.");
+  }
+
+  if (useCurrentVersion && bump) {
+    throw new Error("Nao combine --use-current-version com --bump.");
+  }
+
+  return {
+    bump: explicitVersion || useCurrentVersion ? bump : bump ?? "minor",
+    explicitVersion,
+    useCurrentVersion,
+    dryRun,
+  };
+}
+
+function normalizeVersion(version: string) {
+  const cleanedVersion = version.trim();
+  const match = cleanedVersion.match(/^(\d+)\.(\d+)(?:\.(\d+))?$/);
+  if (!match) {
+    throw new Error(
+      `Versao invalida "${version}". Use major.minor.patch ou major.minor.`
+    );
+  }
+
+  const [, majorPart, minorPart, patchPart] = match;
+  return {
+    major: Number(majorPart),
+    minor: Number(minorPart),
+    patch: Number(patchPart ?? "0"),
+    normalized: `${majorPart}.${minorPart}.${patchPart ?? "0"}`,
+  };
+}
+
+function bumpVersion(version: string, bump: ReleaseBumpType) {
+  const parsedVersion = normalizeVersion(version);
+
+  if (bump === "major") {
+    return `${parsedVersion.major + 1}.0.0`;
+  }
+
+  if (bump === "minor") {
+    return `${parsedVersion.major}.${parsedVersion.minor + 1}.0`;
+  }
+
+  return `${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch + 1}`;
+}
+
+function resolveTargetVersion(currentVersion: string, options: ReleaseCliOptions) {
+  if (options.explicitVersion) {
+    return normalizeVersion(options.explicitVersion).normalized;
+  }
+
+  if (options.useCurrentVersion) {
+    return normalizeVersion(currentVersion).normalized;
+  }
+
+  if (!options.bump) {
+    return normalizeVersion(currentVersion).normalized;
+  }
+
+  return bumpVersion(currentVersion, options.bump);
+}
+
+async function updateVersionFiles(targetVersion: string) {
+  const [packageJsonRaw, packageLockRaw] = await Promise.all([
+    readFile(packageJsonPath, "utf8"),
+    readFile(packageLockJsonPath, "utf8"),
+  ]);
+
+  const packageJson = JSON.parse(packageJsonRaw) as PackageJson;
+  const packageLock = JSON.parse(packageLockRaw) as PackageLockJson;
+
+  packageJson.version = targetVersion;
+  packageLock.version = targetVersion;
+
+  if (packageLock.packages?.[""]) {
+    packageLock.packages[""].version = targetVersion;
+  }
+
+  await Promise.all([
+    writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8"),
+    writeFile(packageLockJsonPath, `${JSON.stringify(packageLock, null, 2)}\n`, "utf8"),
+  ]);
+
+  return {
+    packageJsonRaw,
+    packageLockRaw,
+  };
+}
+
+async function restoreVersionFiles(backup: { packageJsonRaw: string; packageLockRaw: string }) {
+  await Promise.all([
+    writeFile(packageJsonPath, backup.packageJsonRaw, "utf8"),
+    writeFile(packageLockJsonPath, backup.packageLockRaw, "utf8"),
+  ]);
 }
 
 async function collectArtifacts(version: string) {
@@ -261,55 +424,97 @@ async function cleanupStaleArtifacts(
 }
 
 async function main() {
-  const packageJson = await readPackageJson();
-  const version = packageJson.version;
-  if (!version) {
+  const cliOptions = parseReleaseCliOptions(process.argv.slice(2));
+  const initialPackageJson = await readPackageJson();
+  const currentVersion = initialPackageJson.version;
+  if (!currentVersion) {
     throw new Error("Versao do package.json nao encontrada.");
   }
 
-  const accountId = resolveRequiredValue("R2_ACCOUNT_ID", "CLOUDFLARE_ACCOUNT_ID");
-  const accessKeyId = resolveRequiredValue("R2_ACCESS_KEY_ID", "CLOUDFLARE_ACCESS_KEY_ID");
-  const secretAccessKey = resolveRequiredValue(
-    "R2_SECRET_ACCESS_KEY",
-    "CLOUDFLARE_SECRET_ACCESS_KEY"
-  );
-  const bucket = resolveRequiredValue("R2_BUCKET", "CLOUDFLARE_BUCKET_NAME");
-  const prefix = normalizePrefix(process.env.DESKTOP_UPDATES_PREFIX?.trim() || DEFAULT_UPDATES_PREFIX);
-  const publicBaseUrl = normalizeBaseUrl(
-    process.env.DESKTOP_UPDATES_PUBLIC_URL?.trim() ||
-      `${resolveRequiredValue("CLOUDFLARE_PUBLIC_URL")}/${prefix}`
-  );
-  const endpoint = normalizeBaseUrl(
-    process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`
-  );
+  const targetVersion = resolveTargetVersion(currentVersion, cliOptions);
 
-  console.log(`Gerando release ${version} de ${packageJson.productName ?? "Electron App"}...`);
-  if (!hasWindowsSigningConfigured()) {
-    console.warn(
-      "Aviso: nenhuma credencial de assinatura Windows foi encontrada. O instalador sera gerado sem assinatura confiavel."
+  if (cliOptions.dryRun) {
+    console.log(`Versao atual: ${normalizeVersion(currentVersion).normalized}`);
+    console.log(`Versao alvo: ${targetVersion}`);
+    console.log(
+      cliOptions.explicitVersion
+        ? "Modo: versao explicita"
+        : cliOptions.useCurrentVersion
+          ? "Modo: manter versao atual"
+          : `Modo: bump ${cliOptions.bump ?? "minor"}`
     );
+    return;
   }
 
-  const npmCommand = "npm";
-  await runCommand(npmCommand, ["run", "dist:win"], electronRoot);
+  let versionFilesBackup: { packageJsonRaw: string; packageLockRaw: string } | null = null;
+  let versionFilesChanged = false;
 
-  const artifacts = await collectArtifacts(version);
-  const s3 = new S3Client({
-    region: "auto",
-    endpoint,
-    forcePathStyle: true,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  });
+  if (normalizeVersion(currentVersion).normalized !== targetVersion) {
+    versionFilesBackup = await updateVersionFiles(targetVersion);
+    versionFilesChanged = true;
+    console.log(`Versao Electron atualizada: ${normalizeVersion(currentVersion).normalized} -> ${targetVersion}`);
+  } else {
+    console.log(`Versao Electron mantida: ${targetVersion}`);
+  }
 
-  await uploadArtifacts(s3, bucket, prefix, publicBaseUrl, artifacts);
-  await cleanupStaleArtifacts(s3, bucket, prefix, artifacts);
+  try {
+    const packageJson = await readPackageJson();
+    const version = packageJson.version;
+    if (!version) {
+      throw new Error("Versao do package.json nao encontrada apos atualizar os arquivos.");
+    }
 
-  console.log("");
-  console.log(`Release ${version} publicada com sucesso.`);
-  console.log(`Feed esperado: ${publicBaseUrl}/latest.yml`);
+    const accountId = resolveRequiredValue("R2_ACCOUNT_ID", "CLOUDFLARE_ACCOUNT_ID");
+    const accessKeyId = resolveRequiredValue("R2_ACCESS_KEY_ID", "CLOUDFLARE_ACCESS_KEY_ID");
+    const secretAccessKey = resolveRequiredValue(
+      "R2_SECRET_ACCESS_KEY",
+      "CLOUDFLARE_SECRET_ACCESS_KEY"
+    );
+    const bucket = resolveRequiredValue("R2_BUCKET", "CLOUDFLARE_BUCKET_NAME");
+    const prefix = normalizePrefix(process.env.DESKTOP_UPDATES_PREFIX?.trim() || DEFAULT_UPDATES_PREFIX);
+    const publicBaseUrl = normalizeBaseUrl(
+      process.env.DESKTOP_UPDATES_PUBLIC_URL?.trim() ||
+        `${resolveRequiredValue("CLOUDFLARE_PUBLIC_URL")}/${prefix}`
+    );
+    const endpoint = normalizeBaseUrl(
+      process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`
+    );
+
+    console.log(`Gerando release ${version} de ${packageJson.productName ?? "Electron App"}...`);
+    if (!hasWindowsSigningConfigured()) {
+      console.warn(
+        "Aviso: nenhuma credencial de assinatura Windows foi encontrada. O instalador sera gerado sem assinatura confiavel."
+      );
+    }
+
+    const npmCommand = "npm";
+    await runCommand(npmCommand, ["run", "dist:win"], electronRoot);
+
+    const artifacts = await collectArtifacts(version);
+    const s3 = new S3Client({
+      region: "auto",
+      endpoint,
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+    });
+
+    await uploadArtifacts(s3, bucket, prefix, publicBaseUrl, artifacts);
+    await cleanupStaleArtifacts(s3, bucket, prefix, artifacts);
+
+    console.log("");
+    console.log(`Release ${version} publicada com sucesso.`);
+    console.log(`Feed esperado: ${publicBaseUrl}/latest.yml`);
+  } catch (error) {
+    if (versionFilesChanged && versionFilesBackup) {
+      await restoreVersionFiles(versionFilesBackup);
+      console.error("Falha na publicacao. Versao do Electron restaurada para o valor anterior.");
+    }
+
+    throw error;
+  }
 }
 
 main().catch((error) => {

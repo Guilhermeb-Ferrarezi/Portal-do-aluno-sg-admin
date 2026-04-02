@@ -1,3 +1,4 @@
+import "./load-env";
 import { Pool, type PoolConfig } from "pg";
 
 const connectionString = process.env.DATABASE_URL;

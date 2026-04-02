@@ -2080,14 +2080,14 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
           >
             <DialogContent
               overlayClassName="z-[10003] bg-slate-950/82 backdrop-blur-sm"
-              className="z-[10004] w-[min(560px,calc(100vw-2rem))] max-w-none gap-3 border-none bg-transparent p-0 shadow-none"
+              className="z-[10004] max-h-[calc(100vh-2rem)] w-[min(560px,calc(100vw-2rem))] max-w-none items-center gap-3 border-none bg-transparent p-0 shadow-none"
               showCloseButton={false}
             >
                 <DialogTitle className="sr-only">Foto de perfil ampliada</DialogTitle>
                 <img
                   src={currentPictureSrc}
                   alt="Foto de perfil ampliada"
-                  className="w-full rounded-[24px] border border-white/15 bg-slate-950 object-contain shadow-2xl shadow-black/40"
+                  className="max-h-[calc(100vh-7rem)] max-w-full rounded-[24px] border border-white/15 bg-slate-950 object-contain shadow-2xl shadow-black/40"
                 />
                 <AnimatedButton
                   className={secondaryButtonClass}

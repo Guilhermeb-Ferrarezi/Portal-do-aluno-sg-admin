@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   GraduationCap,
   X,
@@ -368,13 +369,12 @@ export default function DashboardLayout({
               onClick={() => setProfilePopupOpen((v) => !v)}
               aria-label="Ver perfil"
             >
-              <div className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,rgba(139,92,246,0.95),rgba(168,85,247,0.7))] text-sm font-black text-white shadow-[0_14px_32px_-20px_rgba(139,92,246,0.95)]">
-                {profilePictureUrl ? (
-                  <img src={profilePictureUrl} alt={name} className="size-full object-cover" />
-                ) : (
-                  name.slice(0, 1).toUpperCase()
-                )}
-              </div>
+              <Avatar className="size-11 border border-white/10 bg-[linear-gradient(135deg,rgba(139,92,246,0.95),rgba(168,85,247,0.7))] text-sm font-black text-white shadow-[0_14px_32px_-20px_rgba(139,92,246,0.95)]">
+                {profilePictureUrl ? <AvatarImage src={profilePictureUrl} alt={name} /> : null}
+                <AvatarFallback className="bg-transparent text-sm font-black text-white">
+                  {name.slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
 
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold text-white">{name}</div>

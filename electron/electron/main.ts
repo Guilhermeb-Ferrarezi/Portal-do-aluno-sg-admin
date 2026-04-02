@@ -4,13 +4,14 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import http, { type Server as HttpServer } from "node:http";
 import net from "node:net";
 import dotenv from "dotenv";
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { app, BrowserWindow, shell } from "electron";
 import { createDesktopUpdateService } from "./update-service";
 
 const APP_NAME = "Painel - Portal Santos Tech";
 const APP_ID = "com.santostech.painelportalsantostech.desktop";
+const PRODUCTION_API_ORIGIN = "https://admin-portal.santos-tech.com";
 const appRoot = path.join(__dirname, "..", "..");
 dotenv.config({ path: path.join(appRoot, ".env") });
 app.setName(APP_NAME);
@@ -24,9 +25,15 @@ const winIconPath = path.join(appRoot, "assets", "icon.ico");
 const pngIconPath = path.join(appRoot, "assets", "icon.png");
 const iconPath =
   process.platform === "win32" && existsSync(winIconPath) ? winIconPath : pngIconPath;
+const localApiPort = /^\d+$/.test(process.env.PORT?.trim() ?? "")
+  ? process.env.PORT!.trim()
+  : "3000";
+const LOCAL_API_ORIGIN = `http://127.0.0.1:${localApiPort}`;
+const defaultApiOrigin = app.isPackaged ? PRODUCTION_API_ORIGIN : LOCAL_API_ORIGIN;
 const apiOrigin =
-  process.env.ELECTRON_API_ORIGIN?.trim() || "https://painel-portaldoaluno.santos-tech.com";
+  process.env.ELECTRON_API_ORIGIN?.trim() || defaultApiOrigin;
 const wsOrigin = process.env.ELECTRON_WS_ORIGIN?.trim() || apiOrigin.replace(/^http/i, "ws");
+const shouldUseDevRenderer = process.env.ELECTRON_USE_DEV_SERVER?.trim() === "1";
 
 let rendererServer: HttpServer | null = null;
 let rendererServerUrl: string | null = null;
@@ -134,19 +141,66 @@ async function getAvailablePort(startPort: number) {
   throw new Error("Nao foi possivel reservar uma porta para o renderer local.");
 }
 
+function isExpressResponse(value: unknown): value is Response {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "headersSent" in value &&
+    "status" in value &&
+    "json" in value
+  );
+}
+
+function buildProxyFailureMessage(target: string) {
+  if (app.isPackaged) {
+    return `Falha ao conectar ao backend configurado (${target}). Verifique a disponibilidade do servidor.`;
+  }
+
+  return `Falha ao conectar ao backend local (${target}). Inicie a API do Portal do Aluno e tente novamente.`;
+}
+
+function createProxyErrorHandler(scope: "api" | "ws", target: string) {
+  return (error: Error, req: Request, res: Response | net.Socket) => {
+    writeLog(
+      `Falha no proxy ${scope.toUpperCase()}. target=${target} url=${req.originalUrl || req.url} erro=${error.message}`
+    );
+
+    if (!isExpressResponse(res) || res.headersSent) {
+      return;
+    }
+
+    const message = buildProxyFailureMessage(target);
+    res.status(502).json({
+      message,
+      scope,
+      target,
+    });
+  };
+}
+
 function createRendererApp() {
   const serverApp: Express = express();
-  const apiProxy = createProxyMiddleware({
+  const apiProxy = createProxyMiddleware<Request, Response>({
     target: apiOrigin,
     changeOrigin: true,
     ws: true,
+    proxyTimeout: 15000,
+    timeout: 15000,
     pathRewrite: (pathValue) => `/api${pathValue}`,
+    on: {
+      error: createProxyErrorHandler("api", apiOrigin),
+    },
   });
-  const wsProxy = createProxyMiddleware({
+  const wsProxy = createProxyMiddleware<Request, Response>({
     target: wsOrigin,
     changeOrigin: true,
     ws: true,
+    proxyTimeout: 15000,
+    timeout: 15000,
     pathRewrite: (pathValue) => `/api/ws${pathValue}`,
+    on: {
+      error: createProxyErrorHandler("ws", wsOrigin),
+    },
   });
 
   serverApp.disable("x-powered-by");
@@ -192,7 +246,7 @@ async function startBundledRendererServer() {
 }
 
 async function loadRenderer(mainWindow: BrowserWindow) {
-  if (!app.isPackaged) {
+  if (!app.isPackaged && shouldUseDevRenderer) {
     try {
       await mainWindow.loadURL(devRendererUrl);
       writeLog(`Renderer de desenvolvimento carregado em ${devRendererUrl}`);
@@ -217,7 +271,9 @@ function stopRendererServer() {
 
 app.whenReady().then(async () => {
   writeLog(
-    `App pronta. packaged=${String(app.isPackaged)} apiOrigin=${apiOrigin} wsOrigin=${wsOrigin}`
+    `App pronta. packaged=${String(app.isPackaged)} devRenderer=${String(
+      shouldUseDevRenderer
+    )} apiOrigin=${apiOrigin} wsOrigin=${wsOrigin}`
   );
   try {
     const mainWindow = createMainWindow();

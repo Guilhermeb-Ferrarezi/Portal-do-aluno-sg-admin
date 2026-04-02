@@ -10,6 +10,7 @@ import {
   getCoverZoom,
 } from "../utils/coverPosition";
 import { cn } from "../lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type ProfilePopupProps = {
   name: string;
@@ -174,13 +175,14 @@ export default function ProfilePopup({
 
         <div className="-mt-8 flex items-end gap-3 px-4">
           <div className="relative">
-            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-slate-900 bg-primary text-2xl font-black text-white">
+            <Avatar className="size-16 border-4 border-slate-900 bg-primary text-2xl font-black text-white">
               {effectiveProfilePicture ? (
-                <img src={effectiveProfilePicture} alt={name} className="size-full object-cover" />
-              ) : (
-                name.slice(0, 1).toUpperCase()
-              )}
-            </div>
+                <AvatarImage src={effectiveProfilePicture} alt={name} />
+              ) : null}
+              <AvatarFallback className="bg-transparent text-2xl font-black text-white">
+                {name.slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <div className="absolute bottom-1 right-0 size-4 rounded-full border-[3px] border-slate-900 bg-emerald-500" />
           </div>
         </div>
