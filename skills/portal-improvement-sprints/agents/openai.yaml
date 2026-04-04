@@ -1,0 +1,7 @@
+interface:
+  display_name: "Portal Improvement Sprints"
+  short_description: "Planeja sprints e backlog do portal"
+  default_prompt: "Use $portal-improvement-sprints para organizar melhorias do portal em sprints com checklist e progresso."
+
+policy:
+  allow_implicit_invocation: true

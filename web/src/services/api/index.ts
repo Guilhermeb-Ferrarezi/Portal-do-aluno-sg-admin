@@ -1,0 +1,159 @@
+export { API_BASE_URL, apiFetch } from "./core";
+export type { UserRef, PaginationMeta, PaginatedItemsResponse } from "./core";
+
+export { login, logoutWithServer, createPresenceSocketTicket } from "./auth";
+
+export type {
+  Exercicio,
+  TipoExercicio,
+  ExerciseMultipleChoiceOption,
+  ExerciseMultipleChoiceQuestion,
+  ExerciseAIDraft,
+  Submissao,
+  ExerciseAnswerItem,
+  ExerciseAnswersByStudent,
+  ExerciseAnswersResponse,
+  ExerciseAnswerStudent,
+  AnsweredExerciseByStudent,
+} from "./exercicios";
+export {
+  listarExercicios,
+  listarTarefasDiarias,
+  obterExercicio,
+  gerarRascunhoExercicioIA,
+  criarExercicio,
+  atualizarExercicio,
+  anexarExercicioArquivo,
+  removerExercicioArquivo,
+  deletarExercicio,
+  enviarSubmissao,
+  enviarSubmissaoComArquivo,
+  minhasSubmissoes,
+  todasMinhasSubmissoes,
+  listarSubmissoesExercicio,
+  listarAnswersExercicio,
+  listarAlunosQueResponderam,
+  listarAlunosQueResponderamPaginado,
+  listarExerciciosRespondidosPorAluno,
+  atualizarAnswer,
+  atualizarAnswersEmLote,
+  corrigirSubmissao,
+  reordenarExercicio,
+} from "./exercicios";
+
+export type {
+  Turma,
+  TurmaAlunoPhaseStatus,
+  TurmaAluno,
+  ClassRoomStatus,
+  ClassRoomExercise,
+  ClassRoom,
+  ClassRoomAvailableExercise,
+  CronogramaSemana,
+} from "./turmas";
+export {
+  listarTurmas,
+  obterTurmasResponsavel,
+  obterTotalTurmas,
+  obterContagemAlunosDashboard,
+  obterTurma,
+  criarTurma,
+  atualizarTurma,
+  deletarTurma,
+  adicionarAlunosNaTurma,
+  removerAlunoDaTurma,
+  iniciarFasesNaTurma,
+  atribuirExerciciosNaTurma,
+  removerExercicioDaTurma,
+  configurarCronograma,
+  obterCronograma,
+  listarSalasDaTurma,
+  listarExerciciosDisponiveisSala,
+  criarSalaDaTurma,
+  atualizarSalaDaTurma,
+  atualizarStatusSalaDaTurma,
+  deletarSalaDaTurma,
+} from "./turmas";
+
+export type { User, UserMe } from "./users";
+export {
+  obterUsuarioAtual,
+  atualizarMeuPerfil,
+  uploadMinhaFotoPerfil,
+  uploadMeuBannerPerfil,
+  alterarMinhaSenha,
+  listarProfessores,
+  listarAlunos,
+  listarAdmins,
+  listarUsuariosPaginado,
+  atualizarUsuario,
+  deletarUsuario,
+  getRole,
+} from "./users";
+
+export type { Material } from "./materiais";
+export {
+  listarMateriais,
+  obterMaterial,
+  criarMaterial,
+  atualizarMaterial,
+  deletarMaterial,
+  atribuirMaterialTurmas,
+  removerMaterialDaTurma,
+} from "./materiais";
+
+export type { Videoaula } from "./videoaulas";
+export {
+  listarVideoaulas,
+  obterVideoaula,
+  criarVideoaula,
+  atualizarVideoaula,
+  deletarVideoaula,
+  atribuirVideoaulaTurmas,
+  removerVideoaulaDaTurma,
+} from "./videoaulas";
+
+export type {
+  Modulo,
+  Curso,
+  Fase,
+  ExercicioFase,
+  ContainerGroup,
+  ContainerExerciseInfo,
+} from "./estrutura";
+export {
+  listarModulos,
+  obterEstruturaStats,
+  listarCursos,
+  criarCurso,
+  deletarCurso,
+  listarModulosPorCurso,
+  criarModulo,
+  deletarModulo,
+  reordenarModulo,
+  listarFasesDoModulo,
+  criarFase,
+  deletarFase,
+  reordenarFase,
+  listarExerciciosPorFase,
+  listarContainersPorFase,
+  criarContainer,
+  deletarContainerGroup,
+  adicionarExerciciosAoContainer,
+  removerExercicioDoContainer,
+} from "./estrutura";
+
+export type { Badge, BadgeHolder } from "./badges";
+export {
+  listarBadges,
+  criarBadge,
+  atualizarBadge,
+  deletarBadge,
+  listarBadgeHolders,
+  atualizarBadgeDoUsuario,
+  atribuirBadgeAoUsuario,
+  removerBadgeDoUsuario,
+} from "./badges";
+
+export type { ActivityLog } from "./activityLogs";
+export { listarActivityLogs } from "./activityLogs";

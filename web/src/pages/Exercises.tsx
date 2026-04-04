@@ -53,10 +53,8 @@ import {
   listarExerciciosRespondidosPorAluno,
   listarAnswersExercicio,
   getRole,
-  type AnsweredExerciseByStudent,
   type Exercicio,
   type ExerciseAIDraft,
-  type ExerciseAnswerStudent,
   type Curso,
   type Fase,
   type Modulo,
@@ -64,6 +62,78 @@ import {
   type User,
 } from "../services/api";
 import { useToastActions } from "../contexts/ToastContext";
+import {
+  normalizeListPayload,
+  inferCategoriaFromCourseName,
+  getTipoInfo,
+  getAlunoIds,
+  getAlunoNames,
+  formatAlunoLabel,
+  formatIsoToDateTimeLocal,
+  createDefaultMultipleChoiceQuestion,
+  parseDifficultyValue,
+  buildMultiplaRegrasValue,
+  getMultiplaQuestoesFromRegras,
+  getExerciseEditorComponentType,
+  mapDraftMultiplaQuestoes,
+  collectRequiredFieldWarnings,
+  mapAnswerStudentsToOptions,
+  mapAnsweredExercisesToOptions,
+  getRespostasDiretasKey,
+  getRespostaDiretaValue,
+  getRespostaDiretaLabel,
+  parseRespostaDiretaNavState,
+} from "./exercises/helpers";
+import {
+  pageContainerClass,
+  panelClass,
+  subtlePanelClass,
+  sectionTitleClass,
+  helperTextClass,
+  fieldGroupClass,
+  fieldLabelClass,
+  fieldInputClass,
+  fieldTextareaClass,
+  fieldSelectClass,
+  warningControlClass,
+  warningTextClass,
+  rowClass,
+  compactRowClass,
+  radioRowClass,
+  secondaryButtonClass,
+  primaryButtonClass,
+  fieldWarnWrapClass,
+  toggleGroupClass,
+  toggleOptionClass,
+  toggleDotClass,
+  toggleDotInnerClass,
+  courseSelectedClass,
+  statusToggleClass,
+  responseCardClass,
+  responseBadgeClass,
+  loadingStateClass,
+  spinnerClass,
+  emptyStateClass,
+  emptyIconClass,
+  emptyTitleClass,
+  exerciseCardClass,
+  exerciseTypePillClass,
+  accessBadgeClass,
+  turmaBadgeClass,
+  modalBodyClass,
+  modalFooterGhostButtonClass,
+  modalFooterPrimaryButtonClass,
+} from "./exercises/styles";
+import type {
+  CategoriaExercicio,
+  RequiredFieldKey,
+  InfoOverlayKey,
+  ExerciseListViewItem,
+  ExercisesVirtualWindow,
+  RespostasAlunoOption,
+  RespostasExercicioOption,
+  RespostaDiretaOption,
+} from "./exercises/types";
 
 
 export default function ExerciciosPage() {
@@ -80,197 +150,6 @@ export default function ExerciciosPage() {
       <span>{label}</span>
     </span>
   );
-  const pageContainerClass = "flex flex-col gap-5";
-  const panelClass =
-    "rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.12)] sm:p-6";
-  const subtlePanelClass = "rounded-[24px] border border-border/70 bg-muted/20 p-4";
-  const sectionTitleClass = "text-2xl font-black tracking-[-0.03em] text-foreground sm:text-[1.9rem]";
-  const helperTextClass = "text-xs leading-5 text-muted-foreground";
-  const fieldGroupClass = "flex flex-col gap-2";
-  const fieldLabelClass = "text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground";
-  const fieldInputClass =
-    "h-11 w-full rounded-2xl border border-border/70 bg-background/80 px-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-3 focus:ring-ring/30";
-  const fieldTextareaClass = cn(fieldInputClass, "h-auto min-h-28 py-3 leading-6");
-  const fieldSelectClass = cn(fieldInputClass, "appearance-none pr-10");
-  const warningControlClass = "border-amber-300/80 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10";
-  const warningTextClass = "text-xs font-medium text-amber-700 dark:text-amber-300";
-  const rowClass = "grid gap-4 xl:grid-cols-3";
-  const compactRowClass = "grid gap-4 md:grid-cols-2";
-  const radioRowClass = "mt-2 flex flex-wrap gap-3";
-  const secondaryButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
-  const primaryButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
-  const fieldWarnWrapClass = (warning = false) =>
-    cn(
-      "rounded-[24px] transition",
-      warning && "rounded-[24px] border border-amber-300/80 bg-amber-50/60 p-2 dark:border-amber-500/30 dark:bg-amber-500/10"
-    );
-  const toggleGroupClass = (warning = false) =>
-    cn(
-      "grid gap-2 rounded-[24px] border border-border/70 bg-muted/25 p-3",
-      warning && "border-amber-300/80 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10"
-    );
-  const toggleOptionClass = (active: boolean) =>
-    cn(
-      "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition",
-      active
-        ? "border-primary/45 bg-primary/10 text-foreground shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.12)]"
-        : "border-border/70 bg-background/75 text-muted-foreground hover:border-primary/30 hover:bg-accent hover:text-foreground"
-    );
-  const toggleDotClass = (active: boolean) =>
-    cn(
-      "inline-flex size-4 shrink-0 items-center justify-center rounded-full border transition",
-      active
-        ? "border-primary/60 bg-primary/10 shadow-[0_0_0_4px_rgba(var(--primary-rgb),0.12)]"
-        : "border-border/70 bg-background/80"
-    );
-  const toggleDotInnerClass = (active: boolean) =>
-    cn("size-2 rounded-full transition", active ? "bg-primary" : "bg-transparent");
-  const courseSelectedClass = (hasSelection: boolean) =>
-    cn(
-      "grid gap-1 rounded-2xl border px-4 py-3",
-      hasSelection
-        ? "border-emerald-300/70 bg-emerald-50/60 dark:border-emerald-500/25 dark:bg-emerald-500/10"
-        : "border-border/70 bg-muted/35"
-    );
-  const statusToggleClass = (active: boolean) =>
-    cn(
-      "flex h-full cursor-pointer items-start gap-3 rounded-[24px] border px-4 py-4 text-left transition",
-      active
-        ? "border-primary/45 bg-primary/10"
-        : "border-border/70 bg-background/80 hover:border-primary/30 hover:bg-accent/60"
-    );
-  const responseCardClass =
-    "rounded-[24px] border border-sky-500/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.52))] transition hover:border-sky-400/35 hover:shadow-[0_14px_34px_rgba(2,6,23,0.22)]";
-  const responseBadgeClass =
-    "inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs font-semibold text-muted-foreground";
-  const loadingStateClass =
-    "flex min-h-36 flex-col items-center justify-center gap-3 rounded-[24px] border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-sm text-muted-foreground";
-  const spinnerClass =
-    "size-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary";
-  const emptyStateClass =
-    "flex min-h-40 flex-col items-center justify-center gap-3 rounded-[28px] border border-dashed border-border/70 bg-muted/20 px-6 py-10 text-center";
-  const emptyIconClass =
-    "inline-flex size-12 items-center justify-center rounded-2xl border border-border/70 bg-background/80 text-muted-foreground";
-  const emptyTitleClass = "text-lg font-semibold text-foreground";
-  const exerciseCardClass = (canEditCard: boolean) =>
-    cn(
-      "grid gap-5 rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.12)] transition focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30 sm:p-6",
-      canEditCard && "cursor-pointer hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_20px_40px_rgba(0,0,0,0.16)]"
-    );
-  const exercisePillClass = "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold";
-  const exerciseTypePillClass = (kind: string) =>
-    cn(
-      exercisePillClass,
-      kind === "isCodigo" && "border-violet-500/30 bg-violet-500/10 text-violet-200",
-      kind === "isEscrita" && "border-rose-500/30 bg-rose-500/10 text-rose-200",
-      kind === "isMouse" && "border-sky-500/30 bg-sky-500/10 text-sky-200",
-      kind === "isMultipla" && "border-amber-500/30 bg-amber-500/10 text-amber-200",
-      kind === "isAtalho" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-      kind === "isDefault" && "border-border/70 bg-background/75 text-muted-foreground"
-    );
-  const accessBadgeClass = (tone: "aluno" | "turmas" | "all") =>
-    cn(
-      exercisePillClass,
-      tone === "aluno" && "border-primary/30 bg-primary/10 text-primary",
-      tone === "turmas" && "border-sky-500/30 bg-sky-500/10 text-sky-200",
-      tone === "all" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-    );
-  const turmaBadgeClass = (tipo: string) =>
-    cn(
-      "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium",
-      tipo === "turma"
-        ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200"
-        : "border-orange-500/30 bg-orange-500/10 text-orange-200"
-    );
-  const modalBodyClass = "flex flex-col gap-4";
-  const modalFooterButtonClass =
-    "inline-flex min-w-[9rem] items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50";
-  const modalFooterGhostButtonClass = cn(
-    modalFooterButtonClass,
-    "border border-border/70 bg-background/80 text-foreground hover:bg-muted"
-  );
-  const modalFooterPrimaryButtonClass = cn(
-    modalFooterButtonClass,
-    "bg-primary text-primary-foreground hover:bg-primary/90"
-  );
-
-  type RespostasAlunoOption = {
-    id: string;
-    nome: string;
-    email: string;
-    totalRespostas: number;
-    totalExercicios: number;
-    lastAnsweredAt: string | null;
-  };
-
-  type RespostasExercicioOption = {
-    id: string;
-    titulo: string;
-    modulo: string | null;
-    tema: string | null;
-    totalRespostas: number;
-    lastAnsweredAt: string | null;
-  };
-
-  type RespostaDiretaOption = {
-    answerId: number;
-    questionId: number;
-    answeredAt: string | null;
-    isCorrect: boolean | null;
-  };
-
-  type CategoriaExercicio = "programacao" | "informatica";
-  type RequiredFieldKey = "titulo" | "descricao" | "curso" | "modulo" | "fase" | "prazo" | "multipla" | "ordem";
-  type InfoOverlayKey = "dificuldade" | "ordem";
-  type ExerciseListViewItem = {
-    ex: Exercicio;
-    alunoIds: string[];
-    hasAlunoAssignment: boolean;
-    turmaIds: string[];
-    publishedAtMs: number | null;
-    prazoMs: number | null;
-  };
-  type ExercisesVirtualWindow = {
-    visibleItems: ExerciseListViewItem[];
-    topSpacerHeight: number;
-    bottomSpacerHeight: number;
-  };
-
-  function normalizeListPayload<T>(payload: T[] | { items?: T[] } | null | undefined): T[] {
-    if (Array.isArray(payload)) return payload;
-    if (payload && Array.isArray((payload as { items?: T[] }).items)) {
-      return (payload as { items: T[] }).items;
-    }
-    return [];
-  }
-
-  function inferCategoriaFromCourseName(courseName: string | null | undefined): CategoriaExercicio {
-    const normalized = (courseName ?? "").toLowerCase();
-    if (normalized.includes("inform") || normalized.includes("excel") || normalized.includes("office")) {
-      return "informatica";
-    }
-    return "programacao";
-  }
-
-  function getTipoInfo(ex: Exercicio): { label: string; className: string } {
-    switch (ex.tipoExercicio) {
-      case "codigo":
-        return { label: "Codigo", className: "isCodigo" };
-      case "texto":
-      case "escrita":
-        return { label: "Escrita", className: "isEscrita" };
-      case "mouse":
-        return { label: "Mouse", className: "isMouse" };
-      case "multipla":
-        return { label: "Multipla", className: "isMultipla" };
-      case "atalho":
-        return { label: "Atalho", className: "isAtalho" };
-      default:
-        return { label: "Exercicio", className: "isDefault" };
-    }
-  }
 
   const [items, setItems] = React.useState<Exercicio[]>([]);
   const [dailyItems, setDailyItems] = React.useState<Exercicio[]>([]);
@@ -305,7 +184,7 @@ export default function ExerciciosPage() {
     pergunta: string;
     opcoes: Array<{ letter: string; text: string }>;
     respostaCorreta: string;
-  }>>(() => getDefaultMultiplaQuestoes());
+  }>>(() => [createDefaultMultipleChoiceQuestion()]);
 
   function updateCreateMultiplaQuestaoOpcao(qIndex: number, oIndex: number, value: string) {
     setMultiplaQuestoes((prev) =>
@@ -520,148 +399,6 @@ export default function ExerciciosPage() {
     });
   }
 
-  function collectRequiredFieldWarnings(params: {
-    tituloFinal: string;
-    descricaoFinal: string;
-    moduloNome: string;
-    phaseIdNum: number;
-    courseIdNum: number;
-  }) {
-    const warnings: Partial<Record<RequiredFieldKey, string>> = {};
-    const isInteractiveComponentInformatica = categoria === "informatica" && componenteInterativo !== "";
-
-    if (!isInteractiveComponentInformatica && params.tituloFinal.length < 2) {
-      warnings.titulo = "Titulo obrigatorio (minimo 2 caracteres).";
-    }
-    if (!isInteractiveComponentInformatica && params.descricaoFinal.length < 2) {
-      warnings.descricao = "Descricao obrigatoria (minimo 2 caracteres).";
-    }
-    if (!Number.isFinite(params.courseIdNum) || params.courseIdNum <= 0) {
-      warnings.curso = "Selecione um curso.";
-    }
-    if (!params.moduloNome) {
-      warnings.modulo = "Selecione um modulo.";
-    }
-    if (!Number.isFinite(params.phaseIdNum) || params.phaseIdNum <= 0) {
-      warnings.fase = "Selecione uma fase.";
-    }
-    if (!prazo) {
-      warnings.prazo = "Prazo obrigatorio.";
-    }
-    if (
-      componenteInterativo === "multipla" &&
-      multiplaQuestoes.some((q) => !q.respostaCorreta || q.opcoes.some((o) => !o.text))
-    ) {
-      warnings.multipla = "Complete todas as opcoes e a resposta correta.";
-    }
-
-    return warnings;
-  }
-
-  function toDatetimeLocal(value: string | null | undefined) {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  }
-
-  function getDefaultMultiplaQuestoes() {
-    return [{
-      pergunta: "",
-      opcoes: [
-        { letter: "A", text: "" },
-        { letter: "B", text: "" },
-        { letter: "C", text: "" },
-        { letter: "D", text: "" }
-      ],
-      respostaCorreta: ""
-    }];
-  }
-
-  function parseDifficultyValue(value: string) {
-    const normalized = value.trim();
-    if (!normalized) return null;
-
-    const legacyMap: Record<string, number> = {
-      normal: 1,
-      lower: 2,
-      prova_semanal: 3,
-    };
-
-    const mapped = legacyMap[normalized] ?? Number(normalized);
-    if (!Number.isInteger(mapped) || mapped < 1) return null;
-    return mapped;
-  }
-
-  function buildMultiplaQuestoesPayload(
-    questoes: Array<{ pergunta: string; opcoes: Array<{ letter: string; text: string }>; respostaCorreta: string }>,
-    perguntaBase: string
-  ) {
-    const fallbackPergunta = perguntaBase.trim();
-    return questoes.map((questao, index) => ({
-      ...questao,
-      pergunta: fallbackPergunta || `Questão ${index + 1}`,
-    }));
-  }
-
-  function buildMultiplaRegrasValue(
-    questoes: Array<{ pergunta: string; opcoes: Array<{ letter: string; text: string }>; respostaCorreta: string }>,
-    perguntaBase: string
-  ) {
-    return JSON.stringify({ questoes: buildMultiplaQuestoesPayload(questoes, perguntaBase) });
-  }
-
-  function getMultiplaQuestoesFromRegras(rawRegras: string | null | undefined) {
-    if (!rawRegras) {
-      return getDefaultMultiplaQuestoes();
-    }
-
-    try {
-      const regras = JSON.parse(rawRegras);
-      const questoes = Array.isArray(regras?.questoes)
-        ? regras.questoes
-        : Array.isArray(regras?.Questoes)
-          ? regras.Questoes
-          : [];
-      return questoes.length > 0 ? questoes : getDefaultMultiplaQuestoes();
-    } catch {
-      return getDefaultMultiplaQuestoes();
-    }
-  }
-
-  function getExerciseEditorComponentType(exercicio: Exercicio): "escrita" | "multipla" {
-    if (exercicio.tipoExercicio === "multipla") {
-      return "multipla";
-    }
-    if (exercicio.tipoExercicio === "escrita" || exercicio.tipoExercicio === "texto") {
-      return "escrita";
-    }
-    if (Boolean(exercicio.multipla_regras)) {
-      return "multipla";
-    }
-    return "escrita";
-  }
-
-  function mapDraftMultiplaQuestoes(draft: ExerciseAIDraft) {
-    if (draft.multiplaQuestoes.length === 0) {
-      return getDefaultMultiplaQuestoes();
-    }
-
-    return draft.multiplaQuestoes.map((questao) => ({
-      pergunta: questao.pergunta ?? "",
-      opcoes: questao.opcoes.map((opcao) => ({
-        letter: opcao.letter,
-        text: opcao.text,
-      })),
-      respostaCorreta: questao.respostaCorreta ?? "",
-    }));
-  }
-
   function applyAIDraft(
     draft: ExerciseAIDraft,
     nextComponentType: "escrita" | "multipla" = componenteInterativo === "multipla" ? "multipla" : "escrita"
@@ -685,7 +422,7 @@ export default function ExerciciosPage() {
     }
 
     if (componenteInterativo === "multipla") {
-      setMultiplaQuestoes(getDefaultMultiplaQuestoes());
+      setMultiplaQuestoes([createDefaultMultipleChoiceQuestion()]);
     }
   }
 
@@ -707,47 +444,13 @@ export default function ExerciciosPage() {
     setIsDailyTask(false);
     setCategoria("programacao");
     setComponenteInterativo("escrita");
-    setMultiplaQuestoes(getDefaultMultiplaQuestoes());
+    setMultiplaQuestoes([createDefaultMultipleChoiceQuestion()]);
 
     if (params?.clearAttachments) {
       setAnexosAtivo(false);
       setAnexoArquivo(null);
       setAnexoAtual(null);
     }
-  }
-
-  function getAlunoIds(exercicio: Exercicio): string[] {
-    const alunos = Array.isArray((exercicio as any).alunos)
-      ? (exercicio as any).alunos.map((a: any) => a?.id).filter(Boolean)
-      : [];
-    const idsSnake = Array.isArray((exercicio as any).aluno_ids)
-      ? (exercicio as any).aluno_ids
-      : [];
-    const idsCamel = Array.isArray((exercicio as any).alunoIds)
-      ? (exercicio as any).alunoIds
-      : [];
-    return Array.from(new Set([...alunos, ...idsSnake, ...idsCamel]));
-  }
-
-  function getAlunoNames(exercicio: Exercicio): string[] {
-    const alunos = Array.isArray((exercicio as any).alunos)
-      ? (exercicio as any).alunos
-        .map((a: any) => a?.nome || a?.usuario || a?.id)
-        .filter(Boolean)
-      : [];
-    if (alunos.length > 0) return alunos as string[];
-
-    const ids = getAlunoIds(exercicio);
-    return ids
-      .map((id) => alunoNameById.get(id))
-      .filter((nome): nome is string => !!nome);
-  }
-
-  function formatAlunoLabel(names: string[]) {
-    if (names.length === 0) return "Aluno especifico";
-    if (names.length === 1) return `Para: ${names[0]}`;
-    if (names.length === 2) return `Para: ${names.join(", ")}`;
-    return `Para: ${names[0]} +${names.length - 1}`;
   }
 
   async function ensureCreateDependenciesLoaded(force = false) {
@@ -838,30 +541,16 @@ export default function ExerciciosPage() {
     }
   }
 
-  function getRespostasDiretasKey(alunoId: string, exercicioId: string) {
-    return `${alunoId}:${exercicioId}`;
-  }
-
-  function getRespostaDiretaValue(resposta: RespostaDiretaOption) {
-    return `${resposta.answerId}:${resposta.questionId}`;
-  }
-
-  function getRespostaDiretaLabel(resposta: RespostaDiretaOption) {
-    return `Resposta #${resposta.answerId} - Pergunta ${resposta.questionId} - ${resposta.answeredAt ? new Date(resposta.answeredAt).toLocaleDateString("pt-BR") : "Sem data"}`;
-  }
-
   function navegarParaRespostaDireta(exercicioId: string, alunoId: string, value: string) {
     if (!value) return;
-    const [answerIdRaw, questionIdRaw] = value.split(":");
-    const answerId = Number(answerIdRaw);
-    const questionId = Number(questionIdRaw);
+    const { answerId, questionId } = parseRespostaDiretaNavState(value);
     navigate(`/dashboard/exercicios/${exercicioId}`, {
       state: {
         from: location.pathname,
         fromSection: "respostas",
         prefilterAlunoId: alunoId,
-        prefilterAnswerId: Number.isFinite(answerId) ? answerId : null,
-        prefilterQuestionId: Number.isFinite(questionId) ? questionId : null,
+        prefilterAnswerId: answerId,
+        prefilterQuestionId: questionId,
       },
     });
   }
@@ -900,7 +589,7 @@ export default function ExerciciosPage() {
     pergunta: string;
     opcoes: Array<{ letter: string; text: string }>;
     respostaCorreta: string;
-  }>>(() => getDefaultMultiplaQuestoes());
+  }>>(() => [createDefaultMultipleChoiceQuestion()]);
   const [editAttrSaving, setEditAttrSaving] = React.useState(false);
   const [editAttrErro, setEditAttrErro] = React.useState<string | null>(null);
 
@@ -971,28 +660,6 @@ export default function ExerciciosPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  function mapAnswerStudentsToOptions(alunos: ExerciseAnswerStudent[]): RespostasAlunoOption[] {
-    return alunos.map((aluno) => ({
-      id: String(aluno.alunoId),
-      nome: aluno.alunoNome,
-      email: aluno.alunoEmail ?? "",
-      totalRespostas: aluno.totalAnswers ?? 0,
-      totalExercicios: aluno.totalExercicios ?? 0,
-      lastAnsweredAt: aluno.lastAnsweredAt ?? null,
-    }));
-  }
-
-  function mapAnsweredExercisesToOptions(exercicios: AnsweredExerciseByStudent[]): RespostasExercicioOption[] {
-    return exercicios.map((exercicio) => ({
-      id: String(exercicio.exercicioId),
-      titulo: exercicio.exercicioTitulo,
-      modulo: exercicio.exercicioModulo ?? null,
-      tema: exercicio.exercicioTema ?? null,
-      totalRespostas: exercicio.totalAnswers ?? 0,
-      lastAnsweredAt: exercicio.lastAnsweredAt ?? null,
-    }));
   }
 
   async function loadRespostasAlunos() {
@@ -1295,6 +962,10 @@ export default function ExerciciosPage() {
         moduloNome,
         phaseIdNum,
         courseIdNum,
+        prazo,
+        categoria,
+        componenteInterativo,
+        multiplaQuestoes,
       });
 
       if (Object.keys(requiredWarnings).length > 0) {
@@ -1379,6 +1050,10 @@ export default function ExerciciosPage() {
           moduloNome: moduloSelecionado?.nome?.trim() ?? "",
           phaseIdNum: Number(faseIdSelecionada),
           courseIdNum: Number(cursoIdSelecionado),
+          prazo,
+          categoria,
+          componenteInterativo,
+          multiplaQuestoes,
         });
         if (Object.keys(warnings).length > 0) {
           setFieldWarnings(warnings);
@@ -1452,12 +1127,12 @@ export default function ExerciciosPage() {
   function abrirModalEditarAtributos(exercicio: Exercicio) {
     setEditAttrTitulo(exercicio.titulo);
     setEditAttrDescricao(exercicio.descricao);
-    setEditAttrPrazo(toDatetimeLocal(exercicio.prazo));
+    setEditAttrPrazo(formatIsoToDateTimeLocal(exercicio.prazo));
     setEditAttrVideoUrl(exercicio.videoUrl ?? "");
     setEditAttrDifficulty(exercicio.difficulty !== null && exercicio.difficulty !== undefined ? String(exercicio.difficulty) : "");
     setEditAttrIndexOrder(exercicio.indexOrder !== null && exercicio.indexOrder !== undefined ? String(exercicio.indexOrder) : "");
     setEditAttrPointsRedeem(exercicio.pointsRedeem !== null && exercicio.pointsRedeem !== undefined ? String(exercicio.pointsRedeem) : "");
-    setEditAttrExercisePeriod(toDatetimeLocal(exercicio.exercisePeriod));
+    setEditAttrExercisePeriod(formatIsoToDateTimeLocal(exercicio.exercisePeriod));
     setEditAttrIsFinalExercise(exercicio.isFinalExercise === true);
     setEditAttrIsDailyTask(exercicio.isDailyTask === true);
 
@@ -1468,7 +1143,7 @@ export default function ExerciciosPage() {
       setEditAttrMultiplaQuestoes(getMultiplaQuestoesFromRegras(exercicio.multipla_regras));
     } else {
       setEditAttrComponenteInterativo("escrita");
-      setEditAttrMultiplaQuestoes(getDefaultMultiplaQuestoes());
+      setEditAttrMultiplaQuestoes([createDefaultMultipleChoiceQuestion()]);
     }
 
     setEditAttrErro(null);
@@ -3055,7 +2730,7 @@ export default function ExerciciosPage() {
                           <div className="grid gap-4 xl:grid-cols-2" ref={exercisesListGridRef}>
                             {visibleExercises.map((item, visibleIndex) => {
                             const { ex, alunoIds, hasAlunoAssignment, publishedAtMs, prazoMs } = item;
-                            const alunoNames = hasAlunoAssignment ? getAlunoNames(ex) : [];
+                            const alunoNames = hasAlunoAssignment ? getAlunoNames(ex, alunoNameById) : [];
                             const showParaMim = !isStaff && !!userId && alunoIds.includes(userId);
                             const alunoLabel = showParaMim ? "Para mim" : formatAlunoLabel(alunoNames);
                             const alunoTitle = showParaMim
