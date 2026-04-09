@@ -31,6 +31,9 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.string().optional(),
   ALLOWED_ORIGINS: z.string().optional(),
   IA_SG_ALLOWED_ORIGINS: z.string().optional(),
+  SSO_HOME_API_URL: z.string().url().optional(),
+  SSO_SHARED_SECRET: z.string().min(32).optional(),
+  SSO_PROJECT_ID: z.string().min(1).optional(),
 });
 
 function resolveJwtExpiresIn(env: z.infer<typeof envSchema>) {
@@ -63,9 +66,9 @@ function resolveAllowedOrigins(env: z.infer<typeof envSchema>) {
       env.CORS_ORIGIN,
       env.ALLOWED_ORIGINS,
       env.IA_SG_ALLOWED_ORIGINS,
-      "http://localhost:5173,https://painel-portaldoaluno.santos-tech.com",
+      "http://localhost:5173,https://painel-portaldoaluno.santos-tech.com,https://admin-portal.santos-tech.com,https://portaldoaluno.santos-tech.com",
     ].find((value) => typeof value === "string" && value.trim().length > 0) ??
-    "http://localhost:5173,https://painel-portaldoaluno.santos-tech.com";
+    "http://localhost:5173,https://painel-portaldoaluno.santos-tech.com,https://admin-portal.santos-tech.com,https://portaldoaluno.santos-tech.com";
 
   return rawOrigins
     .split(",")

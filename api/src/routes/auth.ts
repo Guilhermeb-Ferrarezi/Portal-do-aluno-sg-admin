@@ -48,6 +48,11 @@ function sha256Hex(value: string) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+function resolveHomeApiBaseUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim().replace(/\/$/, "");
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
 async function verifyPassword(inputPassword: string, storedHash: string) {
   const normalized = storedHash.trim();
   const normalizedBcrypt = normalized.replace(/^\$\$2([aby])\$\$/i, "$2$1$");
@@ -291,6 +296,99 @@ export function authRouter(
     } catch (err) {
       console.error(err);
       return res.status(500).json({ message: "Erro interno" });
+    }
+  });
+
+  router.get("/sso", async (req, res) => {
+    const code = typeof req.query.code === "string" ? req.query.code.trim() : "";
+
+    if (!code) {
+      return res.status(400).json({ message: "Codigo SSO ausente." });
+    }
+
+    const homeApiUrl = process.env.SSO_HOME_API_URL;
+    const sharedSecret = process.env.SSO_SHARED_SECRET;
+    const projectId = process.env.SSO_PROJECT_ID?.trim() || "portal-aluno";
+
+    if (!homeApiUrl || !sharedSecret) {
+      return res.status(500).json({ message: "SSO nao configurado neste servidor." });
+    }
+
+    try {
+      const exchangeResponse = await fetch(
+        `${resolveHomeApiBaseUrl(homeApiUrl)}/sso/exchange`,
+        {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-sso-shared-secret": sharedSecret,
+        },
+        body: JSON.stringify({ projectId, code }),
+        }
+      );
+
+      if (!exchangeResponse.ok) {
+        const body = await exchangeResponse.json().catch(() => null);
+        const message =
+          (body as { message?: string } | null)?.message ??
+          "Falha ao validar codigo SSO.";
+        return res.status(exchangeResponse.status).json({ message });
+      }
+
+      const { user: ssoUser } = (await exchangeResponse.json()) as {
+        user: { id: string; username: string; email: string; role: string };
+      };
+
+      const existing = await pool.query<DbUserRow>(
+        `SELECT id, name, email, password_hash, role
+         FROM "user"
+         WHERE LOWER(email) = LOWER($1)
+         LIMIT 1`,
+        [ssoUser.email]
+      );
+
+      const localUser = existing.rows[0];
+
+      if (!localUser) {
+        return res.status(403).json({
+          message: "Usuario nao encontrado no portal do aluno.",
+        });
+      }
+
+      if (!isValidRole(localUser.role)) {
+        return res.status(403).json({
+          message: "Acesso indisponivel para este perfil.",
+        });
+      }
+
+      const token = signAccessToken(localUser);
+      const refreshToken = await issueRefreshToken(localUser.id);
+
+      logActivity({
+        actorId: String(localUser.id),
+        actorRole: String(localUser.role),
+        action: "sso_login",
+        entityType: "auth",
+        entityId: String(localUser.id),
+        metadata: { provider: "santos-tech-home", ssoUserId: ssoUser.id },
+        req: req as any,
+      }).catch((error) => console.error("activity log error:", error));
+
+      return res.json({
+        message: "Login SSO realizado com sucesso",
+        token,
+        refreshToken,
+        user: {
+          id: localUser.id,
+          usuario: localUser.email,
+          email: localUser.email,
+          nome: localUser.name,
+          role: localUser.role,
+        },
+      });
+    } catch (error) {
+      console.error("SSO exchange error:", error);
+      return res.status(502).json({ message: "Erro ao comunicar com o servidor SSO." });
     }
   });
 

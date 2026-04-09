@@ -8,6 +8,7 @@ import { ToastProvider } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
 
 const Login = React.lazy(() => import("./components/Login/Login"));
+const SsoCallback = React.lazy(() => import("./pages/SsoCallback"));
 const Dashboard = React.lazy(() => import("./components/Dashboard/Dashboard"));
 const CreateUser = React.lazy(() => import("./components/Dashboard/Sidebar/CreateUser/CreateUser"));
 const ExerciciosPage = React.lazy(() => import("./pages/Exercises"));
@@ -46,6 +47,7 @@ function AppContent() {
     <React.Suspense fallback={<RouteLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/sso" element={<SsoCallback />} />
 
         {/* logado */}
         <Route element={<ProtectedRoute />}>
