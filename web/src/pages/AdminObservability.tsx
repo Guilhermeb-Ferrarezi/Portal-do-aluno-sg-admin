@@ -8,6 +8,7 @@ import {
   Radar,
   RefreshCcw,
   Route,
+  Search,
   Server,
   ShieldAlert,
   TimerReset,
@@ -16,6 +17,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
@@ -32,8 +40,59 @@ type MetricHistoryPoint = {
   errorsPerMinute: number;
 };
 
+type ErrorLine = {
+  method: string;
+  route: string;
+  statusCode: string;
+  statusClass: string;
+  count: number;
+};
+
+type ErrorDialog = {
+  open: boolean;
+  title: string;
+  lines: ErrorLine[];
+};
+
 const REFRESH_INTERVAL_MS = 15000;
 const HISTORY_LIMIT = 24;
+
+function parseErrorLines(rawText: string, routeFilter?: string): ErrorLine[] {
+  const results: ErrorLine[] = [];
+  const labelPattern = /(\w+)="((?:\\.|[^"])*)"/g;
+
+  for (const raw of rawText.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (!line.startsWith("portal_do_aluno_api_http_request_errors_total{")) continue;
+
+    const braceEnd = line.indexOf("}");
+    if (braceEnd === -1) continue;
+
+    const labelText = line.slice(line.indexOf("{") + 1, braceEnd);
+    const valueText = line.slice(braceEnd + 1).trim();
+    const count = Number(valueText);
+    if (!Number.isFinite(count) || count <= 0) continue;
+
+    const labels: Record<string, string> = {};
+    for (const match of labelText.matchAll(labelPattern)) {
+      labels[match[1]] = match[2];
+    }
+
+    const route = labels.route ?? "";
+    if (routeFilter && route !== routeFilter) continue;
+
+    results.push({
+      method: labels.method ?? "-",
+      route,
+      statusCode: labels.status_code ?? "-",
+      statusClass: labels.status_class ?? "-",
+      count,
+    });
+  }
+
+  return results.sort((a, b) => b.count - a.count);
+}
 
 function formatCompactNumber(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -108,6 +167,12 @@ function statusBadgeClass(statusClass: string) {
   return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
 }
 
+function statusLineBadge(statusClass: string) {
+  if (statusClass.startsWith("5")) return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
+  if (statusClass.startsWith("4")) return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
+  return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
+}
+
 function routeTone(item: MonitoringBreakdownItem) {
   if (item.errorRate >= 10) return "bg-rose-500/80";
   if (item.errorRate > 0) return "bg-amber-500/80";
@@ -120,10 +185,11 @@ function MetricCard(props: {
   subtitle: string;
   icon: React.ReactNode;
   accentClass: string;
+  onAction?: { label: string; onClick: () => void };
 }) {
   return (
-    <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-      <CardContent className="flex items-start gap-4 p-5">
+    <Card className="flex h-full flex-col rounded-[28px] border-border/70 bg-card/95 shadow-sm">
+      <CardContent className="flex flex-1 items-start gap-4 p-5">
         <div
           className={cn(
             "flex size-12 shrink-0 items-center justify-center rounded-2xl border",
@@ -132,7 +198,7 @@ function MetricCard(props: {
         >
           {props.icon}
         </div>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             {props.title}
           </div>
@@ -142,7 +208,83 @@ function MetricCard(props: {
           <div className="mt-1 text-sm text-muted-foreground">{props.subtitle}</div>
         </div>
       </CardContent>
+      {props.onAction && (
+        <div className="mt-auto border-t border-border/70 px-5 pb-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={props.onAction.onClick}
+            className="h-8 rounded-xl px-2 text-xs text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400"
+          >
+            <Search size={12} className="mr-1.5" />
+            {props.onAction.label}
+          </Button>
+        </div>
+      )}
     </Card>
+  );
+}
+
+function ErrorLinesDialog(props: {
+  dialog: ErrorDialog;
+  onClose: () => void;
+}) {
+  const { dialog, onClose } = props;
+  return (
+    <Dialog open={dialog.open} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-rose-500" />
+            {dialog.title}
+          </DialogTitle>
+          <DialogDescription>
+            Contadores acumulados de erros HTTP desde o ultimo boot da API (fonte: Prometheus).
+          </DialogDescription>
+        </DialogHeader>
+
+        {dialog.lines.length === 0 ? (
+          <div className="px-6 pb-6 text-center text-sm text-muted-foreground">
+            Nenhum erro registrado para esta rota.
+          </div>
+        ) : (
+          <div className="overflow-y-auto px-6 pb-6">
+            <div className="overflow-hidden rounded-2xl border border-border/70">
+              <div className="hidden grid-cols-[80px_1fr_90px_80px_60px] gap-3 border-b border-border/70 bg-muted/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:grid">
+                <span>Metodo</span>
+                <span>Rota</span>
+                <span>Status</span>
+                <span>Classe</span>
+                <span className="text-right">Total</span>
+              </div>
+              {dialog.lines.map((line, idx) => (
+                <div
+                  key={idx}
+                  className="grid gap-2 border-b border-border/70 px-4 py-3 last:border-b-0 sm:grid-cols-[80px_1fr_90px_80px_60px] sm:items-center sm:gap-3"
+                >
+                  <Badge variant="outline" className="w-fit rounded-full px-2.5 text-[11px] font-semibold">
+                    {line.method}
+                  </Badge>
+                  <span className="truncate font-mono text-xs text-foreground" title={line.route}>
+                    {line.route || "-"}
+                  </span>
+                  <Badge className={cn("w-fit rounded-full px-2.5 text-[11px] font-semibold", statusLineBadge(line.statusClass))}>
+                    {line.statusCode}
+                  </Badge>
+                  <Badge className={cn("w-fit rounded-full px-2.5 text-[11px] font-semibold", statusLineBadge(line.statusClass))}>
+                    {line.statusClass}
+                  </Badge>
+                  <span className="text-right text-sm font-black text-foreground sm:block">
+                    {line.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -152,6 +294,23 @@ export default function AdminObservabilityPage() {
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [errorDialog, setErrorDialog] = React.useState<ErrorDialog>({
+    open: false,
+    title: "",
+    lines: [],
+  });
+
+  const openErrorDialog = React.useCallback(
+    (title: string, routeFilter?: string) => {
+      const lines = parseErrorLines(snapshot?.rawText ?? "", routeFilter);
+      setErrorDialog({ open: true, title, lines });
+    },
+    [snapshot]
+  );
+
+  const closeErrorDialog = React.useCallback(() => {
+    setErrorDialog((prev) => ({ ...prev, open: false }));
+  }, []);
 
   const loadSnapshot = React.useCallback(async (isManual = false) => {
     try {
@@ -315,6 +474,10 @@ export default function AdminObservabilityPage() {
                 subtitle={`${formatPercentage(errorRate)} de taxa de erro total`}
                 icon={<ShieldAlert size={20} />}
                 accentClass="border-rose-500/20 bg-rose-500/10 text-rose-500"
+                onAction={{
+                  label: "Ver detalhes dos erros",
+                  onClick: () => openErrorDialog("Todos os erros HTTP"),
+                }}
               />
             </ScaleIn>
             <ScaleIn delay={0.1}>
@@ -463,7 +626,7 @@ export default function AdminObservabilityPage() {
                         </div>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="rounded-full">
                           erros {formatCompactNumber(item.errors)}
                         </Badge>
@@ -473,6 +636,18 @@ export default function AdminObservabilityPage() {
                         <Badge variant="outline" className="rounded-full">
                           media {formatLatency(item.avgLatencyMs)}
                         </Badge>
+                        {item.errors > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openErrorDialog(`Erros — ${item.label}`, item.key)}
+                            className="h-7 rounded-xl border border-rose-300/40 bg-rose-500/8 px-3 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
+                          >
+                            <Search size={11} className="mr-1" />
+                            Ver erros
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
@@ -502,11 +677,23 @@ export default function AdminObservabilityPage() {
                         {formatCompactNumber(item.requests)} req · {formatCompactNumber(item.errors)} erros
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="flex flex-col items-end gap-1">
                       <Badge className={cn("rounded-full", statusBadgeClass(item.errorRate > 0 ? "5xx" : "2xx"))}>
                         {formatPercentage(item.errorRate)}
                       </Badge>
-                      <div className="mt-1 text-xs text-muted-foreground">{formatLatency(item.avgLatencyMs)}</div>
+                      <div className="text-xs text-muted-foreground">{formatLatency(item.avgLatencyMs)}</div>
+                      {item.errors > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openErrorDialog(`Erros — ${item.label}`, item.key)}
+                          className="mt-0.5 h-6 rounded-xl border border-rose-300/40 bg-rose-500/8 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
+                        >
+                          <Search size={10} className="mr-1" />
+                          Ver erros
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -515,6 +702,8 @@ export default function AdminObservabilityPage() {
           </div>
         </div>
       </FadeInUp>
+
+      <ErrorLinesDialog dialog={errorDialog} onClose={closeErrorDialog} />
     </DashboardLayout>
   );
 }
