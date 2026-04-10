@@ -1,6 +1,5 @@
 export type Role = "admin" | "professor" | "aluno";
 type NumericRole = 1 | 2 | 3;
-const STUDENT_VIEW_RETURN_URL_KEY = "student-view.return-url";
 
 type TokenPayload = {
   sub?: string;
@@ -114,27 +113,10 @@ export function hasRole(allowed: Role[]): boolean {
   return !!role && allowed.includes(role);
 }
 
-export function setStudentViewReturnUrl(url: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STUDENT_VIEW_RETURN_URL_KEY, url);
-}
-
-export function getStudentViewReturnUrl(): string | null {
-  if (typeof window === "undefined") return null;
-  const value = localStorage.getItem(STUDENT_VIEW_RETURN_URL_KEY);
-  return value && value.trim().length > 0 ? value : null;
-}
-
-export function clearStudentViewReturnUrl() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(STUDENT_VIEW_RETURN_URL_KEY);
-}
-
 export function logout() {
   localStorage.removeItem("token");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("nome");
   localStorage.removeItem("role");
-  clearStudentViewReturnUrl();
   notifyAuthChanged();
 }

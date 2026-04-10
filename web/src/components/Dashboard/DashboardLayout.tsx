@@ -1,14 +1,7 @@
 import type { ReactNode } from "react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  clearStudentViewReturnUrl,
-  getName,
-  getRole,
-  getStudentViewReturnUrl,
-  hasRole,
-  setStudentViewReturnUrl,
-} from "../../auth/auth";
+import { getName, getRole, hasRole } from "../../auth/auth";
 import {
   listarTurmas,
   logoutWithServer,
@@ -48,7 +41,6 @@ import {
   Laptop,
   Monitor,
   ArrowRight,
-  ArrowLeft,
   Medal,
   ChevronDown,
   BookOpen,
@@ -109,9 +101,6 @@ export default function DashboardLayout({
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [studentViewPending, setStudentViewPending] = React.useState(false);
-  const [studentViewReturnUrl, setStudentViewReturnUrlState] = React.useState<string | null>(() =>
-    getStudentViewReturnUrl()
-  );
   const [estruturaOpen, setEstruturaOpen] = React.useState(() =>
     readStoredDropdownState("dashboard.sidebar.estruturaOpen")
   );
@@ -134,10 +123,6 @@ export default function DashboardLayout({
 
   React.useEffect(() => {
     setSidebarOpen(false);
-  }, [location.pathname]);
-
-  React.useEffect(() => {
-    setStudentViewReturnUrlState(getStudentViewReturnUrl());
   }, [location.pathname]);
 
   const isDashboard = location.pathname === "/dashboard";
@@ -183,28 +168,17 @@ export default function DashboardLayout({
     if (studentViewPending) return;
 
     setStudentViewPending(true);
-    setStudentViewReturnUrl(window.location.href);
-    setStudentViewReturnUrlState(window.location.href);
     void startStudentViewSso()
       .then(({ redirectUrl }) => {
         window.location.assign(redirectUrl);
       })
       .catch((error) => {
-        clearStudentViewReturnUrl();
-        setStudentViewReturnUrlState(null);
         addToast(
           error instanceof Error ? error.message : "Nao foi possivel abrir a visao do aluno.",
           "error"
         );
         setStudentViewPending(false);
       });
-  }
-
-  function handleReturnFromStudentView() {
-    if (!studentViewReturnUrl) return;
-    clearStudentViewReturnUrl();
-    setStudentViewReturnUrlState(null);
-    window.location.assign(studentViewReturnUrl);
   }
 
   function handleMinhasTurmas() {
@@ -487,18 +461,6 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-2">
-              {role === "aluno" && studentViewReturnUrl ? (
-                <button
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-border/70 bg-card px-3.5 text-sm font-semibold text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
-                  onClick={handleReturnFromStudentView}
-                  type="button"
-                  aria-label="Voltar ao portal anterior"
-                  title="Voltar ao portal anterior"
-                >
-                  <ArrowLeft size={16} />
-                  <span className="hidden sm:inline">Voltar</span>
-                </button>
-              ) : null}
               {canOpenStudentView ? (
                 <button
                   className="inline-flex h-10 items-center gap-2 rounded-xl border border-border/70 bg-card px-3.5 text-sm font-semibold text-muted-foreground transition hover:border-primary/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
