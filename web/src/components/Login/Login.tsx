@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { notifyAuthChanged } from "../../auth/auth";
+import { clearStudentViewReturnUrl, notifyAuthChanged } from "../../auth/auth";
 import { login } from "../../services/api";
 import { AnimatedToast } from "../animate-ui/AnimatedToast";
 import { Button } from "@/components/ui/button";
@@ -154,6 +154,7 @@ export default function Login() {
       localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("nome", data.user?.nome ?? "");
       localStorage.removeItem("role");
+      clearStudentViewReturnUrl();
       notifyAuthChanged();
 
       dispatch({ type: "set_sucesso", value: data.message ?? "Login realizado!" });
