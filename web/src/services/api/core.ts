@@ -6,6 +6,7 @@ import {
   setToken,
   setRefreshToken,
 } from "../../auth/auth";
+import { env } from "@/env";
 
 export type UserRef = {
   id: string;
@@ -14,8 +15,7 @@ export type UserRef = {
   nome?: string;
 };
 
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
+export const API_BASE_URL = env.apiUrl;
 
 let refreshInFlight: Promise<string | null> | null = null;
 

@@ -1,4 +1,5 @@
 import { getUserId, isLoggedIn } from "../auth/auth";
+import { env } from "../env";
 import { API_BASE_URL, createPresenceSocketTicket } from "./api";
 
 type PresenceSocketMessage =
@@ -91,7 +92,7 @@ function clearReconnect() {
 }
 
 function buildPresenceUrl() {
-  const explicitWsUrl = import.meta.env.VITE_WS_URL as string | undefined;
+  const explicitWsUrl = env.wsUrl;
   if (explicitWsUrl && explicitWsUrl.trim()) {
     return explicitWsUrl.trim();
   }
@@ -100,7 +101,7 @@ function buildPresenceUrl() {
   const apiBase =
     hasAbsoluteApiUrl
       ? API_BASE_URL
-      : import.meta.env.DEV
+      : env.isDev
         ? "http://localhost:3000/api"
         : API_BASE_URL;
 

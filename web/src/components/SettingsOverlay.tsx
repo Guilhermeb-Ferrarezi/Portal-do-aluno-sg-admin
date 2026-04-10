@@ -1,4 +1,5 @@
 import React from "react";
+import { env } from "@/env";
 import { getRole } from "../auth/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -234,9 +235,7 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
   const roleLocal = getRole();
   const desktopBridge = typeof window !== "undefined" ? window.desktop : undefined;
   const isDesktopApp = Boolean(desktopBridge?.isElectron && desktopBridge.updates);
-  const desktopInstallerUrl =
-    (import.meta.env.VITE_DESKTOP_INSTALLER_URL as string | undefined)?.trim() ||
-    DEFAULT_DESKTOP_INSTALLER_URL;
+  const desktopInstallerUrl = env.desktopInstallerUrl || DEFAULT_DESKTOP_INSTALLER_URL;
 
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("conta");
   const [mobileSection, setMobileSection] = React.useState<SettingsSection | null>(null);
