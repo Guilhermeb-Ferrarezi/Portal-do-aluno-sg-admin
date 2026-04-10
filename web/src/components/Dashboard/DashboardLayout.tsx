@@ -2,10 +2,17 @@ import type { ReactNode } from "react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, hasRole } from "../../auth/auth";
-import { listarTurmas, logoutWithServer, obterUsuarioAtual, type Turma } from "../../services/api";
+import {
+  listarTurmas,
+  logoutWithServer,
+  obterUsuarioAtual,
+  startStudentViewSso,
+  type Turma,
+} from "../../services/api";
 import ProfilePopup from "../ProfilePopup";
 import SettingsOverlay from "../SettingsOverlay";
 import { cn } from "@/lib/utils";
+import { useToastActions } from "@/contexts/ToastContext";
 import {
   Dialog,
   DialogContent,
@@ -83,14 +90,17 @@ export default function DashboardLayout({
   const navigate = useNavigate();
   const location = useLocation();
   const canCreateUser = hasRole(["admin"]);
+  const canOpenStudentView = hasRole(["admin", "professor"]);
   const name = getName() ?? "Aluno";
   const role = getRole();
+  const { addToast } = useToastActions();
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
   const [modalSelecionarTurmaAberto, setModalSelecionarTurmaAberto] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [studentViewPending, setStudentViewPending] = React.useState(false);
   const [estruturaOpen, setEstruturaOpen] = React.useState(() =>
     readStoredDropdownState("dashboard.sidebar.estruturaOpen")
   );
@@ -152,6 +162,23 @@ export default function DashboardLayout({
     void logoutWithServer().finally(() => {
       navigate("/login", { replace: true });
     });
+  }
+
+  function handleOpenStudentView() {
+    if (studentViewPending) return;
+
+    setStudentViewPending(true);
+    void startStudentViewSso()
+      .then(({ redirectUrl }) => {
+        window.location.assign(redirectUrl);
+      })
+      .catch((error) => {
+        addToast(
+          error instanceof Error ? error.message : "Nao foi possivel abrir a visao do aluno.",
+          "error"
+        );
+        setStudentViewPending(false);
+      });
   }
 
   function handleMinhasTurmas() {
@@ -434,6 +461,22 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-2">
+              {canOpenStudentView ? (
+                <button
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-border/70 bg-card px-3.5 text-sm font-semibold text-muted-foreground transition hover:border-primary/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleOpenStudentView}
+                  type="button"
+                  disabled={studentViewPending}
+                  aria-label="Abrir visao do aluno"
+                  title="Abrir visao do aluno"
+                >
+                  <Monitor size={16} />
+                  <span className="hidden sm:inline">
+                    {studentViewPending ? "Abrindo..." : "Visao do aluno"}
+                  </span>
+                  {!studentViewPending ? <ArrowRight size={14} className="hidden sm:inline" /> : null}
+                </button>
+              ) : null}
               <button
                 className="relative inline-flex size-10 items-center justify-center rounded-xl border border-border/70 bg-card text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
                 aria-label="Notificacoes"

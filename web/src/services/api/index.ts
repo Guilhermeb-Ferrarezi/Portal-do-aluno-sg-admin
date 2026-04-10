@@ -1,7 +1,12 @@
 export { API_BASE_URL, apiFetch } from "./core";
 export type { UserRef, PaginationMeta, PaginatedItemsResponse } from "./core";
 
-export { login, logoutWithServer, createPresenceSocketTicket } from "./auth";
+export {
+  login,
+  logoutWithServer,
+  createPresenceSocketTicket,
+  startStudentViewSso,
+} from "./auth";
 
 export type {
   Exercicio,

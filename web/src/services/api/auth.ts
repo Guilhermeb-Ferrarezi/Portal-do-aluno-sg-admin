@@ -44,3 +44,12 @@ export async function createPresenceSocketTicket() {
     }
   );
 }
+
+export async function startStudentViewSso() {
+  return apiFetch<{ redirectUrl: string; expiresAt: string }>(
+    "/auth/student-view/start",
+    {
+      method: "POST",
+    }
+  );
+}

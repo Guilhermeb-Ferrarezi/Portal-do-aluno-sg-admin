@@ -34,6 +34,10 @@ const envSchema = z.object({
   SSO_HOME_API_URL: z.string().url().optional(),
   SSO_SHARED_SECRET: z.string().min(32).optional(),
   SSO_PROJECT_ID: z.string().min(1).optional(),
+  STUDENT_PORTAL_BASE_URL: z.string().url().optional(),
+  STUDENT_PORTAL_SSO_CALLBACK_PATH: z.string().min(1).optional(),
+  STUDENT_PORTAL_SSO_SHARED_SECRET: z.string().min(32).optional(),
+  STUDENT_PORTAL_SSO_TTL_SECONDS: z.coerce.number().int().positive().optional(),
 });
 
 function resolveJwtExpiresIn(env: z.infer<typeof envSchema>) {
@@ -199,7 +203,12 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use(
   "/auth",
   loginLimiter,
-  authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn)
+  authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn, {
+    studentPortalBaseUrl: env.STUDENT_PORTAL_BASE_URL,
+    studentPortalSsoCallbackPath: env.STUDENT_PORTAL_SSO_CALLBACK_PATH,
+    studentPortalSsoSharedSecret: env.STUDENT_PORTAL_SSO_SHARED_SECRET,
+    studentPortalSsoTtlSeconds: env.STUDENT_PORTAL_SSO_TTL_SECONDS,
+  })
 );
 app.use(usersRouter(env.JWT_SECRET));
 app.use(exerciciosRouter(env.JWT_SECRET));
@@ -217,7 +226,12 @@ app.use(presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
 app.use(
   "/api/auth",
   loginLimiter,
-  authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn)
+  authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn, {
+    studentPortalBaseUrl: env.STUDENT_PORTAL_BASE_URL,
+    studentPortalSsoCallbackPath: env.STUDENT_PORTAL_SSO_CALLBACK_PATH,
+    studentPortalSsoSharedSecret: env.STUDENT_PORTAL_SSO_SHARED_SECRET,
+    studentPortalSsoTtlSeconds: env.STUDENT_PORTAL_SSO_TTL_SECONDS,
+  })
 );
 app.use("/api", usersRouter(env.JWT_SECRET));
 // (se usersRouter registra /users, vira /api/users)

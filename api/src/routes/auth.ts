@@ -4,6 +4,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { pool } from "../db";
+import { authGuard, type AuthRequest } from "../middlewares/auth";
+import { requireRole } from "../middlewares/requireRole";
 import { logActivity } from "../utils/activityLog";
 
 export type Role = 1 | 2 | 3;
@@ -25,6 +27,13 @@ type RefreshTokenRow = {
   name: string;
   email: string;
   role: number;
+};
+
+type AuthRouterOptions = {
+  studentPortalBaseUrl?: string;
+  studentPortalSsoCallbackPath?: string;
+  studentPortalSsoSharedSecret?: string;
+  studentPortalSsoTtlSeconds?: number;
 };
 
 const loginSchema = z.object({
@@ -107,13 +116,26 @@ function isValidRole(role: number): role is Role {
 export function authRouter(
   jwtSecret: string,
   jwtExpiresIn: string,
-  refreshTokenExpiresIn: string
+  refreshTokenExpiresIn: string,
+  options: AuthRouterOptions = {}
 ) {
   const router = Router();
   const refreshExpiresMs = parseDurationToMs(
     refreshTokenExpiresIn,
     30 * 24 * 60 * 60 * 1000
   );
+  const studentPortalBaseUrl =
+    options.studentPortalBaseUrl?.trim() || "https://portal.santos-tech.com";
+  const studentPortalSsoCallbackPath =
+    options.studentPortalSsoCallbackPath?.trim() || "/api/Auth/sso/callback";
+  const studentPortalSsoSharedSecret = options.studentPortalSsoSharedSecret?.trim();
+  const studentPortalSsoTtlSeconds = Math.max(30, options.studentPortalSsoTtlSeconds ?? 120);
+
+  function resolveStudentPortalCallbackUrl(code: string) {
+    const callbackUrl = new URL(studentPortalSsoCallbackPath, studentPortalBaseUrl);
+    callbackUrl.searchParams.set("code", code);
+    return callbackUrl.toString();
+  }
 
   function signAccessToken(user: DbUserRow) {
     const expiresIn = jwtExpiresIn as jwt.SignOptions["expiresIn"];
@@ -140,6 +162,28 @@ export function authRouter(
     );
 
     return refreshToken;
+  }
+
+  async function consumeStudentViewCode(code: string) {
+    const codeHash = hashToken(code);
+    const result = await pool.query<{
+      source_user_id: string;
+      source_email: string;
+      source_name: string | null;
+      expires_at: Date;
+      consumed_at: Date | null;
+    }>(
+      `UPDATE student_view_sso_codes
+       SET consumed_at = NOW()
+       WHERE code_hash = $1
+         AND target = 'portal-willian'
+         AND consumed_at IS NULL
+         AND expires_at > NOW()
+       RETURNING source_user_id, source_email, source_name, expires_at, consumed_at`,
+      [codeHash]
+    );
+
+    return result.rows[0] ?? null;
   }
 
   router.post("/login", async (req, res) => {
@@ -390,6 +434,112 @@ export function authRouter(
     } catch (error) {
       console.error("SSO exchange error:", error);
       return res.status(502).json({ message: "Erro ao comunicar com o servidor SSO." });
+    }
+  });
+
+  router.post(
+    "/student-view/start",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      if (!studentPortalSsoSharedSecret) {
+        return res.status(500).json({ message: "SSO do portal do aluno nao configurado." });
+      }
+
+      if (!req.user?.sub || !req.user.usuario) {
+        return res.status(401).json({ message: "Sessao invalida." });
+      }
+
+      try {
+        const userResult = await pool.query<Pick<DbUserRow, "id" | "name" | "email">>(
+          `SELECT id, name, email
+           FROM "user"
+           WHERE id = $1
+           LIMIT 1`,
+          [Number(req.user.sub)]
+        );
+
+        const currentUser = userResult.rows[0];
+        if (!currentUser?.email) {
+          return res.status(404).json({ message: "Usuario atual nao encontrado." });
+        }
+
+        const code = crypto.randomBytes(32).toString("hex");
+        const codeHash = hashToken(code);
+        const expiresAt = new Date(Date.now() + studentPortalSsoTtlSeconds * 1000);
+
+        await pool.query(
+          `INSERT INTO student_view_sso_codes (
+            target,
+            code_hash,
+            source_user_id,
+            source_email,
+            source_name,
+            expires_at
+          ) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            "portal-willian",
+            codeHash,
+            String(currentUser.id),
+            currentUser.email,
+            currentUser.name,
+            expiresAt,
+          ]
+        );
+
+        logActivity({
+          actorId: String(currentUser.id),
+          actorRole: req.user.role,
+          action: "student_view_sso_start",
+          entityType: "auth",
+          entityId: String(currentUser.id),
+          metadata: { target: "portal-willian", expiresAt: expiresAt.toISOString() },
+          req: req as any,
+        }).catch((error) => console.error("activity log error:", error));
+
+        return res.json({
+          redirectUrl: resolveStudentPortalCallbackUrl(code),
+          expiresAt: expiresAt.toISOString(),
+        });
+      } catch (error) {
+        console.error("student view sso start error:", error);
+        return res.status(502).json({ message: "Nao foi possivel iniciar a visao do aluno." });
+      }
+    }
+  );
+
+  router.post("/student-view/exchange", async (req, res) => {
+    const sharedSecret = req.header("x-sso-shared-secret")?.trim();
+    const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+
+    if (!studentPortalSsoSharedSecret) {
+      return res.status(500).json({ message: "SSO do portal do aluno nao configurado." });
+    }
+
+    if (!sharedSecret || sharedSecret !== studentPortalSsoSharedSecret) {
+      return res.status(403).json({ message: "Shared secret invalido." });
+    }
+
+    if (!code) {
+      return res.status(400).json({ message: "Codigo SSO ausente." });
+    }
+
+    try {
+      const entry = await consumeStudentViewCode(code);
+      if (!entry) {
+        return res.status(401).json({ message: "Codigo SSO invalido ou expirado." });
+      }
+
+      return res.json({
+        user: {
+          id: entry.source_user_id,
+          email: entry.source_email,
+          name: entry.source_name,
+        },
+      });
+    } catch (error) {
+      console.error("student view sso exchange error:", error);
+      return res.status(502).json({ message: "Nao foi possivel validar a visao do aluno." });
     }
   });
 
