@@ -7,6 +7,7 @@ import { pool } from "../db";
 import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import { logActivity } from "../utils/activityLog";
+import type { StudentViewSsoStore } from "../services/studentViewSsoStore";
 
 export type Role = 1 | 2 | 3;
 
@@ -34,6 +35,7 @@ type AuthRouterOptions = {
   studentPortalSsoCallbackPath?: string;
   studentPortalSsoSharedSecret?: string;
   studentPortalSsoTtlSeconds?: number;
+  studentViewSsoStore?: StudentViewSsoStore;
 };
 
 const loginSchema = z.object({
@@ -130,6 +132,7 @@ export function authRouter(
     options.studentPortalSsoCallbackPath?.trim() || "/api/Auth/sso/callback";
   const studentPortalSsoSharedSecret = options.studentPortalSsoSharedSecret?.trim();
   const studentPortalSsoTtlSeconds = Math.max(30, options.studentPortalSsoTtlSeconds ?? 120);
+  const studentViewSsoStore = options.studentViewSsoStore;
 
   function resolveStudentPortalCallbackUrl(code: string) {
     const callbackUrl = new URL(studentPortalSsoCallbackPath, studentPortalBaseUrl);
@@ -162,28 +165,6 @@ export function authRouter(
     );
 
     return refreshToken;
-  }
-
-  async function consumeStudentViewCode(code: string) {
-    const codeHash = hashToken(code);
-    const result = await pool.query<{
-      source_user_id: string;
-      source_email: string;
-      source_name: string | null;
-      expires_at: Date;
-      consumed_at: Date | null;
-    }>(
-      `UPDATE student_view_sso_codes
-       SET consumed_at = NOW()
-       WHERE code_hash = $1
-         AND target = 'portal-willian'
-         AND consumed_at IS NULL
-         AND expires_at > NOW()
-       RETURNING source_user_id, source_email, source_name, expires_at, consumed_at`,
-      [codeHash]
-    );
-
-    return result.rows[0] ?? null;
   }
 
   router.post("/login", async (req, res) => {
@@ -442,6 +423,10 @@ export function authRouter(
     authGuard(jwtSecret),
     requireRole(["admin", "professor"]),
     async (req: AuthRequest, res) => {
+      if (!studentViewSsoStore) {
+        return res.status(500).json({ message: "Redis do SSO do portal do aluno nao configurado." });
+      }
+
       if (!studentPortalSsoSharedSecret) {
         return res.status(500).json({ message: "SSO do portal do aluno nao configurado." });
       }
@@ -465,26 +450,16 @@ export function authRouter(
         }
 
         const code = crypto.randomBytes(32).toString("hex");
-        const codeHash = hashToken(code);
         const expiresAt = new Date(Date.now() + studentPortalSsoTtlSeconds * 1000);
 
-        await pool.query(
-          `INSERT INTO student_view_sso_codes (
-            target,
-            code_hash,
-            source_user_id,
-            source_email,
-            source_name,
-            expires_at
-          ) VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            "portal-willian",
-            codeHash,
-            String(currentUser.id),
-            currentUser.email,
-            currentUser.name,
-            expiresAt,
-          ]
+        await studentViewSsoStore.set(
+          code,
+          {
+            sourceUserId: String(currentUser.id),
+            sourceEmail: currentUser.email,
+            sourceName: currentUser.name,
+          },
+          studentPortalSsoTtlSeconds
         );
 
         logActivity({
@@ -524,17 +499,21 @@ export function authRouter(
       return res.status(400).json({ message: "Codigo SSO ausente." });
     }
 
+    if (!studentViewSsoStore) {
+      return res.status(500).json({ message: "Redis do SSO do portal do aluno nao configurado." });
+    }
+
     try {
-      const entry = await consumeStudentViewCode(code);
+      const entry = await studentViewSsoStore.consume(code);
       if (!entry) {
         return res.status(401).json({ message: "Codigo SSO invalido ou expirado." });
       }
 
       return res.json({
         user: {
-          id: entry.source_user_id,
-          email: entry.source_email,
-          name: entry.source_name,
+          id: entry.sourceUserId,
+          email: entry.sourceEmail,
+          name: entry.sourceName,
         },
       });
     } catch (error) {

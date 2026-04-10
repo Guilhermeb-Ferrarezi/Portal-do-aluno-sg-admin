@@ -19,6 +19,7 @@ import { classRoomsRouter } from "./routes/classRooms.route";
 import { presenceRouter } from "./routes/presence";
 import { initializeDatabaseTables } from "./db/migrations";
 import { setupPresenceWebSocketServer } from "./realtime/presence";
+import { createStudentViewSsoStore } from "./services/studentViewSsoStore";
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -38,6 +39,8 @@ const envSchema = z.object({
   STUDENT_PORTAL_SSO_CALLBACK_PATH: z.string().min(1).optional(),
   STUDENT_PORTAL_SSO_SHARED_SECRET: z.string().min(32).optional(),
   STUDENT_PORTAL_SSO_TTL_SECONDS: z.coerce.number().int().positive().optional(),
+  REDIS_URL: z.string().url().optional(),
+  REDIS_KEY_PREFIX: z.string().optional(),
 });
 
 function resolveJwtExpiresIn(env: z.infer<typeof envSchema>) {
@@ -149,6 +152,12 @@ const normalizedAllowedOrigins = new Set(
     .filter((origin): origin is string => Boolean(origin))
 );
 const allowAnyLoopbackOrigin = shouldAllowLoopbackOrigins(normalizedAllowedOrigins);
+const studentViewSsoStore = env.REDIS_URL
+  ? createStudentViewSsoStore({
+      redisUrl: env.REDIS_URL,
+      keyPrefix: env.REDIS_KEY_PREFIX,
+    })
+  : undefined;
 
 function shouldSkipApiLimiter(path: string) {
   return (
@@ -208,6 +217,7 @@ app.use(
     studentPortalSsoCallbackPath: env.STUDENT_PORTAL_SSO_CALLBACK_PATH,
     studentPortalSsoSharedSecret: env.STUDENT_PORTAL_SSO_SHARED_SECRET,
     studentPortalSsoTtlSeconds: env.STUDENT_PORTAL_SSO_TTL_SECONDS,
+    studentViewSsoStore,
   })
 );
 app.use(usersRouter(env.JWT_SECRET));
@@ -231,6 +241,7 @@ app.use(
     studentPortalSsoCallbackPath: env.STUDENT_PORTAL_SSO_CALLBACK_PATH,
     studentPortalSsoSharedSecret: env.STUDENT_PORTAL_SSO_SHARED_SECRET,
     studentPortalSsoTtlSeconds: env.STUDENT_PORTAL_SSO_TTL_SECONDS,
+    studentViewSsoStore,
   })
 );
 app.use("/api", usersRouter(env.JWT_SECRET));
@@ -288,11 +299,27 @@ app.use(
 
 // Iniciar server
 (async () => {
-  // Inicializar banco de dados
-  await initializeDatabaseTables();
-  setupPresenceWebSocketServer(server, env.JWT_SECRET, allowedOrigins);
+  try {
+    await initializeDatabaseTables();
+    setupPresenceWebSocketServer(server, env.JWT_SECRET, allowedOrigins);
 
-  server.listen(env.PORT, "0.0.0.0", () => {
-    console.log(`API rodando na porta ${env.PORT}`);
-  });
+    server.listen(env.PORT, "0.0.0.0", () => {
+      console.log(`API rodando na porta ${env.PORT}`);
+    });
+  } catch (error) {
+    await studentViewSsoStore?.disconnect();
+    throw error;
+  }
 })();
+
+async function shutdown() {
+  await studentViewSsoStore?.disconnect();
+}
+
+process.on("SIGINT", () => {
+  void shutdown().finally(() => process.exit(0));
+});
+
+process.on("SIGTERM", () => {
+  void shutdown().finally(() => process.exit(0));
+});
