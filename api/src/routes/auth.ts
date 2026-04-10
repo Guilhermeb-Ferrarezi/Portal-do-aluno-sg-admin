@@ -307,7 +307,8 @@ export function authRouter(
     }
 
     const homeApiUrl = process.env.SSO_HOME_API_URL;
-    const sharedSecret = process.env.SSO_SHARED_SECRET;
+    const sharedSecret =
+      process.env.SSO_SHARED_SECRET || process.env.ADMIN_PORTAL_SSO_SECRET;
     const projectId = process.env.SSO_PROJECT_ID?.trim() || "portal-aluno";
 
     if (!homeApiUrl || !sharedSecret) {
