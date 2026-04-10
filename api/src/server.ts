@@ -20,9 +20,33 @@ import { presenceRouter } from "./routes/presence";
 import { initializeDatabaseTables } from "./db/migrations";
 import { setupPresenceWebSocketServer } from "./realtime/presence";
 import { createStudentViewSsoStore } from "./services/studentViewSsoStore";
+import { createHttpMetrics } from "./observability/httpMetrics";
+import { createLogger } from "./observability/logger";
+import {
+  createRequestObservabilityMiddleware,
+  logRequestError,
+} from "./observability/requestObservability";
+
+function parseBoolean(value: unknown, defaultValue: boolean) {
+  if (typeof value !== "string") {
+    return defaultValue;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes") {
+    return true;
+  }
+
+  if (normalized === "false" || normalized === "0" || normalized === "no") {
+    return false;
+  }
+
+  return defaultValue;
+}
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
+  NODE_ENV: z.string().optional(),
   JWT_SECRET: z.string().min(10),
   PRESENCE_PROXY_SECRET: z.string().min(10).optional(),
   JWT_EXPIRES_IN: z.string().optional(),
@@ -41,6 +65,9 @@ const envSchema = z.object({
   STUDENT_PORTAL_SSO_TTL_SECONDS: z.coerce.number().int().positive().optional(),
   REDIS_URL: z.string().url().optional(),
   REDIS_KEY_PREFIX: z.string().optional(),
+  OBSERVABILITY_ENABLED: z.string().optional(),
+  OBSERVABILITY_SERVICE_NAME: z.string().optional(),
+  OBSERVABILITY_ENV: z.string().optional(),
 });
 
 function resolveJwtExpiresIn(env: z.infer<typeof envSchema>) {
@@ -163,13 +190,27 @@ function shouldSkipApiLimiter(path: string) {
   return (
     path === "/presence/socket-ticket" ||
     path === "/presence/heartbeat" ||
+    path === "/metrics" ||
+    path === "/health" ||
     path === "/api/presence/socket-ticket" ||
-    path === "/api/presence/heartbeat"
+    path === "/api/presence/heartbeat" ||
+    path === "/api/metrics" ||
+    path === "/api/health"
   );
 }
 
 const app = express();
 const server = createServer(app);
+const observabilityEnabled = parseBoolean(env.OBSERVABILITY_ENABLED, true);
+const observabilityServiceName =
+  env.OBSERVABILITY_SERVICE_NAME?.trim() || "portal-do-aluno-api";
+const observabilityEnvironment =
+  env.OBSERVABILITY_ENV?.trim() || env.NODE_ENV?.trim() || "development";
+const logger = createLogger({
+  serviceName: observabilityServiceName,
+  environment: observabilityEnvironment,
+});
+const httpMetrics = createHttpMetrics(observabilityServiceName);
 app.set("trust proxy", 1);
 
 app.use(helmet());
@@ -187,6 +228,15 @@ app.use(
 );
 
 app.use(express.json({ limit: "10mb" }));
+
+if (observabilityEnabled) {
+  app.use(
+    createRequestObservabilityMiddleware({
+      logger,
+      metrics: httpMetrics,
+    })
+  );
+}
 
 const apiLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -207,6 +257,14 @@ app.use(apiLimiter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.get("/metrics", async (_req, res) => {
+  res.setHeader("Content-Type", httpMetrics.registry.contentType);
+  res.end(await httpMetrics.registry.metrics());
+});
+app.get("/api/metrics", async (_req, res) => {
+  res.setHeader("Content-Type", httpMetrics.registry.contentType);
+  res.end(await httpMetrics.registry.metrics());
+});
 
 // ===== ROTAS SEM PREFIXO (local / simples) =====
 app.use(
@@ -273,11 +331,15 @@ app.use((req, res) => {
 app.use(
   (
     err: unknown,
-    _req: express.Request,
+    req: express.Request,
     res: express.Response,
     _next: express.NextFunction
   ) => {
-    console.error(err);
+    if (observabilityEnabled) {
+      logRequestError(logger, req, res, err);
+    } else {
+      console.error(err);
+    }
     if (typeof err === "object" && err !== null) {
       const e = err as { type?: string; status?: number; statusCode?: number; message?: string };
       const status = e.statusCode ?? e.status;
@@ -304,10 +366,23 @@ app.use(
     setupPresenceWebSocketServer(server, env.JWT_SECRET, allowedOrigins);
 
     server.listen(env.PORT, "0.0.0.0", () => {
-      console.log(`API rodando na porta ${env.PORT}`);
+      logger.info("api_server_started", {
+        port: env.PORT,
+        observability_enabled: observabilityEnabled,
+      });
     });
   } catch (error) {
     await studentViewSsoStore?.disconnect();
+    logger.error("api_server_boot_failed", {
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : error,
+    });
     throw error;
   }
 })();

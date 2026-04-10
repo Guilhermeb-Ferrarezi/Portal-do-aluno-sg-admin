@@ -1,0 +1,68 @@
+loki.write "portal_do_aluno" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+discovery.docker "portal_do_aluno_api" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "portal_do_aluno_api_logs" {
+  targets = discovery.docker.portal_do_aluno_api.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "api"
+    action        = "keep"
+  }
+
+  rule {
+    target_label = "service"
+    replacement  = "portal-do-aluno-api"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "portal_do_aluno_api" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.portal_do_aluno_api_logs.output
+  forward_to = [loki.process.portal_do_aluno_api.receiver]
+}
+
+loki.process "portal_do_aluno_api" {
+  forward_to = [loki.write.portal_do_aluno.receiver]
+
+  stage.json {
+    expressions = {
+      level       = "level",
+      service     = "service",
+      env         = "env",
+      message     = "message",
+      route       = "route",
+      status_code = "status_code",
+      request_id  = "request_id",
+      user_id     = "user_id",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level       = "level",
+      service     = "service",
+      env         = "env",
+      route       = "route",
+      status_code = "status_code",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      stack = "portal-do-aluno",
+    }
+  }
+}
