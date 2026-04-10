@@ -15,6 +15,7 @@ const ExerciciosPage = React.lazy(() => import("./pages/Exercises"));
 const ExerciseDetail = React.lazy(() => import("./pages/ExerciseDetail"));
 const AdminUsersPage = React.lazy(() => import("./pages/AdminUsers"));
 const ActivityLogsPage = React.lazy(() => import("./pages/ActivityLogs"));
+const AdminObservabilityPage = React.lazy(() => import("./pages/AdminObservability"));
 const Turmas = React.lazy(() => import("./pages/Turmas"));
 const TurmaDetail = React.lazy(() => import("./pages/TurmaDetail"));
 const EstruturaCursoPage = React.lazy(() => import("./pages/EstruturaCurso"));
@@ -103,9 +104,14 @@ function AppContent() {
               element={<Navigate to="/dashboard/usuarios" replace />}
             />
             <Route path="/dashboard/logs" element={<ActivityLogsPage />} />
+            <Route path="/dashboard/observabilidade" element={<AdminObservabilityPage />} />
             <Route
               path="/logs"
               element={<Navigate to="/dashboard/logs" replace />}
+            />
+            <Route
+              path="/observabilidade"
+              element={<Navigate to="/dashboard/observabilidade" replace />}
             />
           </Route>
 

@@ -44,6 +44,7 @@ import {
   Medal,
   ChevronDown,
   BookOpen,
+  Radar,
 } from "lucide-react";
 
 type DashboardLayoutProps = {
@@ -134,6 +135,7 @@ export default function DashboardLayout({
   const isAdminUsers = location.pathname === "/dashboard/usuarios";
   const isEstruturaCurso = location.pathname.startsWith("/dashboard/estrutura-curso");
   const isActivityLogs = location.pathname === "/dashboard/logs";
+  const isObservability = location.pathname === "/dashboard/observabilidade";
   const isTurmas = location.pathname.startsWith("/dashboard/turmas");
 
   React.useEffect(() => {
@@ -383,6 +385,13 @@ export default function DashboardLayout({
                   <BarChart3 size={18} />
                 </span>
                 <span className="truncate">Logs de Atividade</span>
+              </Link>
+
+              <Link className={navItemClass(isObservability)} to="/dashboard/observabilidade">
+                <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
+                  <Radar size={18} />
+                </span>
+                <span className="truncate">Observabilidade</span>
               </Link>
             </>
           ) : null}

@@ -22,6 +22,10 @@ import { setupPresenceWebSocketServer } from "./realtime/presence";
 import { createStudentViewSsoStore } from "./services/studentViewSsoStore";
 import { createHttpMetrics } from "./observability/httpMetrics";
 import { createLogger } from "./observability/logger";
+import { authGuard } from "./middlewares/auth";
+import { requireRole } from "./middlewares/requireRole";
+import { buildOpenApiSpec } from "./openapi";
+import { renderSwaggerHtml } from "./openapi/swaggerHtml";
 import {
   createRequestObservabilityMiddleware,
   logRequestError,
@@ -68,6 +72,7 @@ const envSchema = z.object({
   OBSERVABILITY_ENABLED: z.string().optional(),
   OBSERVABILITY_SERVICE_NAME: z.string().optional(),
   OBSERVABILITY_ENV: z.string().optional(),
+  SWAGGER_ENABLED: z.string().optional(),
 });
 
 function resolveJwtExpiresIn(env: z.infer<typeof envSchema>) {
@@ -188,10 +193,14 @@ const studentViewSsoStore = env.REDIS_URL
 
 function shouldSkipApiLimiter(path: string) {
   return (
+    path === "/docs" ||
+    path === "/docs/openapi.json" ||
     path === "/presence/socket-ticket" ||
     path === "/presence/heartbeat" ||
     path === "/metrics" ||
     path === "/health" ||
+    path === "/api/docs" ||
+    path === "/api/docs/openapi.json" ||
     path === "/api/presence/socket-ticket" ||
     path === "/api/presence/heartbeat" ||
     path === "/api/metrics" ||
@@ -206,11 +215,36 @@ const observabilityServiceName =
   env.OBSERVABILITY_SERVICE_NAME?.trim() || "portal-do-aluno-api";
 const observabilityEnvironment =
   env.OBSERVABILITY_ENV?.trim() || env.NODE_ENV?.trim() || "development";
+const swaggerEnabled = parseBoolean(
+  env.SWAGGER_ENABLED,
+  (env.NODE_ENV?.trim() || "development") !== "production"
+);
 const logger = createLogger({
   serviceName: observabilityServiceName,
   environment: observabilityEnvironment,
 });
 const httpMetrics = createHttpMetrics(observabilityServiceName);
+const openApiSpec = buildOpenApiSpec();
+
+function applyDocsCsp(res: express.Response) {
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "font-src 'self' https: data:",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "img-src 'self' data:",
+      "object-src 'none'",
+      "script-src 'self' 'unsafe-inline' https://unpkg.com",
+      "script-src-attr 'none'",
+      "style-src 'self' https: 'unsafe-inline'",
+      "connect-src 'self'",
+      "upgrade-insecure-requests",
+    ].join(";")
+  );
+}
 app.set("trust proxy", 1);
 
 app.use(helmet());
@@ -257,6 +291,44 @@ app.use(apiLimiter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+if (swaggerEnabled) {
+  app.get(
+    "/docs",
+    authGuard(env.JWT_SECRET),
+    requireRole(["admin"]),
+    (_req, res) => {
+      applyDocsCsp(res);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(renderSwaggerHtml());
+    }
+  );
+  app.get(
+    "/api/docs",
+    authGuard(env.JWT_SECRET),
+    requireRole(["admin"]),
+    (_req, res) => {
+      applyDocsCsp(res);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(renderSwaggerHtml());
+    }
+  );
+  app.get(
+    "/docs/openapi.json",
+    authGuard(env.JWT_SECRET),
+    requireRole(["admin"]),
+    (_req, res) => {
+      res.json(openApiSpec);
+    }
+  );
+  app.get(
+    "/api/docs/openapi.json",
+    authGuard(env.JWT_SECRET),
+    requireRole(["admin"]),
+    (_req, res) => {
+      res.json(openApiSpec);
+    }
+  );
+}
 app.get("/metrics", async (_req, res) => {
   res.setHeader("Content-Type", httpMetrics.registry.contentType);
   res.end(await httpMetrics.registry.metrics());
@@ -369,6 +441,7 @@ app.use(
       logger.info("api_server_started", {
         port: env.PORT,
         observability_enabled: observabilityEnabled,
+        swagger_enabled: swaggerEnabled,
       });
     });
   } catch (error) {

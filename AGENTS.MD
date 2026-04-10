@@ -18,6 +18,7 @@ Portal do aluno com:
 - Se parecer que precisa de schema novo, primeiro verifique se o campo ja existe.
 - Se faltar campo ou ajuste no banco, entregue o SQL/ajuste necessario para o usuario decidir.
 - Nao exponha valores de `.env` nem replique segredos em resposta, commit ou documentacao.
+- Ao adicionar uma rota nova, documente-a no swagger
 
 ## UI e frontend
 

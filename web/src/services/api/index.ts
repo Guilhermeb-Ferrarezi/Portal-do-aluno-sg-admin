@@ -162,3 +162,11 @@ export {
 
 export type { ActivityLog } from "./activityLogs";
 export { listarActivityLogs } from "./activityLogs";
+export type {
+  MonitoringBreakdownItem,
+  MonitoringMethodItem,
+  MonitoringSnapshot,
+  MonitoringStatusItem,
+  MonitoringTotals,
+} from "./monitoring";
+export { fetchMonitoringSnapshot } from "./monitoring";

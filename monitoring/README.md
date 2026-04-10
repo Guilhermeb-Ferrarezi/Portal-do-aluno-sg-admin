@@ -16,7 +16,9 @@ Se voce ja tem um stack LGTM rodando no Easypanel, este e o caminho recomendado.
 
 Adicione o job de scrape de [prometheus.portal-do-aluno.yml](/home/guilherme/Desktop/Santos%20techg/portal-do-aluno/monitoring/easypanel/prometheus.portal-do-aluno.yml) ao Prometheus existente. O alvo esperado e:
 
-- `api:3000/api/metrics`
+- `portal-do-aluno-backend:3000/api/metrics`
+
+Se o nome interno do servico da API no seu Easypanel for diferente, troque o target pelo hostname interno real que responde a `GET /api/metrics`.
 
 ### Alloy
 
@@ -64,3 +66,10 @@ Se quiser rodar observabilidade local fora do Easypanel, os servicos `loki`, `pr
 - `ip`
 - `user_agent`
 - `error_type`
+
+## Swagger da API
+
+- UI: `GET /docs` ou `GET /api/docs`
+- Spec JSON: `GET /docs/openapi.json` ou `GET /api/docs/openapi.json`
+- A UI e o spec JSON exigem token JWT de admin.
+- O Swagger respeita `SWAGGER_ENABLED`. Em `production`, ele fica desligado por padrao.

@@ -3,4 +3,4 @@ scrape_configs:
     metrics_path: /api/metrics
     static_configs:
       - targets:
-          - api:3000
+          - portal-do-aluno-backend:3000
