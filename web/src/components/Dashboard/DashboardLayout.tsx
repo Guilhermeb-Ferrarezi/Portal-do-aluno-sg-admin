@@ -168,7 +168,7 @@ export default function DashboardLayout({
     if (studentViewPending) return;
 
     setStudentViewPending(true);
-    void startStudentViewSso()
+    void startStudentViewSso(window.location.href)
       .then(({ redirectUrl }) => {
         window.location.assign(redirectUrl);
       })

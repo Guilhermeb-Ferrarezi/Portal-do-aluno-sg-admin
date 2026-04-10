@@ -4,6 +4,7 @@ type StudentViewSsoEntry = {
   sourceUserId: string;
   sourceEmail: string;
   sourceName: string | null;
+  returnTo: string | null;
 };
 
 type StudentViewSsoStoreOptions = {

@@ -47,6 +47,10 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(20, "Refresh token invalido"),
 });
 
+const studentViewStartSchema = z.object({
+  returnTo: z.string().url("URL de retorno invalida").max(2048).optional(),
+});
+
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -62,6 +66,48 @@ function sha256Hex(value: string) {
 function resolveHomeApiBaseUrl(rawUrl: string) {
   const trimmed = rawUrl.trim().replace(/\/$/, "");
   return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
+function getOriginFromUrl(rawValue: string | undefined) {
+  if (!rawValue) return null;
+  try {
+    return new URL(rawValue).origin;
+  } catch {
+    return null;
+  }
+}
+
+function resolveSafeStudentViewReturnTo(req: AuthRequest, rawValue: string | undefined) {
+  if (!rawValue) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawValue);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return null;
+  }
+
+  const allowedOrigins = new Set<string>();
+  const requestOrigin = getOriginFromUrl(req.header("origin") ?? undefined);
+  const refererOrigin = getOriginFromUrl(req.header("referer") ?? undefined);
+  const forwardedProto = req.header("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = req.header("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || req.header("host");
+  const protocol = forwardedProto || req.protocol;
+
+  if (requestOrigin) allowedOrigins.add(requestOrigin);
+  if (refererOrigin) allowedOrigins.add(refererOrigin);
+  if (host && protocol) allowedOrigins.add(`${protocol}://${host}`);
+
+  if (allowedOrigins.size === 0 || !allowedOrigins.has(parsed.origin)) {
+    return null;
+  }
+
+  return parsed.toString();
 }
 
 async function verifyPassword(inputPassword: string, storedHash: string) {
@@ -435,6 +481,11 @@ export function authRouter(
         return res.status(401).json({ message: "Sessao invalida." });
       }
 
+      const parsedBody = studentViewStartSchema.safeParse(req.body ?? {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ message: "Dados invalidos para iniciar a visao do aluno." });
+      }
+
       try {
         const userResult = await pool.query<Pick<DbUserRow, "id" | "name" | "email">>(
           `SELECT id, name, email
@@ -451,6 +502,7 @@ export function authRouter(
 
         const code = crypto.randomBytes(32).toString("hex");
         const expiresAt = new Date(Date.now() + studentPortalSsoTtlSeconds * 1000);
+        const returnTo = resolveSafeStudentViewReturnTo(req, parsedBody.data.returnTo);
 
         await studentViewSsoStore.set(
           code,
@@ -458,6 +510,7 @@ export function authRouter(
             sourceUserId: String(currentUser.id),
             sourceEmail: currentUser.email,
             sourceName: currentUser.name,
+            returnTo,
           },
           studentPortalSsoTtlSeconds
         );
@@ -468,7 +521,7 @@ export function authRouter(
           action: "student_view_sso_start",
           entityType: "auth",
           entityId: String(currentUser.id),
-          metadata: { target: "portal-willian", expiresAt: expiresAt.toISOString() },
+          metadata: { target: "portal-willian", expiresAt: expiresAt.toISOString(), returnTo },
           req: req as any,
         }).catch((error) => console.error("activity log error:", error));
 
@@ -515,6 +568,7 @@ export function authRouter(
           email: entry.sourceEmail,
           name: entry.sourceName,
         },
+        returnTo: entry.returnTo,
       });
     } catch (error) {
       console.error("student view sso exchange error:", error);

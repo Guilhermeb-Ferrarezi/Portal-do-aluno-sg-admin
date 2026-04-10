@@ -45,11 +45,12 @@ export async function createPresenceSocketTicket() {
   );
 }
 
-export async function startStudentViewSso() {
+export async function startStudentViewSso(returnTo?: string) {
   return apiFetch<{ redirectUrl: string; expiresAt: string }>(
     "/auth/student-view/start",
     {
       method: "POST",
+      body: JSON.stringify(returnTo ? { returnTo } : {}),
     }
   );
 }
