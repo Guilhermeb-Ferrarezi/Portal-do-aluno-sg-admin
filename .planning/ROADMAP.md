@@ -1,5 +1,9 @@
 # Roadmap: Portal do Aluno
 
+## v1.0 Gamificacao, Multi-Curso e Observabilidade
+
+**Milestone Goal:** ampliar engajamento do portal com gamificacao e suporte a multiplos cursos, enquanto melhora a diagnostica operacional com logs mais informativos.
+
 ## Overview
 
 Esta milestone evolui o portal interno de professores e administradores em cinco passos coerentes: primeiro aumenta a capacidade de diagnostico com observabilidade melhor, depois organiza a entrada multi-curso, expande a gestao de medalhas, introduz rankings com recortes temporais e fecha com a integracao de recompensas e validacao operacional dos fluxos principais.
