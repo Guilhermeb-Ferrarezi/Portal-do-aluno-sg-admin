@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, {
   createContext,
   useContext,
@@ -31,11 +32,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const timeoutByToastIdRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
+    const timeoutByToastId = timeoutByToastIdRef.current;
     return () => {
-      timeoutByToastIdRef.current.forEach((timeoutId) => {
+      timeoutByToastId.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
-      timeoutByToastIdRef.current.clear();
+      timeoutByToastId.clear();
     };
   }, []);
 

@@ -6,10 +6,12 @@ import {
   type LegacyRole,
   type NumericRole,
 } from "../middlewares/auth";
+import { getRequestId } from "../observability/requestObservability";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
 import { extractPresenceClientFingerprint } from "../realtime/presenceClientFingerprint";
 import { broadcastPresenceUpdate } from "../realtime/presence";
 import { issuePresenceSocketTicket } from "../realtime/presenceTickets";
+import { logActivity } from "../utils/activityLog";
 
 function pickNonEmptyString(value: unknown) {
   if (typeof value !== "string") {
@@ -96,12 +98,60 @@ async function resolvePresenceUser(
   return authenticateToken(token, jwtSecret);
 }
 
+function resolvePresenceRoute(req: AuthRequest) {
+  return req.originalUrl.split("?")[0] || req.path;
+}
+
+function presenceMetadata(
+  req: AuthRequest,
+  source: string,
+  outcome: string,
+  statusCode: number,
+  extra: Record<string, unknown> = {}
+) {
+  return {
+    requestId: req.res ? getRequestId(req, req.res) : null,
+    route: resolvePresenceRoute(req),
+    statusCode,
+    outcome,
+    source,
+    contextArea: "presence",
+    ...extra,
+  };
+}
+
+function trackPresenceActivity(params: {
+  req: AuthRequest;
+  actorId: string | null;
+  actorRole?: string | null;
+  action: string;
+  metadata: Record<string, unknown>;
+}) {
+  return logActivity({
+    actorId: params.actorId,
+    actorRole: params.actorRole ?? null,
+    action: params.action,
+    entityType: "presence",
+    entityId: params.actorId,
+    metadata: params.metadata,
+    req: params.req,
+  }).catch((error) => console.error("presence activity log error:", error));
+}
+
 export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) {
   const router = Router();
 
   router.post("/presence/socket-ticket", async (req: AuthRequest, res) => {
     const user = await resolvePresenceUser(req, jwtSecret, presenceProxySecret);
     if (!user) {
+      void trackPresenceActivity({
+        req,
+        actorId: null,
+        action: "presence_socket_ticket_denied",
+        metadata: presenceMetadata(req, "presence.socket-ticket", "denied", 401, {
+          errorType: "MissingToken",
+        }),
+      });
       return res.status(401).json({ message: "Token ausente" });
     }
 
@@ -129,6 +179,14 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
     try {
       const user = await resolvePresenceUser(req, jwtSecret, presenceProxySecret);
       if (!user) {
+        void trackPresenceActivity({
+          req,
+          actorId: null,
+          action: "presence_heartbeat_denied",
+          metadata: presenceMetadata(req, "presence.heartbeat", "denied", 401, {
+            errorType: "MissingToken",
+          }),
+        });
         return res.status(401).json({ message: "Token ausente" });
       }
 
@@ -146,6 +204,15 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
       });
     } catch (error) {
       console.error("presence http heartbeat error:", error);
+      void trackPresenceActivity({
+        req,
+        actorId: req.user?.sub ?? null,
+        actorRole: req.user?.role ?? null,
+        action: "presence_heartbeat_failed",
+        metadata: presenceMetadata(req, "presence.heartbeat", "server_error", 500, {
+          errorType: error instanceof Error ? error.name : "PresenceHeartbeatError",
+        }),
+      });
       return res.status(500).json({ message: "Nao foi possivel atualizar a presenca." });
     }
   });

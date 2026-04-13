@@ -28,6 +28,7 @@ export const baseOpenApiSpec = {
     { name: "Users", description: "Perfil e gerenciamento de usuarios" },
     { name: "Activity Logs", description: "Auditoria administrativa" },
     { name: "Badges", description: "Medalhas e atribuicoes" },
+    { name: "Presence", description: "Presenca em tempo real e heartbeat HTTP" },
   ],
   components: {
     securitySchemes: {

@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 export const pageContainerClass = "flex flex-col gap-5";
 
 export const panelClass =
-  "rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.12)] sm:p-6";
+  "rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6";
 
-export const subtlePanelClass = "rounded-[24px] border border-border/70 bg-muted/20 p-4";
+export const subtlePanelClass = "rounded-2xl border border-border bg-muted/50 p-4";
 
 export const sectionTitleClass = "text-2xl font-black tracking-[-0.03em] text-foreground sm:text-[1.9rem]";
 
@@ -107,8 +107,8 @@ export const emptyTitleClass = "text-lg font-semibold text-foreground";
 
 export const exerciseCardClass = (canEditCard: boolean) =>
   cn(
-    "grid gap-5 rounded-[28px] border border-border/70 bg-card/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.12)] transition focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30 sm:p-6",
-    canEditCard && "cursor-pointer hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_20px_40px_rgba(0,0,0,0.16)]"
+    "grid gap-5 rounded-[28px] border border-border bg-card p-5 shadow-sm transition focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/30 sm:p-6",
+    canEditCard && "cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
   );
 
 export const exercisePillClass = "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold";
@@ -116,28 +116,28 @@ export const exercisePillClass = "inline-flex items-center rounded-full border p
 export const exerciseTypePillClass = (kind: string) =>
   cn(
     exercisePillClass,
-    kind === "isCodigo" && "border-violet-500/30 bg-violet-500/10 text-violet-200",
-    kind === "isEscrita" && "border-rose-500/30 bg-rose-500/10 text-rose-200",
-    kind === "isMouse" && "border-sky-500/30 bg-sky-500/10 text-sky-200",
-    kind === "isMultipla" && "border-amber-500/30 bg-amber-500/10 text-amber-200",
-    kind === "isAtalho" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-    kind === "isDefault" && "border-border/70 bg-background/75 text-muted-foreground"
+    kind === "isCodigo" && "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-200",
+    kind === "isEscrita" && "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200",
+    kind === "isMouse" && "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200",
+    kind === "isMultipla" && "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-200",
+    kind === "isAtalho" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200",
+    kind === "isDefault" && "border-slate-300 bg-slate-50 text-slate-600"
   );
 
 export const accessBadgeClass = (tone: "aluno" | "turmas" | "all") =>
   cn(
     exercisePillClass,
     tone === "aluno" && "border-primary/30 bg-primary/10 text-primary",
-    tone === "turmas" && "border-sky-500/30 bg-sky-500/10 text-sky-200",
-    tone === "all" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+    tone === "turmas" && "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200",
+    tone === "all" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
   );
 
 export const turmaBadgeClass = (tipo: string) =>
   cn(
     "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium",
     tipo === "turma"
-      ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200"
-      : "border-orange-500/30 bg-orange-500/10 text-orange-200"
+      ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-200"
+      : "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-200"
   );
 
 export const modalBodyClass = "flex flex-col gap-4";

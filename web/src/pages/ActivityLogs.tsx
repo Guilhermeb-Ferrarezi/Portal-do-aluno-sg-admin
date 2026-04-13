@@ -91,6 +91,7 @@ const ENTITY_OPTIONS = [
   { value: "auth", label: "Autenticação" },
   { value: "security", label: "Segurança" },
   { value: "badge", label: "Medalha" },
+  { value: "presence", label: "Presenca" },
 ];
 
 const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; surfaceClass: string; badgeClass: string }> = {
@@ -243,6 +244,7 @@ const ENTITY_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = 
   auth: { icon: <LogIn size={14} />, label: "Autenticação" },
   security: { icon: <ShieldCheck size={14} />, label: "Segurança" },
   badge: { icon: <Package size={14} />, label: "Medalha" },
+  presence: { icon: <ShieldCheck size={14} />, label: "Presenca" },
 };
 
 function formatDate(value: string) {
@@ -367,6 +369,19 @@ function metadataTypeClass(type: MetadataEntry["type"]) {
   }
 }
 
+function outcomeBadgeClass(outcome: string | null | undefined) {
+  if (outcome === "success") {
+    return "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300";
+  }
+  if (outcome === "denied") {
+    return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
+  }
+  if (outcome === "error") {
+    return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
+  }
+  return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
+}
+
 export default function ActivityLogsPage() {
   const [logSection, setLogSection] = React.useState<LogSection>("users");
   const [logs, setLogs] = React.useState<ActivityLog[]>([]);
@@ -442,9 +457,10 @@ export default function ActivityLogsPage() {
     return actions;
   }, [logs]);
 
-  const panelClass = "rounded-[28px] border border-border/70 bg-card/95 shadow-sm";
+  const panelClass =
+    "rounded-[32px] border border-border/70 bg-[var(--surface-glass)] shadow-[0_24px_52px_-34px_rgba(20,32,19,0.18)]";
   const filterFieldClass =
-    "h-10 w-full rounded-xl border border-input bg-background/80 px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/30";
+    "h-11 w-full rounded-2xl border border-input bg-[var(--input-bg)] px-3.5 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/30";
 
   return (
     <DashboardLayout
@@ -457,37 +473,52 @@ export default function ActivityLogsPage() {
     >
       <FadeInUp duration={0.28}>
         <div className="space-y-6">
-          <div className="inline-flex max-w-full flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/95 p-2 shadow-sm" role="tablist" aria-label="Secoes de logs">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={logSection === "users"}
-              className={cn(
-                "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition",
-                logSection === "users"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-              onClick={() => handleSectionChange("users")}
-            >
-              <span className="inline-flex"><User size={15} /></span>
-              Logs de usuarios
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={logSection === "staff"}
-              className={cn(
-                "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition",
-                logSection === "staff"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-              onClick={() => handleSectionChange("staff")}
-            >
-              <span className="inline-flex"><ShieldCheck size={15} /></span>
-              Logs de admin/professor
-            </button>
+          <div className="rounded-[32px] border border-transparent bg-[var(--hero-glow),var(--hero-surface)] p-6 shadow-[0_28px_68px_-42px_rgba(20,32,19,0.22)]">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center rounded-full border border-black/8 bg-white/55 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.24em] text-foreground/72">
+                  Monitoramento editorial
+                </div>
+                <h2 className="mt-3 text-[2.2rem] font-black tracking-[-0.06em] text-foreground sm:text-[2.6rem]">
+                  Logs com leitura mais executiva
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Filtre eventos, isole operacoes e abra detalhes estruturados sem perder velocidade de varredura.
+                </p>
+              </div>
+              <div className="inline-flex max-w-full flex-wrap gap-2 rounded-[1.35rem] border border-border/60 bg-card/80 p-2 shadow-[0_14px_28px_-24px_rgba(20,32,19,0.22)]" role="tablist" aria-label="Secoes de logs">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={logSection === "users"}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-2 rounded-[1rem] px-4 py-2.5 text-sm font-semibold transition",
+                    logSection === "users"
+                      ? "bg-background text-foreground shadow-sm dark:bg-[var(--surface-2)]"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                  onClick={() => handleSectionChange("users")}
+                >
+                  <span className="inline-flex"><User size={15} /></span>
+                  Logs de usuarios
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={logSection === "staff"}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-2 rounded-[1rem] px-4 py-2.5 text-sm font-semibold transition",
+                    logSection === "staff"
+                      ? "bg-background text-foreground shadow-sm dark:bg-[var(--surface-2)]"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                  onClick={() => handleSectionChange("staff")}
+                >
+                  <span className="inline-flex"><ShieldCheck size={15} /></span>
+                  Logs de admin/professor
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -721,6 +752,15 @@ export default function ActivityLogsPage() {
                   const isExpanded = expandedRow === log.id;
                   const metadataEntries = normalizeMetadata(log.metadata);
                   const hasMetadata = metadataEntries.length > 0;
+                  const hasStructuredObservability = Boolean(
+                    log.requestId ||
+                    log.route ||
+                    log.statusCode ||
+                    log.outcome ||
+                    log.errorType ||
+                    log.source ||
+                    log.contextArea
+                  );
 
                   return (
                     <div
@@ -774,6 +814,21 @@ export default function ActivityLogsPage() {
                                 ID: {truncate(log.entityId, 12)}
                               </Badge>
                             )}
+                            {log.requestId && (
+                              <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium" title={log.requestId}>
+                                req: {truncate(log.requestId, 12)}
+                              </Badge>
+                            )}
+                            {log.statusCode && (
+                              <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium">
+                                status: {log.statusCode}
+                              </Badge>
+                            )}
+                            {log.outcome && (
+                              <Badge className={cn("rounded-full px-2.5 text-[11px] font-medium", outcomeBadgeClass(log.outcome))}>
+                                {log.outcome}
+                              </Badge>
+                            )}
                             {log.ipAddress && (
                               <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium">
                                 IP: {log.ipAddress}
@@ -799,6 +854,12 @@ export default function ActivityLogsPage() {
                               <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">ID do Log</span>
                               <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.id}</span>
                             </div>
+                            {log.requestId && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Request ID</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.requestId}</span>
+                              </div>
+                            )}
                             {log.actorId && (
                               <div className="space-y-1">
                                 <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actor ID</span>
@@ -809,6 +870,44 @@ export default function ActivityLogsPage() {
                               <div className="space-y-1">
                                 <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Entity ID</span>
                                 <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.entityId}</span>
+                              </div>
+                            )}
+                            {log.route && (
+                              <div className="space-y-1 md:col-span-2">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Rota</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 font-mono text-xs font-medium text-foreground">{log.route}</span>
+                              </div>
+                            )}
+                            {log.source && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Source</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.source}</span>
+                              </div>
+                            )}
+                            {log.statusCode && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Status</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.statusCode}</span>
+                              </div>
+                            )}
+                            {log.outcome && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Outcome</span>
+                                <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", outcomeBadgeClass(log.outcome))}>
+                                  {log.outcome}
+                                </Badge>
+                              </div>
+                            )}
+                            {log.errorType && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Error type</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.errorType}</span>
+                              </div>
+                            )}
+                            {log.contextArea && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Area</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.contextArea}</span>
                               </div>
                             )}
                             {log.userAgent && (
@@ -829,6 +928,19 @@ export default function ActivityLogsPage() {
                                 <span className="block rounded-xl border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground break-all">
                                   {log.userAgent}
                                 </span>
+                              </div>
+                            )}
+                            {log.rawMessage && (
+                              <div className="space-y-2 md:col-span-2">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Mensagem original</span>
+                                <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground whitespace-pre-wrap break-words">
+                                  {log.rawMessage}
+                                </pre>
+                              </div>
+                            )}
+                            {!hasStructuredObservability && (
+                              <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 px-4 py-3 text-sm text-muted-foreground md:col-span-2">
+                                Este registro nao possui campos estruturados de observabilidade. Isso costuma acontecer com logs antigos gravados antes da instrumentacao nova.
                               </div>
                             )}
                             {hasMetadata && (

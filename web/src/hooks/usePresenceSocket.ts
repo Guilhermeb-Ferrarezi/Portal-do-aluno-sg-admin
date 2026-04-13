@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   getPresenceSnapshot,
   subscribeToPresence,
@@ -30,39 +30,27 @@ export function usePresenceSnapshot() {
 
 export function usePresenceMap() {
   const snapshot = usePresenceSnapshot();
-  const mapRef = useRef(new Map<string, PresenceState>());
 
-  const map = new Map<string, PresenceState>();
-  for (const entry of snapshot) {
-    map.set(entry.userId, entry);
-  }
-  mapRef.current = map;
-
-  return mapRef.current;
+  return useMemo(() => {
+    const map = new Map<string, PresenceState>();
+    for (const entry of snapshot) {
+      map.set(entry.userId, entry);
+    }
+    return map;
+  }, [snapshot]);
 }
 
 export { isPresenceStillOnline } from "../utils/presence";
 
 export function usePresenceNowTick(intervalMs = 30_000) {
-  const tickRef = useRef(Date.now());
-  const setTick = useRef<(() => void) | undefined>(undefined);
+  const [tick, setTick] = useState(() => Date.now());
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      tickRef.current = Date.now();
-      setTick.current?.();
+      setTick(Date.now());
     }, intervalMs);
     return () => window.clearInterval(id);
   }, [intervalMs]);
 
-  return useSyncExternalStore(
-    (cb) => {
-      setTick.current = cb;
-      return () => {
-        setTick.current = undefined;
-      };
-    },
-    () => tickRef.current,
-    () => tickRef.current
-  );
+  return tick;
 }

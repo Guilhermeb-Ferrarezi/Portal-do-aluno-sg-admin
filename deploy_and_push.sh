@@ -12,6 +12,7 @@ ENV_FILE=".env"
 DEPLOY_CMD=()
 LOGS_CMD="docker compose logs api"
 RESTART_CMD="docker compose down && docker compose up -d --build"
+PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:8080}"
 # ===========================================
 
 print_header() {
@@ -119,6 +120,29 @@ has_local_changes() {
   ! git diff --quiet || ! git diff --cached --quiet
 }
 
+run_playwright_smoke() {
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "[ERRO] npm nao encontrado no PATH."
+    exit 1
+  fi
+
+  echo
+  echo "=== PLAYWRIGHT E2E ==="
+  echo "Base URL: $PLAYWRIGHT_BASE_URL"
+
+  (
+    cd web || exit 1
+    PLAYWRIGHT_BASE_URL="$PLAYWRIGHT_BASE_URL" \
+    PLAYWRIGHT_SKIP_WEBSERVER=1 \
+    npm run test:e2e:smoke
+  ) || {
+    echo
+    echo "[ERRO] Os testes Playwright falharam. Abortando antes de commit/push."
+    echo "Dica: se faltar browser, rode 'cd web && npm run playwright:install'."
+    exit 1
+  }
+}
+
 print_header
 
 # ----- Verifica Git -----
@@ -188,6 +212,8 @@ if ! ask_yes_no "Os containers estão rodando corretamente? (s/n): "; then
   echo "Ok, abortando antes de qualquer push."
   exit 0
 fi
+
+run_playwright_smoke
 
 echo
 if ! ask_yes_no "Deseja fazer commit e push agora? (s/n): "; then

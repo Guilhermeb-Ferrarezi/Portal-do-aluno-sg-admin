@@ -324,18 +324,18 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     return cursosToggleFiltrados.slice(inicio, inicio + cursoCardsItensPorPagina);
   }, [cursosToggleFiltrados, cursoCardsPagina, cursoCardsItensPorPagina]);
 
-  function clearFieldWarning(field: RequiredFieldKey) {
+  const clearFieldWarning = React.useCallback((field: RequiredFieldKey) => {
     setFieldWarnings((prev) => {
       if (!prev[field]) return prev;
       const next = { ...prev };
       delete next[field];
       return next;
     });
-  }
+  }, []);
 
-  function showErrorToast(message: string, duration = 4000) {
+  const showErrorToast = React.useCallback((message: string, duration = 4000) => {
     addToast(message, "error", duration);
-  }
+  }, [addToast]);
 
   async function getNextAvailableIndex(phaseId: string) {
     const exerciciosDaFase = await listarExerciciosPorFase(phaseId);
@@ -353,7 +353,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     return nextIndex;
   }
 
-  function handleSelecionarCurso(courseId: string) {
+  const handleSelecionarCurso = React.useCallback((courseId: string) => {
     clearFieldWarning("curso");
     clearFieldWarning("modulo");
     clearFieldWarning("fase");
@@ -382,7 +382,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       setCategoria(categoriaInferida);
       setComponenteInterativo("escrita");
     }
-  }
+  }, [categoria, clearFieldWarning, cursoIdSelecionado, cursosDisponiveis]);
 
   function collectRequiredFieldWarnings(params: {
     tituloFinal: string;
@@ -649,7 +649,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
       setCategoria(categoriaInferida);
       setComponenteInterativo("escrita");
     }
-  }, [cursoSelecionado]);
+  }, [cursoSelecionado, categoria]);
 
   React.useEffect(() => {
     if (cursosGratuitosDisponiveis.length === 0) return;
@@ -657,7 +657,7 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     if (!cursoAtualValido) {
       handleSelecionarCurso(cursosGratuitosDisponiveis[0]!.id);
     }
-  }, [cursosGratuitosDisponiveis, cursoIdSelecionado]);
+  }, [cursosGratuitosDisponiveis, cursoIdSelecionado, handleSelecionarCurso]);
 
   React.useEffect(() => { setCursoCardsPagina(1); }, [cursoCardsFiltro]);
   React.useEffect(() => { if (cursoCardsPagina > cursosCardsTotalPaginas) setCursoCardsPagina(cursosCardsTotalPaginas); }, [cursoCardsPagina, cursosCardsTotalPaginas]);
@@ -746,13 +746,13 @@ export default function CriarExercicioForm({ onCreated }: CriarExercicioFormProp
     setAdicionarEmContainer(false);
     setContainerSelecionadoKey("");
     showErrorToast(CONTAINER_BLOCKED_MESSAGE);
-  }, [adicionarEmContainer, dificuldadeBloqueadaParaContainer]);
+  }, [adicionarEmContainer, dificuldadeBloqueadaParaContainer, showErrorToast]);
 
   React.useEffect(() => {
     if (!prazoObrigatorio) {
       clearFieldWarning("prazo");
     }
-  }, [prazoObrigatorio]);
+  }, [clearFieldWarning, prazoObrigatorio]);
 
   React.useEffect(() => {
     if (!adicionarEmContainer) return;

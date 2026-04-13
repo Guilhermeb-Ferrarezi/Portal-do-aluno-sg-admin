@@ -3,23 +3,25 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
 import { setToken, setRefreshToken, notifyAuthChanged } from "@/auth/auth";
 import { API_BASE_URL } from "@/services/api";
+import { appRoutes } from "@/router/routes";
 
 export default function SsoCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const code = searchParams.get("code");
+  const [error, setError] = useState<string | null>(() =>
+    code ? null : "Codigo SSO ausente na URL."
+  );
   const exchanged = useRef(false);
 
   useEffect(() => {
     if (exchanged.current) return;
-    exchanged.current = true;
-
-    const code = searchParams.get("code");
 
     if (!code) {
-      setError("Codigo SSO ausente na URL.");
       return;
     }
+
+    exchanged.current = true;
 
     async function exchange(ssoCode: string) {
       try {
@@ -37,14 +39,14 @@ export default function SsoCallback() {
         localStorage.removeItem("role");
         notifyAuthChanged();
 
-        navigate("/", { replace: true });
+        navigate(appRoutes.dashboard, { replace: true });
       } catch {
         setError("Erro de conexao ao validar SSO.");
       }
     }
 
     exchange(code);
-  }, [searchParams, navigate]);
+  }, [code, navigate]);
 
   if (error) {
     return (
@@ -63,7 +65,7 @@ export default function SsoCallback() {
           <p style={{ color: "var(--destructive, #ef4444)", marginBottom: "1rem" }}>
             {error}
           </p>
-          <a href="/login" style={{ color: "var(--primary)", textDecoration: "underline" }}>
+          <a href={appRoutes.login} style={{ color: "var(--primary)", textDecoration: "underline" }}>
             Voltar ao login
           </a>
         </div>

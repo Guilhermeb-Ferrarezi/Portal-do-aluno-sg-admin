@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getToken, getTokenExpiryMs, isTokenExpired, onAuthChanged } from "../auth/auth";
 import { logoutWithServer } from "../services/api";
 import { connectPresenceSocket, disconnectPresenceSocket } from "../services/presenceSocket";
+import { appRoutes } from "@/router/routes";
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
@@ -21,7 +22,7 @@ export function useAuthSession() {
 
     const forceLogout = () => {
       void logoutWithServer().finally(() => {
-        navigate("/login", { replace: true });
+        navigate(appRoutes.login, { replace: true });
       });
     };
 
@@ -66,7 +67,7 @@ export function useAuthSession() {
     const handleStorage = (e: StorageEvent) => {
       if (e.key !== "token") return;
       if (!e.newValue) {
-        navigate("/login", { replace: true });
+        navigate(appRoutes.login, { replace: true });
         return;
       }
       syncAuth();

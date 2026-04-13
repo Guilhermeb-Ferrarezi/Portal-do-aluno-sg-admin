@@ -30,3 +30,5 @@ docker-compose.*
 dist-electron/
 renderer-dist/
 release/
+web/playwright-report/
+web/test-results/

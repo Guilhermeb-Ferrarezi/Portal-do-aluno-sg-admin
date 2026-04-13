@@ -7,6 +7,7 @@ import {
   setRefreshToken,
 } from "../../auth/auth";
 import { env } from "@/env";
+import { appRoutes } from "@/router/routes";
 
 export type UserRef = {
   id: string;
@@ -60,8 +61,8 @@ async function ensureAccessToken(): Promise<string | null> {
 
 export function handleUnauthorized(message: string): never {
   logout();
-  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-    window.location.assign("/login");
+  if (typeof window !== "undefined" && window.location.pathname !== appRoutes.login) {
+    window.location.assign(appRoutes.login);
   }
   throw new Error(message);
 }

@@ -58,18 +58,18 @@ const pageTitle = "Gerenciar Usuarios";
 const pageSubtitle = "Gerencie alunos, professores e admins";
 
 const surfaceCardClass =
-  "rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_right,rgba(225,29,46,0.12),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] bg-card/95 shadow-[0_18px_44px_rgba(0,0,0,0.16)]";
+  "rounded-2xl border border-border bg-card shadow-sm";
 const fieldClass =
-  "h-12 w-full rounded-2xl border border-border/75 bg-card px-4 text-sm text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition placeholder:text-muted-foreground/90 hover:border-primary/35 focus:border-primary focus:ring-4 focus:ring-ring/30";
+  "h-11 w-full rounded-xl border border-border bg-[var(--input-bg)] px-4 text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground hover:border-[var(--input-border-hover)] focus:border-primary focus:ring-4 focus:ring-primary/10";
 const primaryButtonClass =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_12px_24px_rgba(225,29,46,0.22)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60";
 const secondaryButtonClass =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border/80 bg-muted/45 px-4 text-sm font-semibold text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60";
 const emptyCardClass =
-  "rounded-[28px] border border-dashed border-border/80 bg-[radial-gradient(circle_at_top,rgba(225,29,46,0.09),transparent_44%)] bg-muted/35 px-6 py-12 text-center text-sm text-muted-foreground shadow-[0_18px_44px_rgba(0,0,0,0.12)]";
+  "rounded-2xl border border-dashed border-border bg-muted px-6 py-12 text-center text-sm text-muted-foreground shadow-sm";
 const usersTableShellClass = cn(surfaceCardClass, "overflow-hidden p-0");
 const mobileActionTriggerClass =
-  "inline-flex size-9 items-center justify-center rounded-full border border-border/70 bg-muted/45 text-muted-foreground transition hover:border-primary/35 hover:bg-accent";
+  "inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition hover:bg-accent";
 
 type RoleFilter = "todos" | "aluno" | "professor" | "admin";
 
@@ -78,8 +78,8 @@ function getRoleMeta(role: User["role"]) {
     return {
       label: "Aluno",
       icon: GraduationCap,
-      badgeClass: "border-sky-500/30 bg-sky-500/10 text-sky-200",
-      avatarClass: "border-sky-500/25 bg-sky-500/10 text-sky-100",
+      badgeClass: "border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-200",
+      avatarClass: "border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-100",
     };
   }
 
@@ -87,16 +87,16 @@ function getRoleMeta(role: User["role"]) {
     return {
       label: "Professor",
       icon: UserIcon,
-      badgeClass: "border-violet-500/30 bg-violet-500/10 text-violet-200",
-      avatarClass: "border-violet-500/25 bg-violet-500/10 text-violet-100",
+      badgeClass: "border-violet-500/40 bg-violet-500/15 text-violet-700 dark:text-violet-200",
+      avatarClass: "border-violet-500/30 bg-violet-500/15 text-violet-700 dark:text-violet-100",
     };
   }
 
   return {
     label: "Admin",
     icon: KeyRound,
-    badgeClass: "border-primary/30 bg-primary/10 text-red-200",
-    avatarClass: "border-primary/25 bg-primary/10 text-red-100",
+    badgeClass: "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-200",
+    avatarClass: "border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-100",
   };
 }
 

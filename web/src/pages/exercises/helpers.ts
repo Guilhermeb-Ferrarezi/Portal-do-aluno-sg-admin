@@ -251,7 +251,7 @@ export function getMultiplaQuestoesFromRegras(rawRegras: string | null | undefin
 export function getExerciseEditorComponentType(exercicio: Exercicio): "escrita" | "multipla" {
   if (exercicio.tipoExercicio === "multipla") return "multipla";
   if (exercicio.tipoExercicio === "escrita" || exercicio.tipoExercicio === "texto") return "escrita";
-  if (Boolean((exercicio as any).multipla_regras)) return "multipla";
+  if ((exercicio as any).multipla_regras) return "multipla";
   return "escrita";
 }
 

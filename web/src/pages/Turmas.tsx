@@ -98,7 +98,7 @@ export default function TurmasPage() {
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
   const [adicionando, setAdicionando] = React.useState(false);
 
-  async function load() {
+  const load = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await listarTurmas({
@@ -118,9 +118,9 @@ export default function TurmasPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [currentPage, itemsPerPage]);
 
-  async function carregarModulosDoCurso(courseId: string, moduloAtual?: string) {
+  const carregarModulosDoCurso = React.useCallback(async (courseId: string, moduloAtual?: string) => {
     if (!courseId) {
       setModulosCurso([]);
       setModuloIdSelecionado("");
@@ -133,7 +133,7 @@ export default function TurmasPage() {
       return;
     }
     setModuloIdSelecionado(mods[0]?.id ?? "");
-  }
+  }, []);
 
   React.useEffect(() => {
     if (role === "admin") {
@@ -148,11 +148,11 @@ export default function TurmasPage() {
         })
         .catch((e) => console.error("Erro ao carregar cursos:", e));
     }
-  }, [role]);
+  }, [carregarModulosDoCurso, role]);
 
   React.useEffect(() => {
     void load();
-  }, [currentPage, itemsPerPage]);
+  }, [load]);
 
   React.useEffect(() => {
     if (role !== "admin") return;
@@ -175,7 +175,7 @@ export default function TurmasPage() {
       setModulosCurso([]);
       setModuloIdSelecionado("");
     });
-  }, [courseIdSelecionado, role]);
+  }, [carregarModulosDoCurso, courseIdSelecionado, role]);
 
   async function adicionarExerciciosNoCronograma(turmaId: string) {
     if (exerciciosSelecionados.length === 0) return;

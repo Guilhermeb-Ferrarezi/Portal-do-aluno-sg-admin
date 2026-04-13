@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { pool } from "../db";
 import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
+import { getRequestId } from "../observability/requestObservability";
 import { logActivity } from "../utils/activityLog";
 import type { StudentViewSsoStore } from "../services/studentViewSsoStore";
 
@@ -180,6 +181,47 @@ export function authRouter(
   const studentPortalSsoTtlSeconds = Math.max(30, options.studentPortalSsoTtlSeconds ?? 120);
   const studentViewSsoStore = options.studentViewSsoStore;
 
+  function resolveRequestRoute(req: AuthRequest) {
+    return req.originalUrl.split("?")[0] || req.path;
+  }
+
+  function authObservabilityMetadata(
+    req: AuthRequest,
+    base: {
+      source: string;
+      outcome: string;
+      statusCode: number;
+      errorType?: string | null;
+      contextArea?: string;
+    } & Record<string, unknown>
+  ) {
+    return {
+      requestId: req.res ? getRequestId(req, req.res) : null,
+      route: resolveRequestRoute(req),
+      contextArea: "auth",
+      ...base,
+    };
+  }
+
+  function trackAuthActivity(params: {
+    req: AuthRequest;
+    actorId: string | null;
+    actorRole?: string | null;
+    action: string;
+    entityId?: string | null;
+    metadata: Record<string, unknown>;
+  }) {
+    return logActivity({
+      actorId: params.actorId,
+      actorRole: params.actorRole ?? null,
+      action: params.action,
+      entityType: "auth",
+      entityId: params.entityId ?? params.actorId,
+      metadata: params.metadata,
+      req: params.req,
+    }).catch((error) => console.error("activity log error:", error));
+  }
+
   function resolveStudentPortalCallbackUrl(code: string) {
     const callbackUrl = new URL(studentPortalSsoCallbackPath, studentPortalBaseUrl);
     callbackUrl.searchParams.set("code", code);
@@ -237,19 +279,36 @@ export function authRouter(
 
       const user = result.rows[0];
       if (!user) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: null,
+          action: "login_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.login",
+            outcome: "denied",
+            statusCode: 401,
+            errorType: "UserNotFound",
+            loginInput,
+          }),
+        });
         return res.status(401).json({ message: "Usuario ou senha invalidos" });
       }
 
       if (!isValidRole(user.role)) {
-        logActivity({
+        void trackAuthActivity({
+          req: req as AuthRequest,
           actorId: String(user.id),
           actorRole: String(user.role),
           action: "login_failed",
-          entityType: "auth",
-          entityId: String(user.id),
-          metadata: { motivo: "role_not_allowed", loginInput },
-          req: req as any,
-        }).catch((error) => console.error("activity log error:", error));
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.login",
+            outcome: "denied",
+            statusCode: 403,
+            errorType: "RoleNotAllowed",
+            loginInput,
+            motivo: "role_not_allowed",
+          }),
+        });
         return res.status(403).json({ message: "Acesso indisponível para este perfil" });
       }
 
@@ -259,30 +318,38 @@ export function authRouter(
 
       const ok = await verifyPassword(senha, user.password_hash);
       if (!ok) {
-        logActivity({
+        void trackAuthActivity({
+          req: req as AuthRequest,
           actorId: String(user.id),
           actorRole: String(user.role),
           action: "login_failed",
-          entityType: "auth",
-          entityId: String(user.id),
-          metadata: { motivo: "invalid_password", loginInput },
-          req: req as any,
-        }).catch((error) => console.error("activity log error:", error));
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.login",
+            outcome: "denied",
+            statusCode: 401,
+            errorType: "InvalidPassword",
+            loginInput,
+            motivo: "invalid_password",
+          }),
+        });
         return res.status(401).json({ message: "Usuario ou senha invalidos" });
       }
 
       const token = signAccessToken(user);
       const refreshToken = await issueRefreshToken(user.id);
 
-      logActivity({
+      void trackAuthActivity({
+        req: req as AuthRequest,
         actorId: String(user.id),
         actorRole: String(user.role),
         action: "login",
-        entityType: "auth",
-        entityId: String(user.id),
-        metadata: { loginInput },
-        req: req as any,
-      }).catch((error) => console.error("activity log error:", error));
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.login",
+          outcome: "success",
+          statusCode: 200,
+          loginInput,
+        }),
+      });
 
       return res.status(200).json({
         message: "Login realizado com sucesso",
@@ -324,18 +391,68 @@ export function authRouter(
 
       const row = result.rows[0];
       if (!row) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: null,
+          action: "token_refresh_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.refresh",
+            outcome: "denied",
+            statusCode: 401,
+            errorType: "RefreshTokenInvalid",
+          }),
+        });
         return res.status(401).json({ message: "Refresh token invalido" });
       }
 
       if (!isValidRole(row.role)) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: String(row.user_id),
+          actorRole: String(row.role),
+          action: "token_refresh_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.refresh",
+            outcome: "denied",
+            statusCode: 403,
+            errorType: "RoleNotAllowed",
+            refreshTokenId: row.id,
+          }),
+        });
         return res.status(403).json({ message: "Acesso indisponível para este perfil" });
       }
 
       if (row.revoked_at) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: String(row.user_id),
+          actorRole: String(row.role),
+          action: "token_refresh_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.refresh",
+            outcome: "denied",
+            statusCode: 401,
+            errorType: "RefreshTokenRevoked",
+            refreshTokenId: row.id,
+          }),
+        });
         return res.status(401).json({ message: "Refresh token revogado" });
       }
 
       if (!row.expires_at || row.expires_at <= new Date()) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: String(row.user_id),
+          actorRole: String(row.role),
+          action: "token_refresh_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.refresh",
+            outcome: "denied",
+            statusCode: 401,
+            errorType: "RefreshTokenExpired",
+            refreshTokenId: row.id,
+          }),
+        });
         return res.status(401).json({ message: "Refresh token expirado" });
       }
 
@@ -350,15 +467,18 @@ export function authRouter(
         { expiresIn: jwtExpiresIn as jwt.SignOptions["expiresIn"] }
       );
 
-      logActivity({
+      void trackAuthActivity({
+        req: req as AuthRequest,
         actorId: String(row.user_id),
         actorRole: String(row.role),
         action: "token_refresh",
-        entityType: "auth",
-        entityId: String(row.user_id),
-        metadata: { refreshTokenId: row.id },
-        req: req as any,
-      }).catch((error) => console.error("activity log error:", error));
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.refresh",
+          outcome: "success",
+          statusCode: 200,
+          refreshTokenId: row.id,
+        }),
+      });
 
       return res.status(200).json({
         token,
@@ -404,6 +524,18 @@ export function authRouter(
         const message =
           (body as { message?: string } | null)?.message ??
           "Falha ao validar codigo SSO.";
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: null,
+          action: "sso_login_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.sso",
+            outcome: "error",
+            statusCode: exchangeResponse.status,
+            errorType: "SsoExchangeRejected",
+            provider: "santos-tech-home",
+          }),
+        });
         return res.status(exchangeResponse.status).json({ message });
       }
 
@@ -422,12 +554,39 @@ export function authRouter(
       const localUser = existing.rows[0];
 
       if (!localUser) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: null,
+          action: "sso_login_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.sso",
+            outcome: "denied",
+            statusCode: 403,
+            errorType: "UserNotFound",
+            provider: "santos-tech-home",
+            ssoUserId: ssoUser.id,
+          }),
+        });
         return res.status(403).json({
           message: "Usuario nao encontrado no portal do aluno.",
         });
       }
 
       if (!isValidRole(localUser.role)) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: String(localUser.id),
+          actorRole: String(localUser.role),
+          action: "sso_login_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.sso",
+            outcome: "denied",
+            statusCode: 403,
+            errorType: "RoleNotAllowed",
+            provider: "santos-tech-home",
+            ssoUserId: ssoUser.id,
+          }),
+        });
         return res.status(403).json({
           message: "Acesso indisponivel para este perfil.",
         });
@@ -436,15 +595,19 @@ export function authRouter(
       const token = signAccessToken(localUser);
       const refreshToken = await issueRefreshToken(localUser.id);
 
-      logActivity({
+      void trackAuthActivity({
+        req: req as AuthRequest,
         actorId: String(localUser.id),
         actorRole: String(localUser.role),
         action: "sso_login",
-        entityType: "auth",
-        entityId: String(localUser.id),
-        metadata: { provider: "santos-tech-home", ssoUserId: ssoUser.id },
-        req: req as any,
-      }).catch((error) => console.error("activity log error:", error));
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.sso",
+          outcome: "success",
+          statusCode: 200,
+          provider: "santos-tech-home",
+          ssoUserId: ssoUser.id,
+        }),
+      });
 
       return res.json({
         message: "Login SSO realizado com sucesso",
@@ -459,6 +622,18 @@ export function authRouter(
         },
       });
     } catch (error) {
+      void trackAuthActivity({
+        req: req as AuthRequest,
+        actorId: null,
+        action: "sso_login_failed",
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.sso",
+          outcome: "error",
+          statusCode: 502,
+          errorType: "SsoExchangeError",
+          provider: "santos-tech-home",
+        }),
+      });
       console.error("SSO exchange error:", error);
       return res.status(502).json({ message: "Erro ao comunicar com o servidor SSO." });
     }
@@ -515,21 +690,39 @@ export function authRouter(
           studentPortalSsoTtlSeconds
         );
 
-        logActivity({
+        void trackAuthActivity({
+          req,
           actorId: String(currentUser.id),
           actorRole: req.user.role,
           action: "student_view_sso_start",
-          entityType: "auth",
-          entityId: String(currentUser.id),
-          metadata: { target: "portal-willian", expiresAt: expiresAt.toISOString(), returnTo },
-          req: req as any,
-        }).catch((error) => console.error("activity log error:", error));
+          metadata: authObservabilityMetadata(req, {
+            source: "auth.student-view.start",
+            outcome: "success",
+            statusCode: 200,
+            target: "portal-willian",
+            expiresAt: expiresAt.toISOString(),
+            returnTo,
+          }),
+        });
 
         return res.json({
           redirectUrl: resolveStudentPortalCallbackUrl(code),
           expiresAt: expiresAt.toISOString(),
         });
       } catch (error) {
+        void trackAuthActivity({
+          req,
+          actorId: req.user?.sub ?? null,
+          actorRole: req.user?.role,
+          action: "student_view_sso_start_failed",
+          metadata: authObservabilityMetadata(req, {
+            source: "auth.student-view.start",
+            outcome: "error",
+            statusCode: 502,
+            errorType: "StudentViewSsoStartError",
+            target: "portal-willian",
+          }),
+        });
         console.error("student view sso start error:", error);
         return res.status(502).json({ message: "Nao foi possivel iniciar a visao do aluno." });
       }
@@ -545,6 +738,18 @@ export function authRouter(
     }
 
     if (!sharedSecret || sharedSecret !== studentPortalSsoSharedSecret) {
+      void trackAuthActivity({
+        req: req as AuthRequest,
+        actorId: null,
+        action: "student_view_sso_exchange_failed",
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.student-view.exchange",
+          outcome: "denied",
+          statusCode: 403,
+          errorType: "SharedSecretInvalid",
+          target: "portal-willian",
+        }),
+      });
       return res.status(403).json({ message: "Shared secret invalido." });
     }
 
@@ -559,8 +764,33 @@ export function authRouter(
     try {
       const entry = await studentViewSsoStore.consume(code);
       if (!entry) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actorId: null,
+          action: "student_view_sso_exchange_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.student-view.exchange",
+            outcome: "denied",
+            statusCode: 401,
+            errorType: "SsoCodeInvalidOrExpired",
+            target: "portal-willian",
+          }),
+        });
         return res.status(401).json({ message: "Codigo SSO invalido ou expirado." });
       }
+
+      void trackAuthActivity({
+        req: req as AuthRequest,
+        actorId: entry.sourceUserId,
+        action: "student_view_sso_exchange",
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.student-view.exchange",
+          outcome: "success",
+          statusCode: 200,
+          target: "portal-willian",
+          returnTo: entry.returnTo,
+        }),
+      });
 
       return res.json({
         user: {
@@ -571,6 +801,18 @@ export function authRouter(
         returnTo: entry.returnTo,
       });
     } catch (error) {
+      void trackAuthActivity({
+        req: req as AuthRequest,
+        actorId: null,
+        action: "student_view_sso_exchange_failed",
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.student-view.exchange",
+          outcome: "error",
+          statusCode: 502,
+          errorType: "StudentViewSsoExchangeError",
+          target: "portal-willian",
+        }),
+      });
       console.error("student view sso exchange error:", error);
       return res.status(502).json({ message: "Nao foi possivel validar a visao do aluno." });
     }
@@ -595,14 +837,16 @@ export function authRouter(
 
       const userId = tokenOwner.rows[0]?.user_id;
       if (userId) {
-        logActivity({
+        void trackAuthActivity({
+          req: req as AuthRequest,
           actorId: String(userId),
-          actorRole: null,
           action: "logout",
-          entityType: "auth",
-          entityId: String(userId),
-          req: req as any,
-        }).catch((error) => console.error("activity log error:", error));
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.logout",
+            outcome: "success",
+            statusCode: 200,
+          }),
+        });
       }
 
       return res.status(200).json({ message: "Logout finalizado" });

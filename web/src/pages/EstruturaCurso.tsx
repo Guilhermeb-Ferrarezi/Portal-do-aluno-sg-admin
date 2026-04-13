@@ -239,7 +239,7 @@ export default function EstruturaCursoPage() {
   React.useEffect(() => {
     const fromMainList = cursos.find((curso) => curso.id === courseIdSelecionado) ?? null;
     const fromSelectList = cursoSelectOpcoes.find((curso) => curso.id === courseIdSelecionado) ?? null;
-    setCursoSelectSelecionado(fromMainList ?? fromSelectList ?? cursoSelectSelecionado);
+    setCursoSelectSelecionado((prev) => fromMainList ?? fromSelectList ?? prev);
   }, [courseIdSelecionado, cursoSelectOpcoes, cursos]);
 
   const cursoSelectOpcoesGratuitas = React.useMemo(
@@ -349,7 +349,7 @@ export default function EstruturaCursoPage() {
   React.useEffect(() => {
     const fromMainList = modulosCurso.find((modulo) => modulo.id === moduloIdSelecionado) ?? null;
     const fromSelectList = moduloSelectOpcoes.find((modulo) => modulo.id === moduloIdSelecionado) ?? null;
-    setModuloSelectSelecionado(fromMainList ?? fromSelectList ?? moduloSelectSelecionado);
+    setModuloSelectSelecionado((prev) => fromMainList ?? fromSelectList ?? prev);
   }, [moduloIdSelecionado, moduloSelectOpcoes, modulosCurso]);
 
   // Load exercises when a phase is clicked for exercise list view
@@ -971,23 +971,23 @@ export default function EstruturaCursoPage() {
   const pageClass =
     "mx-auto flex w-full max-w-[1280px] flex-col gap-4 p-1.5 font-[Manrope,Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] max-md:gap-3";
   const tabsClass =
-    "flex max-w-full flex-wrap items-center gap-2 rounded-[20px] border border-border/60 bg-muted/30 p-1.5 max-md:flex-col max-md:items-stretch max-md:rounded-2xl max-md:p-2.5";
-  const tabsLabelClass = "px-2 text-[11px] font-extrabold tracking-[0.18em] text-muted-foreground";
+    "flex max-w-full flex-wrap items-center gap-2 rounded-[20px] border border-border bg-card p-1.5 max-md:flex-col max-md:items-stretch max-md:rounded-2xl max-md:p-2.5";
+  const tabsLabelClass = "px-2 text-[11px] font-bold tracking-wider text-muted-foreground uppercase";
   const tabButtonClass = (active: boolean) =>
     cn(
-      "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-bold text-foreground transition hover:-translate-y-0.5 max-md:w-full max-md:rounded-xl",
+      "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5 max-md:w-full max-md:rounded-xl",
       active
-        ? "border-primary/50 bg-primary/15 shadow-sm"
-        : "border-transparent bg-background/60 hover:border-primary/30 hover:bg-muted"
+        ? "border-primary/20 bg-primary/10 text-primary shadow-sm"
+        : "border-transparent bg-background text-foreground/70 shadow-sm hover:border-border hover:bg-accent"
     );
   const overviewGridClass = "grid gap-2.5 sm:grid-cols-3";
-  const overviewCardClass = "flex flex-col gap-1 rounded-2xl border border-border/60 bg-muted/30 px-4 py-3";
-  const overviewLabelClass = "text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground";
-  const overviewValueClass = "text-[clamp(1.5rem,3vw,1.95rem)] leading-none font-semibold tracking-tight text-foreground";
+  const overviewCardClass = "flex flex-col gap-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm";
+  const overviewLabelClass = "text-xs font-semibold uppercase tracking-wider text-muted-foreground";
+  const overviewValueClass = "text-2xl font-bold tracking-tight text-foreground";
   const gridClass = "grid gap-3.5 xl:grid-cols-2";
   const gridTopAlignedClass = cn(gridClass, "items-start");
   const cardClass =
-    "flex min-h-fit flex-col rounded-[18px] border border-border/70 bg-card/90 p-5 shadow-sm max-md:rounded-xl max-md:p-3.5";
+    "flex min-h-fit flex-col rounded-2xl border border-border bg-card p-5 shadow-sm max-md:rounded-xl max-md:p-3.5";
   const cardHeadClass = "mb-3.5";
   const cardTitleClass = "text-[clamp(1.35rem,2.2vw,2rem)] leading-tight font-semibold tracking-tight text-foreground";
   const cardDescriptionClass = "mt-1 text-sm text-muted-foreground";
@@ -1016,24 +1016,24 @@ export default function EstruturaCursoPage() {
     "mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
   const clearFilterButtonClass =
     "self-start rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-foreground";
-  const selectedInfoClass = "grid gap-2 rounded-xl border border-accent/25 bg-accent/10 px-4 py-3";
-  const selectedLabelClass = "text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground";
-  const selectedMetaClass = "text-xs leading-5 text-muted-foreground";
+  const selectedInfoClass = "grid gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3";
+  const selectedLabelClass = "text-xs font-semibold uppercase tracking-wider text-muted-foreground";
+  const selectedMetaClass = "text-sm text-foreground/80";
   const selectedActionClass =
-    "inline-flex items-center gap-2 self-start rounded-xl border border-border/60 bg-background px-3 py-2 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-muted";
+    "inline-flex items-center gap-2 self-start rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm transition hover:border-border hover:bg-accent";
   const viewerListClass = "flex max-h-[360px] flex-col gap-2 overflow-auto pr-1";
   const viewerListSpacedClass = cn(viewerListClass, "mt-2.5");
-  const viewerEmptyClass = "rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-sm text-muted-foreground break-words";
+  const viewerEmptyClass = "rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground break-words";
   const loadingClass =
-    "inline-flex items-center gap-2.5 rounded-lg border border-dashed border-border/60 bg-muted/40 px-3.5 py-3 text-sm text-muted-foreground";
+    "inline-flex items-center gap-2.5 rounded-lg border border-dashed border-border bg-muted px-3.5 py-3 text-sm text-muted-foreground";
   const loadingIconClass = "animate-spin";
   const viewerItemClass = (active = false) =>
     cn(
-      "flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-sm max-md:items-start",
-      active && "border-primary/60 bg-primary/10"
+      "flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm max-md:items-start",
+      active && "border-primary/30 bg-primary/10"
     );
-  const viewerItemStaticClass = "flex w-full cursor-default items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-3 py-2.5 max-md:items-start";
-  const viewerItemTitleClass = "min-w-0 flex-1 break-words font-mono text-[0.95rem] font-medium text-foreground";
+  const viewerItemStaticClass = "flex w-full cursor-default items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2.5 max-md:items-start";
+  const viewerItemTitleClass = "min-w-0 flex-1 break-words font-medium text-foreground";
   const viewerItemMetaClass = "shrink-0 text-xs text-muted-foreground sm:text-sm";
   const viewerRowClass = "flex items-center gap-1.5 max-md:items-start";
   const reorderButtonsClass = "flex shrink-0 flex-col gap-0.5";

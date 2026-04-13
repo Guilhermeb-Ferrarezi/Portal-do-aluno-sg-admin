@@ -42,8 +42,21 @@ export type MonitoringSnapshot = {
   methods: MonitoringMethodItem[];
   statuses: MonitoringStatusItem[];
   routes: MonitoringBreakdownItem[];
+  criticalRoutes: MonitoringBreakdownItem[];
   rawText: string;
 };
+
+const CRITICAL_ROUTE_PATTERNS = [
+  "/auth",
+  "/presence/socket-ticket",
+  "/presence/heartbeat",
+  "/activity-logs",
+  "/metrics",
+];
+
+function isCriticalRoute(route: string) {
+  return CRITICAL_ROUTE_PATTERNS.some((pattern) => route.includes(pattern));
+}
 
 function parseLabels(input: string | undefined) {
   const labels: Labels = {};
@@ -309,6 +322,12 @@ export async function fetchMonitoringSnapshot(): Promise<MonitoringSnapshot> {
       durationSumSeries,
       durationCountSeries
     ),
+    criticalRoutes: buildRouteBreakdown(
+      requestsSeries,
+      errorsSeries,
+      durationSumSeries,
+      durationCountSeries
+    ).filter((item) => isCriticalRoute(item.key)),
     rawText,
   };
 }

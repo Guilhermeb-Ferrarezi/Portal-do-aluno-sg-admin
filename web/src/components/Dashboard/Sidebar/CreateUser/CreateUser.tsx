@@ -71,9 +71,9 @@ function helperToneClass(tone: "error" | "ok" | "info") {
 }
 
 function roleBadgeClass(role: Role | null) {
-  if (role === "admin") return "border-violet-500/35 bg-violet-500/15 text-violet-100";
-  if (role === "professor") return "border-amber-500/35 bg-amber-500/15 text-amber-100";
-  return "border-sky-500/35 bg-sky-500/15 text-sky-100";
+  if (role === "admin") return "border-violet-500/35 bg-violet-500/15 text-violet-700 dark:text-violet-100";
+  if (role === "professor") return "border-amber-500/35 bg-amber-500/15 text-amber-700 dark:text-amber-100";
+  return "border-sky-500/35 bg-sky-500/15 text-sky-700 dark:text-sky-100";
 }
 
 function strengthFillClass(score: number) {
@@ -83,11 +83,11 @@ function strengthFillClass(score: number) {
 }
 
 const surfaceCardClass =
-  "relative overflow-hidden rounded-[28px] border border-border/70 bg-card/95 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.28)] backdrop-blur sm:p-7";
+  "relative overflow-hidden rounded-2xl border-2 border-border bg-card p-6 shadow-sm sm:p-7";
 const cardGlowClass =
-  "pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(circle_at_14%_18%,rgba(168,85,247,0.16),transparent_28%),radial-gradient(circle_at_86%_24%,rgba(56,189,248,0.12),transparent_26%),radial-gradient(circle_at_48%_100%,rgba(148,163,184,0.06),transparent_34%)]";
+  "pointer-events-none absolute inset-0 opacity-0 dark:opacity-90 [background:radial-gradient(circle_at_14%_18%,rgba(168,85,247,0.16),transparent_28%),radial-gradient(circle_at_86%_24%,rgba(56,189,248,0.12),transparent_26%),radial-gradient(circle_at_48%_100%,rgba(148,163,184,0.06),transparent_34%)]";
 const fieldClass =
-  "h-12 rounded-2xl border border-border/70 bg-slate-950/35 px-4 font-mono text-[15px] text-foreground shadow-inner shadow-black/10 placeholder:text-slate-400 focus-visible:border-primary/45 focus-visible:ring-4 focus-visible:ring-primary/15";
+  "h-12 rounded-2xl border-2 border-border bg-[var(--input-bg)] px-4 font-mono text-[15px] text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:border-primary/45 focus-visible:ring-4 focus-visible:ring-primary/15";
 const fieldErrorClass =
   "border-destructive/70 bg-destructive/5 focus-visible:border-destructive focus-visible:ring-destructive/15";
 const helperTextClass = "text-xs font-medium leading-5";
@@ -534,7 +534,7 @@ export default function CreateUser() {
           <div className={surfaceCardClass}>
             <div className={cardGlowClass} />
             <div className="relative grid gap-5">
-              <div className="flex items-center gap-4 rounded-2xl border border-border/60 bg-background/35 p-4">
+              <div className="flex items-center gap-4 rounded-2xl border-2 border-border bg-muted/30 p-4 dark:bg-background/35">
                 <div className="grid size-14 place-items-center rounded-2xl border border-primary/25 bg-primary/10 text-xl font-black text-primary">
                   {viewerName.slice(0, 1).toUpperCase()}
                 </div>
@@ -584,7 +584,7 @@ export default function CreateUser() {
                   return (
                     <div
                       key={item.text}
-                      className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/35 px-4 py-3 text-sm text-muted-foreground"
+                      className="flex items-start gap-3 rounded-2xl border-2 border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground dark:bg-background/35"
                     >
                       <Icon size={16} className="mt-0.5 shrink-0 text-primary" />
                       <span>{item.text}</span>

@@ -52,17 +52,17 @@ function ordenarExerciciosRecentes(items: Exercicio[]) {
 function RingProgress({ value }: { value: number }) {
   const normalized = Math.max(0, Math.min(value, 100));
   const style = {
-    background: `conic-gradient(var(--primary) ${normalized}%, rgba(255,255,255,0.08) 0)`,
+    background: `conic-gradient(var(--primary) ${normalized}%, var(--ring-progress-track) 0)`,
   } as React.CSSProperties;
 
   return (
     <div
-      className="grid size-20 place-items-center rounded-full p-1.5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.95)]"
+      className="grid size-20 place-items-center rounded-full p-1.5 shadow-sm"
       style={style}
       aria-label={`Progresso ${normalized}%`}
     >
-      <div className="grid size-full place-items-center rounded-full bg-background/95 shadow-[inset_0_1px_6px_rgba(0,0,0,0.45)]">
-        <span className="text-lg font-black tracking-[-0.04em] text-foreground">
+      <div className="grid size-full place-items-center rounded-full bg-card shadow-sm">
+        <span className="text-lg font-bold tracking-tight text-foreground">
           {normalized}%
         </span>
       </div>
@@ -77,9 +77,9 @@ type MetricRow = {
 };
 
 const eyebrowClass =
-  "text-[0.68rem] font-bold uppercase tracking-[0.32em] text-muted-foreground/80";
+  "text-[0.68rem] font-bold uppercase tracking-wider text-muted-foreground";
 const surfaceClass =
-  "overflow-hidden rounded-[1.5rem] border-border/70 bg-card/95 shadow-[0_24px_70px_-42px_rgba(0,0,0,0.9)]";
+  "overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow)]";
 
 function SurfaceCard({
   className,
@@ -122,9 +122,9 @@ function MetricCard({
   return (
     <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.3 }}>
       <SurfaceCard className="h-full">
-        <CardHeader className="gap-3">
+        <CardHeader className="gap-2">
           <div className={eyebrowClass}>{kicker}</div>
-          <CardTitle className="text-[2.35rem] leading-none font-black tracking-[-0.06em]">
+          <CardTitle className="text-3xl font-bold tracking-tight text-foreground">
             {value}
           </CardTitle>
         </CardHeader>
@@ -343,7 +343,7 @@ export default function Dashboard() {
       <DashboardLayout title="Dashboard" subtitle={`Bem-vindo de volta, ${name}`}>
         <SurfaceCard className="max-w-2xl">
           <CardHeader className="gap-2">
-            <CardTitle className="text-[1.75rem] font-black tracking-[-0.04em]">
+            <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
               Falha ao carregar dashboard
             </CardTitle>
             <CardDescription>{erro}</CardDescription>
@@ -368,15 +368,17 @@ export default function Dashboard() {
       <FadeInUp>
         <div className={cn("flex flex-col gap-6", isManagementView && "gap-5")}>
           {isManagementView ? (
-            <SurfaceCard>
-              <CardContent className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <SurfaceCard className="border-border bg-[var(--hero-surface)]">
+              <CardContent className="grid gap-6 px-6 py-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="flex flex-col gap-3">
-                  <div className={eyebrowClass}>Visao administrativa</div>
-                  <div className="text-[2rem] font-black tracking-[-0.05em] text-foreground">
-                    Painel operacional
+                  <div className="inline-flex w-fit items-center rounded-full border border-border/80 bg-card px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wider text-muted-foreground shadow-sm">
+                    Visão administrativa
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+                    Operação com leitura imediata
                   </div>
                   <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                    Leitura consolidada de turmas, alunos e exercicios com foco em operacao.
+                    Turmas, exercícios e cobertura de alunos reunidos em uma superfície mais clara, comercial e pronta para decisão.
                   </p>
                 </div>
 
@@ -489,7 +491,7 @@ export default function Dashboard() {
             <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.3 }}>
               <SurfaceCard className="h-full">
                 <CardHeader className="gap-2">
-                  <CardTitle className="text-xl font-black tracking-[-0.03em]">
+                  <CardTitle className="text-xl font-bold tracking-tight text-foreground">
                     Exercicios recentes
                   </CardTitle>
                   <CardDescription>
@@ -520,7 +522,7 @@ export default function Dashboard() {
                                 ? "bg-sky-500"
                                 : isPassed
                                   ? "bg-primary"
-                                  : "bg-slate-400"
+                                  : "bg-muted-foreground/70"
                             )}
                             aria-hidden="true"
                           />
@@ -561,7 +563,7 @@ export default function Dashboard() {
                     <div className={eyebrowClass}>
                       {isManagementView ? "Saude operacional" : "Progresso"}
                     </div>
-                    <CardTitle className="mt-3 text-[2.35rem] leading-none font-black tracking-[-0.06em]">
+                    <CardTitle className="mt-3 text-[2.2rem] leading-tight font-bold tracking-tight text-foreground">
                       {progressoOverall}%
                     </CardTitle>
                   </div>
@@ -584,9 +586,8 @@ export default function Dashboard() {
           <section>
             <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55, duration: 0.3 }}>
               <SurfaceCard className="relative overflow-hidden">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(225,29,46,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(110,86,255,0.16),transparent_28%)]" />
                 <CardHeader className="relative gap-2">
-                  <CardTitle className="text-xl font-black tracking-[-0.03em]">
+                  <CardTitle className="text-xl font-bold tracking-tight text-foreground">
                     Acoes rapidas
                   </CardTitle>
                   <CardDescription>
@@ -595,7 +596,7 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent className="relative grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="lg"
                     className="h-14 justify-start rounded-2xl px-4 text-sm font-semibold"
                     onClick={() => navigate("/dashboard/exercicios")}
@@ -619,7 +620,7 @@ export default function Dashboard() {
                   {canCreateUser ? (
                     <>
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="lg"
                         className="h-14 justify-start rounded-2xl px-4 text-sm font-semibold"
                         onClick={() => navigate("/dashboard/criar-usuario")}

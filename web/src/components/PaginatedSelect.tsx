@@ -32,17 +32,17 @@ type PaginatedSelectProps = {
 };
 
 const triggerClass =
-  "flex w-full items-start gap-2 rounded-2xl border border-border/70 bg-[radial-gradient(circle_at_10%_20%,rgba(56,189,248,0.12),transparent_48%),linear-gradient(180deg,rgba(15,23,42,0.86),rgba(15,23,42,0.72))] px-3.5 py-2.5 font-mono text-sm font-semibold text-slate-200 shadow-inner shadow-white/5 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300/45 hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 md:min-h-12 md:items-center";
+  "flex w-full items-start gap-2 rounded-2xl border-2 border-border bg-card px-3.5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 md:min-h-12 md:items-center";
 const panelClass =
-  "absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[60] flex max-h-[min(420px,65vh)] flex-col gap-2 overflow-hidden rounded-2xl border border-sky-300/20 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.94))] p-2.5 shadow-[0_22px_42px_rgba(2,6,23,0.52)] md:max-h-[min(420px,65vh)]";
+  "absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[60] flex max-h-[min(420px,65vh)] flex-col gap-2 overflow-hidden rounded-2xl border-2 border-border bg-card p-2.5 shadow-lg md:max-h-[min(420px,65vh)]";
 const panelSearchClass =
-  "flex items-center gap-2 rounded-xl border border-slate-400/25 bg-slate-950/70 px-3 py-2 text-slate-300";
+  "flex items-center gap-2 rounded-xl border-2 border-border bg-muted/40 px-3 py-2 text-muted-foreground";
 const optionClass =
-  "flex w-full flex-col gap-1 rounded-xl border border-slate-400/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent),rgba(15,23,42,0.72)] px-3 py-2.5 text-left text-sm text-slate-200 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300/45 hover:shadow-[0_10px_20px_rgba(8,16,34,0.35)]";
+  "flex w-full flex-col gap-1 rounded-xl border-2 border-border bg-card px-3 py-2.5 text-left text-sm text-foreground transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md";
 const navButtonClass =
-  "inline-flex items-center gap-1 rounded-xl border border-border/70 bg-background/35 px-3 py-2 text-sm text-foreground transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/60 disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center gap-1 rounded-xl border-2 border-border bg-card px-3 py-2 text-sm text-foreground transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/60 disabled:pointer-events-none disabled:opacity-50";
 const pageSizeSelectClass =
-  "h-9 min-w-[72px] rounded-xl border border-border/70 bg-background/35 px-2.5 text-sm text-foreground outline-none transition focus:border-primary/35";
+  "h-9 min-w-[72px] rounded-xl border-2 border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus:border-primary/35";
 
 export default function PaginatedSelect({
   value,
@@ -163,7 +163,7 @@ export default function PaginatedSelect({
     >
       <button
         type="button"
-        className={cn(triggerClass, !selected && "text-slate-400 font-medium tracking-[0.01em]")}
+        className={cn(triggerClass, !selected && "text-muted-foreground font-medium tracking-[0.01em]")}
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
@@ -174,7 +174,7 @@ export default function PaginatedSelect({
             {selected ? cleanDisplayText(selected.label) : cleanDisplayText(placeholder)}
           </span>
           {selected?.meta ? (
-            <small className="[overflow-wrap:anywhere] text-left text-[11px] font-bold uppercase tracking-[0.03em] text-sky-300">
+            <small className="[overflow-wrap:anywhere] text-left text-[11px] font-bold uppercase tracking-[0.03em] text-primary">
               {cleanDisplayText(selected.meta)}
             </small>
           ) : null}
@@ -182,8 +182,8 @@ export default function PaginatedSelect({
         <ChevronDown
           size={16}
           className={cn(
-            "mt-1 shrink-0 text-sky-300 transition duration-200 md:mt-0",
-            open && "rotate-180 text-slate-100",
+            "mt-1 shrink-0 text-primary transition duration-200 md:mt-0",
+            open && "rotate-180 text-foreground",
           )}
         />
       </button>
@@ -191,12 +191,12 @@ export default function PaginatedSelect({
       {open && !disabled ? (
         <div className={panelClass}>
           <div className={panelSearchClass}>
-            <Search size={14} className="shrink-0 text-slate-300" />
+            <Search size={14} className="shrink-0 text-muted-foreground" />
             <input
               value={currentQuery}
               onChange={(e) => handleQueryChange(e.target.value)}
               placeholder="Buscar..."
-              className="w-full border-0 bg-transparent p-0 text-sm text-slate-100 outline-none placeholder:text-slate-400"
+              className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
             {currentQuery ? (
               <button
@@ -234,7 +234,7 @@ export default function PaginatedSelect({
                     className={cn(
                       optionClass,
                       isActive &&
-                        "border-sky-400/60 bg-[linear-gradient(90deg,rgba(59,130,246,0.2),transparent_50%),rgba(15,23,42,0.86)] shadow-[inset_0_0_0_1px_rgba(96,165,250,0.24)]",
+                        "border-primary/60 bg-primary/10 shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.24)]",
                     )}
                     onClick={() => {
                       onChange(opt.value);
@@ -248,7 +248,7 @@ export default function PaginatedSelect({
                       {isActive ? <Check size={14} className="shrink-0 text-primary" /> : null}
                     </span>
                     {opt.meta ? (
-                      <small className="[overflow-wrap:anywhere] text-[11px] text-slate-400">
+                      <small className="[overflow-wrap:anywhere] text-[11px] text-muted-foreground">
                         {cleanDisplayText(opt.meta)}
                       </small>
                     ) : null}

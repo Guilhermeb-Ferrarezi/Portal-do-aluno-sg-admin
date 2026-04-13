@@ -9,6 +9,14 @@ export type ActivityLog = {
   action: string;
   entityType: string;
   entityId: string | null;
+  rawMessage?: string | null;
+  requestId?: string | null;
+  route?: string | null;
+  statusCode?: string | null;
+  outcome?: string | null;
+  errorType?: string | null;
+  source?: string | null;
+  contextArea?: string | null;
   metadata: Record<string, unknown> | null;
   ipAddress: string | null;
   userAgent: string | null;

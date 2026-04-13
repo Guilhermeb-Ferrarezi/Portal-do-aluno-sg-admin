@@ -44,6 +44,13 @@ function parseMessageMetadata(message: string | null) {
       entityId: null as string | null,
       ipAddress: null as string | null,
       userAgent: null as string | null,
+      requestId: null as string | null,
+      route: null as string | null,
+      statusCode: null as string | null,
+      outcome: null as string | null,
+      errorType: null as string | null,
+      source: null as string | null,
+      contextArea: null as string | null,
       metadata: null as Record<string, unknown> | null,
     };
   }
@@ -53,6 +60,13 @@ function parseMessageMetadata(message: string | null) {
     entityId: null as string | null,
     ipAddress: null as string | null,
     userAgent: null as string | null,
+    requestId: null as string | null,
+    route: null as string | null,
+    statusCode: null as string | null,
+    outcome: null as string | null,
+    errorType: null as string | null,
+    source: null as string | null,
+    contextArea: null as string | null,
     metadata: {} as Record<string, unknown>,
   };
 
@@ -86,6 +100,34 @@ function parseMessageMetadata(message: string | null) {
       out.userAgent = rawValue || null;
       continue;
     }
+    if (key === "requestId") {
+      out.requestId = rawValue || null;
+      continue;
+    }
+    if (key === "route") {
+      out.route = rawValue || null;
+      continue;
+    }
+    if (key === "statusCode") {
+      out.statusCode = rawValue || null;
+      continue;
+    }
+    if (key === "outcome") {
+      out.outcome = rawValue || null;
+      continue;
+    }
+    if (key === "errorType") {
+      out.errorType = rawValue || null;
+      continue;
+    }
+    if (key === "source") {
+      out.source = rawValue || null;
+      continue;
+    }
+    if (key === "contextArea") {
+      out.contextArea = rawValue || null;
+      continue;
+    }
 
     if (key === "metadata") {
       try {
@@ -113,6 +155,13 @@ function parseMessageMetadata(message: string | null) {
     entityId: out.entityId,
     ipAddress: out.ipAddress,
     userAgent: out.userAgent,
+    requestId: out.requestId,
+    route: out.route,
+    statusCode: out.statusCode,
+    outcome: out.outcome,
+    errorType: out.errorType,
+    source: out.source,
+    contextArea: out.contextArea,
     metadata: Object.keys(out.metadata).length > 0 ? out.metadata : null,
   };
 }
@@ -219,6 +268,14 @@ export function activityLogsRouter(jwtSecret: string) {
               action: row.action,
               entityType: row.entity_type,
               entityId: parsed.entityId,
+              rawMessage: row.message,
+              requestId: parsed.requestId,
+              route: parsed.route,
+              statusCode: parsed.statusCode,
+              outcome: parsed.outcome,
+              errorType: parsed.errorType,
+              source: parsed.source,
+              contextArea: parsed.contextArea,
               metadata: parsed.metadata,
               ipAddress: parsed.ipAddress,
               userAgent: parsed.userAgent,

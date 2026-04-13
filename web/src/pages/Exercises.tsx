@@ -453,7 +453,7 @@ export default function ExerciciosPage() {
     }
   }
 
-  async function ensureCreateDependenciesLoaded(force = false) {
+  const ensureCreateDependenciesLoaded = React.useCallback(async (force = false) => {
     if (!canCreate || createDepsLoadingRef.current) return;
     if (createDepsLoadedRef.current && !force) return;
     createDepsLoadingRef.current = true;
@@ -493,9 +493,9 @@ export default function ExerciciosPage() {
     } finally {
       createDepsLoadingRef.current = false;
     }
-  }
+  }, [canCreate]);
 
-  async function ensureTurmasLoaded() {
+  const ensureTurmasLoaded = React.useCallback(async () => {
     if (!canCreate || turmasLoadedRef.current || turmasLoadingRef.current) return;
     turmasLoadingRef.current = true;
     try {
@@ -507,9 +507,9 @@ export default function ExerciciosPage() {
     } finally {
       turmasLoadingRef.current = false;
     }
-  }
+  }, [canCreate]);
 
-  async function ensureAlunosLookupLoaded(exercicios: Exercicio[]) {
+  const ensureAlunosLookupLoaded = React.useCallback(async (exercicios: Exercicio[]) => {
     if (!canCreate || alunosLookupLoadedRef.current || alunosLookupLoadingRef.current) return;
     if (alunosDisponiveis.length > 0) {
       alunosLookupLoadedRef.current = true;
@@ -539,7 +539,7 @@ export default function ExerciciosPage() {
     } finally {
       alunosLookupLoadingRef.current = false;
     }
-  }
+  }, [alunosDisponiveis.length, canCreate]);
 
   function navegarParaRespostaDireta(exercicioId: string, alunoId: string, value: string) {
     if (!value) return;
@@ -606,7 +606,7 @@ export default function ExerciciosPage() {
   const [realocFases, setRealocFases] = React.useState<Fase[]>([]);
   const [realocSaving, setRealocSaving] = React.useState(false);
 
-  async function load() {
+  const load = React.useCallback(async () => {
     try {
       setLoading(true);
       setErro(null);
@@ -632,9 +632,18 @@ export default function ExerciciosPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [
+    buscaFiltroQuery,
+    currentPage,
+    ensureAlunosLookupLoaded,
+    isStaff,
+    itemsPerPage,
+    moduloFiltro,
+    statusFiltro,
+    turmaFiltro,
+  ]);
 
-  async function loadDailyTasks() {
+  const loadDailyTasks = React.useCallback(async () => {
     try {
       setLoading(true);
       setErro(null);
@@ -660,9 +669,17 @@ export default function ExerciciosPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [
+    buscaFiltroQuery,
+    currentPage,
+    isStaff,
+    itemsPerPage,
+    moduloFiltro,
+    statusFiltro,
+    turmaFiltro,
+  ]);
 
-  async function loadRespostasAlunos() {
+  const loadRespostasAlunos = React.useCallback(async () => {
     try {
       setLoadingRespostasAlunos(true);
       const response = await listarAlunosQueResponderamPaginado({
@@ -693,9 +710,9 @@ export default function ExerciciosPage() {
     } finally {
       setLoadingRespostasAlunos(false);
     }
-  }
+  }, [respostasAlunoFiltro, respostasAlunoLimit, respostasAlunoPage]);
 
-  async function loadExerciciosRespondidosDoAluno(alunoId: string) {
+  const loadExerciciosRespondidosDoAluno = React.useCallback(async (alunoId: string) => {
     if (!alunoId) {
       setRespostasExerciciosAluno([]);
       setRespostasDiretasPorExercicio({});
@@ -768,7 +785,7 @@ export default function ExerciciosPage() {
     } finally {
       setLoadingRespostasExercicios(false);
     }
-  }
+  }, [respostasExercicioFiltro, respostasExercicioLimit, respostasExercicioPage]);
 
   function toggleRespostasAluno(alunoId: string) {
     if (respostasAlunoAbertoId === alunoId) {
@@ -791,7 +808,7 @@ export default function ExerciciosPage() {
     if (canCreate) {
       void ensureTurmasLoaded();
     }
-  }, [canCreate]);
+  }, [canCreate, ensureTurmasLoaded]);
 
   React.useEffect(() => {
     if (activeSection === "tarefa-diaria") {
@@ -799,12 +816,12 @@ export default function ExerciciosPage() {
       return;
     }
     void load();
-  }, [activeSection, currentPage, itemsPerPage, buscaFiltroQuery, moduloFiltro, turmaFiltro, statusFiltro, isStaff]);
+  }, [activeSection, load, loadDailyTasks]);
 
   React.useEffect(() => {
     if (!canCreate || !editandoId) return;
     void ensureCreateDependenciesLoaded();
-  }, [editandoId, canCreate]);
+  }, [editandoId, canCreate, ensureCreateDependenciesLoaded]);
 
   React.useEffect(() => {
     if (!cursoIdSelecionado) {
@@ -841,7 +858,7 @@ export default function ExerciciosPage() {
           prev && fallback.some((modulo) => modulo.id === prev) ? prev : ""
         );
       });
-  }, [cursoIdSelecionado]);
+  }, [cursoIdSelecionado, todosModulosDisponiveis]);
 
   React.useEffect(() => {
     if (!cursoSelecionado) return;
@@ -902,12 +919,12 @@ export default function ExerciciosPage() {
   React.useEffect(() => {
     if (!isStaff || activeSection !== "respostas") return;
     void loadRespostasAlunos();
-  }, [activeSection, isStaff, respostasAlunoFiltro, respostasAlunoPage, respostasAlunoLimit]);
+  }, [activeSection, isStaff, loadRespostasAlunos]);
 
   React.useEffect(() => {
     if (!isStaff || activeSection !== "respostas") return;
     void loadExerciciosRespondidosDoAluno(respostasAlunoId);
-  }, [activeSection, isStaff, respostasAlunoId, respostasExercicioFiltro, respostasExercicioPage, respostasExercicioLimit]);
+  }, [activeSection, isStaff, loadExerciciosRespondidosDoAluno, respostasAlunoId]);
 
   async function handleSubmit() {
     try {

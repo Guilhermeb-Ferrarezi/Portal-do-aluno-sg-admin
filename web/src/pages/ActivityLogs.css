@@ -42,8 +42,8 @@
 }
 
 .alSectionTab.active {
-  background: rgba(225, 29, 46, 0.1);
-  color: var(--red);
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary);
 }
 
 /* ── Stats Cards ── */
@@ -173,8 +173,8 @@
 
 .alSearchInput:focus {
   outline: none;
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.12);
 }
 
 .alSearchInput::placeholder {
@@ -204,7 +204,7 @@
 
 .alBtnPrimary {
   padding: 10px 20px !important;
-  background: linear-gradient(135deg, var(--red), #d41c28) !important;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark)) !important;
   color: #fff !important;
   border: none !important;
   border-radius: 10px !important;
@@ -321,8 +321,8 @@
 .alFilterSelect:focus,
 .alFilterInput:focus {
   outline: none;
-  border-color: var(--red);
-  box-shadow: 0 0 0 2px rgba(225, 29, 46, 0.08);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
 }
 
 .alClearFilters {
@@ -330,7 +330,7 @@
   padding: 6px 12px;
   border: none;
   background: transparent;
-  color: var(--red);
+  color: var(--primary);
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
@@ -360,7 +360,7 @@
   width: 36px;
   height: 36px;
   border: 3px solid var(--line);
-  border-top-color: var(--red);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: alSpin 0.7s linear infinite;
 }
@@ -446,7 +446,7 @@
 }
 
 .alLogCard:hover {
-  border-color: rgba(225, 29, 46, 0.15);
+  border-color: rgba(var(--primary-rgb), 0.2);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
@@ -456,7 +456,7 @@
 }
 
 .alLogCardExpanded {
-  border-color: rgba(225, 29, 46, 0.2);
+  border-color: rgba(var(--primary-rgb), 0.25);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -678,13 +678,13 @@
 .alLogMetaExpand {
   cursor: pointer;
   font-family: inherit;
-  color: var(--red);
-  background: rgba(225, 29, 46, 0.06);
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.07);
   font-weight: 600;
 }
 
 .alLogMetaExpand:hover {
-  background: rgba(225, 29, 46, 0.12);
+  background: rgba(var(--primary-rgb), 0.14);
 }
 
 /* Expanded Details */

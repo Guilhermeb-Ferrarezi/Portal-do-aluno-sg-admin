@@ -11,6 +11,87 @@ type ActivityLogParams = {
   req?: AuthRequest;
 };
 
+const OBSERVABILITY_KEYS = new Set([
+  "requestId",
+  "route",
+  "statusCode",
+  "outcome",
+  "errorType",
+  "source",
+  "contextArea",
+]);
+
+const SENSITIVE_METADATA_KEYS = [
+  "password",
+  "senha",
+  "token",
+  "refreshToken",
+  "refresh_token",
+  "sharedSecret",
+  "shared_secret",
+  "authorization",
+  "cookie",
+];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSensitiveKey(key: string) {
+  const normalized = key.trim().toLowerCase();
+  return SENSITIVE_METADATA_KEYS.some((candidate) =>
+    normalized.includes(candidate.toLowerCase())
+  );
+}
+
+function sanitizeMetadataValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeMetadataValue(item));
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const sanitizedEntries = Object.entries(value).flatMap(([key, itemValue]) => {
+    if (isSensitiveKey(key)) {
+      return [];
+    }
+
+    return [[key, sanitizeMetadataValue(itemValue)] as const];
+  });
+
+  return Object.fromEntries(sanitizedEntries);
+}
+
+function buildObservabilityFields(metadata: unknown) {
+  if (!isRecord(metadata)) {
+    return {
+      observabilityFields: [] as string[],
+      safeMetadata: metadata,
+    };
+  }
+
+  const safeMetadata = sanitizeMetadataValue(metadata);
+  const safeRecord = isRecord(safeMetadata) ? safeMetadata : {};
+  const observabilityFields: string[] = [];
+
+  for (const key of OBSERVABILITY_KEYS) {
+    const rawValue = safeRecord[key];
+    if (rawValue === null || rawValue === undefined || rawValue === "") {
+      continue;
+    }
+
+    observabilityFields.push(`${key}=${String(rawValue)}`);
+    delete safeRecord[key];
+  }
+
+  return {
+    observabilityFields,
+    safeMetadata: Object.keys(safeRecord).length > 0 ? safeRecord : null,
+  };
+}
+
 export async function logActivity(params: ActivityLogParams) {
   const {
     actorId,
@@ -23,8 +104,6 @@ export async function logActivity(params: ActivityLogParams) {
   } = params;
 
   const normalizedEntityId = Array.isArray(entityId) ? entityId[0] : entityId;
-  if (!actorId) return;
-
   const forwarded = req?.headers["x-forwarded-for"];
   const ip =
     (typeof forwarded === "string" && forwarded.split(",")[0]?.trim()) ||
@@ -43,9 +122,11 @@ export async function logActivity(params: ActivityLogParams) {
   if (ip) {
     messageParts.push(`ip=${ip}`);
   }
-  if (metadata) {
+  const { observabilityFields, safeMetadata } = buildObservabilityFields(metadata);
+  messageParts.push(...observabilityFields);
+  if (safeMetadata) {
     try {
-      messageParts.push(`metadata=${JSON.stringify(metadata)}`);
+      messageParts.push(`metadata=${JSON.stringify(safeMetadata)}`);
     } catch {
       messageParts.push("metadata=[unserializable]");
     }
@@ -63,6 +144,6 @@ export async function logActivity(params: ActivityLogParams) {
     `INSERT INTO logs
       (user_id, "Message", action, entity_name, "LogDate")
      VALUES ($1, $2, $3, $4, NOW())`,
-    [Number(actorId), message, action, entityType]
+    [actorId ? Number(actorId) : null, message, action, entityType]
   );
 }

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { notifyAuthChanged } from "../../auth/auth";
 import { login } from "../../services/api";
 import { AnimatedToast } from "../animate-ui/AnimatedToast";
+import { appRoutes } from "@/router/routes";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -171,7 +172,7 @@ export default function Login() {
               intervalRef.current = null;
             }
 
-            navigate("/dashboard", { replace: true });
+            navigate(appRoutes.dashboard, { replace: true });
             return 0;
           }
 
