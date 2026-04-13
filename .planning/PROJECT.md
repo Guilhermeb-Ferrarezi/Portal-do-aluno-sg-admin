@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Portal web para alunos, professores e administradores acompanharem turmas, exercicios, estrutura de curso, medalhas e operacao do sistema em um unico dashboard. O produto ja possui autenticacao, rotas protegidas por perfil, presenca em tempo real e paines administrativos, e agora entra em uma milestone focada em gamificacao, suporte a multi-curso e melhor observabilidade.
+Portal web para professores e administradores acompanharem turmas, exercicios, estrutura de curso, medalhas e operacao do sistema em um unico dashboard. O produto ja possui autenticacao, rotas protegidas por perfil, presenca em tempo real e paines administrativos, e agora entra em uma milestone focada em gamificacao, suporte a multi-curso e melhor observabilidade.
 
 ## Core Value
 
@@ -14,8 +14,8 @@ O portal precisa funcionar como a superficie principal e confiavel de acompanham
 
 **Target features:**
 - Sistema de medalhas com recompensas ampliadas.
-- Sistema de rankings por nota, incluindo recortes diarios e semanais com recompensas.
-- Divisao de cursos para alunos com mais de um curso, com escolha de qual dashboard seguir ao entrar.
+- Sistema de rankings por nota, incluindo recortes diarios e semanais com recompensas para usuarios internos.
+- Divisao de cursos para professores ou admins com mais de um curso ou mais de um contexto de atuacao, com escolha de qual dashboard seguir ao entrar.
 - Logs de observabilidade mais informativos para backend e fluxos criticos.
 - Melhorias complementares vindas dos outros steps apenas se couberem sem expandir demais o escopo.
 
@@ -24,7 +24,7 @@ O portal precisa funcionar como a superficie principal e confiavel de acompanham
 ### Validated
 
 - [x] Usuarios autenticam com login, refresh e logout, incluindo SSO e rotas protegidas por papel.
-- [x] O dashboard principal ja atende alunos, professores e administradores com navegacao protegida.
+- [x] O dashboard principal ja atende professores e administradores com navegacao protegida.
 - [x] O portal ja opera turmas, exercicios, estrutura de curso, videoaulas e medalhas.
 - [x] O backend ja expone observabilidade basica, logs de atividade e presenca em tempo real.
 
@@ -32,7 +32,6 @@ O portal precisa funcionar como a superficie principal e confiavel de acompanham
 
 - [ ] Expandir o sistema de medalhas com recompensas ampliadas.
 - [ ] Criar rankings por nota com recortes temporais e recompensas.
-- [ ] Permitir escolha de curso/dashboard para alunos com mais de um curso.
 - [ ] Tornar logs e sinais de observabilidade mais informativos para diagnostico.
 
 ### Out of Scope
@@ -44,7 +43,7 @@ O portal precisa funcionar como a superficie principal e confiavel de acompanham
 ## Context
 
 - Stack principal: `web` com React 19, Vite 7, TypeScript, Tailwind 4, shadcn/ui e Radix UI; `api` com Express 5, TypeScript, PostgreSQL, JWT e WebSocket.
-- O projeto ja possui pages e rotas para `Dashboard`, `Exercises`, `EstruturaCurso`, `Turmas`, `Medalhas`, `ActivityLogs` e `AdminObservability`.
+- O projeto ja possui pages e rotas para `Dashboard`, `Exercises`, `EstruturaCurso`, `Turmas`, `Medalhas`, `ActivityLogs` e `AdminObservability`, voltadas ao uso interno por professores e admins.
 - O backend ja documenta auth e presence no OpenAPI e mantem compatibilidade com e sem prefixo `/api` em rotas que seguem esse padrao.
 - Presenca em tempo real e heartbeat HTTP sao fluxos sensiveis e nao podem ser quebrados durante evolucao da milestone.
 - O projeto ja recebeu reforco recente em lint, build e smoke E2E com Playwright, entao a milestone pode aproveitar uma base melhor de verificacao.
@@ -83,4 +82,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 after milestone v1.0 initialization*
+*Last updated: 2026-04-13 after milestone v1.0 scope correction*

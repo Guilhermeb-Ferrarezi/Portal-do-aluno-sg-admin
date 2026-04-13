@@ -5,14 +5,14 @@
 See: `.planning/PROJECT.md` (updated 2026-04-13)
 
 **Core value:** O portal precisa funcionar como a superficie principal e confiavel de acompanhamento academico e operacional para quem usa o sistema todos os dias.
-**Current focus:** Definicao de requisitos da milestone v1.0
+**Current focus:** Phase 1 - Observabilidade Acionavel
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 1
 Plan: -
-Status: Defining requirements
-Last activity: 2026-04-13 - Milestone v1.0 started
+Status: Roadmap defined, ready for discuss/planning
+Last activity: 2026-04-13 - Requirements and roadmap created for milestone v1.0
 
 ## Accumulated Context
 
