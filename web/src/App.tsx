@@ -19,6 +19,7 @@ const ExerciseDetail = React.lazy(() => import("./pages/ExerciseDetail"));
 const ExercisesPage = React.lazy(() => import("./pages/Exercises"));
 const MateriaisPage = React.lazy(() => import("./pages/Materiais"));
 const MedalhasPage = React.lazy(() => import("./pages/Medalhas"));
+const NotificationsPage = React.lazy(() => import("./pages/Notifications"));
 const PerfilPage = React.lazy(() => import("./pages/Perfil"));
 const SsoCallback = React.lazy(() => import("./pages/SsoCallback"));
 const TurmaDetail = React.lazy(() => import("./pages/TurmaDetail"));
@@ -75,6 +76,7 @@ function AppContent() {
             <Route path={appRoutes.criarUsuario} element={<CreateUser />} />
             <Route path={appRoutes.aliases.criarUsuario} element={<Navigate to={appRoutes.criarUsuario} replace />} />
             <Route path={appRoutes.usuarios} element={<AdminUsersPage />} />
+            <Route path={appRoutes.notificacoes} element={<NotificationsPage />} />
             {estruturaCursoTabs.map((tab) => (
               <Route key={tab} path={appRoutes.estruturaCurso.tab(tab)} element={<EstruturaCursoPage />} />
             ))}

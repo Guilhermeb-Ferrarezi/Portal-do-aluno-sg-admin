@@ -251,6 +251,7 @@ export default function DashboardLayout({
   const isAdminUsers = isExactRoute(location.pathname, appRoutes.usuarios);
   const isEstruturaCurso = isRouteBranch(location.pathname, appRoutes.estruturaCurso.base);
   const isActivityLogs = isExactRoute(location.pathname, appRoutes.logs);
+  const isNotificacoes = isExactRoute(location.pathname, appRoutes.notificacoes);
   const isObservability = isExactRoute(location.pathname, appRoutes.observabilidade);
   const isTurmas = isRouteBranch(location.pathname, appRoutes.turmas);
 
@@ -349,6 +350,13 @@ export default function DashboardLayout({
       ];
     }
 
+    if (isNotificacoes) {
+      return [
+        { label: "Comunicacao", to: appRoutes.dashboard, icon: Bell },
+        { label: "Notificacoes", icon: Bell },
+      ];
+    }
+
     if (isObservability) {
       return [
         { label: "Operacao", to: appRoutes.dashboard, icon: Radar },
@@ -397,6 +405,7 @@ export default function DashboardLayout({
     isExercicios,
     isMateriais,
     isMedalhas,
+    isNotificacoes,
     isObservability,
     isTurmas,
     isVideoaulas,
@@ -500,6 +509,7 @@ export default function DashboardLayout({
               </div>
 
               <NavLinkItem to={appRoutes.logs} active={isActivityLogs} icon={<BarChart3 size={18} />} label="Logs de Atividade" />
+              <NavLinkItem to={appRoutes.notificacoes} active={isNotificacoes} icon={<Bell size={18} />} label="Notificacoes" />
               <NavLinkItem to={appRoutes.observabilidade} active={isObservability} icon={<Radar size={18} />} label="Observabilidade" />
             </>
           ) : null}
@@ -624,14 +634,19 @@ export default function DashboardLayout({
                   </span>
                 </button>
               ) : null}
-              <button
-                className="relative inline-flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-muted/50 hover:text-foreground"
-                aria-label="Notificacoes"
-                type="button"
-              >
-                <Bell size={18} />
-                <span className="absolute right-2.5 top-2 size-2 rounded-full bg-primary shadow-[0_0_0_4px_rgba(255,255,255,0.08)] animate-pulse" />
-              </button>
+              {canCreateUser ? (
+                <button
+                  className={cn(
+                    "relative inline-flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-muted/50 hover:text-foreground",
+                    isNotificacoes && "border-primary/30 bg-primary/10 text-primary"
+                  )}
+                  aria-label="Notificacoes"
+                  type="button"
+                  onClick={() => navigate(appRoutes.notificacoes)}
+                >
+                  <Bell size={18} />
+                </button>
+              ) : null}
             </div>
           </div>
         </header>

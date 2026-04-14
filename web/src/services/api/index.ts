@@ -170,3 +170,13 @@ export type {
   MonitoringTotals,
 } from "./monitoring";
 export { fetchMonitoringSnapshot } from "./monitoring";
+export type { NotificationTemplate, NotificationDispatch } from "./notifications";
+export {
+  listarTemplatesNotificacao,
+  criarTemplateNotificacao,
+  atualizarTemplateNotificacao,
+  deletarTemplateNotificacao,
+  listarDisparosNotificacao,
+  deletarDisparoNotificacao,
+  dispararTemplateNotificacao,
+} from "./notifications";

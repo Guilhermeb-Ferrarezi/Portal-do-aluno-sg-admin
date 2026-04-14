@@ -89,79 +89,6 @@ export default function ExerciseDetail() {
   const [batchIsCorrect, setBatchIsCorrect] = React.useState<"null" | "true" | "false">("null");
   const [openStudentIds, setOpenStudentIds] = React.useState<Set<number>>(new Set());
   const [openAnswerIds, setOpenAnswerIds] = React.useState<Set<number>>(new Set());
-  const legacyMode = false;
-
-  function mapLegacySubmissoesToAnswers(
-    submissoes: Array<{
-      id: string;
-      alunoId: string;
-      alunoNome: string;
-      alunoUsuario: string;
-      resposta: string;
-      corrigida: boolean;
-      feedbackProfessor: string | null;
-      createdAt: string;
-    }>
-  ): {
-    alunos: ExerciseAnswersByStudent[];
-    stats: {
-      totalAlunos: number;
-      totalAnswers: number;
-      corrigidas: number;
-      pendentes: number;
-      corretas: number;
-      incorretas: number;
-    };
-  } {
-    const byAluno = new Map<
-      string,
-      {
-        alunoId: number;
-        alunoNome: string;
-        alunoEmail: string;
-        answers: ExerciseAnswersByStudent["answers"];
-      }
-    >();
-    let nextAlunoId = -1;
-    let nextAnswerId = -1;
-
-    for (const s of submissoes) {
-      if (!byAluno.has(s.alunoId)) {
-        byAluno.set(s.alunoId, {
-          alunoId: nextAlunoId--,
-          alunoNome: s.alunoNome || s.alunoUsuario || s.alunoId,
-          alunoEmail: s.alunoUsuario || "",
-          answers: [],
-        });
-      }
-
-      byAluno.get(s.alunoId)!.answers.push({
-        id: nextAnswerId--,
-        questionId: 1,
-        question: "Submissão (fluxo legado)",
-        options: [],
-        answerText: s.resposta ?? "",
-        selectedOption: null,
-        isCorrect: null,
-        feedback: s.feedbackProfessor ?? null,
-        answeredAt: s.createdAt ?? null,
-      });
-    }
-
-    const totalAnswers = submissoes.length;
-    const corrigidas = submissoes.filter((s) => s.corrigida).length;
-    return {
-      alunos: Array.from(byAluno.values()),
-      stats: {
-        totalAlunos: byAluno.size,
-        totalAnswers,
-        corrigidas,
-        pendentes: totalAnswers - corrigidas,
-        corretas: 0,
-        incorretas: 0,
-      },
-    };
-  }
 
   const load = React.useCallback(async () => {
     if (!id || !canReview) return;
@@ -190,27 +117,6 @@ export default function ExerciseDetail() {
         incorretas: 0,
       };
       let resolvedPagination = { page: 1, limit, total: 0, totalPages: 1 };
-
-      // Fallback para schema legado (submissoes) quando answers falha
-      // ou quando não retornou itens no endpoint novo.
-      if (ans.alunos.length < 0) {
-        try {
-          const mapped = mapLegacySubmissoesToAnswers([]);
-          if (mapped.alunos.length < 0) {
-            resolvedAlunos = mapped.alunos;
-            resolvedStats = mapped.stats;
-            resolvedPagination = {
-              page: 1,
-              limit: mapped.stats.totalAnswers || 1,
-              total: mapped.stats.totalAnswers,
-              totalPages: 1,
-            };
-            void 0;
-          }
-        } catch {
-          // Sem fallback disponível; mantém fluxo normal abaixo
-        }
-      }
 
       resolvedAlunos = ans.alunos;
       if (ans.stats) resolvedStats = ans.stats;
@@ -287,7 +193,6 @@ export default function ExerciseDetail() {
   }, [alunos, prefilterAnswerId]);
 
   async function salvarAnswer(answerId: number) {
-    if (legacyMode) return;
     const data = editing[answerId];
     if (!data) return;
     const answer = alunos.flatMap((aluno) => aluno.answers).find((a) => a.id === answerId);
@@ -319,7 +224,6 @@ export default function ExerciseDetail() {
   }
 
   async function salvarBatch() {
-    if (legacyMode) return;
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     try {
@@ -504,12 +408,6 @@ export default function ExerciseDetail() {
           duration={3000}
           onClose={() => setOkMsg(null)}
         />
-        {legacyMode && (
-          <div className="rounded-2xl border border-amber-300/60 bg-amber-50/70 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-            Exibindo respostas do fluxo legado (submissões). Edição em lote/por questão indisponível nesta origem.
-          </div>
-        )}
-
         {!canReview ? (
           <div className={`${panelClass} px-6 py-10 text-center text-sm text-muted-foreground`}>
             Esta tela é exclusiva de administração.
@@ -649,37 +547,35 @@ export default function ExerciseDetail() {
               </div>
             </div>
 
-            {!legacyMode && (
-              <div className={`${panelClass} flex flex-wrap items-center gap-3 px-4 py-3`}>
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-border accent-[var(--primary)]"
-                    checked={allVisibleIds.length > 0 && allVisibleIds.every((x) => selectedIds.has(x))}
-                    onChange={toggleSelectAllVisible}
-                  />
-                  Selecionar visíveis ({selectedIds.size})
-                </label>
-                <select
-                  className={cn(selectClass, "min-w-[200px]")}
-                  value={batchIsCorrect}
-                  onChange={(e) => setBatchIsCorrect(e.target.value as "null" | "true" | "false")}
-                >
-                  <option value="null">Sem correção</option>
-                  <option value="true">Marcar como correta</option>
-                  <option value="false">Marcar como incorreta</option>
-                </select>
-                <Button
-                  type="button"
-                  className="h-10 rounded-xl bg-blue-600 px-4 text-white hover:bg-blue-500"
-                  disabled={savingBatch || selectedIds.size === 0}
-                  onClick={() => void salvarBatch()}
-                >
-                  {savingBatch ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  Salvar em lote
-                </Button>
-              </div>
-            )}
+            <div className={`${panelClass} flex flex-wrap items-center gap-3 px-4 py-3`}>
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border-border accent-[var(--primary)]"
+                  checked={allVisibleIds.length > 0 && allVisibleIds.every((x) => selectedIds.has(x))}
+                  onChange={toggleSelectAllVisible}
+                />
+                Selecionar visíveis ({selectedIds.size})
+              </label>
+              <select
+                className={cn(selectClass, "min-w-[200px]")}
+                value={batchIsCorrect}
+                onChange={(e) => setBatchIsCorrect(e.target.value as "null" | "true" | "false")}
+              >
+                <option value="null">Sem correção</option>
+                <option value="true">Marcar como correta</option>
+                <option value="false">Marcar como incorreta</option>
+              </select>
+              <Button
+                type="button"
+                className="h-10 rounded-xl bg-blue-600 px-4 text-white hover:bg-blue-500"
+                disabled={savingBatch || selectedIds.size === 0}
+                onClick={() => void salvarBatch()}
+              >
+                {savingBatch ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Salvar em lote
+              </Button>
+            </div>
 
             {visibleAnswersByStudent.length === 0 ? (
               <div className={`${panelClass} px-6 py-10 text-center text-sm text-muted-foreground`}>
@@ -723,16 +619,14 @@ export default function ExerciseDetail() {
                             return (
                               <div key={a.id} className={`${mutedPanelClass} p-3`}>
                                 <div className="grid grid-cols-[auto_1fr] gap-2 items-center">
-                                  {!legacyMode && (
-                                    <span className="inline-flex items-center justify-center">
-                                      <input
-                                        type="checkbox"
-                                        className="size-4 rounded border-border accent-[var(--primary)]"
-                                        checked={selectedIds.has(a.id)}
-                                        onChange={() => toggleSelect(a.id)}
-                                      />
-                                    </span>
-                                  )}
+                                  <span className="inline-flex items-center justify-center">
+                                    <input
+                                      type="checkbox"
+                                      className="size-4 rounded border-border accent-[var(--primary)]"
+                                      checked={selectedIds.has(a.id)}
+                                      onChange={() => toggleSelect(a.id)}
+                                    />
+                                  </span>
                                   <button
                                     type="button"
                                     className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-left transition hover:bg-muted/40"
@@ -804,19 +698,15 @@ export default function ExerciseDetail() {
                                     <textarea
                                       className={textareaClass}
                                       value={editing[a.id]?.answerText ?? ""}
-                                      onChange={
-                                        legacyMode
-                                          ? undefined
-                                          : (e) =>
-                                            setEditing((prev) => ({
-                                              ...prev,
-                                              [a.id]: {
-                                                ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
-                                                answerText: e.target.value,
-                                              },
-                                            }))
+                                      onChange={(e) =>
+                                        setEditing((prev) => ({
+                                          ...prev,
+                                          [a.id]: {
+                                            ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                            answerText: e.target.value,
+                                          },
+                                        }))
                                       }
-                                      readOnly={legacyMode}
                                       placeholder="Resposta (dissertativa)"
                                     />
 
@@ -828,26 +718,21 @@ export default function ExerciseDetail() {
                                         <textarea
                                           className={cn(textareaClass, "min-h-[88px]")}
                                           value={editing[a.id]?.feedback ?? ""}
-                                          onChange={
-                                            legacyMode
-                                              ? undefined
-                                              : (e) =>
-                                                setEditing((prev) => ({
-                                                  ...prev,
-                                                  [a.id]: {
-                                                    ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
-                                                    feedback: e.target.value,
-                                                  },
-                                                }))
+                                          onChange={(e) =>
+                                            setEditing((prev) => ({
+                                              ...prev,
+                                              [a.id]: {
+                                                ...(prev[a.id] ?? { answerText: "", feedback: "", selectedOption: "", isCorrect: "null" }),
+                                                feedback: e.target.value,
+                                              },
+                                            }))
                                           }
-                                          readOnly={legacyMode}
                                           placeholder="Digite aqui o feedback da resposta..."
                                         />
                                       </>
                                     )}
 
-                                    {!legacyMode ? (
-                                      <div className="flex flex-wrap items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <select
                                           className={cn(selectClass, "min-w-[180px]")}
                                           value={editing[a.id]?.selectedOption ?? ""}
@@ -903,7 +788,6 @@ export default function ExerciseDetail() {
                                           </span>
                                         )}
                                       </div>
-                                    ) : null}
                                   </div>
                                 )}
                               </div>

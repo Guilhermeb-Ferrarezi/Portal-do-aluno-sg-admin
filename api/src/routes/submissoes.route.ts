@@ -2,7 +2,6 @@
 import { z } from "zod";
 import multer from "multer";
 import { pool } from "../db";
-import { hasLegacySubmissoesTable } from "../db/legacySubmissoes";
 import { authGuard } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
@@ -34,9 +33,6 @@ const upload = multer({
 
 type TipoResposta = "codigo" | "texto";
 
-const LEGACY_SUBMISSAO_REMOVED_MESSAGE =
-  "Fluxo legado de submissoes removido neste ambiente. Use o schema de answers.";
-
 function getSingleRouteParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -62,11 +58,6 @@ type SubmissaoRow = {
   arquivo_nome: string | null;
   created_at: string;
   updated_at: string;
-};
-
-type LegacyAnswerAggregateRow = SubmissaoRow & {
-  usuario?: string;
-  nome_aluno?: string;
 };
 
 const createSubmissaoSchema = z.object({
@@ -144,198 +135,6 @@ function mapSubmissaoRow(row: SubmissaoRow) {
     arquivoNome: row.arquivo_nome,
     createdAt: row.created_at,
   };
-}
-
-async function listLegacyCompatibleAnswersByExerciseAndUser(
-  exercicioId: string,
-  alunoId: string
-) {
-  return pool.query<SubmissaoRow>(
-    `SELECT
-       MAX(a.id)::text AS id,
-       a.exercise_id::text AS exercicio_id,
-       a.user_id::text AS aluno_id,
-       COALESCE(
-         STRING_AGG(
-           CASE
-             WHEN COALESCE(BTRIM(q.statement), '') <> '' THEN CONCAT(
-               q.statement,
-               ': ',
-               COALESCE(
-                 NULLIF(BTRIM(a.answer_text), ''),
-                 CASE
-                   WHEN a.selected_option IS NOT NULL THEN CONCAT('[Opcao ', a.selected_option::text, ']')
-                   ELSE '[Sem resposta]'
-                 END
-               )
-             )
-             ELSE COALESCE(
-               NULLIF(BTRIM(a.answer_text), ''),
-               CASE
-                 WHEN a.selected_option IS NOT NULL THEN CONCAT('[Opcao ', a.selected_option::text, ']')
-                 ELSE '[Sem resposta]'
-               END
-             )
-           END,
-           E'\n\n'
-           ORDER BY a.answered_at ASC NULLS LAST, a.id ASC
-         ),
-         ''
-       ) AS resposta,
-       'texto'::text AS tipo_resposta,
-       NULL::text AS linguagem,
-       CASE
-         WHEN COUNT(*) FILTER (WHERE a.is_correct IS NOT NULL) = 0 THEN NULL::numeric
-         ELSE ROUND(AVG(CASE WHEN a.is_correct THEN 100 ELSE 0 END))
-       END AS nota,
-       BOOL_AND(a.is_correct IS NOT NULL) AS corrigida,
-       NULLIF(
-         STRING_AGG(
-           NULLIF(BTRIM(COALESCE(a.feedback, '')), ''),
-           E'\n\n'
-           ORDER BY a.answered_at ASC NULLS LAST, a.id ASC
-         ),
-         ''
-       ) AS feedback_professor,
-       false AS is_late,
-       NULL::text AS arquivo_url,
-       NULL::text AS arquivo_nome,
-       COALESCE(MAX(a.answered_at), NOW())::text AS created_at,
-       COALESCE(MAX(a.answered_at), NOW())::text AS updated_at
-     FROM answer a
-     JOIN question q ON q.id = a.question_id
-     WHERE a.exercise_id = $1 AND a.user_id = $2
-     GROUP BY a.exercise_id, a.user_id
-     ORDER BY MAX(a.answered_at) DESC NULLS LAST`,
-    [Number(exercicioId), Number(alunoId)]
-  );
-}
-
-async function listLegacyCompatibleAnswersByUser(alunoId: string) {
-  return pool.query<SubmissaoRow>(
-    `SELECT
-       MAX(a.id)::text AS id,
-       a.exercise_id::text AS exercicio_id,
-       a.user_id::text AS aluno_id,
-       COALESCE(
-         STRING_AGG(
-           CASE
-             WHEN COALESCE(BTRIM(q.statement), '') <> '' THEN CONCAT(
-               q.statement,
-               ': ',
-               COALESCE(
-                 NULLIF(BTRIM(a.answer_text), ''),
-                 CASE
-                   WHEN a.selected_option IS NOT NULL THEN CONCAT('[Opcao ', a.selected_option::text, ']')
-                   ELSE '[Sem resposta]'
-                 END
-               )
-             )
-             ELSE COALESCE(
-               NULLIF(BTRIM(a.answer_text), ''),
-               CASE
-                 WHEN a.selected_option IS NOT NULL THEN CONCAT('[Opcao ', a.selected_option::text, ']')
-                 ELSE '[Sem resposta]'
-               END
-             )
-           END,
-           E'\n\n'
-           ORDER BY a.answered_at ASC NULLS LAST, a.id ASC
-         ),
-         ''
-       ) AS resposta,
-       'texto'::text AS tipo_resposta,
-       NULL::text AS linguagem,
-       CASE
-         WHEN COUNT(*) FILTER (WHERE a.is_correct IS NOT NULL) = 0 THEN NULL::numeric
-         ELSE ROUND(AVG(CASE WHEN a.is_correct THEN 100 ELSE 0 END))
-       END AS nota,
-       BOOL_AND(a.is_correct IS NOT NULL) AS corrigida,
-       NULLIF(
-         STRING_AGG(
-           NULLIF(BTRIM(COALESCE(a.feedback, '')), ''),
-           E'\n\n'
-           ORDER BY a.answered_at ASC NULLS LAST, a.id ASC
-         ),
-         ''
-       ) AS feedback_professor,
-       false AS is_late,
-       NULL::text AS arquivo_url,
-       NULL::text AS arquivo_nome,
-       COALESCE(MAX(a.answered_at), NOW())::text AS created_at,
-       COALESCE(MAX(a.answered_at), NOW())::text AS updated_at
-     FROM answer a
-     JOIN question q ON q.id = a.question_id
-     WHERE a.user_id = $1
-     GROUP BY a.exercise_id, a.user_id
-     ORDER BY MAX(a.answered_at) DESC NULLS LAST`,
-    [Number(alunoId)]
-  );
-}
-
-async function listLegacyCompatibleAnswersByExercise(exercicioId: string) {
-  return pool.query<LegacyAnswerAggregateRow>(
-    `SELECT
-       MAX(a.id)::text AS id,
-       a.exercise_id::text AS exercicio_id,
-       a.user_id::text AS aluno_id,
-       COALESCE(
-         STRING_AGG(
-           CASE
-             WHEN COALESCE(BTRIM(q.statement), '') <> '' THEN CONCAT(
-               q.statement,
-               ': ',
-               COALESCE(
-                 NULLIF(BTRIM(a.answer_text), ''),
-                 CASE
-                   WHEN a.selected_option IS NOT NULL THEN CONCAT('[Opcao ', a.selected_option::text, ']')
-                   ELSE '[Sem resposta]'
-                 END
-               )
-             )
-             ELSE COALESCE(
-               NULLIF(BTRIM(a.answer_text), ''),
-               CASE
-                 WHEN a.selected_option IS NOT NULL THEN CONCAT('[Opcao ', a.selected_option::text, ']')
-                 ELSE '[Sem resposta]'
-               END
-             )
-           END,
-           E'\n\n'
-           ORDER BY a.answered_at ASC NULLS LAST, a.id ASC
-         ),
-         ''
-       ) AS resposta,
-       'texto'::text AS tipo_resposta,
-       NULL::text AS linguagem,
-       CASE
-         WHEN COUNT(*) FILTER (WHERE a.is_correct IS NOT NULL) = 0 THEN NULL::numeric
-         ELSE ROUND(AVG(CASE WHEN a.is_correct THEN 100 ELSE 0 END))
-       END AS nota,
-       BOOL_AND(a.is_correct IS NOT NULL) AS corrigida,
-       NULLIF(
-         STRING_AGG(
-           NULLIF(BTRIM(COALESCE(a.feedback, '')), ''),
-           E'\n\n'
-           ORDER BY a.answered_at ASC NULLS LAST, a.id ASC
-         ),
-         ''
-       ) AS feedback_professor,
-       false AS is_late,
-       NULL::text AS arquivo_url,
-       NULL::text AS arquivo_nome,
-       COALESCE(MAX(a.answered_at), NOW())::text AS created_at,
-       COALESCE(MAX(a.answered_at), NOW())::text AS updated_at,
-       u.email AS usuario,
-       u.name AS nome_aluno
-     FROM answer a
-     JOIN question q ON q.id = a.question_id
-     JOIN "user" u ON u.id = a.user_id
-     WHERE a.exercise_id = $1
-     GROUP BY a.exercise_id, a.user_id, u.email, u.name
-     ORDER BY MAX(a.answered_at) DESC NULLS LAST`,
-    [Number(exercicioId)]
-  );
 }
 
 function normalizarCodigo(codigo: string): string {
@@ -667,9 +466,6 @@ export function submissoesRouter(jwtSecret: string) {
       }
 
       try {
-        if (!(await hasLegacySubmissoesTable())) {
-          return res.status(410).json({ message: LEGACY_SUBMISSAO_REMOVED_MESSAGE });
-        }
 
         const oldAlunoTurma = await hasAlunoTurmaTable();
         // Verificar se exercício existe e buscar prazo
@@ -871,11 +667,6 @@ export function submissoesRouter(jwtSecret: string) {
       }
 
       try {
-        if (!(await hasLegacySubmissoesTable())) {
-          const result = await listLegacyCompatibleAnswersByExerciseAndUser(exercicioId, alunoId);
-          return res.json(result.rows.map(mapSubmissaoRow));
-        }
-
         const result = await pool.query<SubmissaoRow & { exercicio_descricao: string; exercicio_gabarito: string | null }>(
           `SELECT s.*, e.descricao as exercicio_descricao, e.gabarito as exercicio_gabarito
            FROM submissoes s
@@ -907,11 +698,6 @@ export function submissoesRouter(jwtSecret: string) {
     }
 
     try {
-      if (!(await hasLegacySubmissoesTable())) {
-        const result = await listLegacyCompatibleAnswersByUser(alunoId);
-        return res.json(result.rows.map(mapSubmissaoRow));
-      }
-
       const result = await pool.query<
         SubmissaoRow & {
           exercicio_titulo: string;
@@ -964,18 +750,6 @@ export function submissoesRouter(jwtSecret: string) {
       try {
         if (!exercicioId) {
           return res.status(400).json({ message: "Exercicio invalido" });
-        }
-
-        if (!(await hasLegacySubmissoesTable())) {
-          const result = await listLegacyCompatibleAnswersByExercise(exercicioId);
-          return res.json(
-            result.rows.map((row) => ({
-              ...mapSubmissaoRow(row),
-              alunoUsuario: row.usuario ?? "",
-              alunoNome: row.nome_aluno ?? row.usuario ?? row.aluno_id,
-              verificacaoDescricao: null,
-            }))
-          );
         }
 
         const result = await pool.query<
@@ -1040,10 +814,6 @@ export function submissoesRouter(jwtSecret: string) {
       const { nota, feedback } = parsed.data;
 
       try {
-        if (!(await hasLegacySubmissoesTable())) {
-          return res.status(410).json({ message: LEGACY_SUBMISSAO_REMOVED_MESSAGE });
-        }
-
         const result = await pool.query<SubmissaoRow>(
           `UPDATE submissoes
            SET nota = $1, feedback_professor = $2, corrigida = true, updated_at = NOW()

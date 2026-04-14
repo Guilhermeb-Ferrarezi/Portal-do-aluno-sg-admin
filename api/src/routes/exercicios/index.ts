@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { pool } from "../../db";
-import { hasLegacySubmissoesTable } from "../../db/legacySubmissoes";
 import { authGuard } from "../../middlewares/auth";
 import { requireRole } from "../../middlewares/requireRole";
 import type { AuthRequest } from "../../middlewares/auth";
@@ -1524,22 +1523,6 @@ export function exerciciosRouter(jwtSecret: string) {
         await deleteFromR2(exercicio.anexo_url).catch((err) =>
           console.error("Erro ao deletar anexo do exercicio:", err)
         );
-      }
-
-      if (await hasLegacySubmissoesTable()) {
-        const arquivosSubmissoes = await pool.query<{ arquivo_url: string | null }>(
-          `SELECT arquivo_url FROM submissoes WHERE exercicio_id = $1 AND arquivo_url IS NOT NULL`,
-          [id]
-        );
-        for (const row of arquivosSubmissoes.rows) {
-          if (row.arquivo_url) {
-            await deleteFromR2(row.arquivo_url).catch((err) =>
-              console.error("Erro ao deletar arquivo de submissao:", err)
-            );
-          }
-        }
-
-        await pool.query(`DELETE FROM submissoes WHERE exercicio_id = $1`, [id]);
       }
 
       await pool.query(`DELETE FROM exercicios WHERE id = $1`, [id]);

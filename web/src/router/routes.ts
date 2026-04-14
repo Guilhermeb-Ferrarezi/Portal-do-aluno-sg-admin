@@ -23,6 +23,7 @@ export const appRoutes = {
   turmaDetalhe: (id: string) => `${DASHBOARD_BASE}/turmas/${id}`,
   criarUsuario: `${DASHBOARD_BASE}/criar-usuario`,
   usuarios: `${DASHBOARD_BASE}/usuarios`,
+  notificacoes: `${DASHBOARD_BASE}/notificacoes`,
   logs: `${DASHBOARD_BASE}/logs`,
   observabilidade: `${DASHBOARD_BASE}/observabilidade`,
   estruturaCurso: {

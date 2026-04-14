@@ -19,6 +19,8 @@ Portal do aluno com:
 - Se faltar campo ou ajuste no banco, entregue o SQL/ajuste necessario para o usuario decidir.
 - Nao exponha valores de `.env` nem replique segredos em resposta, commit ou documentacao.
 - Ao adicionar uma rota nova, documente-a no swagger
+- Ao terminar uma task, rode o deploy_and_push, mas sem commitar
+- Rode os testes de playwright
 
 ## UI e frontend
 

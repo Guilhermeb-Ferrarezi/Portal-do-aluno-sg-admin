@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, m } from 'framer-motion';
 import { CheckCircle, XCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,8 @@ export function AnimatedToast({
   onClose,
   position = 'top-right',
 }: AnimatedToastProps) {
+  const [portalReady, setPortalReady] = useState(false);
+
   useEffect(() => {
     if (!message || duration <= 0) return;
 
@@ -27,6 +30,10 @@ export function AnimatedToast({
 
     return () => clearTimeout(timer);
   }, [message, duration, onClose]);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   const isFloating = position === 'top-right';
 
@@ -75,6 +82,10 @@ export function AnimatedToast({
       )}
     </AnimatePresence>
   );
+
+  if (isFloating && portalReady && typeof document !== 'undefined') {
+    return createPortal(content, document.body);
+  }
 
   return content;
 }
