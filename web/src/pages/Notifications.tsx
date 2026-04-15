@@ -29,11 +29,11 @@ import {
   deletarTemplateNotificacao,
   deletarDisparoNotificacao,
   dispararTemplateNotificacao,
-  listarAlunos,
   listarCursos,
   listarDisparosNotificacao,
   listarTemplatesNotificacao,
   listarTurmas,
+  listarUsuariosPaginado,
   type Curso,
   type NotificationDispatch,
   type NotificationTemplate,
@@ -106,6 +106,35 @@ function extractTemplatePlaceholders(value: string) {
   );
 }
 
+function buildDispatchPayload(dispatch: NotificationDispatch) {
+  return {
+    dispatchId: dispatch.id,
+    templateId: dispatch.templateId,
+    templateName: dispatch.templateName,
+    actor: {
+      name: dispatch.triggeredByActorName,
+      email: dispatch.triggeredByActorEmail,
+    },
+    filters: {
+      courseIds: dispatch.cursoIds,
+      classIds: dispatch.turmaIds,
+      studentIds: dispatch.alunoIds,
+    },
+    requestBody: {
+      filters: {
+        courseIds: dispatch.cursoIds,
+        classIds: dispatch.turmaIds,
+        studentIds: dispatch.alunoIds,
+      },
+    },
+    totals: {
+      totalRecipients: dispatch.totalRecipients,
+      failedRecipients: dispatch.failedRecipients,
+    },
+    createdAt: dispatch.createdAt,
+  };
+}
+
 function highlightText(value: string, query: string) {
   if (!query.trim()) {
     return value;
@@ -149,6 +178,8 @@ function SegmentList({
   getItemLabel,
   getItemMeta,
   onToggle,
+  onScroll,
+  footer,
 }: {
   title: string;
   subtitle: string;
@@ -158,9 +189,11 @@ function SegmentList({
   getItemLabel: (item: Curso | Turma | User) => string;
   getItemMeta?: (item: Curso | Turma | User) => string | null;
   onToggle: (id: number) => void;
+  onScroll?: (event: React.UIEvent<HTMLDivElement>) => void;
+  footer?: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0 rounded-[24px] border border-border/70 bg-card/95 p-4 shadow-sm">
+    <div className="min-w-0 rounded-3xl border border-border/70 bg-card/95 p-4 shadow-sm">
       <div className="mb-4">
         <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">
           {title}
@@ -168,7 +201,7 @@ function SegmentList({
         <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
-      <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+      <div className="max-h-72 space-y-2 overflow-y-auto pr-1" onScroll={onScroll}>
         {items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
             Nenhum item disponivel.
@@ -199,7 +232,7 @@ function SegmentList({
                   }}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words text-sm font-semibold text-foreground">
+                  <span className="block wrap-break-word text-sm font-semibold text-foreground">
                     {getItemLabel(item)}
                   </span>
                   {meta ? (
@@ -212,6 +245,7 @@ function SegmentList({
             );
           })
         )}
+        {footer}
       </div>
     </div>
   );
@@ -219,6 +253,7 @@ function SegmentList({
 
 export default function NotificationsPage() {
   const dispatchPageSize = 10;
+  const studentsPageSize = 50;
   const panelClass = "rounded-[28px] border border-border/70 bg-card/95 shadow-sm";
   const fieldClass =
     "h-11 w-full rounded-xl border border-input bg-background/80 px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60";
@@ -233,6 +268,8 @@ export default function NotificationsPage() {
   const [cursos, setCursos] = React.useState<Curso[]>([]);
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
   const [alunos, setAlunos] = React.useState<User[]>([]);
+  const [alunosTotal, setAlunosTotal] = React.useState(0);
+  const [loadingMoreAlunos, setLoadingMoreAlunos] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [nome, setNome] = React.useState("");
   const [tituloTemplate, setTituloTemplate] = React.useState("");
@@ -242,6 +279,7 @@ export default function NotificationsPage() {
   const [selectedTurmaIds, setSelectedTurmaIds] = React.useState<number[]>([]);
   const [selectedAlunoIds, setSelectedAlunoIds] = React.useState<number[]>([]);
   const [selectedTemplateIds, setSelectedTemplateIds] = React.useState<number[]>([]);
+  const [selectedDispatchIds, setSelectedDispatchIds] = React.useState<number[]>([]);
   const [dispatchModalOpen, setDispatchModalOpen] = React.useState(false);
   const [dispatchTemplate, setDispatchTemplate] = React.useState<NotificationTemplate | null>(null);
   const [dispatchTemplateIds, setDispatchTemplateIds] = React.useState<number[]>([]);
@@ -271,6 +309,7 @@ export default function NotificationsPage() {
   const [deletingTemplate, setDeletingTemplate] = React.useState(false);
   const [deleteDispatchDialogOpen, setDeleteDispatchDialogOpen] = React.useState(false);
   const [dispatchToDelete, setDispatchToDelete] = React.useState<NotificationDispatch | null>(null);
+  const [payloadDispatch, setPayloadDispatch] = React.useState<NotificationDispatch | null>(null);
   const [deletingDispatch, setDeletingDispatch] = React.useState(false);
   const [toast, setToast] = React.useState<{
     id: number;
@@ -371,6 +410,7 @@ export default function NotificationsPage() {
   }, [templateSearch, templateSort, templateStatusFilter, templateDispatchStats, templates]);
 
   const hasMoreDispatches = dispatches.length < dispatchTotal;
+  const hasMoreAlunos = alunos.length < alunosTotal;
 
   const templateValidation = React.useMemo(() => {
     const tokens = [...extractTemplatePlaceholders(tituloTemplate), ...extractTemplatePlaceholders(mensagemTemplate)];
@@ -477,6 +517,20 @@ export default function NotificationsPage() {
     [dispatchSearch]
   );
 
+  const loadAlunos = React.useCallback(
+    async ({ reset }: { reset: boolean }) => {
+      const nextPage = reset ? 1 : Math.floor(alunos.length / studentsPageSize) + 1;
+      const response = await listarUsuariosPaginado({
+        page: nextPage,
+        limit: studentsPageSize,
+      });
+
+      setAlunosTotal(response.total);
+      setAlunos((current) => (reset ? response.items : [...current, ...response.items]));
+    },
+    [alunos.length]
+  );
+
   const loadData = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -485,13 +539,17 @@ export default function NotificationsPage() {
           listarTemplatesNotificacao(),
           listarCursos(),
           listarTurmas(),
-          listarAlunos(),
+          listarUsuariosPaginado({
+            page: 1,
+            limit: studentsPageSize,
+          }),
         ]);
 
       setTemplates(templateResponse.items);
       setCursos(cursosData as Curso[]);
       setTurmas(turmasData as Turma[]);
-      setAlunos(alunosData);
+      setAlunos(alunosData.items);
+      setAlunosTotal(alunosData.total);
       setDispatches([]);
       setDispatchTotal(0);
     } catch (error) {
@@ -499,7 +557,7 @@ export default function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [loadDispatches, showToast]);
+  }, [showToast]);
 
   React.useEffect(() => {
     void loadData();
@@ -732,6 +790,21 @@ export default function NotificationsPage() {
     setSelectedAlunoIds([]);
   }
 
+  function handleToggleDispatchSelection(dispatchId: number, checked: boolean) {
+    setSelectedDispatchIds((current) =>
+      checked ? (current.includes(dispatchId) ? current : [...current, dispatchId]) : current.filter((id) => id !== dispatchId)
+    );
+  }
+
+  function handleToggleAllVisibleDispatches(checked: boolean) {
+    const visibleDispatchIds = dispatches.map((dispatch) => dispatch.id);
+    setSelectedDispatchIds((current) =>
+      checked
+        ? Array.from(new Set([...current, ...visibleDispatchIds]))
+        : current.filter((id) => !visibleDispatchIds.includes(id))
+    );
+  }
+
   function openDispatchModal(template: NotificationTemplate) {
     setDispatchTemplate(template);
     setDispatchTemplateIds([template.id]);
@@ -772,6 +845,43 @@ export default function NotificationsPage() {
       .finally(() => {
         setLoadingMoreDispatches(false);
       });
+  }
+
+  function handleStudentsListScroll(event: React.UIEvent<HTMLDivElement>) {
+    const element = event.currentTarget;
+    const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+
+    if (distanceToBottom > 80 || loadingMoreAlunos || !hasMoreAlunos) {
+      return;
+    }
+
+    setLoadingMoreAlunos(true);
+    void loadAlunos({ reset: false })
+      .catch((error) => {
+        showToast("error", error instanceof Error ? error.message : "Erro ao carregar mais alunos");
+      })
+      .finally(() => {
+        setLoadingMoreAlunos(false);
+      });
+  }
+
+  async function loadAllRecipientIds() {
+    const ids: number[] = [];
+    let page = 1;
+    let total = 0;
+
+    do {
+      const response = await listarUsuariosPaginado({
+        page,
+        limit: 100,
+      });
+
+      ids.push(...response.items.map((user) => Number(user.id)));
+      total = response.total;
+      page += 1;
+    } while (ids.length < total);
+
+    return ids;
   }
 
   function updateAutocomplete(field: PlaceholderField, value: string, caretPosition: number | null) {
@@ -1007,19 +1117,33 @@ export default function NotificationsPage() {
     showToast("success", "Resumo copiado");
   }
 
+  function handleViewDispatchPayload(dispatch: NotificationDispatch) {
+    setPayloadDispatch(dispatch);
+  }
+
+  function handleCopyDispatchPayload(dispatch: NotificationDispatch) {
+    void navigator.clipboard.writeText(JSON.stringify(buildDispatchPayload(dispatch), null, 2));
+    showToast("success", "Payload copiado");
+  }
+
   function handleViewDispatchTemplate(dispatch: NotificationDispatch) {
     setActiveSection("templates");
     setTemplateSearch(dispatch.templateName);
   }
 
   async function handleDeleteDispatch() {
-    if (!dispatchToDelete) return;
+    const idsToDelete = dispatchToDelete ? [dispatchToDelete.id] : selectedDispatchIds;
+    if (idsToDelete.length === 0) return;
     try {
       setDeletingDispatch(true);
-      await deletarDisparoNotificacao(dispatchToDelete.id);
-      setDispatches((prev) => prev.filter((d) => d.id !== dispatchToDelete.id));
-      setDispatchTotal((prev) => Math.max(0, prev - 1));
-      showToast("success", "Disparo excluido com sucesso.");
+      await Promise.all(idsToDelete.map((id) => deletarDisparoNotificacao(id)));
+      setDispatches((prev) => prev.filter((d) => !idsToDelete.includes(d.id)));
+      setDispatchTotal((prev) => Math.max(0, prev - idsToDelete.length));
+      setSelectedDispatchIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
+      showToast(
+        "success",
+        idsToDelete.length === 1 ? "Disparo excluido com sucesso." : `${idsToDelete.length} disparos excluidos com sucesso.`
+      );
       setDeleteDispatchDialogOpen(false);
       setDispatchToDelete(null);
     } catch (error) {
@@ -1036,22 +1160,23 @@ export default function NotificationsPage() {
 
     try {
       setDispatchingId(dispatchTemplate ? dispatchTemplate.id : -1);
+      const explicitRecipientIds = dispatchWithoutFilters
+        ? await loadAllRecipientIds()
+        : selectedAlunoIds;
       const payload = {
         cursoIds: selectedCursoIds,
         turmaIds: selectedTurmaIds,
-        alunoIds: dispatchWithoutFilters
-          ? alunos.map((aluno) => Number(aluno.id))
-          : selectedAlunoIds,
+        alunoIds: explicitRecipientIds,
       };
 
       const results = await Promise.all(
         dispatchTemplateIds.map((templateId) => dispararTemplateNotificacao(templateId, payload))
       );
 
-      const totalRecipients = results.reduce(
-        (sum, result) => sum + result.dispatch.totalRecipients,
-        0
-      );
+      const totalRecipients = results.reduce((sum, result) => {
+        const count = Number(result.dispatch.totalRecipients);
+        return sum + (Number.isFinite(count) ? count : 0);
+      }, 0);
 
       showToast(
         "success",
@@ -1135,7 +1260,7 @@ export default function NotificationsPage() {
   return (
     <DashboardLayout
       title="Notificacoes"
-      subtitle="Crie templates e dispare comunicados para o portal do Willian"
+      subtitle="Crie templates e dispare comunicados para o portal do aluno"
     >
       <FadeInUp duration={0.28}>
         <div className="space-y-6">
@@ -1159,7 +1284,7 @@ export default function NotificationsPage() {
                       Central de templates
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Os placeholders sao resolvidos por aluno no backend do portal do Willian.
+                      Os placeholders sao resolvidos por aluno no backend do portal do aluno.
                     </p>
                   </div>
                 </div>
@@ -1359,7 +1484,7 @@ export default function NotificationsPage() {
                     <span className="text-xs text-muted-foreground">Dados simulados</span>
                   </div>
                   <div className="mt-3 min-w-0 rounded-2xl border border-border/70 bg-muted/20 p-4">
-                    <p className="break-words text-sm font-semibold leading-6 text-foreground">
+                    <p className="wrap-break-word text-sm font-semibold leading-6 text-foreground">
                       {previewTitle}
                     </p>
                     <p className="mt-2 whitespace-pre-line break-all text-sm leading-6 text-muted-foreground">
@@ -1487,7 +1612,7 @@ export default function NotificationsPage() {
                       onClick={() => setSelectedTemplateIds([])}
                       disabled={dispatchingId !== null}
                     >
-                      Limpar selecao
+                      Limpar seleção
                     </Button>
                     <Button
                       type="button"
@@ -1596,7 +1721,7 @@ export default function NotificationsPage() {
                       <ContextMenuTrigger asChild>
                         <article
                           className={cn(
-                            "rounded-[24px] border bg-background/80 p-5 transition hover:border-primary/25",
+                            "rounded-3xl border bg-background/80 p-5 transition hover:border-primary/25",
                             selectedTemplateIds.includes(template.id)
                               ? "border-primary/35 ring-1 ring-primary/20"
                               : "border-border/70"
@@ -1740,7 +1865,7 @@ export default function NotificationsPage() {
                     Historico de disparos
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Ultimos envios processados pelo portal do Willian.
+                    Últimos envios processados pelo portal do aluno.
                   </p>
                 </div>
 
@@ -1750,15 +1875,56 @@ export default function NotificationsPage() {
                       className="h-11 rounded-xl border-border/70 bg-background/80"
                       value={dispatchSearch}
                       onChange={(event) => setDispatchSearch(event.target.value)}
-                      placeholder="Buscar por template, responsavel ou numeros do disparo"
+                      placeholder="Buscar por template, responsável ou números do disparo"
                     />
                   </label>
 
                   <div className="flex flex-wrap items-center gap-3">
+                    {dispatches.length > 0 ? (
+                      <label className="flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
+                        <Checkbox
+                          checked={
+                            dispatches.length > 0 &&
+                            dispatches.every((dispatch) => selectedDispatchIds.includes(dispatch.id))
+                          }
+                          onCheckedChange={(checked) => handleToggleAllVisibleDispatches(checked === true)}
+                        />
+                        Selecionar carregados
+                      </label>
+                    ) : null}
+
                     <span className="rounded-full border border-border/70 bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
                       Exibindo <strong className="text-foreground">{dispatches.length}</strong> de{" "}
                       <strong className="text-foreground">{dispatchTotal}</strong>
                     </span>
+
+                    {selectedDispatchIds.length > 0 ? (
+                      <>
+                        <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary">
+                          {selectedDispatchIds.length} selecionados
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                          onClick={() => setSelectedDispatchIds([])}
+                        >
+                          Limpar seleção
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 rounded-xl border-destructive/30 bg-destructive/5 px-4 text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setDispatchToDelete(null);
+                            setDeleteDispatchDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 size={16} />
+                          Excluir selecionados
+                        </Button>
+                      </>
+                    ) : null}
 
                     {dispatchSearch ? (
                       <Button
@@ -1775,7 +1941,7 @@ export default function NotificationsPage() {
 
                 <div
                   ref={dispatchListRef}
-                  className="max-h-[42rem] space-y-3 overflow-y-auto pr-1"
+                  className="max-h-168 space-y-3 overflow-y-auto pr-1"
                   onScroll={handleDispatchListScroll}
                 >
                   {dispatches.length === 0 ? (
@@ -1787,13 +1953,27 @@ export default function NotificationsPage() {
                       <ContextMenu key={dispatch.id}>
                         <ContextMenuTrigger asChild>
                           <article
-                            className="rounded-[24px] border border-border/70 bg-background/80 p-5"
+                            className={cn(
+                              "rounded-3xl border bg-background/80 p-5",
+                              selectedDispatchIds.includes(dispatch.id)
+                                ? "border-primary/35 ring-1 ring-primary/20"
+                                : "border-border/70"
+                            )}
                           >
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                               <div className="min-w-0">
-                                <h3 className="text-base font-semibold text-foreground">
-                                  {dispatch.templateName}
-                                </h3>
+                                <div className="flex items-center gap-3">
+                                  <Checkbox
+                                    checked={selectedDispatchIds.includes(dispatch.id)}
+                                    onCheckedChange={(checked) =>
+                                      handleToggleDispatchSelection(dispatch.id, checked === true)
+                                    }
+                                    onClick={(event) => event.stopPropagation()}
+                                  />
+                                  <h3 className="text-base font-semibold text-foreground">
+                                    {dispatch.templateName}
+                                  </h3>
+                                </div>
                                 <p className="mt-1 text-sm text-muted-foreground">
                                   {dispatch.triggeredByActorName || "Administrador"} ·{" "}
                                   {formatDateTime(dispatch.createdAt)}
@@ -1815,6 +1995,15 @@ export default function NotificationsPage() {
 
                         <ContextMenuContent className="w-56">
                           <ContextMenuLabel>Acoes do disparo</ContextMenuLabel>
+                          <ContextMenuItem onClick={() => handleViewDispatchPayload(dispatch)}>
+                            <BellRing size={16} />
+                            Ver payload
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleCopyDispatchPayload(dispatch)}>
+                            <Copy size={16} />
+                            Copiar payload
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
                           <ContextMenuItem onClick={() => handleCopyDispatchId(dispatch)}>
                             <Copy size={16} />
                             Copiar ID
@@ -1876,12 +2065,12 @@ export default function NotificationsPage() {
                     {dispatchTemplate ? (
                       <>
                         Selecione pelo menos um filtro para o template <strong>{dispatchTemplate.nome}</strong> ou marque{" "}
-                        <strong>Nenhum filtro</strong> para enviar para todos os alunos carregados.
+                        <strong>Nenhum filtro</strong> para enviar para todos os alunos.
                       </>
                     ) : dispatchTemplateIds.length > 1 ? (
                       <>
                         Selecione pelo menos um filtro para disparar <strong>{dispatchTemplateIds.length} templates</strong> de uma vez ou marque{" "}
-                        <strong>Nenhum filtro</strong> para enviar para todos os alunos carregados.
+                        <strong>Nenhum filtro</strong> para enviar para todos os alunos.
                       </>
                     ) : (
                       "Selecione o publico do disparo."
@@ -1911,7 +2100,7 @@ export default function NotificationsPage() {
                           Nenhum filtro
                         </span>
                         <span className="mt-1 block text-sm text-muted-foreground">
-                          Envia para todos os alunos disponiveis nesta listagem ({alunos.length} registros).
+                          Envia para todos os usuarios disponiveis ({alunosTotal} registros).
                         </span>
                       </span>
                     </label>
@@ -1920,7 +2109,7 @@ export default function NotificationsPage() {
                   <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
                     {dispatchWithoutFilters ? (
                       <>
-                        Publico selecionado: <strong className="text-foreground">todos os alunos carregados</strong>
+                        Publico selecionado: <strong className="text-foreground">todos os usuarios</strong>
                       </>
                     ) : (
                       <>
@@ -1969,14 +2158,30 @@ export default function NotificationsPage() {
                     />
 
                     <SegmentList
-                      title="Alunos"
-                      subtitle="Use para casos pontuais ou reforco individual."
+                      title="Usuarios"
+                      subtitle="Use para casos pontuais, incluindo alunos, professores e admins."
                       items={alunos}
                       selectedIds={selectedAlunoIds}
                       getItemId={(item) => Number(item.id)}
                       getItemLabel={(item) => item.nome}
                       getItemMeta={(item) => ("email" in item ? item.email ?? item.usuario ?? null : null)}
                       onToggle={(id) => setSelectedAlunoIds((current) => toggleSelection(current, id))}
+                      onScroll={handleStudentsListScroll}
+                      footer={
+                        loadingMoreAlunos ? (
+                          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-3 text-center text-xs text-muted-foreground">
+                            Carregando mais usuarios...
+                          </div>
+                        ) : hasMoreAlunos ? (
+                          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-3 text-center text-xs text-muted-foreground">
+                            Carregados {alunos.length} de {alunosTotal} usuarios. Role para carregar mais.
+                          </div>
+                        ) : alunos.length > 0 ? (
+                          <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-3 text-center text-xs text-muted-foreground">
+                            Todos os {alunosTotal} usuarios foram carregados.
+                          </div>
+                        ) : null
+                      }
                     />
                   </div>
                 </div>
@@ -2024,6 +2229,64 @@ export default function NotificationsPage() {
                         {dispatchTemplateIds.length > 1 ? "Confirmar disparos" : "Confirmar disparo"}
                       </>
                     )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog
+              open={payloadDispatch !== null}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setPayloadDispatch(null);
+                }
+              }}
+            >
+              <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
+                <DialogHeader className="border-b border-border/70 bg-muted/20">
+                  <DialogTitle>Payload do disparo</DialogTitle>
+                  <DialogDescription>
+                    {payloadDispatch ? (
+                      <>
+                        Template <strong>{payloadDispatch.templateName}</strong> no disparo{" "}
+                        <strong>#{payloadDispatch.id}</strong>.
+                      </>
+                    ) : (
+                      "Inspecione o payload enviado no disparo."
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="overflow-auto p-6">
+                  <pre className="overflow-x-auto rounded-2xl border border-border/70 bg-background/90 p-4 text-xs leading-6 text-foreground">
+                    <code>
+                      {payloadDispatch
+                        ? JSON.stringify(buildDispatchPayload(payloadDispatch), null, 2)
+                        : ""}
+                    </code>
+                  </pre>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                    onClick={() => {
+                      if (payloadDispatch) {
+                        handleCopyDispatchPayload(payloadDispatch);
+                      }
+                    }}
+                  >
+                    <Copy size={16} />
+                    Copiar payload
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-11 rounded-xl px-4"
+                    onClick={() => setPayloadDispatch(null)}
+                  >
+                    Fechar
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -2091,7 +2354,7 @@ export default function NotificationsPage() {
                           tituloTemplate: event.target.value,
                         }))
                       }
-                      placeholder="Titulo da notificacao"
+                      placeholder="Titulo da Notificação"
                     />
                   </label>
 
@@ -2106,7 +2369,7 @@ export default function NotificationsPage() {
                           mensagemTemplate: event.target.value,
                         }))
                       }
-                      placeholder="Mensagem da notificacao"
+                      placeholder="Mensagem da Notificação"
                     />
                   </label>
 
@@ -2244,6 +2507,10 @@ export default function NotificationsPage() {
                   <>
                     Tem certeza que deseja excluir o disparo do template{" "}
                     <strong>{dispatchToDelete.templateName}</strong>? Essa acao nao pode ser desfeita.
+                  </>
+                ) : selectedDispatchIds.length > 0 ? (
+                  <>
+                    Tem certeza que deseja excluir <strong>{selectedDispatchIds.length} disparos selecionados</strong>? Essa acao nao pode ser desfeita.
                   </>
                 ) : (
                   "Confirme a exclusao do disparo."

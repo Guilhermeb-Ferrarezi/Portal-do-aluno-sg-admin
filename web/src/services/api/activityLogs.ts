@@ -2,21 +2,21 @@ import { apiFetch } from "./core";
 
 export type ActivityLog = {
   id: string;
-  actorId: string | null;
-  actorRole: string | null;
-  actorNome: string | null;
-  actorUsuario: string | null;
+  actor: {
+    id: string | null;
+    name: string | null;
+    email: string | null;
+    role: string | null;
+  } | null;
   action: string;
   entityType: string;
   entityId: string | null;
-  rawMessage?: string | null;
-  requestId?: string | null;
-  route?: string | null;
-  statusCode?: string | null;
-  outcome?: string | null;
-  errorType?: string | null;
-  source?: string | null;
-  contextArea?: string | null;
+  method: string | null;
+  endpoint: string | null;
+  requestBody: unknown;
+  responseBody: unknown;
+  statusCode: number | null;
+  responseTimeMs: number | null;
   metadata: Record<string, unknown> | null;
   ipAddress: string | null;
   userAgent: string | null;

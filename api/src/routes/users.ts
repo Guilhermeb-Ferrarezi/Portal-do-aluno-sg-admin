@@ -323,8 +323,7 @@ export function usersRouter(jwtSecret: string) {
         : "profile_update";
 
     logActivity({
-      actorId: String(userId),
-      actorRole: req.user?.role ?? null,
+      actor: { id: String(userId), role: req.user?.role ?? null },
       action,
       entityType: "user",
       entityId: String(u.id),
@@ -381,8 +380,7 @@ export function usersRouter(jwtSecret: string) {
     ]);
 
     logActivity({
-      actorId: String(userId),
-      actorRole: req.user?.role ?? null,
+      actor: { id: String(userId), role: req.user?.role ?? null },
       action: "password_change",
       entityType: "security",
       entityId: String(userId),
@@ -432,8 +430,7 @@ export function usersRouter(jwtSecret: string) {
 
         const u = updated.rows[0];
         logActivity({
-          actorId: String(userId),
-          actorRole: req.user?.role ?? null,
+          actor: { id: String(userId), role: req.user?.role ?? null },
           action: "profile_picture_upload",
           entityType: "user",
           entityId: String(u.id),
@@ -504,8 +501,7 @@ export function usersRouter(jwtSecret: string) {
 
         const u = updated.rows[0];
         logActivity({
-          actorId: String(userId),
-          actorRole: req.user?.role ?? null,
+          actor: { id: String(userId), role: req.user?.role ?? null },
           action: "profile_cover_upload",
           entityType: "user",
           entityId: String(u.id),
@@ -586,8 +582,7 @@ export function usersRouter(jwtSecret: string) {
 
       const u = created.rows[0];
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "user_create",
         entityType: "user",
         entityId: String(u.id),
@@ -665,8 +660,7 @@ export function usersRouter(jwtSecret: string) {
 
       const u = updated.rows[0];
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "user_update",
         entityType: "user",
         entityId: String(u.id),
@@ -733,8 +727,7 @@ export function usersRouter(jwtSecret: string) {
         if (oldProfilePicture) deleteFromR2(oldProfilePicture).catch(() => undefined);
         if (oldCoverPicture) deleteFromR2(oldCoverPicture).catch(() => undefined);
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "user_delete",
           entityType: "user",
           entityId: String(id),

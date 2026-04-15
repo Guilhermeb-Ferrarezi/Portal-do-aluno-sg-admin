@@ -86,8 +86,7 @@ export function turmasRouter(jwtSecret: string) {
       const row = created.rows[0];
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "create",
         entityType: "module",
         entityId: String(row.id),
@@ -235,8 +234,7 @@ export function turmasRouter(jwtSecret: string) {
       const row = created.rows[0];
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "create",
         entityType: "phase",
         entityId: String(row.id),
@@ -479,8 +477,7 @@ export function turmasRouter(jwtSecret: string) {
         const row = result.rows[0];
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "create",
           entityType: "course",
           entityId: String(row.id),
@@ -541,8 +538,7 @@ export function turmasRouter(jwtSecret: string) {
         await pool.query(`DELETE FROM course WHERE id = $1`, [id]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "delete",
           entityType: "course",
           entityId: String(id),
@@ -581,8 +577,7 @@ export function turmasRouter(jwtSecret: string) {
         await pool.query(`DELETE FROM module WHERE id = $1`, [id]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "delete",
           entityType: "module",
           entityId: String(id),
@@ -618,8 +613,7 @@ export function turmasRouter(jwtSecret: string) {
         await pool.query(`DELETE FROM phase WHERE id = $1`, [id]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "delete",
           entityType: "phase",
           entityId: String(id),
@@ -1083,8 +1077,7 @@ export function turmasRouter(jwtSecret: string) {
       const row = created.rows[0];
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "create",
         entityType: "class",
         entityId: String(row.id),
@@ -1167,8 +1160,7 @@ export function turmasRouter(jwtSecret: string) {
       const row = updated.rows[0];
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "update",
         entityType: "class",
         entityId: String(id),
@@ -1206,8 +1198,7 @@ export function turmasRouter(jwtSecret: string) {
       await pool.query(`DELETE FROM class WHERE id = $1`, [id]);
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "delete",
         entityType: "class",
         entityId: String(id),

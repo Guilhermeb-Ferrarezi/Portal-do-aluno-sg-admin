@@ -549,8 +549,7 @@ export function classRoomsRouter(jwtSecret: string) {
       await client.query("COMMIT");
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "create",
         entityType: "class_room",
         entityId: String(room.id),
@@ -647,8 +646,7 @@ export function classRoomsRouter(jwtSecret: string) {
       await client.query("COMMIT");
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "update",
         entityType: "class_room",
         entityId: String(room.id),
@@ -719,8 +717,7 @@ export function classRoomsRouter(jwtSecret: string) {
       const nextRoom = updated.rows[0];
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: parsed.data.is_authorized ? "open" : "close",
         entityType: "class_room",
         entityId: String(nextRoom.id),
@@ -782,8 +779,7 @@ export function classRoomsRouter(jwtSecret: string) {
       await client.query("COMMIT");
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "delete",
         entityType: "class_room",
         entityId: String(roomId),

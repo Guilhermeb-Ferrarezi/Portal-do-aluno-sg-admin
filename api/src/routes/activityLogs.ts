@@ -37,24 +37,105 @@ function normalizeActorRole(value: string | null): "aluno" | "professor" | "admi
   return null;
 }
 
-function parseMessageMetadata(message: string | null) {
-  if (!message) {
-    return {
-      actorRole: null as string | null,
-      entityId: null as string | null,
-      ipAddress: null as string | null,
-      userAgent: null as string | null,
-      requestId: null as string | null,
-      route: null as string | null,
-      statusCode: null as string | null,
-      outcome: null as string | null,
-      errorType: null as string | null,
-      source: null as string | null,
-      contextArea: null as string | null,
-      metadata: null as Record<string, unknown> | null,
-    };
+type ParsedMessage = {
+  actor: { id?: string | null; name?: string | null; email?: string | null; role?: string | number | null } | null;
+  actorRole: string | null;
+  entityId: string | null;
+  method: string | null;
+  endpoint: string | null;
+  requestBody: unknown;
+  responseBody: unknown;
+  statusCode: number | string | null;
+  responseTimeMs: number | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  requestId: string | null;
+  route: string | null;
+  outcome: string | null;
+  errorType: string | null;
+  source: string | null;
+  contextArea: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
+function parseMessageMetadata(message: string | null): ParsedMessage {
+  const empty: ParsedMessage = {
+    actor: null,
+    actorRole: null,
+    entityId: null,
+    method: null,
+    endpoint: null,
+    requestBody: undefined,
+    responseBody: undefined,
+    statusCode: null,
+    responseTimeMs: null,
+    ipAddress: null,
+    userAgent: null,
+    requestId: null,
+    route: null,
+    outcome: null,
+    errorType: null,
+    source: null,
+    contextArea: null,
+    metadata: null,
+  };
+
+  if (!message) return empty;
+
+  // New format: JSON payload
+  if (message.trimStart().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(message) as unknown;
+      if (!isRecord(parsed)) return empty;
+
+      const actor = isRecord(parsed.actor) ? parsed.actor : null;
+      const actorRoleRaw: string | number | null =
+        actor?.role != null && (typeof actor.role === "string" || typeof actor.role === "number")
+          ? actor.role
+          : null;
+      const actorRole = actorRoleRaw !== null ? String(actorRoleRaw) : null;
+
+      const scRaw = parsed.statusCode;
+      const statusCodeParsed: number | null =
+        typeof scRaw === "number" ? scRaw :
+        typeof scRaw === "string" && scRaw !== "" ? Number(scRaw) : null;
+      const rtRaw = parsed.responseTimeMs;
+      const responseTimeParsed: number | null =
+        typeof rtRaw === "number" ? rtRaw : null;
+
+      return {
+        actor: actor
+          ? {
+              id: actor.id != null ? String(actor.id) : null,
+              name: actor.name != null ? String(actor.name) : null,
+              email: actor.email != null ? String(actor.email) : null,
+              role: actorRoleRaw,
+            }
+          : null,
+        actorRole: normalizeActorRole(actorRole),
+        entityId: parsed.entityId != null ? String(parsed.entityId) : null,
+        method: parsed.method != null ? String(parsed.method) : null,
+        endpoint: parsed.endpoint != null ? String(parsed.endpoint) : null,
+        requestBody: parsed.requestBody !== undefined ? parsed.requestBody : undefined,
+        responseBody: parsed.responseBody !== undefined ? parsed.responseBody : undefined,
+        statusCode: statusCodeParsed,
+        responseTimeMs: responseTimeParsed,
+        ipAddress: parsed.ipAddress != null ? String(parsed.ipAddress) : null,
+        userAgent: parsed.userAgent != null ? String(parsed.userAgent) : null,
+        requestId: null,
+        route: null,
+        outcome: null,
+        errorType: null,
+        source: null,
+        contextArea: null,
+        metadata: isRecord(parsed.metadata) ? parsed.metadata : null,
+      };
+    } catch {
+      return empty;
+    }
   }
 
+  // Legacy format: key=value | key=value | ...
   const out = {
     actorRole: null as string | null,
     entityId: null as string | null,
@@ -75,89 +156,48 @@ function parseMessageMetadata(message: string | null) {
 
   for (const part of parts) {
     const eqIndex = part.indexOf("=");
-    if (eqIndex <= 0) {
-      looseParts.push(part);
-      continue;
-    }
-
+    if (eqIndex <= 0) { looseParts.push(part); continue; }
     const key = part.slice(0, eqIndex).trim();
     const rawValue = part.slice(eqIndex + 1).trim();
     if (!key) continue;
-
-    if (key === "entityId") {
-      out.entityId = rawValue || null;
-      continue;
-    }
-    if (key === "actorRole") {
-      out.actorRole = rawValue || null;
-      continue;
-    }
-    if (key === "ip") {
-      out.ipAddress = rawValue || null;
-      continue;
-    }
-    if (key === "ua") {
-      out.userAgent = rawValue || null;
-      continue;
-    }
-    if (key === "requestId") {
-      out.requestId = rawValue || null;
-      continue;
-    }
-    if (key === "route") {
-      out.route = rawValue || null;
-      continue;
-    }
-    if (key === "statusCode") {
-      out.statusCode = rawValue || null;
-      continue;
-    }
-    if (key === "outcome") {
-      out.outcome = rawValue || null;
-      continue;
-    }
-    if (key === "errorType") {
-      out.errorType = rawValue || null;
-      continue;
-    }
-    if (key === "source") {
-      out.source = rawValue || null;
-      continue;
-    }
-    if (key === "contextArea") {
-      out.contextArea = rawValue || null;
-      continue;
-    }
-
+    if (key === "entityId") { out.entityId = rawValue || null; continue; }
+    if (key === "actorRole") { out.actorRole = rawValue || null; continue; }
+    if (key === "ip") { out.ipAddress = rawValue || null; continue; }
+    if (key === "ua") { out.userAgent = rawValue || null; continue; }
+    if (key === "requestId") { out.requestId = rawValue || null; continue; }
+    if (key === "route") { out.route = rawValue || null; continue; }
+    if (key === "statusCode") { out.statusCode = rawValue || null; continue; }
+    if (key === "outcome") { out.outcome = rawValue || null; continue; }
+    if (key === "errorType") { out.errorType = rawValue || null; continue; }
+    if (key === "source") { out.source = rawValue || null; continue; }
+    if (key === "contextArea") { out.contextArea = rawValue || null; continue; }
     if (key === "metadata") {
       try {
-        const parsed = JSON.parse(rawValue) as unknown;
-        if (isRecord(parsed)) {
-          out.metadata = { ...out.metadata, ...parsed };
-        } else {
-          out.metadata.metadata = parsed;
-        }
-      } catch {
-        out.metadata.metadata = rawValue;
-      }
+        const p = JSON.parse(rawValue) as unknown;
+        if (isRecord(p)) out.metadata = { ...out.metadata, ...p };
+        else out.metadata.metadata = p;
+      } catch { out.metadata.metadata = rawValue; }
       continue;
     }
-
     out.metadata[key] = rawValue;
   }
 
-  if (looseParts.length > 0) {
-    out.metadata.message = looseParts.join(" | ");
-  }
+  if (looseParts.length > 0) out.metadata.message = looseParts.join(" | ");
 
   return {
-    actorRole: out.actorRole,
+    actor: null,
+    actorRole: normalizeActorRole(out.actorRole),
     entityId: out.entityId,
+    method: null,
+    endpoint: out.route,
+    requestBody: undefined,
+    responseBody: undefined,
+    statusCode: out.statusCode,
+    responseTimeMs: null,
     ipAddress: out.ipAddress,
     userAgent: out.userAgent,
     requestId: out.requestId,
     route: out.route,
-    statusCode: out.statusCode,
     outcome: out.outcome,
     errorType: out.errorType,
     source: out.source,
@@ -261,21 +301,23 @@ export function activityLogsRouter(jwtSecret: string) {
             const roleFromMessage = normalizeActorRole(parsed.actorRole);
             return {
               id: row.id,
-              actorId: row.actor_id,
-              actorRole: roleFromMessage ?? toActorRole(row.actor_role),
-              actorNome: row.actor_nome,
-              actorUsuario: row.actor_usuario,
+              actor: {
+                id: parsed.actor?.id ?? row.actor_id,
+                name: parsed.actor?.name ?? row.actor_nome,
+                email: parsed.actor?.email ?? row.actor_usuario,
+                role: parsed.actor?.role != null
+                  ? normalizeActorRole(String(parsed.actor.role))
+                  : (roleFromMessage ?? toActorRole(row.actor_role)),
+              },
               action: row.action,
               entityType: row.entity_type,
               entityId: parsed.entityId,
-              rawMessage: row.message,
-              requestId: parsed.requestId,
-              route: parsed.route,
+              method: parsed.method,
+              endpoint: parsed.endpoint,
+              requestBody: parsed.requestBody ?? null,
+              responseBody: parsed.responseBody ?? null,
               statusCode: parsed.statusCode,
-              outcome: parsed.outcome,
-              errorType: parsed.errorType,
-              source: parsed.source,
-              contextArea: parsed.contextArea,
+              responseTimeMs: parsed.responseTimeMs,
               metadata: parsed.metadata,
               ipAddress: parsed.ipAddress,
               userAgent: parsed.userAgent,

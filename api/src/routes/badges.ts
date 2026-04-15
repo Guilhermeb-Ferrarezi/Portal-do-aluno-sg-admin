@@ -253,8 +253,7 @@ export function badgesRouter(jwtSecret: string) {
 
       const row = updated.rows[0];
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "badge_holder_update",
         entityType: "badge",
         entityId: String(row.holder_id),
@@ -299,8 +298,7 @@ export function badgesRouter(jwtSecret: string) {
       }
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "badge_holder_delete",
         entityType: "badge",
         entityId: String(holderId),
@@ -341,17 +339,7 @@ export function badgesRouter(jwtSecret: string) {
       );
 
       const b = created.rows[0];
-      logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
-        action: "badge_create",
-        entityType: "badge",
-        entityId: String(b.id),
-        metadata: { name: b.name },
-        req,
-      }).catch((err) => console.error("activity log error:", err));
-
-      return res.status(201).json({
+      const responseBody = {
         message: "Medalha criada com sucesso!",
         badge: {
           id: String(b.id),
@@ -360,7 +348,19 @@ export function badgesRouter(jwtSecret: string) {
           iconUrl: b.icon_url,
           createdAt: b.created_at,
         },
-      });
+      };
+      logActivity({
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+        action: "badge_create",
+        entityType: "badge",
+        entityId: String(b.id),
+        requestBody: req.body,
+        responseBody,
+        statusCode: 201,
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+      return res.status(201).json(responseBody);
     }
   );
 
@@ -424,26 +424,22 @@ export function badgesRouter(jwtSecret: string) {
         deleteFromR2(base.icon_url).catch(() => undefined);
       }
 
+      const responseBody = {
+        message: "Medalha atualizada com sucesso!",
+        badge: { id: String(row.id), name: row.name, description: row.description, iconUrl: row.icon_url, createdAt: row.created_at },
+      };
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "badge_update",
         entityType: "badge",
         entityId: String(row.id),
-        metadata: { name: row.name },
+        requestBody: req.body,
+        responseBody,
+        statusCode: 200,
         req,
       }).catch((err) => console.error("activity log error:", err));
 
-      return res.json({
-        message: "Medalha atualizada com sucesso!",
-        badge: {
-          id: String(row.id),
-          name: row.name,
-          description: row.description,
-          iconUrl: row.icon_url,
-          createdAt: row.created_at,
-        },
-      });
+      return res.json(responseBody);
     }
   );
 
@@ -488,8 +484,7 @@ export function badgesRouter(jwtSecret: string) {
         }
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "badge_delete",
           entityType: "badge",
           entityId: String(badgeId),
@@ -564,8 +559,7 @@ export function badgesRouter(jwtSecret: string) {
 
       const row = inserted.rows[0];
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "badge_holder_create",
         entityType: "badge",
         entityId: String(row.holder_id),

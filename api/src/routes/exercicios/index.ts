@@ -652,8 +652,7 @@ export function exerciciosRouter(jwtSecret: string) {
         });
 
         await logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "generate_exercicio_ai_draft",
           entityType: "exercicio_ai",
           entityId: null,
@@ -872,8 +871,7 @@ export function exerciciosRouter(jwtSecret: string) {
         }
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "create",
           entityType: "exercicio",
           entityId: String(row.id),
@@ -972,8 +970,7 @@ export function exerciciosRouter(jwtSecret: string) {
       }
       
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "create",
         entityType: "exercicio",
         entityId: row.id,
@@ -1209,8 +1206,7 @@ export function exerciciosRouter(jwtSecret: string) {
         }
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "update",
           entityType: "exercicio",
           entityId: String(rowNew.id),
@@ -1342,8 +1338,7 @@ export function exerciciosRouter(jwtSecret: string) {
       }
       
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "update",
         entityType: "exercicio",
         entityId: row.id,
@@ -1498,8 +1493,7 @@ export function exerciciosRouter(jwtSecret: string) {
         await pool.query(`DELETE FROM exercise WHERE id = $1`, [exerciseId]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "delete",
           entityType: "exercicio",
           entityId: String(exerciseId),
@@ -1528,8 +1522,7 @@ export function exerciciosRouter(jwtSecret: string) {
       await pool.query(`DELETE FROM exercicios WHERE id = $1`, [id]);
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "delete",
         entityType: "exercicio",
         entityId: id,

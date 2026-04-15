@@ -1357,8 +1357,7 @@ export function submissoesRouter(jwtSecret: string) {
 
     const row = updated.rows[0];
     await logActivity({
-      actorId: req.user?.sub ?? null,
-      actorRole: req.user?.role ?? null,
+      actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
       action: "update_answer",
       entityType: "answer",
       entityId: String(row.id),

@@ -408,8 +408,7 @@ export function materiaisRouter(jwtSecret: string) {
         const created = transformMaterial(result.rows[0]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "create",
           entityType: "material",
           entityId: created.id,
@@ -541,8 +540,7 @@ export function materiaisRouter(jwtSecret: string) {
         const updated = transformMaterial(result.rows[0]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "update",
           entityType: "material",
           entityId: String(id),
@@ -594,8 +592,7 @@ export function materiaisRouter(jwtSecret: string) {
         await pool.query("DELETE FROM material WHERE id = $1", [id]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "delete",
           entityType: "material",
           entityId: String(id),

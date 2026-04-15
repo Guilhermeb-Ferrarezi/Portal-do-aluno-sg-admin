@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   Clock3,
+  Copy,
   Gauge,
   Loader2,
   Radar,
@@ -21,10 +22,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { buildActivityLogPayload } from "@/utils/activity-log-payload";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { ScaleIn } from "../components/animate-ui/ScaleIn";
@@ -343,6 +346,7 @@ export default function AdminObservabilityPage() {
     title: "",
     lines: [],
   });
+  const [payloadLog, setPayloadLog] = React.useState<ActivityLog | null>(null);
 
   const openErrorDialog = React.useCallback(
     (title: string, routeFilter?: string) => {
@@ -372,7 +376,7 @@ export default function AdminObservabilityPage() {
       ]);
 
       const recentStructuredLogs = recentLogsResponse.items.filter((item) => {
-        if (item.route || item.source || item.statusCode || item.outcome || item.errorType) {
+        if (item.method || item.endpoint || item.statusCode) {
           return true;
         }
         return item.entityType === "auth" || item.entityType === "presence" || item.entityType === "security";
@@ -447,12 +451,12 @@ export default function AdminObservabilityPage() {
     const grouped = new Map<string, IncidentSummary>();
 
     for (const item of recentOps) {
-      if (!item.errorType && item.outcome !== "error" && item.outcome !== "denied") continue;
+      if (!item.statusCode || (item.statusCode >= 200 && item.statusCode < 400)) continue;
 
-      const route = item.route ?? "-";
-      const source = item.source ?? item.action;
-      const errorType = item.errorType ?? "Sem classificacao";
-      const outcome = item.outcome ?? "unknown";
+      const route = item.endpoint ?? "-";
+      const source = item.action;
+      const errorType = item.statusCode >= 500 ? "Server Error" : "Client Error";
+      const outcome = item.statusCode >= 500 ? "error" : "denied";
       const key = `${route}|${source}|${errorType}|${outcome}`;
       const existing = grouped.get(key);
 
@@ -889,21 +893,16 @@ export default function AdminObservabilityPage() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm font-semibold text-foreground">
-                              {item.source ?? item.action}
+                              {item.action}
                             </span>
-                            {item.outcome && (
-                              <Badge className={cn("rounded-full", outcomeBadgeClass(item.outcome))}>
-                                {item.outcome}
-                              </Badge>
-                            )}
                             {item.statusCode && (
-                              <Badge variant="outline" className="rounded-full">
+                              <Badge className={cn("rounded-full", item.statusCode >= 200 && item.statusCode < 300 ? "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300" : item.statusCode >= 400 && item.statusCode < 500 ? "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300" : "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300")}>
                                 {item.statusCode}
                               </Badge>
                             )}
                           </div>
                           <div className="mt-2 text-xs text-muted-foreground">
-                            {item.route ?? "rota nao informada"}
+                            {item.endpoint ?? item.entityType ?? "operação"}
                           </div>
                         </div>
                         <div className="text-right">
@@ -917,21 +916,39 @@ export default function AdminObservabilityPage() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {item.errorType && (
+                        {item.method && (
                           <Badge variant="outline" className="rounded-full">
-                            erro {item.errorType}
+                            {item.method}
                           </Badge>
                         )}
-                        {item.contextArea && (
-                          <Badge variant="outline" className="rounded-full">
-                            area {item.contextArea}
+                        {item.entityId && (
+                          <Badge variant="outline" className="rounded-full" title={item.entityId}>
+                            ID {item.entityId.slice(0, 12)}
                           </Badge>
                         )}
-                        {item.requestId && (
-                          <Badge variant="outline" className="rounded-full" title={item.requestId}>
-                            req {item.requestId.slice(0, 12)}
-                          </Badge>
-                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
+                          onClick={() => setPayloadLog(item)}
+                        >
+                          Ver payload
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
+                          onClick={() =>
+                            void navigator.clipboard.writeText(
+                              JSON.stringify(buildActivityLogPayload(item), null, 2)
+                            )
+                          }
+                        >
+                          <Copy size={11} className="mr-1" />
+                          Copiar payload
+                        </Button>
                       </div>
                     </div>
                   ))
@@ -996,6 +1013,66 @@ export default function AdminObservabilityPage() {
           </div>
         </div>
       </FadeInUp>
+
+      <Dialog
+        open={payloadLog !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPayloadLog(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
+          <DialogHeader className="border-b border-border/70 bg-muted/20">
+            <DialogTitle>Payload do log</DialogTitle>
+            <DialogDescription>
+              {payloadLog ? (
+                <>
+                  Log <strong>#{payloadLog.id}</strong> em{" "}
+                  <strong>{payloadLog.endpoint ?? payloadLog.entityType}</strong>.
+                </>
+              ) : (
+                "Inspecione o payload estruturado do log."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="overflow-auto p-6">
+            <pre className="overflow-x-auto rounded-2xl border border-border/70 bg-background/90 p-4 text-xs leading-6 text-foreground">
+              <code>
+                {payloadLog
+                  ? JSON.stringify(buildActivityLogPayload(payloadLog), null, 2)
+                  : ""}
+              </code>
+            </pre>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+              onClick={() => {
+                if (payloadLog) {
+                  void navigator.clipboard.writeText(
+                    JSON.stringify(buildActivityLogPayload(payloadLog), null, 2)
+                  );
+                }
+              }}
+            >
+              <Copy size={16} />
+              Copiar payload
+            </Button>
+            <Button
+              type="button"
+              className="h-11 rounded-xl px-4"
+              onClick={() => setPayloadLog(null)}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ErrorLinesDialog dialog={errorDialog} onClose={closeErrorDialog} />
     </DashboardLayout>

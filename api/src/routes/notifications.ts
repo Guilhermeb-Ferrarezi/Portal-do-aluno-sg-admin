@@ -185,12 +185,12 @@ async function callGateway<T>(
     const message =
       error instanceof Error && error.message
         ? error.message
-        : "Falha na comunicacao com o portal do Willian.";
+        : "Falha na comunicacao com o portal do aluno.";
 
     return {
       Success: false,
       Errors: [
-        `Falha ao conectar com o portal do Willian em ${config.baseUrl}. ${message}`,
+        `Falha ao conectar com o portal do aluno em ${config.baseUrl}. ${message}`,
       ],
     };
   }
@@ -213,11 +213,11 @@ async function callGateway<T>(
       Errors:
         normalizedResponse?.Errors && normalizedResponse.Errors.length > 0
           ? normalizedResponse.Errors
-          : [`${upstreamSummary} ao acessar ${path} no portal do Willian.`],
+          : [`${upstreamSummary} ao acessar ${path} no portal do aluno.`],
     };
   }
 
-  return normalizedResponse ?? { Success: false, Errors: ["Resposta invalida do portal do Willian."] };
+  return normalizedResponse ?? { Success: false, Errors: ["Resposta invalida do portal do aluno."] };
 }
 
 function mapTemplate(template: GatewayTemplatePayload) {
@@ -266,8 +266,8 @@ export function notificationsRouter(jwtSecret: string) {
           items: (response.Result ?? []).map(mapTemplate),
         });
       } catch (error) {
-        console.error("Erro ao listar templates de notificacao:", error);
-        return res.status(500).json({ message: "Erro ao listar templates de notificacao" });
+        console.error("Erro ao listar templates de Notificação:", error);
+        return res.status(500).json({ message: "Erro ao listar templates de Notificação" });
       }
     }
   );
@@ -306,8 +306,8 @@ export function notificationsRouter(jwtSecret: string) {
           template: mapTemplate(response.Result),
         });
       } catch (error) {
-        console.error("Erro ao criar template de notificacao:", error);
-        return res.status(500).json({ message: "Erro ao criar template de notificacao" });
+        console.error("Erro ao criar template de Notificação:", error);
+        return res.status(500).json({ message: "Erro ao criar template de Notificação" });
       }
     }
   );
@@ -351,8 +351,8 @@ export function notificationsRouter(jwtSecret: string) {
           template: mapTemplate(response.Result),
         });
       } catch (error) {
-        console.error("Erro ao atualizar template de notificacao:", error);
-        return res.status(500).json({ message: "Erro ao atualizar template de notificacao" });
+        console.error("Erro ao atualizar template de Notificação:", error);
+        return res.status(500).json({ message: "Erro ao atualizar template de Notificação" });
       }
     }
   );
@@ -380,8 +380,8 @@ export function notificationsRouter(jwtSecret: string) {
 
         return res.json({ success: true });
       } catch (error) {
-        console.error("Erro ao excluir template de notificacao:", error);
-        return res.status(500).json({ message: "Erro ao excluir template de notificacao" });
+        console.error("Erro ao excluir template de Notificação:", error);
+        return res.status(500).json({ message: "Erro ao excluir template de Notificação" });
       }
     }
   );
@@ -424,8 +424,8 @@ export function notificationsRouter(jwtSecret: string) {
           },
         });
       } catch (error) {
-        console.error("Erro ao listar disparos de notificacao:", error);
-        return res.status(500).json({ message: "Erro ao listar disparos de notificacao" });
+        console.error("Erro ao listar disparos de Notificação:", error);
+        return res.status(500).json({ message: "Erro ao listar disparos de Notificação" });
       }
     }
   );
@@ -453,8 +453,8 @@ export function notificationsRouter(jwtSecret: string) {
 
         return res.json({ success: true });
       } catch (error) {
-        console.error("Erro ao excluir disparo de notificacao:", error);
-        return res.status(500).json({ message: "Erro ao excluir disparo de notificacao" });
+        console.error("Erro ao excluir disparo de Notificação:", error);
+        return res.status(500).json({ message: "Erro ao excluir disparo de Notificação" });
       }
     }
   );
@@ -480,12 +480,18 @@ export function notificationsRouter(jwtSecret: string) {
       try {
         const actor = await resolveActor(req);
         const response = await callGateway<{
-          DispatchId: number;
-          NotificationTemplateId: number;
-          TemplateName: string;
-          TotalRecipients: number;
-          FailedRecipients: number;
-          CreatedAt: string;
+          DispatchId?: number;
+          dispatchId?: number;
+          NotificationTemplateId?: number;
+          notificationTemplateId?: number;
+          TemplateName?: string;
+          templateName?: string;
+          TotalRecipients?: number;
+          totalRecipients?: number;
+          FailedRecipients?: number;
+          failedRecipients?: number;
+          CreatedAt?: string;
+          createdAt?: string;
         }>(`/api/Notification/Admin/Templates/${id}/Dispatch`, {
           method: "POST",
           body: JSON.stringify({
@@ -499,22 +505,24 @@ export function notificationsRouter(jwtSecret: string) {
         });
 
         if (!response.Success || !response.Result) {
-          return res.status(400).json({ message: response.Errors?.[0] ?? "Erro ao disparar notificacao" });
+          return res.status(400).json({ message: response.Errors?.[0] ?? "Erro ao disparar Notificação" });
         }
 
         return res.json({
           dispatch: {
-            id: response.Result.DispatchId,
-            templateId: response.Result.NotificationTemplateId,
-            templateName: response.Result.TemplateName,
-            totalRecipients: response.Result.TotalRecipients,
-            failedRecipients: response.Result.FailedRecipients,
-            createdAt: response.Result.CreatedAt,
+            id: response.Result.DispatchId ?? response.Result.dispatchId ?? 0,
+            templateId:
+              response.Result.NotificationTemplateId ?? response.Result.notificationTemplateId ?? 0,
+            templateName: response.Result.TemplateName ?? response.Result.templateName ?? "",
+            totalRecipients: response.Result.TotalRecipients ?? response.Result.totalRecipients ?? 0,
+            failedRecipients:
+              response.Result.FailedRecipients ?? response.Result.failedRecipients ?? 0,
+            createdAt: response.Result.CreatedAt ?? response.Result.createdAt ?? "",
           },
         });
       } catch (error) {
-        console.error("Erro ao disparar notificacao:", error);
-        return res.status(500).json({ message: "Erro ao disparar notificacao" });
+        console.error("Erro ao disparar Notificação:", error);
+        return res.status(500).json({ message: "Erro ao disparar Notificação" });
       }
     }
   );

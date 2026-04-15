@@ -388,8 +388,7 @@ export function videoaulasRouter(jwtSecret: string) {
         const created = transformVideoaula(result.rows[0]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "create",
           entityType: "videoaula",
           entityId: created.id,
@@ -510,8 +509,7 @@ export function videoaulasRouter(jwtSecret: string) {
         const updated = transformVideoaula(result.rows[0]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "update",
           entityType: "videoaula",
           entityId: String(id),
@@ -563,8 +561,7 @@ export function videoaulasRouter(jwtSecret: string) {
         await pool.query("DELETE FROM video WHERE id = $1", [id]);
 
         logActivity({
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role ?? null,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "delete",
           entityType: "videoaula",
           entityId: String(id),

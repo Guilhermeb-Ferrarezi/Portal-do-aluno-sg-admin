@@ -201,8 +201,7 @@ export function containersRouter(jwtSecret: string) {
       }
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "create",
         entityType: "container",
         entityId: data.name,
@@ -239,8 +238,7 @@ export function containersRouter(jwtSecret: string) {
       );
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "delete",
         entityType: "container",
         entityId: data.name,
@@ -370,8 +368,7 @@ export function containersRouter(jwtSecret: string) {
       }
 
       logActivity({
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "update",
         entityType: "container",
         entityId: data.name,

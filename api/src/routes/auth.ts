@@ -205,18 +205,16 @@ export function authRouter(
 
   function trackAuthActivity(params: {
     req: AuthRequest;
-    actorId: string | null;
-    actorRole?: string | null;
+    actor: { id: string | null; role?: string | null };
     action: string;
     entityId?: string | null;
     metadata: Record<string, unknown>;
   }) {
     return logActivity({
-      actorId: params.actorId,
-      actorRole: params.actorRole ?? null,
+      actor: params.actor,
       action: params.action,
       entityType: "auth",
-      entityId: params.entityId ?? params.actorId,
+      entityId: params.entityId ?? params.actor.id,
       metadata: params.metadata,
       req: params.req,
     }).catch((error) => console.error("activity log error:", error));
@@ -281,7 +279,7 @@ export function authRouter(
       if (!user) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: null,
+          actor: { id: null },
           action: "login_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.login",
@@ -297,8 +295,7 @@ export function authRouter(
       if (!isValidRole(user.role)) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: String(user.id),
-          actorRole: String(user.role),
+          actor: { id: String(user.id), role: String(user.role) },
           action: "login_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.login",
@@ -320,8 +317,7 @@ export function authRouter(
       if (!ok) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: String(user.id),
-          actorRole: String(user.role),
+          actor: { id: String(user.id), role: String(user.role) },
           action: "login_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.login",
@@ -340,8 +336,7 @@ export function authRouter(
 
       void trackAuthActivity({
         req: req as AuthRequest,
-        actorId: String(user.id),
-        actorRole: String(user.role),
+        actor: { id: String(user.id), role: String(user.role) },
         action: "login",
         metadata: authObservabilityMetadata(req as AuthRequest, {
           source: "auth.login",
@@ -393,7 +388,7 @@ export function authRouter(
       if (!row) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: null,
+          actor: { id: null },
           action: "token_refresh_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.refresh",
@@ -408,8 +403,7 @@ export function authRouter(
       if (!isValidRole(row.role)) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: String(row.user_id),
-          actorRole: String(row.role),
+          actor: { id: String(row.user_id), role: String(row.role) },
           action: "token_refresh_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.refresh",
@@ -425,8 +419,7 @@ export function authRouter(
       if (row.revoked_at) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: String(row.user_id),
-          actorRole: String(row.role),
+          actor: { id: String(row.user_id), role: String(row.role) },
           action: "token_refresh_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.refresh",
@@ -442,8 +435,7 @@ export function authRouter(
       if (!row.expires_at || row.expires_at <= new Date()) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: String(row.user_id),
-          actorRole: String(row.role),
+          actor: { id: String(row.user_id), role: String(row.role) },
           action: "token_refresh_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.refresh",
@@ -469,8 +461,7 @@ export function authRouter(
 
       void trackAuthActivity({
         req: req as AuthRequest,
-        actorId: String(row.user_id),
-        actorRole: String(row.role),
+        actor: { id: String(row.user_id), role: String(row.role) },
         action: "token_refresh",
         metadata: authObservabilityMetadata(req as AuthRequest, {
           source: "auth.refresh",
@@ -526,7 +517,7 @@ export function authRouter(
           "Falha ao validar codigo SSO.";
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: null,
+          actor: { id: null },
           action: "sso_login_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.sso",
@@ -556,7 +547,7 @@ export function authRouter(
       if (!localUser) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: null,
+          actor: { id: null },
           action: "sso_login_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.sso",
@@ -575,8 +566,7 @@ export function authRouter(
       if (!isValidRole(localUser.role)) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: String(localUser.id),
-          actorRole: String(localUser.role),
+          actor: { id: String(localUser.id), role: String(localUser.role) },
           action: "sso_login_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.sso",
@@ -597,8 +587,7 @@ export function authRouter(
 
       void trackAuthActivity({
         req: req as AuthRequest,
-        actorId: String(localUser.id),
-        actorRole: String(localUser.role),
+        actor: { id: String(localUser.id), role: String(localUser.role) },
         action: "sso_login",
         metadata: authObservabilityMetadata(req as AuthRequest, {
           source: "auth.sso",
@@ -624,7 +613,7 @@ export function authRouter(
     } catch (error) {
       void trackAuthActivity({
         req: req as AuthRequest,
-        actorId: null,
+        actor: { id: null },
         action: "sso_login_failed",
         metadata: authObservabilityMetadata(req as AuthRequest, {
           source: "auth.sso",
@@ -692,14 +681,13 @@ export function authRouter(
 
         void trackAuthActivity({
           req,
-          actorId: String(currentUser.id),
-          actorRole: req.user.role,
+          actor: { id: String(currentUser.id), role: req.user.role },
           action: "student_view_sso_start",
           metadata: authObservabilityMetadata(req, {
             source: "auth.student-view.start",
             outcome: "success",
             statusCode: 200,
-            target: "portal-willian",
+            target: "portal-aluno",
             expiresAt: expiresAt.toISOString(),
             returnTo,
           }),
@@ -712,15 +700,14 @@ export function authRouter(
       } catch (error) {
         void trackAuthActivity({
           req,
-          actorId: req.user?.sub ?? null,
-          actorRole: req.user?.role,
+          actor: { id: req.user?.sub ?? null, role: req.user?.role },
           action: "student_view_sso_start_failed",
           metadata: authObservabilityMetadata(req, {
             source: "auth.student-view.start",
             outcome: "error",
             statusCode: 502,
             errorType: "StudentViewSsoStartError",
-            target: "portal-willian",
+            target: "portal-aluno",
           }),
         });
         console.error("student view sso start error:", error);
@@ -740,14 +727,14 @@ export function authRouter(
     if (!sharedSecret || sharedSecret !== studentPortalSsoSharedSecret) {
       void trackAuthActivity({
         req: req as AuthRequest,
-        actorId: null,
+        actor: { id: null },
         action: "student_view_sso_exchange_failed",
         metadata: authObservabilityMetadata(req as AuthRequest, {
           source: "auth.student-view.exchange",
           outcome: "denied",
           statusCode: 403,
           errorType: "SharedSecretInvalid",
-          target: "portal-willian",
+          target: "portal-aluno",
         }),
       });
       return res.status(403).json({ message: "Shared secret invalido." });
@@ -766,14 +753,14 @@ export function authRouter(
       if (!entry) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: null,
+          actor: { id: null },
           action: "student_view_sso_exchange_failed",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.student-view.exchange",
             outcome: "denied",
             statusCode: 401,
             errorType: "SsoCodeInvalidOrExpired",
-            target: "portal-willian",
+            target: "portal-aluno",
           }),
         });
         return res.status(401).json({ message: "Codigo SSO invalido ou expirado." });
@@ -781,13 +768,13 @@ export function authRouter(
 
       void trackAuthActivity({
         req: req as AuthRequest,
-        actorId: entry.sourceUserId,
+        actor: { id: entry.sourceUserId },
         action: "student_view_sso_exchange",
         metadata: authObservabilityMetadata(req as AuthRequest, {
           source: "auth.student-view.exchange",
           outcome: "success",
           statusCode: 200,
-          target: "portal-willian",
+          target: "portal-aluno",
           returnTo: entry.returnTo,
         }),
       });
@@ -803,14 +790,14 @@ export function authRouter(
     } catch (error) {
       void trackAuthActivity({
         req: req as AuthRequest,
-        actorId: null,
+        actor: { id: null },
         action: "student_view_sso_exchange_failed",
         metadata: authObservabilityMetadata(req as AuthRequest, {
           source: "auth.student-view.exchange",
           outcome: "error",
           statusCode: 502,
           errorType: "StudentViewSsoExchangeError",
-          target: "portal-willian",
+          target: "portal-aluno",
         }),
       });
       console.error("student view sso exchange error:", error);
@@ -839,7 +826,7 @@ export function authRouter(
       if (userId) {
         void trackAuthActivity({
           req: req as AuthRequest,
-          actorId: String(userId),
+          actor: { id: String(userId) },
           action: "logout",
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.logout",

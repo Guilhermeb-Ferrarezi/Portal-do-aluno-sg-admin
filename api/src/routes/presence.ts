@@ -122,17 +122,15 @@ function presenceMetadata(
 
 function trackPresenceActivity(params: {
   req: AuthRequest;
-  actorId: string | null;
-  actorRole?: string | null;
+  actor: { id: string | null; role?: string | null };
   action: string;
   metadata: Record<string, unknown>;
 }) {
   return logActivity({
-    actorId: params.actorId,
-    actorRole: params.actorRole ?? null,
+    actor: params.actor,
     action: params.action,
     entityType: "presence",
-    entityId: params.actorId,
+    entityId: params.actor.id,
     metadata: params.metadata,
     req: params.req,
   }).catch((error) => console.error("presence activity log error:", error));
@@ -146,7 +144,7 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
     if (!user) {
       void trackPresenceActivity({
         req,
-        actorId: null,
+        actor: { id: null },
         action: "presence_socket_ticket_denied",
         metadata: presenceMetadata(req, "presence.socket-ticket", "denied", 401, {
           errorType: "MissingToken",
@@ -181,7 +179,7 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
       if (!user) {
         void trackPresenceActivity({
           req,
-          actorId: null,
+          actor: { id: null },
           action: "presence_heartbeat_denied",
           metadata: presenceMetadata(req, "presence.heartbeat", "denied", 401, {
             errorType: "MissingToken",
@@ -206,8 +204,7 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
       console.error("presence http heartbeat error:", error);
       void trackPresenceActivity({
         req,
-        actorId: req.user?.sub ?? null,
-        actorRole: req.user?.role ?? null,
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "presence_heartbeat_failed",
         metadata: presenceMetadata(req, "presence.heartbeat", "server_error", 500, {
           errorType: error instanceof Error ? error.name : "PresenceHeartbeatError",

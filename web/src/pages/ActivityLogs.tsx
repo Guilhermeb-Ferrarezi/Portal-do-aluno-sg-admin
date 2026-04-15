@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { buildActivityLogPayload } from "@/utils/activity-log-payload";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
@@ -369,17 +370,117 @@ function metadataTypeClass(type: MetadataEntry["type"]) {
   }
 }
 
-function outcomeBadgeClass(outcome: string | null | undefined) {
-  if (outcome === "success") {
-    return "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300";
-  }
-  if (outcome === "denied") {
-    return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
-  }
-  if (outcome === "error") {
-    return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
-  }
-  return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
+function RequestResponseTabs({ log }: { log: ActivityLog }) {
+  const [activeTab, setActiveTab] = React.useState<"request" | "response">("request");
+  const payload = buildActivityLogPayload(log);
+
+  return (
+    <div className="space-y-2 md:col-span-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-xl border border-border/60 bg-muted/40 p-1 gap-1">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setActiveTab("request"); }}
+            className={cn(
+              "rounded-lg px-3 py-1 text-xs font-semibold transition",
+              activeTab === "request"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Request
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setActiveTab("response"); }}
+            className={cn(
+              "rounded-lg px-3 py-1 text-xs font-semibold transition",
+              activeTab === "response"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Response
+          </button>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-8 rounded-lg border-border/70 bg-background/80 px-3 text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            const content = activeTab === "request"
+              ? JSON.stringify(payload.request, null, 2)
+              : JSON.stringify(payload.response, null, 2);
+            void navigator.clipboard.writeText(content);
+          }}
+        >
+          <Copy size={14} />
+          Copiar
+        </Button>
+      </div>
+
+      {activeTab === "request" && (
+        <div className="space-y-2">
+          {(log.method || log.endpoint || log.ipAddress) && (
+            <div className="flex flex-wrap gap-2 rounded-xl border border-border/70 bg-muted/30 px-3 py-2">
+              {log.method && (
+                <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 font-mono text-xs font-semibold text-foreground">
+                  {log.method}
+                </span>
+              )}
+              {log.endpoint && (
+                <span className="flex-1 truncate font-mono text-xs text-foreground" title={log.endpoint}>
+                  {log.endpoint}
+                </span>
+              )}
+              {log.ipAddress && (
+                <span className="ml-auto font-mono text-xs text-muted-foreground">
+                  {log.ipAddress}
+                </span>
+              )}
+            </div>
+          )}
+          <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
+            {log.requestBody != null
+              ? JSON.stringify(log.requestBody, null, 2)
+              : "null"}
+          </pre>
+        </div>
+      )}
+
+      {activeTab === "response" && (
+        <div className="space-y-2">
+          {(log.statusCode != null || log.responseTimeMs != null) && (
+            <div className="flex flex-wrap gap-2 rounded-xl border border-border/70 bg-muted/30 px-3 py-2">
+              {log.statusCode != null && (
+                <span className={cn(
+                  "inline-flex items-center rounded-md border px-2 py-0.5 font-mono text-xs font-semibold",
+                  log.statusCode >= 200 && log.statusCode < 300
+                    ? "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300"
+                    : log.statusCode >= 400
+                    ? "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300"
+                    : "border-border bg-background text-foreground"
+                )}>
+                  {log.statusCode}
+                </span>
+              )}
+              {log.responseTimeMs != null && (
+                <span className="font-mono text-xs text-muted-foreground">
+                  {log.responseTimeMs}ms
+                </span>
+              )}
+            </div>
+          )}
+          <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
+            {log.responseBody != null
+              ? JSON.stringify(log.responseBody, null, 2)
+              : "null"}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ActivityLogsPage() {
@@ -473,15 +574,12 @@ export default function ActivityLogsPage() {
     >
       <FadeInUp duration={0.28}>
         <div className="space-y-6">
-          <div className="rounded-[32px] border border-transparent bg-[var(--hero-glow),var(--hero-surface)] p-6 shadow-[0_28px_68px_-42px_rgba(20,32,19,0.22)]">
+          <div className="rounded-4xl border border-transparent bg-[var(--hero-glow),var(--hero-surface)] p-6 shadow-[0_28px_68px_-42px_rgba(20,32,19,0.22)]">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
                 <div className="inline-flex items-center rounded-full border border-black/8 bg-white/55 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.24em] text-foreground/72">
                   Monitoramento editorial
                 </div>
-                <h2 className="mt-3 text-[2.2rem] font-black tracking-[-0.06em] text-foreground sm:text-[2.6rem]">
-                  Logs com leitura mais executiva
-                </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Filtre eventos, isole operacoes e abra detalhes estruturados sem perder velocidade de varredura.
                 </p>
@@ -494,7 +592,7 @@ export default function ActivityLogsPage() {
                   className={cn(
                     "inline-flex items-center justify-center gap-2 rounded-[1rem] px-4 py-2.5 text-sm font-semibold transition",
                     logSection === "users"
-                      ? "bg-background text-foreground shadow-sm dark:bg-[var(--surface-2)]"
+                      ? "bg-background text-foreground shadow-sm dark:bg-(--surface-2)"
                       : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
                   onClick={() => handleSectionChange("users")}
@@ -509,7 +607,7 @@ export default function ActivityLogsPage() {
                   className={cn(
                     "inline-flex items-center justify-center gap-2 rounded-[1rem] px-4 py-2.5 text-sm font-semibold transition",
                     logSection === "staff"
-                      ? "bg-background text-foreground shadow-sm dark:bg-[var(--surface-2)]"
+                      ? "bg-background text-foreground shadow-sm dark:bg-(--surface-2)"
                       : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
                   onClick={() => handleSectionChange("staff")}
@@ -571,7 +669,7 @@ export default function ActivityLogsPage() {
           {/* Search & Filter Bar */}
           <div className={cn(panelClass, "p-4 sm:p-5")}>
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-              <div className="relative min-w-[260px] flex-1">
+              <div className="relative min-w-65 flex-1">
                 <span className="pointer-events-none absolute left-4 top-1/2 z-10 inline-flex -translate-y-1/2 items-center justify-center text-muted-foreground">
                   <Search size={16} />
                 </span>
@@ -748,18 +846,16 @@ export default function ActivityLogsPage() {
                     icon: <Paperclip size={14} />,
                     label: log.entityType,
                   };
-                  const actorName = log.actorNome || log.actorUsuario || "Sistema";
+                  const actorName = log.actor?.name || log.actor?.email || "Sistema";
                   const isExpanded = expandedRow === log.id;
                   const metadataEntries = normalizeMetadata(log.metadata);
                   const hasMetadata = metadataEntries.length > 0;
                   const hasStructuredObservability = Boolean(
-                    log.requestId ||
-                    log.route ||
+                    log.method ||
+                    log.endpoint ||
                     log.statusCode ||
-                    log.outcome ||
-                    log.errorType ||
-                    log.source ||
-                    log.contextArea
+                    log.requestBody ||
+                    log.responseBody
                   );
 
                   return (
@@ -788,9 +884,9 @@ export default function ActivityLogsPage() {
                           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-semibold text-foreground">{actorName}</span>
-                              {log.actorRole && (
-                                <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", roleBadgeClass(log.actorRole))}>
-                                  {log.actorRole}
+                              {log.actor?.role && (
+                                <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", roleBadgeClass(log.actor.role))}>
+                                  {log.actor.role}
                                 </Badge>
                               )}
                               <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", actionCfg.badgeClass)}>
@@ -804,9 +900,9 @@ export default function ActivityLogsPage() {
                           </div>
 
                           <div className="mt-3 flex flex-wrap gap-2">
-                            {log.actorUsuario && (
+                            {log.actor?.email && (
                               <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium">
-                                @{log.actorUsuario}
+                                @{log.actor.email}
                               </Badge>
                             )}
                             {log.entityId && (
@@ -814,19 +910,14 @@ export default function ActivityLogsPage() {
                                 ID: {truncate(log.entityId, 12)}
                               </Badge>
                             )}
-                            {log.requestId && (
-                              <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium" title={log.requestId}>
-                                req: {truncate(log.requestId, 12)}
+                            {log.method && (
+                              <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium font-mono">
+                                {log.method}
                               </Badge>
                             )}
                             {log.statusCode && (
                               <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-medium">
-                                status: {log.statusCode}
-                              </Badge>
-                            )}
-                            {log.outcome && (
-                              <Badge className={cn("rounded-full px-2.5 text-[11px] font-medium", outcomeBadgeClass(log.outcome))}>
-                                {log.outcome}
+                                {log.statusCode}
                               </Badge>
                             )}
                             {log.ipAddress && (
@@ -854,16 +945,10 @@ export default function ActivityLogsPage() {
                               <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">ID do Log</span>
                               <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.id}</span>
                             </div>
-                            {log.requestId && (
-                              <div className="space-y-1">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Request ID</span>
-                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.requestId}</span>
-                              </div>
-                            )}
-                            {log.actorId && (
+                            {log.actor?.id && (
                               <div className="space-y-1">
                                 <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Actor ID</span>
-                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.actorId}</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.actor.id}</span>
                               </div>
                             )}
                             {log.entityId && (
@@ -872,16 +957,10 @@ export default function ActivityLogsPage() {
                                 <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.entityId}</span>
                               </div>
                             )}
-                            {log.route && (
+                            {log.endpoint && (
                               <div className="space-y-1 md:col-span-2">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Rota</span>
-                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 font-mono text-xs font-medium text-foreground">{log.route}</span>
-                              </div>
-                            )}
-                            {log.source && (
-                              <div className="space-y-1">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Source</span>
-                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.source}</span>
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Endpoint</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 font-mono text-xs font-medium text-foreground">{log.method && <span className="mr-1.5 text-muted-foreground">{log.method}</span>}{log.endpoint}</span>
                               </div>
                             )}
                             {log.statusCode && (
@@ -890,24 +969,10 @@ export default function ActivityLogsPage() {
                                 <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.statusCode}</span>
                               </div>
                             )}
-                            {log.outcome && (
+                            {log.responseTimeMs != null && (
                               <div className="space-y-1">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Outcome</span>
-                                <Badge className={cn("rounded-full px-2.5 text-[11px] font-semibold", outcomeBadgeClass(log.outcome))}>
-                                  {log.outcome}
-                                </Badge>
-                              </div>
-                            )}
-                            {log.errorType && (
-                              <div className="space-y-1">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Error type</span>
-                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.errorType}</span>
-                              </div>
-                            )}
-                            {log.contextArea && (
-                              <div className="space-y-1">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Area</span>
-                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.contextArea}</span>
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tempo de resposta</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.responseTimeMs}ms</span>
                               </div>
                             )}
                             {log.userAgent && (
@@ -930,14 +995,7 @@ export default function ActivityLogsPage() {
                                 </span>
                               </div>
                             )}
-                            {log.rawMessage && (
-                              <div className="space-y-2 md:col-span-2">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Mensagem original</span>
-                                <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground whitespace-pre-wrap break-words">
-                                  {log.rawMessage}
-                                </pre>
-                              </div>
-                            )}
+                            <RequestResponseTabs log={log} />
                             {!hasStructuredObservability && (
                               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 px-4 py-3 text-sm text-muted-foreground md:col-span-2">
                                 Este registro nao possui campos estruturados de observabilidade. Isso costuma acontecer com logs antigos gravados antes da instrumentacao nova.

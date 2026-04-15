@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import React from "react";
-import { m } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, hasRole } from "../../auth/auth";
 import {
@@ -84,6 +84,16 @@ const NAV_ITEM_IDLE =
 const iconSpring = { type: "spring", stiffness: 500, damping: 18 } as const;
 const iconHover = { scale: 1.22, y: -3 } as const;
 const iconRest = { scale: 1, y: 0 } as const;
+const dropdownMotion = {
+  initial: { height: 0, opacity: 0, y: -6 },
+  animate: { height: "auto", opacity: 1, y: 0 },
+  exit: { height: 0, opacity: 0, y: -6 },
+  transition: {
+    height: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+    opacity: { duration: 0.18, ease: "easeOut" },
+    y: { duration: 0.2, ease: "easeOut" },
+  },
+} as const;
 
 function NavLinkItem({
   to,
@@ -482,12 +492,20 @@ export default function DashboardLayout({
                   onClick={() => setUsuariosOpen((v) => !v)}
                 />
 
-                {usuariosOpen ? (
-                  <div className="flex flex-col gap-1 pl-2">
-                    <NavLinkItem to={appRoutes.usuarios} active={isAdminUsers} nested icon={<KeyRound size={16} />} label="Gerenciar Usuarios" />
-                    <NavLinkItem to={appRoutes.criarUsuario} active={isCreateUser} nested icon={<Plus size={16} />} label="Criar Usuario" />
-                  </div>
-                ) : null}
+                <AnimatePresence initial={false}>
+                  {usuariosOpen ? (
+                    <m.div
+                      key="usuarios-dropdown"
+                      className="overflow-hidden"
+                      {...dropdownMotion}
+                    >
+                      <div className="flex flex-col gap-1 pl-2 pt-1">
+                        <NavLinkItem to={appRoutes.usuarios} active={isAdminUsers} nested icon={<KeyRound size={16} />} label="Gerenciar Usuarios" />
+                        <NavLinkItem to={appRoutes.criarUsuario} active={isCreateUser} nested icon={<Plus size={16} />} label="Criar Usuario" />
+                      </div>
+                    </m.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -499,13 +517,21 @@ export default function DashboardLayout({
                   onClick={() => setEstruturaOpen((v) => !v)}
                 />
 
-                {estruturaOpen ? (
-                  <div className="flex flex-col gap-1 pl-2">
-                    <NavLinkItem to={appRoutes.estruturaCurso.root} active={isEstruturaCurso} nested icon={<BookOpen size={16} />} label="Criar Estrutura" />
-                    <NavLinkItem to={appRoutes.exercicios} active={isExercicios} nested icon={<PenLine size={16} />} label="Exercicios" />
-                    <NavLinkItem to={appRoutes.turmas} active={isTurmas} nested icon={<School size={16} />} label="Turmas" />
-                  </div>
-                ) : null}
+                <AnimatePresence initial={false}>
+                  {estruturaOpen ? (
+                    <m.div
+                      key="estrutura-dropdown"
+                      className="overflow-hidden"
+                      {...dropdownMotion}
+                    >
+                      <div className="flex flex-col gap-1 pl-2 pt-1">
+                        <NavLinkItem to={appRoutes.estruturaCurso.root} active={isEstruturaCurso} nested icon={<BookOpen size={16} />} label="Criar Estrutura" />
+                        <NavLinkItem to={appRoutes.exercicios} active={isExercicios} nested icon={<PenLine size={16} />} label="Exercicios" />
+                        <NavLinkItem to={appRoutes.turmas} active={isTurmas} nested icon={<School size={16} />} label="Turmas" />
+                      </div>
+                    </m.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
 
               <NavLinkItem to={appRoutes.logs} active={isActivityLogs} icon={<BarChart3 size={18} />} label="Logs de Atividade" />
