@@ -48,8 +48,8 @@ Portal do aluno com:
 
 ## Verificacao obrigatoria antes de concluir
 
-- Backend: `cd api && npm run build`
-- Frontend: `cd web && npm run lint && npm run build`
+- Backend: `cd api && bun run build`
+- Frontend: `cd web && bun run lint && bun run build`
 - Rode testes antes de concluir a task.
 - Quando a mudanca afetar fluxo real, valide tambem com deploy local:
   - Linux/macOS: `./deploy_and_push.sh`

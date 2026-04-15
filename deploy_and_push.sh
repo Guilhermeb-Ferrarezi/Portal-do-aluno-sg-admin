@@ -121,8 +121,8 @@ has_local_changes() {
 }
 
 run_playwright_smoke() {
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "[ERRO] npm nao encontrado no PATH."
+  if ! command -v bun >/dev/null 2>&1; then
+    echo "[ERRO] bun nao encontrado no PATH."
     exit 1
   fi
 
@@ -134,11 +134,11 @@ run_playwright_smoke() {
     cd web || exit 1
     PLAYWRIGHT_BASE_URL="$PLAYWRIGHT_BASE_URL" \
     PLAYWRIGHT_SKIP_WEBSERVER=1 \
-    npm run test:e2e:smoke
+    bun run test:e2e:smoke
   ) || {
     echo
     echo "[ERRO] Os testes Playwright falharam. Abortando antes de commit/push."
-    echo "Dica: se faltar browser, rode 'cd web && npm run playwright:install'."
+    echo "Dica: se faltar browser, rode 'cd web && bun run playwright:install'."
     exit 1
   }
 }

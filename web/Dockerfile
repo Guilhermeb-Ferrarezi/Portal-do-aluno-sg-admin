@@ -1,5 +1,5 @@
 # ---------- BUILD ----------
-FROM node:22-alpine AS build
+FROM oven/bun:1 AS build
 
 WORKDIR /app
 
@@ -9,12 +9,12 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_WS_URL=$VITE_WS_URL
 
 # instala deps primeiro (cache)
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
 
 # copia o resto e builda
 COPY . .
-RUN npm run build
+RUN bun run build
 
 
 # ---------- RUN (NGINX) ----------

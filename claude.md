@@ -36,7 +36,7 @@ Este arquivo e o contexto completo do repositorio.
 - Infra local
   - `docker-compose.yml` sobe `web`, `api`, `db` e `db_proxy`
   - o `db_proxy` aponta para banco remoto existente e a API conversa com ele via `DATABASE_URL`
-- Gerenciador de pacotes: `npm`
+- Gerenciador de pacotes: `bun`
 - Versao de Node esperada: 22.x
 
 ## Regras criticas do projeto
@@ -55,17 +55,17 @@ Este arquivo e o contexto completo do repositorio.
 
 - API:
   - `cd api`
-  - `npm install`
-  - `npm run dev`
+  - `bun install`
+  - `bun run dev`
 - Web:
   - `cd web`
-  - `npm install`
-  - `npm run dev`
+  - `bun install`
+  - `bun run dev`
 
 ### Verificacao minima
 
-- Backend: `cd api && npm run build`
-- Frontend: `cd web && npm run lint && npm run build`
+- Backend: `cd api && bun run build`
+- Frontend: `cd web && bun run lint && bun run build`
 
 Observacao:
 

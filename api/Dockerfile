@@ -1,24 +1,23 @@
-# ---------- deps ----------
-FROM node:22-alpine AS deps
+# ---------- prod-deps ----------
+FROM oven/bun:1 AS prod-deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lockb ./
+RUN bun install --production --frozen-lockfile
 
 # ---------- build ----------
-FROM node:22-alpine AS build
+FROM oven/bun:1 AS build
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN bun run build
 
 # ---------- runtime ----------
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 
 EXPOSE 3000

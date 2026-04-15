@@ -63,6 +63,8 @@ const envSchema = z.object({
   IA_SG_ALLOWED_ORIGINS: z.string().optional(),
   SSO_HOME_API_URL: z.string().url().optional(),
   SSO_SHARED_SECRET: z.string().min(32).optional(),
+  NOTIFICATIONS_PORTAL_API_URL: z.string().url().optional(),
+  NOTIFICATIONS_SHARED_SECRET: z.string().min(32).optional(),
   SSO_PROJECT_ID: z.string().min(1).optional(),
   STUDENT_PORTAL_BASE_URL: z.string().url().optional(),
   STUDENT_PORTAL_SSO_CALLBACK_PATH: z.string().min(1).optional(),
@@ -75,6 +77,31 @@ const envSchema = z.object({
   OBSERVABILITY_ENV: z.string().optional(),
   SWAGGER_ENABLED: z.string().optional(),
 });
+
+function validateNotificationsConfig(env: z.infer<typeof envSchema>) {
+  const notificationsUrl = env.NOTIFICATIONS_PORTAL_API_URL?.trim();
+  const notificationsSecret = env.NOTIFICATIONS_SHARED_SECRET?.trim();
+  const legacyUrl = env.SSO_HOME_API_URL?.trim();
+  const legacySecret = env.SSO_SHARED_SECRET?.trim();
+  const isProduction = (env.NODE_ENV?.trim() || "").toLowerCase() === "production";
+
+  if (notificationsUrl && notificationsSecret) {
+    return;
+  }
+
+  if (!isProduction && legacyUrl && legacySecret) {
+    console.warn(
+      "[notifications] Using legacy SSO_* variables as fallback. Set NOTIFICATIONS_PORTAL_API_URL and NOTIFICATIONS_SHARED_SECRET."
+    );
+    return;
+  }
+
+  if (isProduction) {
+    throw new Error(
+      "Missing notifications configuration in production. Define NOTIFICATIONS_PORTAL_API_URL and NOTIFICATIONS_SHARED_SECRET."
+    );
+  }
+}
 
 function resolveJwtExpiresIn(env: z.infer<typeof envSchema>) {
   const explicit = env.JWT_EXPIRES_IN?.trim();
@@ -176,6 +203,7 @@ function isAllowedCorsOrigin(
 }
 
 const env = envSchema.parse(process.env);
+validateNotificationsConfig(env);
 const jwtExpiresIn = resolveJwtExpiresIn(env);
 const refreshTokenExpiresIn = resolveRefreshTokenExpiresIn(env);
 const allowedOrigins = resolveAllowedOrigins(env);

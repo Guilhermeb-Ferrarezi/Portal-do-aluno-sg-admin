@@ -94,14 +94,14 @@ echo Base URL: %PLAYWRIGHT_BASE_URL%
 pushd web
 set "PLAYWRIGHT_BASE_URL=%PLAYWRIGHT_BASE_URL%"
 set "PLAYWRIGHT_SKIP_WEBSERVER=1"
-call npm run test:e2e:smoke
+bun run test:e2e:smoke
 set "pwExit=%errorlevel%"
 set "PLAYWRIGHT_BASE_URL="
 set "PLAYWRIGHT_SKIP_WEBSERVER="
 popd
 if not "%pwExit%"=="0" (
   echo [ERRO] Os testes Playwright falharam. Abortando antes de commit/push.
-  echo Dica: se faltar browser, rode "cd web && npm run playwright:install".
+  echo Dica: se faltar browser, rode "cd web && bun run playwright:install".
   exit /b 1
 )
 
@@ -164,10 +164,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [2/4] Verificando npm...
-call npm --version >nul 2>&1
+echo [2/4] Verificando bun...
+bun --version >nul 2>&1
 if errorlevel 1 (
-  echo [ERRO] npm nao encontrado no PATH.
+  echo [ERRO] bun nao encontrado no PATH.
   exit /b 1
 )
 

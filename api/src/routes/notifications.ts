@@ -116,12 +116,13 @@ function normalizeGatewayBaseUrl(baseUrl: string) {
 }
 
 function resolveGatewayConfig() {
+  const isProduction = (process.env.NODE_ENV?.trim() || "").toLowerCase() === "production";
   const baseUrl =
-    process.env.NOTIFICATIONS_WILLIAN_API_URL?.trim() ||
-    process.env.SSO_HOME_API_URL?.trim();
+    process.env.NOTIFICATIONS_PORTAL_API_URL?.trim() ||
+    (!isProduction ? process.env.SSO_HOME_API_URL?.trim() : undefined);
   const sharedSecret =
     process.env.NOTIFICATIONS_SHARED_SECRET?.trim() ||
-    process.env.SSO_SHARED_SECRET?.trim();
+    (!isProduction ? process.env.SSO_SHARED_SECRET?.trim() : undefined);
 
   if (!baseUrl || !sharedSecret) {
     return null;
@@ -165,7 +166,7 @@ async function callGateway<T>(
   const config = resolveGatewayConfig();
   if (!config) {
     throw new Error(
-      "Configuracao de notificacoes ausente. Defina NOTIFICATIONS_WILLIAN_API_URL e NOTIFICATIONS_SHARED_SECRET."
+      "Configuracao de notificacoes ausente. Defina NOTIFICATIONS_PORTAL_API_URL e NOTIFICATIONS_SHARED_SECRET."
     );
   }
 
@@ -173,6 +174,7 @@ async function callGateway<T>(
   try {
     response = await fetch(`${config.baseUrl}${path}`, {
       ...init,
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "Content-Type": "application/json",
         "x-notification-admin-secret": config.sharedSecret,
@@ -205,12 +207,13 @@ async function callGateway<T>(
   : null;
 
   if (!response.ok) {
+    const upstreamSummary = `Upstream ${response.status} ${response.statusText}`.trim();
     return {
       Success: false,
       Errors:
         normalizedResponse?.Errors && normalizedResponse.Errors.length > 0
           ? normalizedResponse.Errors
-          : ["Falha na comunicacao com o portal do Willian."],
+          : [`${upstreamSummary} ao acessar ${path} no portal do Willian.`],
     };
   }
 
