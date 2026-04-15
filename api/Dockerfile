@@ -1,13 +1,13 @@
 # ---------- prod-deps ----------
 FROM oven/bun:1 AS prod-deps
 WORKDIR /app
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 RUN bun install --production --frozen-lockfile
 
 # ---------- build ----------
 FROM oven/bun:1 AS build
 WORKDIR /app
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
