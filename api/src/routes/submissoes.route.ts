@@ -7,6 +7,7 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { uploadToR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
+import { getExerciseSchemaInfo } from "./exercicios/schema";
 
 const allowedMimeTypes = new Set([
   "application/pdf",
@@ -667,12 +668,26 @@ export function submissoesRouter(jwtSecret: string) {
       }
 
       try {
+        const schema = await getExerciseSchemaInfo();
+        const useNewSchema = schema.hasExercise && !schema.hasExercicios;
+        const answerKeyCol = schema.exerciseAnswerKeyColumn;
+
+        const query = useNewSchema
+          ? `SELECT s.*,
+               e.description AS exercicio_descricao,
+               ${answerKeyCol ? `e.${answerKeyCol}` : "NULL::text"} AS exercicio_gabarito
+             FROM submissoes s
+             JOIN exercise e ON s.exercicio_id = e.id
+             WHERE s.exercicio_id = $1 AND s.aluno_id = $2
+             ORDER BY s.created_at DESC`
+          : `SELECT s.*, e.descricao as exercicio_descricao, e.gabarito as exercicio_gabarito
+             FROM submissoes s
+             JOIN exercicios e ON s.exercicio_id = e.id
+             WHERE s.exercicio_id = $1 AND s.aluno_id = $2
+             ORDER BY s.created_at DESC`;
+
         const result = await pool.query<SubmissaoRow & { exercicio_descricao: string; exercicio_gabarito: string | null }>(
-          `SELECT s.*, e.descricao as exercicio_descricao, e.gabarito as exercicio_gabarito
-           FROM submissoes s
-           JOIN exercicios e ON s.exercicio_id = e.id
-           WHERE s.exercicio_id = $1 AND s.aluno_id = $2
-           ORDER BY s.created_at DESC`,
+          query,
           [exercicioId, alunoId]
         );
 
@@ -698,6 +713,32 @@ export function submissoesRouter(jwtSecret: string) {
     }
 
     try {
+      const schema = await getExerciseSchemaInfo();
+      const useNewSchema = schema.hasExercise && !schema.hasExercicios;
+      const answerKeyCol = schema.exerciseAnswerKeyColumn;
+
+      const query = useNewSchema
+        ? `SELECT s.*,
+             e.title AS exercicio_titulo,
+             m.name AS exercicio_modulo,
+             e.description AS exercicio_descricao,
+             ${answerKeyCol ? `e.${answerKeyCol}` : "NULL::text"} AS exercicio_gabarito
+           FROM submissoes s
+           JOIN exercise e ON s.exercicio_id = e.id
+           LEFT JOIN phase p ON p.id = e.phase_id
+           LEFT JOIN module m ON m.id = p.module_id
+           WHERE s.aluno_id = $1
+           ORDER BY s.created_at DESC`
+        : `SELECT s.*,
+             e.titulo AS exercicio_titulo,
+             e.modulo AS exercicio_modulo,
+             e.descricao AS exercicio_descricao,
+             e.gabarito AS exercicio_gabarito
+           FROM submissoes s
+           JOIN exercicios e ON s.exercicio_id = e.id
+           WHERE s.aluno_id = $1
+           ORDER BY s.created_at DESC`;
+
       const result = await pool.query<
         SubmissaoRow & {
           exercicio_titulo: string;
@@ -705,14 +746,7 @@ export function submissoesRouter(jwtSecret: string) {
           exercicio_descricao: string;
           exercicio_gabarito: string | null;
         }
-      >(
-        `SELECT s.*, e.titulo as exercicio_titulo, e.modulo as exercicio_modulo, e.descricao as exercicio_descricao, e.gabarito as exercicio_gabarito
-         FROM submissoes s
-         JOIN exercicios e ON s.exercicio_id = e.id
-         WHERE s.aluno_id = $1
-         ORDER BY s.created_at DESC`,
-        [alunoId]
-      );
+      >(query, [alunoId]);
 
       return res.json(
         result.rows.map((row) => ({
