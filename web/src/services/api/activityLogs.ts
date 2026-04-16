@@ -17,6 +17,12 @@ export type ActivityLog = {
   responseBody: unknown;
   statusCode: number | null;
   responseTimeMs: number | null;
+  requestId: string | null;
+  route: string | null;
+  outcome: string | null;
+  errorType: string | null;
+  source: string | null;
+  contextArea: string | null;
   metadata: Record<string, unknown> | null;
   ipAddress: string | null;
   userAgent: string | null;

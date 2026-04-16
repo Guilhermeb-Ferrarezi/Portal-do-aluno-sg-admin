@@ -12,7 +12,6 @@ import {
   Search,
   Server,
   ShieldAlert,
-  TimerReset,
   Waves,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -272,6 +271,21 @@ function MetricCard(props: {
   );
 }
 
+function UtilityChip({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-full border border-border/80 bg-background/75 px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+      <span>{label}: </span>
+      <span className="text-foreground">{value}</span>
+    </div>
+  );
+}
+
 function ErrorLinesDialog(props: {
   dialog: ErrorDialog;
   onClose: () => void;
@@ -433,8 +447,6 @@ export default function AdminObservabilityPage() {
     () => (snapshot?.criticalRoutes ?? []).slice(0, 6),
     [snapshot]
   );
-  const methods = snapshot?.methods ?? [];
-  const statuses = snapshot?.statuses ?? [];
   const riskRoutes = React.useMemo(
     () =>
       [...(snapshot?.routes ?? [])]
@@ -507,46 +519,50 @@ export default function AdminObservabilityPage() {
   return (
     <DashboardLayout
       title="Observabilidade"
-      subtitle="Leitura visual das metricas expostas pela API do portal"
+      subtitle="Pulso operacional da API, risco por rota e eventos estruturados."
     >
       <FadeInUp duration={0.28}>
-        <div className="space-y-6">
-          <Card className="overflow-hidden rounded-[32px] border-transparent bg-[var(--hero-glow),var(--hero-surface)] text-foreground shadow-[0_28px_90px_-42px_rgba(20,32,19,0.22)]">
+        <div className="space-y-5">
+          <Card className="overflow-hidden rounded-[28px] border-border/80 bg-card text-foreground shadow-[0_24px_60px_-40px_rgba(20,32,19,0.18)]">
             <CardContent className="p-6 sm:p-8">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-2xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-foreground/72">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-3xl">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-foreground/72">
                     <Radar size={14} />
                     API pulse
                   </div>
-                  <h2 className="mt-4 text-3xl font-black tracking-[-0.05em] sm:text-4xl">
-                    Observabilidade com hierarquia de produto
+                  <h2 className="mt-3 text-3xl font-black tracking-[-0.06em] text-foreground sm:text-[2.65rem]">
+                    Observabilidade da API em primeiro plano
                   </h2>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-                    Acompanhe saude da API, hotspots de risco e incidentes recentes com uma leitura mais clara e acionavel.
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    Leitura direta de requisicoes, erros, latencia e incidentes recentes sem depender de paines secundarios.
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge className="rounded-full border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">
-                    <Server size={13} className="mr-1.5" />
-                    API online
-                  </Badge>
-                  <Badge className="rounded-full border-black/8 bg-white/55 px-3 py-1.5 text-foreground/80">
-                    ultima leitura {lastCaptureLabel}
-                  </Badge>
-                  <Button
-                    type="button"
-                    onClick={() => void loadSnapshot(true)}
-                    className="h-10 rounded-full"
-                  >
-                    {refreshing ? (
-                      <Loader2 size={15} className="animate-spin" />
-                    ) : (
-                      <RefreshCcw size={15} />
-                    )}
-                    Atualizar
-                  </Button>
+                <div className="flex flex-col items-start gap-3 lg:items-end">
+                  <div className="flex flex-wrap gap-2">
+                    <UtilityChip label="Ultima leitura" value={lastCaptureLabel} />
+                    <UtilityChip label="Taxa de erro" value={formatPercentage(errorRate)} />
+                    <UtilityChip label="P95" value={formatLatency(totals?.p95LatencyMs ?? 0)} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge className="rounded-full border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">
+                      <Server size={13} className="mr-1.5" />
+                      API online
+                    </Badge>
+                    <Button
+                      type="button"
+                      onClick={() => void loadSnapshot(true)}
+                      className="h-10 rounded-full"
+                    >
+                      {refreshing ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <RefreshCcw size={15} />
+                      )}
+                      Atualizar
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -650,43 +666,57 @@ export default function AdminObservabilityPage() {
             <Card className="rounded-[30px] border-border bg-card shadow-sm">
               <CardHeader className="border-b border-border">
                 <CardTitle className="flex items-center gap-2">
-                  <TimerReset size={16} className="text-primary" />
-                  Metodos e classes de status
+                  <ShieldAlert size={16} className="text-primary" />
+                  Rotas criticas
                 </CardTitle>
                 <CardDescription>
-                  Quebra atual das chamadas da API pela exposicao de metricas.
+                  Recorte operacional para auth, presence, activity logs e metrics.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-5 p-5">
-                <div className="space-y-3">
-                  {methods.map((item) => (
-                    <div key={item.method} className="rounded-2xl border border-border bg-muted/40 p-3 shadow-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-foreground">{item.method}</div>
-                        <div className="text-xs text-muted-foreground">{formatCompactNumber(item.requests)} req</div>
+                {criticalRoutes.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 p-4 text-sm text-muted-foreground">
+                    Nenhuma rota critica foi capturada nas metricas atuais.
+                  </div>
+                ) : (
+                  criticalRoutes.map((item) => (
+                    <div
+                      key={`critical-top-${item.key}`}
+                      className="rounded-2xl border border-border/70 bg-muted/20 p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="truncate font-mono text-sm text-foreground">
+                            {item.label}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {formatCompactNumber(item.requests)} req · {formatCompactNumber(item.errors)} erros
+                          </div>
+                        </div>
+                        <Badge className={cn("rounded-full", statusBadgeClass(item.errorRate > 0 ? "5xx" : "2xx"))}>
+                          {formatPercentage(item.errorRate)}
+                        </Badge>
                       </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{
-                            width: `${Math.min(100, methods[0]?.requests ? (item.requests / methods[0].requests) * 100 : 0)}%`,
-                          }}
-                        />
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge variant="outline" className="rounded-full">
+                          media {formatLatency(item.avgLatencyMs)}
+                        </Badge>
+                        {item.errors > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openErrorDialog(`Erros - ${item.label}`, item.key)}
+                            className="h-7 rounded-xl border border-rose-300/40 bg-rose-500/8 px-3 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
+                          >
+                            <Search size={11} className="mr-1" />
+                            Ver erros
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {statuses.map((item) => (
-                    <Badge
-                      key={item.statusClass}
-                      className={cn("rounded-full px-3 py-1.5", statusBadgeClass(item.statusClass))}
-                    >
-                      {item.statusClass}: {formatCompactNumber(item.requests)}
-                    </Badge>
-                  ))}
-                </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>

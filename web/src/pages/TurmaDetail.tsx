@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { appRoutes } from "@/router/routes";
 import {
   Dialog,
   DialogContent,
@@ -185,7 +186,7 @@ export default function TurmaDetailPage() {
   const role = getRole();
   const canManageTurmas = role === "admin" || role === "professor";
   const canManageClassrooms = role === "admin";
-  const backPath = canManageTurmas ? "/dashboard/turmas" : "/dashboard";
+  const backPath = canManageTurmas ? appRoutes.turmas : appRoutes.dashboard;
 
   const [turma, setTurma] = React.useState<TurmaComAlunos | null>(null);
   const [loading, setLoading] = React.useState(false);

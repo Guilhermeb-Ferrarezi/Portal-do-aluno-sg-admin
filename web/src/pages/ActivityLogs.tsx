@@ -46,6 +46,11 @@ type Filters = {
 
 type LogSection = "users" | "staff";
 
+const LOG_SECTION_OPTIONS: Array<{ value: LogSection; label: string }> = [
+  { value: "users", label: "Logs de usuarios" },
+  { value: "staff", label: "Logs de admin/professor" },
+];
+
 const defaultFilters: Filters = {
   q: "",
   action: "",
@@ -66,11 +71,6 @@ const ACTION_OPTIONS = [
   { value: "logout", label: "Logout" },
   { value: "token_refresh", label: "Refresh token" },
   { value: "password_change", label: "Troca de senha" },
-  { value: "profile_update", label: "Perfil atualizado" },
-  { value: "profile_picture_upload", label: "Upload de foto" },
-  { value: "profile_picture_update", label: "Foto atualizada" },
-  { value: "profile_picture_remove", label: "Foto removida" },
-  { value: "profile_cover_upload", label: "Banner atualizado" },
   { value: "user_create", label: "Usuário criado" },
   { value: "user_update", label: "Usuário atualizado" },
   { value: "user_delete", label: "Usuário removido" },
@@ -373,6 +373,10 @@ function metadataTypeClass(type: MetadataEntry["type"]) {
 function RequestResponseTabs({ log }: { log: ActivityLog }) {
   const [activeTab, setActiveTab] = React.useState<"request" | "response">("request");
   const payload = buildActivityLogPayload(log);
+  const requestViewerPayload = log.requestBody ?? payload.request;
+  const responseViewerPayload = log.responseBody ?? payload.response;
+  const requestContent = JSON.stringify(requestViewerPayload, null, 2);
+  const responseContent = JSON.stringify(responseViewerPayload, null, 2);
 
   return (
     <div className="space-y-2 md:col-span-2">
@@ -410,8 +414,8 @@ function RequestResponseTabs({ log }: { log: ActivityLog }) {
           onClick={(e) => {
             e.stopPropagation();
             const content = activeTab === "request"
-              ? JSON.stringify(payload.request, null, 2)
-              : JSON.stringify(payload.response, null, 2);
+              ? requestContent
+              : responseContent;
             void navigator.clipboard.writeText(content);
           }}
         >
@@ -442,9 +446,7 @@ function RequestResponseTabs({ log }: { log: ActivityLog }) {
             </div>
           )}
           <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
-            {log.requestBody != null
-              ? JSON.stringify(log.requestBody, null, 2)
-              : "null"}
+            {requestContent}
           </pre>
         </div>
       )}
@@ -470,12 +472,15 @@ function RequestResponseTabs({ log }: { log: ActivityLog }) {
                   {log.responseTimeMs}ms
                 </span>
               )}
+              {log.outcome && (
+                <span className="font-mono text-xs text-muted-foreground">
+                  {log.outcome}
+                </span>
+              )}
             </div>
           )}
           <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
-            {log.responseBody != null
-              ? JSON.stringify(log.responseBody, null, 2)
-              : "null"}
+            {responseContent}
           </pre>
         </div>
       )}
@@ -584,37 +589,22 @@ export default function ActivityLogsPage() {
                   Filtre eventos, isole operacoes e abra detalhes estruturados sem perder velocidade de varredura.
                 </p>
               </div>
-              <div className="inline-flex max-w-full flex-wrap gap-2 rounded-[1.35rem] border border-border/60 bg-card/80 p-2 shadow-[0_14px_28px_-24px_rgba(20,32,19,0.22)]" role="tablist" aria-label="Secoes de logs">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={logSection === "users"}
-                  className={cn(
-                    "inline-flex items-center justify-center gap-2 rounded-[1rem] px-4 py-2.5 text-sm font-semibold transition",
-                    logSection === "users"
-                      ? "bg-background text-foreground shadow-sm dark:bg-(--surface-2)"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )}
-                  onClick={() => handleSectionChange("users")}
+              <div className="w-full max-w-sm space-y-2">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Escopo
+                </span>
+                <select
+                  aria-label="Escopo dos logs"
+                  className={cn(filterFieldClass, "h-12 rounded-2xl bg-card/85")}
+                  value={logSection}
+                  onChange={(e) => handleSectionChange(e.target.value as LogSection)}
                 >
-                  <span className="inline-flex"><User size={15} /></span>
-                  Logs de usuarios
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={logSection === "staff"}
-                  className={cn(
-                    "inline-flex items-center justify-center gap-2 rounded-[1rem] px-4 py-2.5 text-sm font-semibold transition",
-                    logSection === "staff"
-                      ? "bg-background text-foreground shadow-sm dark:bg-(--surface-2)"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )}
-                  onClick={() => handleSectionChange("staff")}
-                >
-                  <span className="inline-flex"><ShieldCheck size={15} /></span>
-                  Logs de admin/professor
-                </button>
+                  {LOG_SECTION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -854,6 +844,9 @@ export default function ActivityLogsPage() {
                     log.method ||
                     log.endpoint ||
                     log.statusCode ||
+                    log.requestId ||
+                    log.route ||
+                    log.outcome ||
                     log.requestBody ||
                     log.responseBody
                   );
@@ -963,10 +956,46 @@ export default function ActivityLogsPage() {
                                 <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 font-mono text-xs font-medium text-foreground">{log.method && <span className="mr-1.5 text-muted-foreground">{log.method}</span>}{log.endpoint}</span>
                               </div>
                             )}
+                            {log.route && log.route !== log.endpoint && (
+                              <div className="space-y-1 md:col-span-2">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Route</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 font-mono text-xs font-medium text-foreground">{log.route}</span>
+                              </div>
+                            )}
+                            {log.requestId && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Request ID</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.requestId}</span>
+                              </div>
+                            )}
                             {log.statusCode && (
                               <div className="space-y-1">
                                 <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Status</span>
                                 <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.statusCode}</span>
+                              </div>
+                            )}
+                            {log.outcome && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Outcome</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.outcome}</span>
+                              </div>
+                            )}
+                            {log.source && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Source</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.source}</span>
+                              </div>
+                            )}
+                            {log.contextArea && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Area</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.contextArea}</span>
+                              </div>
+                            )}
+                            {log.errorType && (
+                              <div className="space-y-1">
+                                <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Erro</span>
+                                <span className="inline-flex rounded-lg border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{log.errorType}</span>
                               </div>
                             )}
                             {log.responseTimeMs != null && (

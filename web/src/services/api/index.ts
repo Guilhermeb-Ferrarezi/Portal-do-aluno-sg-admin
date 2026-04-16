@@ -159,6 +159,24 @@ export {
   atribuirBadgeAoUsuario,
   removerBadgeDoUsuario,
 } from "./badges";
+export type { Goal, GoalReward, GoalStudent, GoalType } from "./goals";
+export {
+  GOAL_TYPE,
+  listarGoals,
+  obterGoal,
+  criarGoal,
+  atualizarGoal,
+  deletarGoal,
+  listarGoalRewards,
+  criarGoalReward,
+  atualizarGoalReward,
+  deletarGoalReward,
+  listarGoalStudents,
+  atribuirGoalAoAluno,
+  atualizarProgressoAluno,
+  deletarGoalStudent,
+  resgatarRecompensa,
+} from "./goals";
 
 export type { ActivityLog } from "./activityLogs";
 export { listarActivityLogs } from "./activityLogs";

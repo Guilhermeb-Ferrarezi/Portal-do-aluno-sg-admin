@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { appRoutes } from "@/router/routes";
 import {
   Dialog,
   DialogContent,
@@ -695,7 +696,7 @@ export default function TurmasPage() {
                             type="button"
                             variant="outline"
                             className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
-                            onClick={() => navigate(`/dashboard/turmas/${turma.id}?tab=sala-de-aula`)}
+                            onClick={() => navigate(`${appRoutes.turmaDetalhe(turma.id)}?tab=sala-de-aula`)}
                           >
                             <BookOpen size={16} />
                             Sala de aula
@@ -703,7 +704,7 @@ export default function TurmasPage() {
                           <Button
                             type="button"
                             className="h-11 rounded-xl px-4"
-                            onClick={() => navigate(`/dashboard/turmas/${turma.id}`)}
+                            onClick={() => navigate(appRoutes.turmaDetalhe(turma.id))}
                           >
                             <ArrowRight size={16} />
                             Ver Detalhes

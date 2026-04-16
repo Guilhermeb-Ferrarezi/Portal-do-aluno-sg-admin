@@ -19,7 +19,7 @@ export function AnimatedToast({
   onClose,
   position = 'top-right',
 }: AnimatedToastProps) {
-  const [portalReady, setPortalReady] = useState(false);
+  const [portalReady] = useState(() => typeof document !== 'undefined');
 
   useEffect(() => {
     if (!message || duration <= 0) return;
@@ -30,10 +30,6 @@ export function AnimatedToast({
 
     return () => clearTimeout(timer);
   }, [message, duration, onClose]);
-
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
 
   const isFloating = position === 'top-right';
 

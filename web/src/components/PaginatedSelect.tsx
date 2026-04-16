@@ -32,7 +32,7 @@ type PaginatedSelectProps = {
 };
 
 const triggerClass =
-  "flex w-full items-start gap-2 rounded-2xl border-2 border-border bg-card px-3.5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 md:min-h-12 md:items-center";
+  "flex w-full min-w-0 items-start gap-2 rounded-2xl border-2 border-border bg-card px-3.5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 md:min-h-12 md:items-center";
 const panelClass =
   "absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[60] flex max-h-[min(420px,65vh)] flex-col gap-2 overflow-hidden rounded-2xl border-2 border-border bg-card p-2.5 shadow-lg md:max-h-[min(420px,65vh)]";
 const panelSearchClass =
@@ -43,6 +43,7 @@ const navButtonClass =
   "inline-flex items-center gap-1 rounded-xl border-2 border-border bg-card px-3 py-2 text-sm text-foreground transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/60 disabled:pointer-events-none disabled:opacity-50";
 const pageSizeSelectClass =
   "h-9 min-w-[72px] rounded-xl border-2 border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus:border-primary/35";
+const estimatedPanelHeight = 360;
 
 export default function PaginatedSelect({
   value,
@@ -58,6 +59,7 @@ export default function PaginatedSelect({
   remote,
 }: PaginatedSelectProps) {
   const [open, setOpen] = React.useState(false);
+  const [openUpward, setOpenUpward] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [currentPageSize, setCurrentPageSize] = React.useState(pageSize);
@@ -76,6 +78,15 @@ export default function PaginatedSelect({
       }
     };
 
+    const updateDirection = () => {
+      if (!rootRef.current) return;
+      const rect = rootRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < estimatedPanelHeight && spaceAbove > spaceBelow);
+    };
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
@@ -84,11 +95,24 @@ export default function PaginatedSelect({
 
     document.addEventListener("mousedown", handleDocClick);
     document.addEventListener("keydown", handleEscape);
+    window.addEventListener("resize", updateDirection);
+    window.addEventListener("scroll", updateDirection, true);
     return () => {
       document.removeEventListener("mousedown", handleDocClick);
       document.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("resize", updateDirection);
+      window.removeEventListener("scroll", updateDirection, true);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!open || !rootRef.current) return;
+    const rect = rootRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    setOpenUpward(spaceBelow < estimatedPanelHeight && spaceAbove > spaceBelow);
+  }, [open, options.length, currentQuery]);
 
   const selected = React.useMemo(
     () => selectedOption ?? (options.find((opt) => opt.value === value) || null),
@@ -170,11 +194,11 @@ export default function PaginatedSelect({
         aria-haspopup="listbox"
       >
         <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
-          <span className="overflow-hidden text-left whitespace-normal break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] md:block md:truncate">
+          <span className="block min-w-0 overflow-hidden text-left text-ellipsis whitespace-nowrap">
             {selected ? cleanDisplayText(selected.label) : cleanDisplayText(placeholder)}
           </span>
           {selected?.meta ? (
-            <small className="[overflow-wrap:anywhere] text-left text-[11px] font-bold uppercase tracking-[0.03em] text-primary">
+            <small className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-left text-[11px] font-bold uppercase tracking-[0.03em] text-primary">
               {cleanDisplayText(selected.meta)}
             </small>
           ) : null}
@@ -189,7 +213,14 @@ export default function PaginatedSelect({
       </button>
 
       {open && !disabled ? (
-        <div className={panelClass}>
+        <div
+          className={cn(
+            panelClass,
+            openUpward
+              ? "bottom-[calc(100%+0.5rem)] top-auto"
+              : "top-[calc(100%+0.5rem)] bottom-auto"
+          )}
+        >
           <div className={panelSearchClass}>
             <Search size={14} className="shrink-0 text-muted-foreground" />
             <input

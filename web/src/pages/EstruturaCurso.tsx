@@ -2,6 +2,7 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { appRoutes } from "@/router/routes";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
@@ -165,12 +166,12 @@ export default function EstruturaCursoPage() {
   }, [location.pathname]);
 
   const rotaAba = (aba: AbaEstrutura) => {
-    if (aba === "modulo") return "/dashboard/estrutura-curso/modulos";
-    if (aba === "fase") return "/dashboard/estrutura-curso/fases";
-    if (aba === "exercicios") return "/dashboard/estrutura-curso/exercicios";
-    if (aba === "conteiners") return "/dashboard/estrutura-curso/conteiners";
-    if (aba === "turmas") return "/dashboard/estrutura-curso/turmas";
-    return "/dashboard/estrutura-curso/cursos";
+    if (aba === "modulo") return appRoutes.estruturaCurso.tab("modulos");
+    if (aba === "fase") return appRoutes.estruturaCurso.tab("fases");
+    if (aba === "exercicios") return appRoutes.estruturaCurso.tab("exercicios");
+    if (aba === "conteiners") return appRoutes.estruturaCurso.tab("conteiners");
+    if (aba === "turmas") return appRoutes.estruturaCurso.tab("turmas");
+    return appRoutes.estruturaCurso.tab("cursos");
   };
 
   const carregarCursos = React.useCallback(async () => {

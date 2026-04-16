@@ -1662,9 +1662,6 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                                     />
                                     <span>Atualizacoes do aplicativo</span>
                                   </div>
-                                  <CardTitle className="text-lg font-extrabold tracking-[-0.02em]">
-                                    Painel - Portal Santos Tech
-                                  </CardTitle>
                                   <CardDescription>
                                     Versao atual {desktopUpdateState?.currentVersion ?? "Carregando..."}
                                   </CardDescription>

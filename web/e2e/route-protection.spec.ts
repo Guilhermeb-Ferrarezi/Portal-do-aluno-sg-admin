@@ -12,23 +12,11 @@ const PROTECTED_ROUTES = [
   appRoutes.estruturaCurso.root,
 ];
 
-const ALIAS_ROUTES = [
-  appRoutes.aliases.exercicios,
-  appRoutes.aliases.turmas,
-];
-
 for (const route of PROTECTED_ROUTES) {
   test(`redirects anonymous users to login from ${route} @smoke`, async ({ page }) => {
     await page.goto(route);
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.locator("#login-usuario")).toBeVisible();
-  });
-}
-
-for (const route of ALIAS_ROUTES) {
-  test(`redirects anonymous users to login from alias ${route}`, async ({ page }) => {
-    await page.goto(route);
-    await expect(page).toHaveURL(/\/login$/);
   });
 }
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { appRoutes } from "@/router/routes";
 import { getUserId } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import ConfirmModal from "../components/ConfirmModal";
@@ -544,7 +545,7 @@ export default function ExerciciosPage() {
   function navegarParaRespostaDireta(exercicioId: string, alunoId: string, value: string) {
     if (!value) return;
     const { answerId, questionId } = parseRespostaDiretaNavState(value);
-    navigate(`/dashboard/exercicios/${exercicioId}`, {
+    navigate(appRoutes.exercicioDetalhe(exercicioId), {
       state: {
         from: location.pathname,
         fromSection: "respostas",
@@ -2542,7 +2543,7 @@ export default function ExerciciosPage() {
                                               type="button"
                                               className={cn(secondaryButtonClass, "px-3 py-2 text-xs")}
                                               onClick={() =>
-                                                navigate(`/dashboard/exercicios/${exercicio.id}`, {
+                                                navigate(appRoutes.exercicioDetalhe(exercicio.id), {
                                                   state: {
                                                     from: location.pathname,
                                                     fromSection: "respostas",
@@ -2773,7 +2774,7 @@ export default function ExerciciosPage() {
                                 style={cardAnimationStyle}
                                 ref={shouldMeasureCard ? measureExerciseCardRef : undefined}
                                 onClick={() =>
-                                  navigate(`/dashboard/exercicios/${ex.id}`, {
+                                  navigate(appRoutes.exercicioDetalhe(ex.id), {
                                     state: {
                                       from: location.pathname,
                                       fromSection: activeSection,
@@ -2785,7 +2786,7 @@ export default function ExerciciosPage() {
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" || e.key === " ") {
                                     e.preventDefault();
-                                    navigate(`/dashboard/exercicios/${ex.id}`, {
+                                    navigate(appRoutes.exercicioDetalhe(ex.id), {
                                       state: {
                                         from: location.pathname,
                                         fromSection: activeSection,

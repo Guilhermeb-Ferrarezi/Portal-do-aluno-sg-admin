@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import React from "react";
-import { AnimatePresence, m } from "framer-motion";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { m } from "framer-motion";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, hasRole } from "../../auth/auth";
 import {
   listarTurmas,
@@ -44,17 +44,18 @@ import {
   Monitor,
   ArrowRight,
   Medal,
-  ChevronDown,
+  Target,
   BookOpen,
   Radar,
   Slash,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 
 type DashboardLayoutProps = {
-  title: string;
+  title?: string;
   subtitle?: string;
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 type BreadcrumbItem = {
@@ -63,10 +64,26 @@ type BreadcrumbItem = {
   icon: LucideIcon;
 };
 
-function readStoredDropdownState(key: string) {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(key) === "true";
-}
+type NavAreaId = "operations" | "content" | "people" | "system";
+type NavEntry = {
+  label: string;
+  icon: LucideIcon;
+  to?: string;
+  branch?: string;
+  onClick?: () => void;
+  visible: boolean;
+};
+type NavArea = {
+  id: NavAreaId;
+  label: string;
+  icon: LucideIcon;
+  entries: NavEntry[];
+};
+
+const SIDEBAR_OPEN_AREAS_STORAGE_KEY = "dashboard-sidebar-open-areas";
+const DashboardShellContext = React.createContext<{
+  setPageMeta: (meta: { title?: string; subtitle?: string }) => void;
+} | null>(null);
 
 function roleLabel(role: string | null) {
   if (role === "admin") return "Administrador";
@@ -84,17 +101,6 @@ const NAV_ITEM_IDLE =
 const iconSpring = { type: "spring", stiffness: 500, damping: 18 } as const;
 const iconHover = { scale: 1.22, y: -3 } as const;
 const iconRest = { scale: 1, y: 0 } as const;
-const dropdownMotion = {
-  initial: { height: 0, opacity: 0, y: -6 },
-  animate: { height: "auto", opacity: 1, y: 0 },
-  exit: { height: 0, opacity: 0, y: -6 },
-  transition: {
-    height: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
-    opacity: { duration: 0.18, ease: "easeOut" },
-    y: { duration: 0.2, ease: "easeOut" },
-  },
-} as const;
-
 function NavLinkItem({
   to,
   active,
@@ -136,18 +142,24 @@ function NavLinkItem({
 function NavButtonItem({
   onClick,
   active,
+  nested = false,
   icon,
   label,
 }: {
   onClick: () => void;
   active: boolean;
+  nested?: boolean;
   icon: React.ReactNode;
   label: string;
 }) {
   const [hovered, setHovered] = React.useState(false);
   return (
     <button
-      className={cn(NAV_ITEM_BASE, "px-3.5 py-3 text-sm font-semibold", active ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE)}
+      className={cn(
+        NAV_ITEM_BASE,
+        nested ? "px-3 py-2.5 pl-10 text-[13px] font-medium" : "px-3.5 py-3 text-sm font-semibold",
+        active ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE
+      )}
       onClick={onClick}
       type="button"
       onMouseEnter={() => setHovered(true)}
@@ -166,52 +178,21 @@ function NavButtonItem({
   );
 }
 
-function NavSectionToggle({
-  active,
-  open,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  open: boolean;
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  const [hovered, setHovered] = React.useState(false);
-  return (
-    <button
-      className={cn(NAV_ITEM_BASE, "px-3.5 py-3 text-sm font-semibold", active ? NAV_ITEM_ACTIVE : NAV_ITEM_IDLE)}
-      onClick={onClick}
-      type="button"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <m.span
-        className="grid size-5 shrink-0 place-items-center"
-        animate={hovered ? iconHover : iconRest}
-        transition={iconSpring}
-        aria-hidden="true"
-      >
-        {icon}
-      </m.span>
-      <span className="truncate">{label}</span>
-      <m.span
-        className="ml-auto"
-        animate={{ rotate: open ? 180 : 0 }}
-        transition={{ type: "spring", stiffness: 400, damping: 28 }}
-        aria-hidden="true"
-      >
-        <ChevronDown size={14} />
-      </m.span>
-    </button>
-  );
-}
-
-export default function DashboardLayout({
+function DashboardPageRegistration({
   title,
   subtitle,
+  children,
+}: DashboardLayoutProps) {
+  const shellContext = React.useContext(DashboardShellContext);
+
+  React.useEffect(() => {
+    shellContext?.setPageMeta({ title, subtitle });
+  }, [shellContext, subtitle, title]);
+
+  return <>{children}</>;
+}
+
+function DashboardShell({
   children,
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
@@ -228,12 +209,23 @@ export default function DashboardLayout({
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [studentViewPending, setStudentViewPending] = React.useState(false);
-  const [estruturaOpen, setEstruturaOpen] = React.useState(() =>
-    readStoredDropdownState("dashboard.sidebar.estruturaOpen")
-  );
-  const [usuariosOpen, setUsuariosOpen] = React.useState(() =>
-    readStoredDropdownState("dashboard.sidebar.usuariosOpen")
-  );
+  const [openAreaIds, setOpenAreaIds] = React.useState<NavAreaId[]>(() => {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const raw = window.localStorage.getItem(SIDEBAR_OPEN_AREAS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((item): item is NavAreaId =>
+        item === "operations" || item === "content" || item === "people" || item === "system"
+      );
+    } catch {
+      return [];
+    }
+  });
+  const [pageMeta, setPageMeta] = React.useState<{ title?: string; subtitle?: string }>({});
+  const shellContextValue = React.useMemo(() => ({ setPageMeta }), []);
   const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -250,13 +242,23 @@ export default function DashboardLayout({
 
   React.useEffect(() => {
     setSidebarOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [location.pathname]);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDEBAR_OPEN_AREAS_STORAGE_KEY, JSON.stringify(openAreaIds));
+    } catch {
+      // Ignore persistence failures and keep the in-memory state working.
+    }
+  }, [openAreaIds]);
 
   const isDashboard = isExactRoute(location.pathname, appRoutes.dashboard);
   const isExercicios = isExactRoute(location.pathname, appRoutes.exercicios);
   const isMateriais = isExactRoute(location.pathname, appRoutes.materiais);
   const isVideoaulas = isExactRoute(location.pathname, appRoutes.videoaulas);
   const isMedalhas = isExactRoute(location.pathname, appRoutes.medalhas);
+  const isMetas = isExactRoute(location.pathname, appRoutes.metas);
   const isCreateUser = isExactRoute(location.pathname, appRoutes.criarUsuario);
   const isAdminUsers = isExactRoute(location.pathname, appRoutes.usuarios);
   const isEstruturaCurso = isRouteBranch(location.pathname, appRoutes.estruturaCurso.base);
@@ -264,28 +266,6 @@ export default function DashboardLayout({
   const isNotificacoes = isExactRoute(location.pathname, appRoutes.notificacoes);
   const isObservability = isExactRoute(location.pathname, appRoutes.observabilidade);
   const isTurmas = isRouteBranch(location.pathname, appRoutes.turmas);
-
-  React.useEffect(() => {
-    if (isEstruturaCurso || isExercicios || isTurmas) {
-      setEstruturaOpen(true);
-    }
-  }, [isEstruturaCurso, isExercicios, isTurmas]);
-
-  React.useEffect(() => {
-    if (isAdminUsers || isCreateUser) {
-      setUsuariosOpen(true);
-    }
-  }, [isAdminUsers, isCreateUser]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("dashboard.sidebar.estruturaOpen", String(estruturaOpen));
-  }, [estruturaOpen]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("dashboard.sidebar.usuariosOpen", String(usuariosOpen));
-  }, [usuariosOpen]);
 
   function handleLogout() {
     void logoutWithServer().finally(() => {
@@ -310,7 +290,7 @@ export default function DashboardLayout({
       });
   }
 
-  function handleMinhasTurmas() {
+  const handleMinhasTurmas = React.useCallback(() => {
     if (role === "aluno") {
       if (turmas.length === 0) {
         navigate(appRoutes.dashboard);
@@ -322,9 +302,163 @@ export default function DashboardLayout({
     } else {
       navigate(appRoutes.turmas);
     }
-  }
+  }, [navigate, role, setModalSelecionarTurmaAberto, turmas]);
 
-  const pageSubtitle = subtitle ?? `Bem-vindo de volta, ${name}`;
+  const navAreas = React.useMemo<NavArea[]>(() => {
+    const areas: NavArea[] = [
+      {
+        id: "operations",
+        label: "Operacao",
+        icon: School,
+        entries: [
+          {
+            label: "Turmas",
+            icon: School,
+            branch: appRoutes.turmas,
+            visible: role === "admin" || role === "professor" || turmas.length > 0,
+            ...(role === "admin" || role === "professor"
+              ? { to: appRoutes.turmas }
+              : { onClick: handleMinhasTurmas }),
+          },
+          {
+            label: "Metas",
+            icon: Target,
+            to: appRoutes.metas,
+            branch: appRoutes.metas,
+            visible: role === "admin" || role === "professor",
+          },
+          {
+            label: "Medalhas",
+            icon: Medal,
+            to: appRoutes.medalhas,
+            branch: appRoutes.medalhas,
+            visible: true,
+          },
+          {
+            label: "Notificacoes",
+            icon: Bell,
+            to: appRoutes.notificacoes,
+            branch: appRoutes.notificacoes,
+            visible: role === "admin",
+          },
+        ],
+      },
+      {
+        id: "content",
+        label: "Conteudo",
+        icon: Blocks,
+        entries: [
+          {
+            label: "Estrutura do curso",
+            icon: Blocks,
+            to: appRoutes.estruturaCurso.root,
+            branch: appRoutes.estruturaCurso.base,
+            visible: role === "admin",
+          },
+          {
+            label: "Exercicios",
+            icon: PenLine,
+            to: appRoutes.exercicios,
+            branch: appRoutes.exercicios,
+            visible: true,
+          },
+          {
+            label: "Materiais",
+            icon: FileText,
+            to: appRoutes.materiais,
+            branch: appRoutes.materiais,
+            visible: true,
+          },
+          {
+            label: "Videoaulas",
+            icon: Play,
+            to: appRoutes.videoaulas,
+            branch: appRoutes.videoaulas,
+            visible: true,
+          },
+        ],
+      },
+      {
+        id: "people",
+        label: "Usuarios",
+        icon: Users,
+        entries: [
+          {
+            label: "Usuarios",
+            icon: KeyRound,
+            to: appRoutes.usuarios,
+            branch: appRoutes.usuarios,
+            visible: canCreateUser,
+          },
+          {
+            label: "Criar usuario",
+            icon: Plus,
+            to: appRoutes.criarUsuario,
+            branch: appRoutes.criarUsuario,
+            visible: canCreateUser,
+          },
+        ],
+      },
+      {
+        id: "system",
+        label: "Sistema",
+        icon: Radar,
+        entries: [
+          {
+            label: "Logs",
+            icon: BarChart3,
+            to: appRoutes.logs,
+            branch: appRoutes.logs,
+            visible: canCreateUser,
+          },
+          {
+            label: "Observabilidade",
+            icon: Radar,
+            to: appRoutes.observabilidade,
+            branch: appRoutes.observabilidade,
+            visible: canCreateUser,
+          },
+          {
+            label: "Perfil",
+            icon: User,
+            to: appRoutes.perfil,
+            branch: appRoutes.perfil,
+            visible: canCreateUser,
+          },
+        ],
+      },
+    ];
+
+    return areas
+      .map((area) => ({
+        ...area,
+        entries: area.entries.filter((entry) => entry.visible),
+      }))
+      .filter((area) => area.entries.length > 0);
+  }, [canCreateUser, handleMinhasTurmas, role, turmas.length]);
+
+  const activeArea = React.useMemo(
+    () =>
+      navAreas.find((area) =>
+        area.entries.some((entry) =>
+          entry.branch
+            ? entry.branch === appRoutes.dashboard
+              ? isExactRoute(location.pathname, entry.branch)
+              : isRouteBranch(location.pathname, entry.branch)
+            : false
+        )
+      ) ?? null,
+    [location.pathname, navAreas]
+  );
+
+  React.useEffect(() => {
+    if (!activeArea) return;
+    if (isDashboard) return;
+    setOpenAreaIds((current) => (current.includes(activeArea.id) ? current : [...current, activeArea.id]));
+  }, [activeArea, isDashboard]);
+
+  const resolvedTitle = pageMeta.title ?? "Dashboard";
+  const pageSubtitle = pageMeta.subtitle ?? `Bem-vindo de volta, ${name}`;
   const breadcrumbs: BreadcrumbItem[] = React.useMemo(() => {
     if (isDashboard) {
       return [
@@ -353,23 +487,30 @@ export default function DashboardLayout({
       ];
     }
 
+    if (isMetas) {
+      return [
+        { label: "Dashboard", to: appRoutes.dashboard, icon: Home },
+        { label: "Metas", icon: Target },
+      ];
+    }
+
     if (isActivityLogs) {
       return [
-        { label: "Operacao", to: appRoutes.dashboard, icon: BarChart3 },
+        { label: "Sistema", to: appRoutes.dashboard, icon: BarChart3 },
         { label: "Logs de Atividade", icon: BarChart3 },
       ];
     }
 
     if (isNotificacoes) {
       return [
-        { label: "Comunicacao", to: appRoutes.dashboard, icon: Bell },
+        { label: "Operacao", to: appRoutes.dashboard, icon: Bell },
         { label: "Notificacoes", icon: Bell },
       ];
     }
 
     if (isObservability) {
       return [
-        { label: "Operacao", to: appRoutes.dashboard, icon: Radar },
+        { label: "Sistema", to: appRoutes.dashboard, icon: Radar },
         { label: "Observabilidade", icon: Radar },
       ];
     }
@@ -383,28 +524,35 @@ export default function DashboardLayout({
 
     if (isEstruturaCurso) {
       return [
-        { label: "Criar Estrutura", to: appRoutes.dashboard, icon: Blocks },
-        { label: title, icon: BookOpen },
+        { label: "Conteudo", to: appRoutes.dashboard, icon: Blocks },
+        { label: resolvedTitle, icon: BookOpen },
       ];
     }
 
     if (isExercicios) {
       return [
-        { label: "Estrutura do Curso", to: appRoutes.dashboard, icon: Blocks },
+        { label: "Conteudo", to: appRoutes.dashboard, icon: Blocks },
         { label: "Exercicios", icon: PenLine },
       ];
     }
 
     if (isTurmas) {
       return [
-        { label: "Estrutura do Curso", to: appRoutes.dashboard, icon: Blocks },
+        { label: "Operacao", to: appRoutes.dashboard, icon: Blocks },
         { label: "Turmas", icon: School },
+      ];
+    }
+
+    if (isMateriais || isVideoaulas || isMedalhas || isMetas) {
+      return [
+        { label: activeArea?.label ?? "Dashboard", to: appRoutes.dashboard, icon: activeArea?.entries[0]?.icon ?? Home },
+        { label: resolvedTitle, icon: activeArea?.entries[0]?.icon ?? Home },
       ];
     }
 
     return [
       { label: "Workspace", to: appRoutes.dashboard, icon: Home },
-      { label: title, icon: Home },
+      { label: resolvedTitle, icon: Home },
     ];
   }, [
     isActivityLogs,
@@ -415,14 +563,17 @@ export default function DashboardLayout({
     isExercicios,
     isMateriais,
     isMedalhas,
+    isMetas,
     isNotificacoes,
     isObservability,
     isTurmas,
     isVideoaulas,
-    title,
+    activeArea,
+    resolvedTitle,
   ]);
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <DashboardShellContext.Provider value={shellContextValue}>
+      <div className="min-h-screen bg-background text-foreground">
       {sidebarOpen ? (
         <button
           type="button"
@@ -467,79 +618,103 @@ export default function DashboardLayout({
 
 
         <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-4 py-4">
-          <NavLinkItem to={appRoutes.dashboard} active={isDashboard} icon={<Home size={18} />} label="Dashboard" />
+          <NavLinkItem
+            to={appRoutes.dashboard}
+            active={isDashboard}
+            icon={<Home size={18} />}
+            label="Dashboard"
+          />
 
-          {!canCreateUser ? (
-            <NavLinkItem to={appRoutes.exercicios} active={isExercicios} icon={<PenLine size={18} />} label="Exercicios" />
-          ) : null}
+          {navAreas.map((area) => (
+            <div key={area.id} className="flex flex-col gap-1">
+              {(() => {
+                const isAreaOpen = openAreaIds.includes(area.id);
+                const isAreaActive = activeArea?.id === area.id;
+                return (
+                  <>
+              <button
+                type="button"
+                className={cn(
+                  "flex w-full items-center justify-between rounded-[0.85rem] border px-3.5 py-3 text-left text-sm font-semibold transition-all duration-200",
+                  isAreaActive || isAreaOpen
+                    ? "border-[var(--sidebar-item-active-border)] bg-[var(--sidebar-item-hover-bg)] text-[var(--sidebar-text)]"
+                    : "border-transparent text-[var(--sidebar-text-secondary)] hover:bg-[var(--sidebar-item-hover-bg)] hover:text-[var(--sidebar-text)]"
+                )}
+                onClick={() =>
+                  setOpenAreaIds((current) =>
+                    current.includes(area.id)
+                      ? current.filter((id) => id !== area.id)
+                      : [...current, area.id]
+                  )
+                }
+                aria-expanded={isAreaOpen}
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <m.span
+                    className={cn(
+                      "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors duration-200",
+                      isAreaActive || isAreaOpen
+                        ? "border-[var(--sidebar-item-active-border)] bg-[var(--sidebar-item-active-bg)] text-[var(--sidebar-item-active-text)]"
+                        : "border-[var(--sidebar-item-hover-border)] bg-[var(--sidebar-item-hover-bg)] text-[var(--sidebar-text-secondary)]"
+                    )}
+                    animate={isAreaOpen ? { scale: 1.04, y: -1 } : { scale: 1, y: 0 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <area.icon size={15} />
+                  </m.span>
+                  <span className="truncate">{area.label}</span>
+                  <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--sidebar-text-secondary)]">
+                    {area.entries.length}
+                  </span>
+                </span>
+                <m.span
+                  animate={isAreaOpen ? { rotate: 180 } : { rotate: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="shrink-0"
+                >
+                  <ChevronDown size={16} />
+                </m.span>
+              </button>
 
-          <NavLinkItem to={appRoutes.materiais} active={isMateriais} icon={<FileText size={18} />} label="Materiais" />
-          <NavLinkItem to={appRoutes.videoaulas} active={isVideoaulas} icon={<Play size={18} />} label="Videoaulas Bonus" />
-          <NavLinkItem to={appRoutes.medalhas} active={isMedalhas} icon={<Medal size={18} />} label="Medalhas" />
-
-          {!canCreateUser && (role === "professor" || turmas.length > 0) ? (
-            <NavButtonItem onClick={handleMinhasTurmas} active={isTurmas} icon={<School size={18} />} label="Turmas" />
-          ) : null}
-
-          {canCreateUser ? (
-            <>
-              <div className="flex flex-col gap-2">
-                <NavSectionToggle
-                  active={isAdminUsers || isCreateUser}
-                  open={usuariosOpen}
-                  icon={<Users size={18} />}
-                  label="Usuarios"
-                  onClick={() => setUsuariosOpen((v) => !v)}
-                />
-
-                <AnimatePresence initial={false}>
-                  {usuariosOpen ? (
-                    <m.div
-                      key="usuarios-dropdown"
-                      className="overflow-hidden"
-                      {...dropdownMotion}
-                    >
-                      <div className="flex flex-col gap-1 pl-2 pt-1">
-                        <NavLinkItem to={appRoutes.usuarios} active={isAdminUsers} nested icon={<KeyRound size={16} />} label="Gerenciar Usuarios" />
-                        <NavLinkItem to={appRoutes.criarUsuario} active={isCreateUser} nested icon={<Plus size={16} />} label="Criar Usuario" />
-                      </div>
-                    </m.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <NavSectionToggle
-                  active={isEstruturaCurso || isExercicios || isTurmas}
-                  open={estruturaOpen}
-                  icon={<Blocks size={18} />}
-                  label="Estrutura do Curso"
-                  onClick={() => setEstruturaOpen((v) => !v)}
-                />
-
-                <AnimatePresence initial={false}>
-                  {estruturaOpen ? (
-                    <m.div
-                      key="estrutura-dropdown"
-                      className="overflow-hidden"
-                      {...dropdownMotion}
-                    >
-                      <div className="flex flex-col gap-1 pl-2 pt-1">
-                        <NavLinkItem to={appRoutes.estruturaCurso.root} active={isEstruturaCurso} nested icon={<BookOpen size={16} />} label="Criar Estrutura" />
-                        <NavLinkItem to={appRoutes.exercicios} active={isExercicios} nested icon={<PenLine size={16} />} label="Exercicios" />
-                        <NavLinkItem to={appRoutes.turmas} active={isTurmas} nested icon={<School size={16} />} label="Turmas" />
-                      </div>
-                    </m.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
-
-              <NavLinkItem to={appRoutes.logs} active={isActivityLogs} icon={<BarChart3 size={18} />} label="Logs de Atividade" />
-              <NavLinkItem to={appRoutes.notificacoes} active={isNotificacoes} icon={<Bell size={18} />} label="Notificacoes" />
-              <NavLinkItem to={appRoutes.observabilidade} active={isObservability} icon={<Radar size={18} />} label="Observabilidade" />
-            </>
-          ) : null}
-
+              <m.div
+                initial={false}
+                animate={
+                  isAreaOpen
+                    ? { height: "auto", opacity: 1, marginTop: 4 }
+                    : { height: 0, opacity: 0, marginTop: 0 }
+                }
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <div className="grid gap-1 pl-1">
+                  {area.entries.map((entry) =>
+                    entry.to ? (
+                      <NavLinkItem
+                        key={entry.label}
+                        to={entry.to}
+                        active={!!entry.branch && isRouteBranch(location.pathname, entry.branch)}
+                        nested
+                        icon={<entry.icon size={16} />}
+                        label={entry.label}
+                      />
+                    ) : (
+                      <NavButtonItem
+                        key={entry.label}
+                        onClick={entry.onClick ?? (() => undefined)}
+                        active={!!entry.branch && isRouteBranch(location.pathname, entry.branch)}
+                        nested
+                        icon={<entry.icon size={16} />}
+                        label={entry.label}
+                      />
+                    )
+                  )}
+                </div>
+              </m.div>
+                  </>
+                );
+              })()}
+            </div>
+          ))}
         </nav>
 
         <div className="p-4" ref={sbBottomRef}>
@@ -636,7 +811,7 @@ export default function DashboardLayout({
                   })}
                 </div>
                 <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">
-                  {title}
+                  {resolvedTitle}
                 </h1>
                 <p className="mt-1 truncate text-sm text-muted-foreground">
                   {pageSubtitle}
@@ -678,7 +853,7 @@ export default function DashboardLayout({
         </header>
 
         <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-          {children}
+          {children ?? <Outlet />}
         </main>
       </div>
 
@@ -747,5 +922,14 @@ export default function DashboardLayout({
         </DialogContent>
       </Dialog>
     </div>
+    </DashboardShellContext.Provider>
   );
+}
+
+export default function DashboardLayout(props: DashboardLayoutProps) {
+  const shellContext = React.useContext(DashboardShellContext);
+  if (shellContext) {
+    return <DashboardPageRegistration {...props} />;
+  }
+  return <DashboardShell {...props} />;
 }

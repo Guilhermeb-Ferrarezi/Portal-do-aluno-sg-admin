@@ -30,6 +30,17 @@ Portal do aluno com:
 - Preserve a linguagem visual existente: painel denso, cards fortes, glassmorphism leve e animacoes.
 - Para chamadas autenticadas no frontend, prefira `apiFetch` e utilitarios existentes em `web/src/services/api.ts`.
 
+### **Playwright: obrigatorio para toda UI nova**
+
+- **Toda vez que criar ou alterar UI**, crie um teste Playwright correspondente.
+- Testes devem cobrir:
+  - Renderizacao visual do componente/pagina
+  - Interacoes principais (cliques, preenchimento de form, navegacao)
+  - Estados de carregamento e erro
+  - Validacoes e feedback ao usuario
+- Coloque testes em `web/e2e/` seguindo o nome da pagina/componente.
+- Rode antes de concluir: `cd web && bun run test:e2e`
+
 ## Backend e integracao
 
 - Preserve compatibilidade de rotas com e sem prefixo `/api` quando seguir o padrao atual.
@@ -50,6 +61,8 @@ Portal do aluno com:
 
 - Backend: `cd api && bun run build`
 - Frontend: `cd web && bun run lint && bun run build`
+- **Testes Playwright** (se houver mudancas em UI):
+  - `cd web && bun run test:e2e`
 - Rode testes antes de concluir a task.
 - Quando a mudanca afetar fluxo real, valide tambem com deploy local:
   - Linux/macOS: `./deploy_and_push.sh`

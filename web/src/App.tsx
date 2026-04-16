@@ -1,30 +1,30 @@
-import React from "react";
 import { LazyMotion, domAnimation } from "framer-motion";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import Dashboard from "./components/Dashboard/Dashboard";
+import DashboardLayout from "./components/Dashboard/DashboardLayout";
+import CreateUser from "./components/Dashboard/Sidebar/CreateUser/CreateUser";
+import Login from "./components/Login/Login";
 import { ToastContainer } from "./components/ToastContainer";
 import { ToastProvider } from "./contexts/ToastContext";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useTheme } from "./hooks/useTheme";
+import ActivityLogsPage from "./pages/ActivityLogs";
+import AdminObservabilityPage from "./pages/AdminObservability";
+import AdminUsersPage from "./pages/AdminUsers";
+import EstruturaCursoPage from "./pages/EstruturaCurso";
+import ExerciseDetail from "./pages/ExerciseDetail";
+import ExercisesPage from "./pages/Exercises";
+import MateriaisPage from "./pages/Materiais";
+import MedalhasPage from "./pages/Medalhas";
+import MetasPage from "./pages/Metas";
+import NotificationsPage from "./pages/Notifications";
+import PerfilPage from "./pages/Perfil";
+import SsoCallback from "./pages/SsoCallback";
+import TurmaDetail from "./pages/TurmaDetail";
+import TurmasPage from "./pages/Turmas";
+import VideoaulaBonusPage from "./pages/VideoaulaBonus";
 import { appRoutes } from "./router/routes";
-
-const Login = React.lazy(() => import("./components/Login/Login"));
-const Dashboard = React.lazy(() => import("./components/Dashboard/Dashboard"));
-const CreateUser = React.lazy(() => import("./components/Dashboard/Sidebar/CreateUser/CreateUser"));
-const ActivityLogsPage = React.lazy(() => import("./pages/ActivityLogs"));
-const AdminObservabilityPage = React.lazy(() => import("./pages/AdminObservability"));
-const AdminUsersPage = React.lazy(() => import("./pages/AdminUsers"));
-const EstruturaCursoPage = React.lazy(() => import("./pages/EstruturaCurso"));
-const ExerciseDetail = React.lazy(() => import("./pages/ExerciseDetail"));
-const ExercisesPage = React.lazy(() => import("./pages/Exercises"));
-const MateriaisPage = React.lazy(() => import("./pages/Materiais"));
-const MedalhasPage = React.lazy(() => import("./pages/Medalhas"));
-const NotificationsPage = React.lazy(() => import("./pages/Notifications"));
-const PerfilPage = React.lazy(() => import("./pages/Perfil"));
-const SsoCallback = React.lazy(() => import("./pages/SsoCallback"));
-const TurmaDetail = React.lazy(() => import("./pages/TurmaDetail"));
-const TurmasPage = React.lazy(() => import("./pages/Turmas"));
-const VideoaulaBonusPage = React.lazy(() => import("./pages/VideoaulaBonus"));
 
 const estruturaCursoTabs = [
   "cursos",
@@ -35,68 +35,47 @@ const estruturaCursoTabs = [
   "turmas",
 ] as const;
 
-function RouteLoader() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        color: "var(--muted)",
-        fontWeight: 600,
-      }}
-    >
-      Carregando...
-    </div>
-  );
-}
-
 function AppContent() {
   useTheme();
   useAuthSession();
 
   return (
-    <React.Suspense fallback={<RouteLoader />}>
-      <Routes>
-        <Route path={appRoutes.login} element={<Login />} />
-        <Route path={appRoutes.authSso} element={<SsoCallback />} />
+    <Routes>
+      <Route path={appRoutes.login} element={<Login />} />
+      <Route path={appRoutes.authSso} element={<SsoCallback />} />
 
-        <Route element={<ProtectedRoute />}>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
           <Route path={appRoutes.dashboard} element={<Dashboard />} />
-          <Route path={appRoutes.exercicios} element={<ExercisesPage />} />
-          <Route path={appRoutes.exercicioDetalhe(":id")} element={<ExerciseDetail />} />
-          <Route path={appRoutes.aliases.exercicios} element={<Navigate to={appRoutes.exercicios} replace />} />
-          <Route path={appRoutes.materiais} element={<MateriaisPage />} />
-          <Route path={appRoutes.videoaulas} element={<VideoaulaBonusPage />} />
-          <Route path={appRoutes.medalhas} element={<MedalhasPage />} />
-          <Route path={appRoutes.perfil} element={<PerfilPage />} />
-          <Route path={appRoutes.turmaDetalhe(":id")} element={<TurmaDetail />} />
+          <Route path={appRoutes.content.exercicios} element={<ExercisesPage />} />
+          <Route path={appRoutes.content.exercicioDetalhe(":id")} element={<ExerciseDetail />} />
+          <Route path={appRoutes.content.materiais} element={<MateriaisPage />} />
+          <Route path={appRoutes.content.videoaulas} element={<VideoaulaBonusPage />} />
+          <Route path={appRoutes.operations.medalhas} element={<MedalhasPage />} />
+          <Route path={appRoutes.operations.metas} element={<MetasPage />} />
+          <Route path={appRoutes.profile} element={<PerfilPage />} />
+          <Route path={appRoutes.operations.turmaDetalhe(":id")} element={<TurmaDetail />} />
 
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-            <Route path={appRoutes.criarUsuario} element={<CreateUser />} />
-            <Route path={appRoutes.aliases.criarUsuario} element={<Navigate to={appRoutes.criarUsuario} replace />} />
-            <Route path={appRoutes.usuarios} element={<AdminUsersPage />} />
-            <Route path={appRoutes.notificacoes} element={<NotificationsPage />} />
+            <Route path={appRoutes.people.criar} element={<CreateUser />} />
+            <Route path={appRoutes.people.usuarios} element={<AdminUsersPage />} />
+            <Route path={appRoutes.operations.notificacoes} element={<NotificationsPage />} />
             {estruturaCursoTabs.map((tab) => (
-              <Route key={tab} path={appRoutes.estruturaCurso.tab(tab)} element={<EstruturaCursoPage />} />
+              <Route key={tab} path={appRoutes.content.estruturaCurso.tab(tab)} element={<EstruturaCursoPage />} />
             ))}
-            <Route path={appRoutes.estruturaCurso.base} element={<Navigate to={appRoutes.estruturaCurso.root} replace />} />
-            <Route path={appRoutes.aliases.usuarios} element={<Navigate to={appRoutes.usuarios} replace />} />
-            <Route path={appRoutes.logs} element={<ActivityLogsPage />} />
-            <Route path={appRoutes.observabilidade} element={<AdminObservabilityPage />} />
-            <Route path={appRoutes.aliases.logs} element={<Navigate to={appRoutes.logs} replace />} />
-            <Route path={appRoutes.aliases.observabilidade} element={<Navigate to={appRoutes.observabilidade} replace />} />
+            <Route path={appRoutes.content.estruturaCurso.base} element={<Navigate to={appRoutes.content.estruturaCurso.root} replace />} />
+            <Route path={appRoutes.system.logs} element={<ActivityLogsPage />} />
+            <Route path={appRoutes.system.observabilidade} element={<AdminObservabilityPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={["admin", "professor"]} />}>
-            <Route path={appRoutes.turmas} element={<TurmasPage />} />
-            <Route path={appRoutes.aliases.turmas} element={<Navigate to={appRoutes.turmas} replace />} />
+            <Route path={appRoutes.operations.turmas} element={<TurmasPage />} />
           </Route>
         </Route>
+      </Route>
 
-        <Route path="*" element={<Navigate to={appRoutes.dashboard} replace />} />
-      </Routes>
-    </React.Suspense>
+      <Route path="*" element={<Navigate to={appRoutes.dashboard} replace />} />
+    </Routes>
   );
 }
 

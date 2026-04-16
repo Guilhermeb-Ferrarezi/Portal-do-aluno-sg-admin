@@ -55,6 +55,13 @@ function sanitize(value: unknown): unknown {
   );
 }
 
+function hasMeaningfulPayload(value: unknown) {
+  if (value == null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (isRecord(value)) return Object.keys(value).length > 0;
+  return true;
+}
+
 export async function logActivity(params: ActivityLogParams) {
   const {
     actor,
@@ -83,18 +90,44 @@ export async function logActivity(params: ActivityLogParams) {
 
   const resolvedMethod = method ?? req?.method ?? null;
   const resolvedEndpoint = endpoint ?? req?.path ?? null;
+  const sanitizedMetadata = metadata !== null ? sanitize(metadata) : null;
+  const metadataRecord = isRecord(sanitizedMetadata) ? sanitizedMetadata : null;
+  const requestId =
+    (metadataRecord?.requestId != null ? String(metadataRecord.requestId) : null) ??
+    (req?.res ? req.res.getHeader("x-request-id")?.toString() ?? null : null);
+  const route =
+    (metadataRecord?.route != null ? String(metadataRecord.route) : null) ??
+    (req?.originalUrl ? req.originalUrl.split("?")[0] : null) ??
+    resolvedEndpoint;
+  const outcome = metadataRecord?.outcome != null ? String(metadataRecord.outcome) : null;
+  const errorType = metadataRecord?.errorType != null ? String(metadataRecord.errorType) : null;
+  const source = metadataRecord?.source != null ? String(metadataRecord.source) : null;
+  const contextArea =
+    metadataRecord?.contextArea != null ? String(metadataRecord.contextArea) : null;
+  const fallbackRequestBody =
+    requestBody !== undefined
+      ? requestBody
+      : resolvedMethod && resolvedMethod !== "GET" && hasMeaningfulPayload(req?.body)
+        ? req?.body
+        : undefined;
 
   const payload: Record<string, unknown> = { actor };
   if (normalizedEntityId) payload.entityId = normalizedEntityId;
   if (resolvedMethod) payload.method = resolvedMethod;
   if (resolvedEndpoint) payload.endpoint = resolvedEndpoint;
-  if (requestBody !== undefined) payload.requestBody = sanitize(requestBody);
+  if (route) payload.route = route;
+  if (requestId) payload.requestId = requestId;
+  if (outcome) payload.outcome = outcome;
+  if (errorType) payload.errorType = errorType;
+  if (source) payload.source = source;
+  if (contextArea) payload.contextArea = contextArea;
+  if (fallbackRequestBody !== undefined) payload.requestBody = sanitize(fallbackRequestBody);
   if (responseBody !== undefined) payload.responseBody = sanitize(responseBody);
   if (statusCode !== undefined) payload.statusCode = statusCode;
   if (responseTimeMs !== undefined) payload.responseTimeMs = responseTimeMs;
   if (ipAddress) payload.ipAddress = ipAddress;
   if (userAgent) payload.userAgent = userAgent;
-  if (metadata !== null) payload.metadata = sanitize(metadata);
+  if (sanitizedMetadata !== null) payload.metadata = sanitizedMetadata;
 
   const message = JSON.stringify(payload).slice(0, 8000);
 

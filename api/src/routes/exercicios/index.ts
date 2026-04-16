@@ -870,11 +870,26 @@ export function exerciciosRouter(jwtSecret: string) {
           return res.status(500).json({ message: "Nao foi possivel criar o exercicio no schema novo." });
         }
 
+        const exercicio = mapNewExerciseRow({
+          ...row,
+          modulo: phaseRow.module_name ?? null,
+          tema: phaseRow.phase_name ?? null,
+        }, {
+          multiplaQuestoes,
+        });
+
+        const responseBody = {
+          message: "Exercicio criado!",
+          exercicio,
+        };
+
         logActivity({
           actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "create",
           entityType: "exercicio",
           entityId: String(row.id),
+          responseBody,
+          statusCode: 201,
           metadata: {
             titulo: row.title,
             courseId: phaseRow.course_id,
@@ -886,18 +901,7 @@ export function exerciciosRouter(jwtSecret: string) {
           req,
         }).catch((err) => console.error("activity log error:", err));
 
-        const exercicio = mapNewExerciseRow({
-          ...row,
-          modulo: phaseRow.module_name ?? null,
-          tema: phaseRow.phase_name ?? null,
-        }, {
-          multiplaQuestoes,
-        });
-
-        return res.status(201).json({
-          message: "Exercicio criado!",
-          exercicio,
-        });
+        return res.status(201).json(responseBody);
       }
 
       const parsed = createSchema.safeParse(req.body);
@@ -969,23 +973,7 @@ export function exerciciosRouter(jwtSecret: string) {
         }
       }
       
-      logActivity({
-        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
-        action: "create",
-        entityType: "exercicio",
-        entityId: row.id,
-        metadata: {
-          titulo: row.titulo,
-          modulo: row.modulo,
-          publicado: row.publicado,
-          categoria: row.categoria,
-          turmaIds,
-          alunoIds,
-        },
-        req,
-      }).catch((err) => console.error("activity log error:", err));
-
-        return res.status(201).json({
+      const responseBody = {
         message: "Exercício criado!",
         exercicio: {
           id: row.id,
@@ -1010,7 +998,26 @@ export function exerciciosRouter(jwtSecret: string) {
           anexoNome: row.anexo_nome,
           createdAt: row.created_at,
         },
-      });
+      };
+
+      logActivity({
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+        action: "create",
+        entityType: "exercicio",
+        entityId: row.id,
+        responseBody,
+        statusCode: 201,
+        metadata: {
+          titulo: row.titulo,
+          modulo: row.modulo,
+          publicado: row.publicado,
+          categoria: row.categoria,
+          turmaIds,
+          alunoIds,
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+      return res.status(201).json(responseBody);
     }
   );
 
@@ -1205,22 +1212,6 @@ export function exerciciosRouter(jwtSecret: string) {
           return res.status(500).json({ message: "Nao foi possivel atualizar o exercicio no schema novo." });
         }
 
-        logActivity({
-          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
-          action: "update",
-          entityType: "exercicio",
-          entityId: String(rowNew.id),
-          metadata: {
-            titulo: rowNew.title,
-            courseId: phaseRow.course_id,
-            modulo: phaseRow.module_name,
-            tema: phaseRow.phase_name,
-            phaseId: rowNew.phase_id,
-            categoria: "programacao",
-          },
-          req,
-        }).catch((err) => console.error("activity log error:", err));
-
         const persistedMultiplaQuestoes = hasMultiplaInput
           ? multiplaQuestoes
           : (await loadNewSchemaMultiplaMap(pool, [exerciseId])).get(exerciseId) ?? [];
@@ -1233,10 +1224,30 @@ export function exerciciosRouter(jwtSecret: string) {
           multiplaQuestoes: persistedMultiplaQuestoes,
         });
 
-        return res.json({
+        const responseBody = {
           message: "Exercicio atualizado!",
           exercicio,
-        });
+        };
+
+        logActivity({
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+          action: "update",
+          entityType: "exercicio",
+          entityId: String(rowNew.id),
+          responseBody,
+          statusCode: 200,
+          metadata: {
+            titulo: rowNew.title,
+            courseId: phaseRow.course_id,
+            modulo: phaseRow.module_name,
+            tema: phaseRow.phase_name,
+            phaseId: rowNew.phase_id,
+            categoria: "programacao",
+          },
+          req,
+        }).catch((err) => console.error("activity log error:", err));
+
+        return res.json(responseBody);
       }
 
       const parsed = createSchema.safeParse(req.body);
@@ -1337,21 +1348,7 @@ export function exerciciosRouter(jwtSecret: string) {
         }
       }
       
-      logActivity({
-        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
-        action: "update",
-        entityType: "exercicio",
-        entityId: row.id,
-        metadata: {
-          titulo: row.titulo,
-          modulo: row.modulo,
-          publicado: row.publicado,
-          categoria: row.categoria,
-        },
-        req,
-      }).catch((err) => console.error("activity log error:", err));
-
-      return res.json({
+      const responseBody = {
         message: "Exercício atualizado!",
         exercicio: {
           id: row.id,
@@ -1377,7 +1374,25 @@ export function exerciciosRouter(jwtSecret: string) {
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         },
-      });
+      };
+
+      logActivity({
+        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+        action: "update",
+        entityType: "exercicio",
+        entityId: row.id,
+        responseBody,
+        statusCode: 200,
+        metadata: {
+          titulo: row.titulo,
+          modulo: row.modulo,
+          publicado: row.publicado,
+          categoria: row.categoria,
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+      return res.json(responseBody);
     }
   );
 
@@ -1492,16 +1507,20 @@ export function exerciciosRouter(jwtSecret: string) {
 
         await pool.query(`DELETE FROM exercise WHERE id = $1`, [exerciseId]);
 
+        const responseBody = { message: "Exercicio deletado com sucesso" };
+
         logActivity({
           actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "delete",
           entityType: "exercicio",
           entityId: String(exerciseId),
+          responseBody,
+          statusCode: 200,
           metadata: { id: exerciseId },
           req,
         }).catch((err) => console.error("activity log error:", err));
 
-        return res.json({ message: "Exercicio deletado com sucesso" });
+        return res.json(responseBody);
       }
 
       const checkExercicio = await pool.query<ExercicioRow>(
@@ -1521,16 +1540,20 @@ export function exerciciosRouter(jwtSecret: string) {
 
       await pool.query(`DELETE FROM exercicios WHERE id = $1`, [id]);
 
+      const responseBody = { message: "Exercicio deletado com sucesso" };
+
       logActivity({
         actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
         action: "delete",
         entityType: "exercicio",
         entityId: id,
+        responseBody,
+        statusCode: 200,
         metadata: { id },
         req,
       }).catch((err) => console.error("activity log error:", err));
 
-      return res.json({ message: "Exercicio deletado com sucesso" });
+      return res.json(responseBody);
     }
   );
 

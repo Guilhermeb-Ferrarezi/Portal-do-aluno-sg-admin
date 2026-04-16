@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { appRoutes } from "@/router/routes";
 import { getRole } from "../auth/auth";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import { AnimatedToast } from "../components/animate-ui";
@@ -330,8 +331,8 @@ export default function ExerciseDetail() {
   }
 
   function handleBack() {
-    if (navState?.from === "/dashboard/exercicios") {
-      navigate("/dashboard/exercicios", {
+    if (navState?.from === appRoutes.exercicios) {
+      navigate(appRoutes.exercicios, {
         state: navState.fromSection ? { restoreSection: navState.fromSection } : null,
       });
       return;
@@ -342,7 +343,7 @@ export default function ExerciseDetail() {
       return;
     }
 
-    navigate("/dashboard/exercicios");
+    navigate(appRoutes.exercicios);
   }
 
   const selectClass =

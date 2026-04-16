@@ -20,6 +20,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function readString(value: unknown) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+function readNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function toActorRole(role: number | null): "aluno" | "professor" | "admin" | null {
   if (role === 1) return "aluno";
   if (role === 2) return "professor";
@@ -94,14 +109,39 @@ function parseMessageMetadata(message: string | null): ParsedMessage {
           ? actor.role
           : null;
       const actorRole = actorRoleRaw !== null ? String(actorRoleRaw) : null;
+      const metadata = isRecord(parsed.metadata) ? parsed.metadata : null;
 
-      const scRaw = parsed.statusCode;
-      const statusCodeParsed: number | null =
-        typeof scRaw === "number" ? scRaw :
-        typeof scRaw === "string" && scRaw !== "" ? Number(scRaw) : null;
-      const rtRaw = parsed.responseTimeMs;
-      const responseTimeParsed: number | null =
-        typeof rtRaw === "number" ? rtRaw : null;
+      const requestRecord = isRecord(parsed.request) ? parsed.request : null;
+      const responseRecord = isRecord(parsed.response) ? parsed.response : null;
+      const statusCodeParsed =
+        readNumber(parsed.statusCode) ??
+        readNumber(responseRecord?.statusCode) ??
+        readNumber(metadata?.statusCode);
+      const responseTimeParsed =
+        readNumber(parsed.responseTimeMs) ??
+        readNumber(responseRecord?.responseTimeMs) ??
+        readNumber(metadata?.responseTimeMs);
+      const requestId = readString(parsed.requestId) ?? readString(metadata?.requestId);
+      const route =
+        readString(parsed.route) ??
+        readString(requestRecord?.route) ??
+        readString(metadata?.route);
+      const outcome =
+        readString(parsed.outcome) ??
+        readString(responseRecord?.outcome) ??
+        readString(metadata?.outcome);
+      const errorType =
+        readString(parsed.errorType) ??
+        readString(responseRecord?.errorType) ??
+        readString(metadata?.errorType);
+      const source =
+        readString(parsed.source) ??
+        readString(responseRecord?.source) ??
+        readString(metadata?.source);
+      const contextArea =
+        readString(parsed.contextArea) ??
+        readString(responseRecord?.contextArea) ??
+        readString(metadata?.contextArea);
 
       return {
         actor: actor
@@ -114,21 +154,51 @@ function parseMessageMetadata(message: string | null): ParsedMessage {
           : null,
         actorRole: normalizeActorRole(actorRole),
         entityId: parsed.entityId != null ? String(parsed.entityId) : null,
-        method: parsed.method != null ? String(parsed.method) : null,
-        endpoint: parsed.endpoint != null ? String(parsed.endpoint) : null,
-        requestBody: parsed.requestBody !== undefined ? parsed.requestBody : undefined,
-        responseBody: parsed.responseBody !== undefined ? parsed.responseBody : undefined,
+        method:
+          parsed.method != null
+            ? String(parsed.method)
+            : requestRecord?.method != null
+              ? String(requestRecord.method)
+              : null,
+        endpoint:
+          parsed.endpoint != null
+            ? String(parsed.endpoint)
+            : requestRecord?.endpoint != null
+              ? String(requestRecord.endpoint)
+              : null,
+        requestBody:
+          parsed.requestBody !== undefined
+            ? parsed.requestBody
+            : requestRecord?.body !== undefined
+              ? requestRecord.body
+              : undefined,
+        responseBody:
+          parsed.responseBody !== undefined
+            ? parsed.responseBody
+            : responseRecord?.body !== undefined
+              ? responseRecord.body
+              : undefined,
         statusCode: statusCodeParsed,
         responseTimeMs: responseTimeParsed,
-        ipAddress: parsed.ipAddress != null ? String(parsed.ipAddress) : null,
-        userAgent: parsed.userAgent != null ? String(parsed.userAgent) : null,
-        requestId: null,
-        route: null,
-        outcome: null,
-        errorType: null,
-        source: null,
-        contextArea: null,
-        metadata: isRecord(parsed.metadata) ? parsed.metadata : null,
+        ipAddress:
+          parsed.ipAddress != null
+            ? String(parsed.ipAddress)
+            : requestRecord?.ipAddress != null
+              ? String(requestRecord.ipAddress)
+              : null,
+        userAgent:
+          parsed.userAgent != null
+            ? String(parsed.userAgent)
+            : requestRecord?.userAgent != null
+              ? String(requestRecord.userAgent)
+              : null,
+        requestId,
+        route,
+        outcome,
+        errorType,
+        source,
+        contextArea,
+        metadata,
       };
     } catch {
       return empty;
@@ -318,6 +388,12 @@ export function activityLogsRouter(jwtSecret: string) {
               responseBody: parsed.responseBody ?? null,
               statusCode: parsed.statusCode,
               responseTimeMs: parsed.responseTimeMs,
+              requestId: parsed.requestId,
+              route: parsed.route,
+              outcome: parsed.outcome,
+              errorType: parsed.errorType,
+              source: parsed.source,
+              contextArea: parsed.contextArea,
               metadata: parsed.metadata,
               ipAddress: parsed.ipAddress,
               userAgent: parsed.userAgent,

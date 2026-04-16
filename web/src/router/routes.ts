@@ -7,37 +7,66 @@ export type EstruturaCursoTab =
   | "turmas";
 
 const DASHBOARD_BASE = "/dashboard";
-const ESTRUTURA_CURSO_BASE = `${DASHBOARD_BASE}/estrutura-curso`;
+const OPERACOES_BASE = `${DASHBOARD_BASE}/operacao`;
+const CONTEUDO_BASE = `${DASHBOARD_BASE}/conteudo`;
+const USUARIOS_BASE = `${DASHBOARD_BASE}/usuarios`;
+const SISTEMA_BASE = `${DASHBOARD_BASE}/sistema`;
+const ESTRUTURA_CURSO_BASE = `${CONTEUDO_BASE}/estrutura`;
 
 export const appRoutes = {
   login: "/login",
   authSso: "/auth/sso",
   dashboard: DASHBOARD_BASE,
-  exercicios: `${DASHBOARD_BASE}/exercicios`,
-  exercicioDetalhe: (id: string) => `${DASHBOARD_BASE}/exercicios/${id}`,
-  materiais: `${DASHBOARD_BASE}/materiais`,
-  videoaulas: `${DASHBOARD_BASE}/videoaulas`,
-  medalhas: `${DASHBOARD_BASE}/medalhas`,
+  profile: `${DASHBOARD_BASE}/perfil`,
+  operations: {
+    base: OPERACOES_BASE,
+    turmas: `${OPERACOES_BASE}/turmas`,
+    turmaDetalhe: (id: string) => `${OPERACOES_BASE}/turmas/${id}`,
+    metas: `${OPERACOES_BASE}/metas`,
+    medalhas: `${OPERACOES_BASE}/medalhas`,
+    notificacoes: `${OPERACOES_BASE}/notificacoes`,
+  },
+  content: {
+    base: CONTEUDO_BASE,
+    exercicios: `${CONTEUDO_BASE}/exercicios`,
+    exercicioDetalhe: (id: string) => `${CONTEUDO_BASE}/exercicios/${id}`,
+    materiais: `${CONTEUDO_BASE}/materiais`,
+    videoaulas: `${CONTEUDO_BASE}/videoaulas`,
+    estruturaCurso: {
+      base: ESTRUTURA_CURSO_BASE,
+      root: `${ESTRUTURA_CURSO_BASE}/cursos`,
+      tab: (tab: EstruturaCursoTab) => `${ESTRUTURA_CURSO_BASE}/${tab}`,
+    },
+  },
+  people: {
+    base: USUARIOS_BASE,
+    usuarios: `${USUARIOS_BASE}/usuarios`,
+    criar: `${USUARIOS_BASE}/criar`,
+  },
+  system: {
+    base: SISTEMA_BASE,
+    logs: `${SISTEMA_BASE}/logs`,
+    observabilidade: `${SISTEMA_BASE}/observabilidade`,
+  },
+  // Transitional flat accessors for app-internal callers.
+  exercicios: `${CONTEUDO_BASE}/exercicios`,
+  exercicioDetalhe: (id: string) => `${CONTEUDO_BASE}/exercicios/${id}`,
+  materiais: `${CONTEUDO_BASE}/materiais`,
+  videoaulas: `${CONTEUDO_BASE}/videoaulas`,
+  medalhas: `${OPERACOES_BASE}/medalhas`,
+  metas: `${OPERACOES_BASE}/metas`,
   perfil: `${DASHBOARD_BASE}/perfil`,
-  turmas: `${DASHBOARD_BASE}/turmas`,
-  turmaDetalhe: (id: string) => `${DASHBOARD_BASE}/turmas/${id}`,
-  criarUsuario: `${DASHBOARD_BASE}/criar-usuario`,
-  usuarios: `${DASHBOARD_BASE}/usuarios`,
-  notificacoes: `${DASHBOARD_BASE}/notificacoes`,
-  logs: `${DASHBOARD_BASE}/logs`,
-  observabilidade: `${DASHBOARD_BASE}/observabilidade`,
+  turmas: `${OPERACOES_BASE}/turmas`,
+  turmaDetalhe: (id: string) => `${OPERACOES_BASE}/turmas/${id}`,
+  criarUsuario: `${USUARIOS_BASE}/criar`,
+  usuarios: `${USUARIOS_BASE}/usuarios`,
+  notificacoes: `${OPERACOES_BASE}/notificacoes`,
+  logs: `${SISTEMA_BASE}/logs`,
+  observabilidade: `${SISTEMA_BASE}/observabilidade`,
   estruturaCurso: {
     base: ESTRUTURA_CURSO_BASE,
     root: `${ESTRUTURA_CURSO_BASE}/cursos`,
     tab: (tab: EstruturaCursoTab) => `${ESTRUTURA_CURSO_BASE}/${tab}`,
-  },
-  aliases: {
-    exercicios: "/exercicios",
-    turmas: "/turmas",
-    criarUsuario: "/criar-usuario",
-    usuarios: "/usuarios",
-    logs: "/logs",
-    observabilidade: "/observabilidade",
   },
 } as const;
 

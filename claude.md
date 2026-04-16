@@ -48,6 +48,7 @@ Este arquivo e o contexto completo do repositorio.
 - Nao deixe bugs de encoding, caracteres especiais ou texto corrompido.
 - Sempre prefira usar componentes existentes de `shadcn`/`Radix` e os wrappers em `web/src/components/ui`.
 - Antes de criar markup novo, confira se ja existe componente base, variante ou composicao reutilizavel.
+- **Toda UI nova ou alterada deve incluir um teste Playwright correspondente** — sem excecoes.
 
 ## Comandos reais do projeto
 
@@ -66,12 +67,14 @@ Este arquivo e o contexto completo do repositorio.
 
 - Backend: `cd api && bun run build`
 - Frontend: `cd web && bun run lint && bun run build`
+- **Testes Playwright** (para mudancas em UI):
+  - `cd web && bun run test:e2e`
 
 Observacao:
 
 - o build do frontend roda `check:text-escapes` antes do `vite build`
-- hoje nao existe suite de testes automatizada no repositorio
-- build + lint + smoke test sao a verificacao minima
+- **Playwright e2e testes sao obrigatorios para toda nova UI**
+- build + lint + e2e tests (se houver UI) + smoke test sao a verificacao minima
 
 ### Stack completa com Docker
 
@@ -98,9 +101,10 @@ Antes de concluir:
 
 1. Rode o build da `api`.
 2. Rode `lint` e `build` da `web`.
-3. Se a mudanca afetar fluxo visivel, login, upload, presenca, proxy ou integracao entre modulos, rode tambem o smoke test com Docker.
-4. Se o deploy local for relevante, use `./deploy_and_push.sh` ou `deploy_and_push.bat`, mas saia antes de commit/push.
-5. Se nao foi possivel validar algo, declare explicitamente o que ficou sem testar.
+3. **Se houver mudancas em UI, rode os testes Playwright**: `cd web && bun run test:e2e`
+4. Se a mudanca afetar fluxo visivel, login, upload, presenca, proxy ou integracao entre modulos, rode tambem o smoke test com Docker.
+5. Se o deploy local for relevante, use `./deploy_and_push.sh` ou `deploy_and_push.bat`, mas saia antes de commit/push.
+6. Se nao foi possivel validar algo, declare explicitamente o que ficou sem testar.
 
 ## Mapa rapido do repositorio
 
@@ -197,6 +201,36 @@ Em deploy containerizado:
 
 - `web/nginx.conf` encaminha `/api/*` para a API
 - `web/nginx.conf` faz bridge de `/ws/*` para `/api/ws/*`
+
+## Playwright: estrategia de testes
+
+### Quando escrever testes
+
+- **Sempre** quando criar ou alterar UI (paginas, componentes, modais, forms)
+- **Sempre** quando alterar fluxos de navegacao ou interacao
+- **Sempre** quando adicionar validacao ou feedback visual ao usuario
+
+### O que testar
+
+1. **Renderizacao basica**: componente/pagina aparece e tem conteudo esperado
+2. **Interacoes**: cliques, preenchimento de inputs, submissao de forms
+3. **Estados**: loading, erro, sucesso, vazio
+4. **Validacoes**: feedback visual de erros, mensagens
+5. **Navegacao**: links funcionam, redirecionamentos acontecem
+6. **Integracao**: se UI chamar API, mocke endpoints ou use `Page.route()`
+
+### Localizacao dos testes
+
+- Coloque em `web/e2e/` com nome descritivo
+- Exemplo: `web/e2e/pages-exercises.spec.ts` para a pagina Exercises
+- Exemplo: `web/e2e/components-modal.spec.ts` para um modal
+
+### Rodando testes
+
+- Todos: `cd web && bun run test:e2e`
+- Com UI: `cd web && bun run test:e2e --ui`
+- Um arquivo: `cd web && bun run test:e2e e2e/seu-teste.spec.ts`
+- Com debug: `cd web && bun run test:e2e --debug`
 
 Se alterar API, presenca ou websocket, revise tambem essas camadas de proxy.
 

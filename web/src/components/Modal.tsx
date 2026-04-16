@@ -16,8 +16,9 @@ export interface ModalProps {
   footer?: React.ReactNode;
   closeOnEscape?: boolean;
   closeOnBackdropClick?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  bodyClassName?: string;
 }
 
 export default function Modal({
@@ -30,14 +31,17 @@ export default function Modal({
   closeOnBackdropClick = true,
   size = "md",
   className = "",
+  bodyClassName = "",
 }: ModalProps) {
   const titleId = useId();
 
   const sizeClassName =
     size === "sm"
       ? "max-w-[420px]"
+      : size === "xl"
+        ? "max-w-[980px]"
       : size === "lg"
-        ? "max-w-[680px]"
+        ? "max-w-[820px]"
         : "max-w-[520px]";
 
   return (
@@ -68,7 +72,7 @@ export default function Modal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+        <div className={cn("min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5", bodyClassName)}>
           {children}
         </div>
 
