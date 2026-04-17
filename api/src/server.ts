@@ -22,6 +22,8 @@ import { presenceRouter } from "./routes/presence";
 import { initializeDatabaseTables } from "./db/migrations";
 import { setupPresenceWebSocketServer } from "./realtime/presence";
 import { createStudentViewSsoStore } from "./services/studentViewSsoStore";
+import { createPasswordResetStore } from "./services/passwordResetStore";
+import { createPasswordResetMailer } from "./services/passwordResetMailer";
 import { createHttpMetrics } from "./observability/httpMetrics";
 import { createLogger } from "./observability/logger";
 import { authGuard } from "./middlewares/auth";
@@ -32,6 +34,14 @@ import {
   createRequestObservabilityMiddleware,
   logRequestError,
 } from "./observability/requestObservability";
+
+function optionalEmailEnv() {
+  return z.preprocess((value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed.length === 0 ? undefined : trimmed;
+  }, z.string().email().optional());
+}
 
 function parseBoolean(value: unknown, defaultValue: boolean) {
   if (typeof value !== "string") {
@@ -71,6 +81,14 @@ const envSchema = z.object({
   STUDENT_PORTAL_SSO_CALLBACK_PATH: z.string().min(1).optional(),
   STUDENT_PORTAL_SSO_SHARED_SECRET: z.string().min(32).optional(),
   STUDENT_PORTAL_SSO_TTL_SECONDS: z.coerce.number().int().positive().optional(),
+  PASSWORD_RESET_BASE_URL: z.string().url().optional(),
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().positive().optional(),
+  PASSWORD_RESET_TOKEN_SECRET: z.string().min(32).optional(),
+  SENDGRID_API_KEY: z.string().min(20).optional(),
+  EMAIL_FROM: optionalEmailEnv(),
+  SENDGRID_FROM_EMAIL: optionalEmailEnv(),
+  EMAIL_REPLY_TO: optionalEmailEnv(),
+  FromEmail: optionalEmailEnv(),
   REDIS_URL: z.string().url().optional(),
   REDIS_KEY_PREFIX: z.string().optional(),
   OBSERVABILITY_ENABLED: z.string().optional(),
@@ -220,6 +238,20 @@ const studentViewSsoStore = env.REDIS_URL
       keyPrefix: env.REDIS_KEY_PREFIX,
     })
   : undefined;
+const passwordResetStore = env.REDIS_URL
+  ? createPasswordResetStore({
+      redisUrl: env.REDIS_URL,
+      keyPrefix: env.REDIS_KEY_PREFIX,
+    })
+  : undefined;
+const passwordResetMailer =
+  env.SENDGRID_API_KEY && (env.EMAIL_FROM || env.SENDGRID_FROM_EMAIL || env.FromEmail)
+    ? createPasswordResetMailer({
+        apiKey: env.SENDGRID_API_KEY,
+        fromEmail: env.EMAIL_FROM || env.SENDGRID_FROM_EMAIL || env.FromEmail || "",
+        replyToEmail: env.EMAIL_REPLY_TO,
+      })
+    : undefined;
 
 function shouldSkipApiLimiter(path: string) {
   return (
@@ -378,6 +410,11 @@ app.use(
     studentPortalSsoSharedSecret: env.STUDENT_PORTAL_SSO_SHARED_SECRET,
     studentPortalSsoTtlSeconds: env.STUDENT_PORTAL_SSO_TTL_SECONDS,
     studentViewSsoStore,
+    passwordResetTokenSecret: env.PASSWORD_RESET_TOKEN_SECRET,
+    passwordResetStore,
+    passwordResetMailer,
+    passwordResetBaseUrl: env.PASSWORD_RESET_BASE_URL,
+    passwordResetTtlMinutes: env.PASSWORD_RESET_TTL_MINUTES,
   })
 );
 app.use(usersRouter(env.JWT_SECRET));
@@ -404,6 +441,11 @@ app.use(
     studentPortalSsoSharedSecret: env.STUDENT_PORTAL_SSO_SHARED_SECRET,
     studentPortalSsoTtlSeconds: env.STUDENT_PORTAL_SSO_TTL_SECONDS,
     studentViewSsoStore,
+    passwordResetTokenSecret: env.PASSWORD_RESET_TOKEN_SECRET,
+    passwordResetStore,
+    passwordResetMailer,
+    passwordResetBaseUrl: env.PASSWORD_RESET_BASE_URL,
+    passwordResetTtlMinutes: env.PASSWORD_RESET_TTL_MINUTES,
   })
 );
 app.use("/api", usersRouter(env.JWT_SECRET));
@@ -480,6 +522,7 @@ app.use(
     });
   } catch (error) {
     await studentViewSsoStore?.disconnect();
+    await passwordResetStore?.disconnect();
     logger.error("api_server_boot_failed", {
       error:
         error instanceof Error
@@ -496,6 +539,7 @@ app.use(
 
 async function shutdown() {
   await studentViewSsoStore?.disconnect();
+  await passwordResetStore?.disconnect();
 }
 
 process.on("SIGINT", () => {

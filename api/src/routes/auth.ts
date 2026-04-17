@@ -9,6 +9,8 @@ import { requireRole } from "../middlewares/requireRole";
 import { getRequestId } from "../observability/requestObservability";
 import { logActivity } from "../utils/activityLog";
 import type { StudentViewSsoStore } from "../services/studentViewSsoStore";
+import type { PasswordResetStore } from "../services/passwordResetStore";
+import type { PasswordResetMailer } from "../services/passwordResetMailer";
 
 export type Role = 1 | 2 | 3;
 
@@ -37,6 +39,11 @@ type AuthRouterOptions = {
   studentPortalSsoSharedSecret?: string;
   studentPortalSsoTtlSeconds?: number;
   studentViewSsoStore?: StudentViewSsoStore;
+  passwordResetBaseUrl?: string;
+  passwordResetTtlMinutes?: number;
+  passwordResetTokenSecret?: string;
+  passwordResetStore?: PasswordResetStore;
+  passwordResetMailer?: PasswordResetMailer;
 };
 
 const loginSchema = z.object({
@@ -48,12 +55,37 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(20, "Refresh token invalido"),
 });
 
+const passwordResetRequestSchema = z.object({
+  usuario: z.string().min(1, "Usuario obrigatorio"),
+});
+
+const passwordResetValidateSchema = z.object({
+  token: z.string().min(32, "Token invalido").max(256, "Token invalido"),
+});
+
+const passwordResetConfirmSchema = z.object({
+  token: z.string().min(32, "Token invalido").max(256, "Token invalido"),
+  novaSenha: z.string().min(6, "Senha muito curta"),
+});
+
 const studentViewStartSchema = z.object({
   returnTo: z.string().url("URL de retorno invalida").max(2048).optional(),
 });
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function hashPasswordResetToken(token: string, secret: string) {
+  return crypto.createHmac("sha256", secret).update(token).digest("hex");
+}
+
+function issueSecureUrlSafeToken(bytes = 48) {
+  return crypto.randomBytes(bytes).toString("base64url");
+}
+
+function isSafePasswordResetTokenFormat(token: string) {
+  return /^[A-Za-z0-9_-]+$/.test(token);
 }
 
 function sha256Base64(value: string) {
@@ -180,6 +212,18 @@ export function authRouter(
   const studentPortalSsoSharedSecret = options.studentPortalSsoSharedSecret?.trim();
   const studentPortalSsoTtlSeconds = Math.max(30, options.studentPortalSsoTtlSeconds ?? 120);
   const studentViewSsoStore = options.studentViewSsoStore;
+  const passwordResetBaseUrl = options.passwordResetBaseUrl?.trim();
+  const passwordResetTtlMinutes = Math.max(5, options.passwordResetTtlMinutes ?? 30);
+  const passwordResetTokenSecret =
+    options.passwordResetTokenSecret?.trim() || `${jwtSecret}:password-reset`;
+  const passwordResetStore = options.passwordResetStore;
+  const passwordResetMailer = options.passwordResetMailer;
+
+  function resolvePasswordResetTokenHashes(rawToken: string) {
+    const currentHash = hashPasswordResetToken(rawToken, passwordResetTokenSecret);
+    const legacyHash = hashToken(rawToken);
+    return currentHash === legacyHash ? [currentHash] : [currentHash, legacyHash];
+  }
 
   function resolveRequestRoute(req: AuthRequest) {
     return req.originalUrl.split("?")[0] || req.path;
@@ -251,6 +295,91 @@ export function authRouter(
     );
 
     return refreshToken;
+  }
+
+  async function issuePasswordResetToken(userId: number) {
+    if (!passwordResetStore) {
+      throw new Error("Redis da recuperacao de senha nao configurado.");
+    }
+
+    const resetToken = issueSecureUrlSafeToken();
+    const tokenHash = hashPasswordResetToken(resetToken, passwordResetTokenSecret);
+    const expiresAt = new Date(Date.now() + passwordResetTtlMinutes * 60 * 1000);
+    const userResult = await pool.query<Pick<DbUserRow, "id" | "email" | "role">>(
+      `SELECT id, email, role
+       FROM "user"
+       WHERE id = $1
+       LIMIT 1`,
+      [userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user?.email) {
+      throw new Error("Usuario nao encontrado para recuperacao de senha.");
+    }
+
+    await passwordResetStore.issue(
+      tokenHash,
+      {
+        userId: String(user.id),
+        email: user.email,
+        role: user.role,
+        expiresAt: expiresAt.toISOString(),
+      },
+      passwordResetTtlMinutes * 60
+    );
+
+    return {
+      resetToken,
+      expiresAt,
+    };
+  }
+
+  function resolvePasswordResetUrl(req: AuthRequest, token: string) {
+    const origin =
+      passwordResetBaseUrl ||
+      req.header("origin")?.trim() ||
+      (req.header("host") ? `${req.protocol}://${req.header("host")}` : null);
+
+    if (!origin) {
+      return null;
+    }
+
+    try {
+      const url = new URL("/recuperar-senha", origin);
+      url.searchParams.set("token", token);
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  async function findValidPasswordResetToken(rawToken: string) {
+    if (!passwordResetStore) {
+      return { ok: false as const, message: "Recuperacao de senha indisponivel no momento." };
+    }
+
+    if (!isSafePasswordResetTokenFormat(rawToken)) {
+      return { ok: false as const, message: "Token de recuperacao invalido ou expirado." };
+    }
+
+    let tokenEntry = null;
+    for (const tokenHash of resolvePasswordResetTokenHashes(rawToken)) {
+      tokenEntry = await passwordResetStore.get(tokenHash);
+      if (tokenEntry) {
+        break;
+      }
+    }
+
+    if (!tokenEntry) {
+      return { ok: false as const, message: "Token de recuperacao invalido ou expirado." };
+    }
+
+    if (new Date(tokenEntry.expiresAt) <= new Date()) {
+      return { ok: false as const, message: "Token de recuperacao expirado." };
+    }
+
+    return { ok: true as const, tokenEntry };
   }
 
   router.post("/login", async (req, res) => {
@@ -331,6 +460,25 @@ export function authRouter(
         return res.status(401).json({ message: "Usuario ou senha invalidos" });
       }
 
+      if (user.role === 1) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actor: { id: String(user.id), role: String(user.role) },
+          action: "login_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.login",
+            outcome: "denied",
+            statusCode: 403,
+            errorType: "StudentAdminPortalDenied",
+            loginInput,
+            motivo: "student_admin_portal_denied",
+          }),
+        });
+        return res.status(403).json({
+          message: "Alunos nao podem acessar o portal administrativo.",
+        });
+      }
+
       const token = signAccessToken(user);
       const refreshToken = await issueRefreshToken(user.id);
 
@@ -357,6 +505,177 @@ export function authRouter(
           nome: user.name,
           role: user.role,
         },
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Erro interno" });
+    }
+  });
+
+  router.post("/password-reset/request", async (req, res) => {
+    const parsed = passwordResetRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Dados invalidos",
+        issues: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const loginInput = parsed.data.usuario.trim().replace(/\s+/g, " ");
+
+    try {
+      if (!passwordResetStore || !passwordResetMailer) {
+        return res.status(500).json({ message: "Recuperacao de senha indisponivel no momento." });
+      }
+
+      const result = await pool.query<DbUserRow>(
+        `SELECT id, name, email, password_hash, role
+         FROM "user"
+         WHERE LOWER(email) = LOWER($1)
+            OR LOWER(TRIM(REGEXP_REPLACE(name, '\s+', ' ', 'g'))) = LOWER($1)
+         LIMIT 1`,
+        [loginInput]
+      );
+
+      const user = result.rows[0];
+      const genericMessage =
+        "Se encontramos uma conta correspondente, enviamos as instrucoes para redefinir a senha.";
+
+      if (!user || !isValidRole(user.role) || user.role === 1) {
+        return res.status(200).json({ message: genericMessage });
+      }
+
+      const { resetToken, expiresAt } = await issuePasswordResetToken(user.id);
+      const resetUrl = resolvePasswordResetUrl(req as AuthRequest, resetToken);
+      if (!resetUrl) {
+        throw new Error("PASSWORD_RESET_BASE_URL nao configurado para envio de e-mail.");
+      }
+      await passwordResetMailer.sendPasswordResetEmail({
+        toEmail: user.email,
+        toName: user.name,
+        resetUrl,
+        expiresAt: expiresAt.toISOString(),
+      });
+
+      void trackAuthActivity({
+        req: req as AuthRequest,
+        actor: { id: String(user.id), role: String(user.role) },
+        action: "password_reset_requested",
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.password_reset.request",
+          outcome: "success",
+          statusCode: 200,
+        }),
+      });
+
+      return res.status(200).json({
+        message: genericMessage,
+        ...(process.env.NODE_ENV !== "production"
+          ? {
+              expiresAt: expiresAt.toISOString(),
+            }
+          : {}),
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Erro interno" });
+    }
+  });
+
+  router.get("/password-reset/validate", async (req, res) => {
+    const parsed = passwordResetValidateSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Token invalido" });
+    }
+
+    try {
+      const validation = await findValidPasswordResetToken(parsed.data.token);
+      if (!validation.ok) {
+        return res.status(400).json({ message: validation.message, valid: false });
+      }
+
+      return res.status(200).json({
+        valid: true,
+        email: validation.tokenEntry.email,
+        expiresAt: validation.tokenEntry.expiresAt,
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Erro interno" });
+    }
+  });
+
+  router.post("/password-reset/confirm", async (req, res) => {
+    const parsed = passwordResetConfirmSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Dados invalidos",
+        issues: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    try {
+      if (!passwordResetStore) {
+        return res.status(500).json({ message: "Recuperacao de senha indisponivel no momento." });
+      }
+
+      if (!isSafePasswordResetTokenFormat(parsed.data.token)) {
+        return res.status(400).json({ message: "Token de recuperacao invalido ou expirado." });
+      }
+
+      let consumedEntry = null;
+      for (const tokenHash of resolvePasswordResetTokenHashes(parsed.data.token)) {
+        consumedEntry = await passwordResetStore.consume(tokenHash);
+        if (consumedEntry) {
+          break;
+        }
+      }
+
+      if (!consumedEntry) {
+        return res.status(400).json({ message: "Token de recuperacao invalido ou expirado." });
+      }
+
+      if (new Date(consumedEntry.expiresAt) <= new Date()) {
+        return res.status(400).json({ message: "Token de recuperacao expirado." });
+      }
+
+      const senhaHash = await bcrypt.hash(parsed.data.novaSenha, 10);
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        await client.query(`UPDATE "user" SET password_hash = $1 WHERE id = $2`, [
+          senhaHash,
+          Number(consumedEntry.userId),
+        ]);
+        await client.query(
+          `UPDATE refresh_tokens
+           SET revoked_at = NOW()
+           WHERE user_id = $1
+             AND revoked_at IS NULL`,
+          [Number(consumedEntry.userId)]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      void trackAuthActivity({
+        req: req as AuthRequest,
+        actor: { id: consumedEntry.userId, role: String(consumedEntry.role) },
+        action: "password_reset_completed",
+        metadata: authObservabilityMetadata(req as AuthRequest, {
+          source: "auth.password_reset.confirm",
+          outcome: "success",
+          statusCode: 200,
+        }),
+      });
+
+      return res.status(200).json({
+        message: "Senha redefinida com sucesso. Voce ja pode entrar com a nova senha.",
       });
     } catch (err) {
       console.error(err);
@@ -414,6 +733,24 @@ export function authRouter(
           }),
         });
         return res.status(403).json({ message: "Acesso indisponível para este perfil" });
+      }
+
+      if (row.role === 1) {
+        void trackAuthActivity({
+          req: req as AuthRequest,
+          actor: { id: String(row.user_id), role: String(row.role) },
+          action: "token_refresh_failed",
+          metadata: authObservabilityMetadata(req as AuthRequest, {
+            source: "auth.refresh",
+            outcome: "denied",
+            statusCode: 403,
+            errorType: "StudentAdminPortalDenied",
+            refreshTokenId: row.id,
+          }),
+        });
+        return res.status(403).json({
+          message: "Alunos nao podem acessar o portal administrativo.",
+        });
       }
 
       if (row.revoked_at) {

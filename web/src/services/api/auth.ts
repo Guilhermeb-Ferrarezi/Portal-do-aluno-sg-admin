@@ -20,6 +20,43 @@ export async function login(dados: { usuario: string; senha: string }) {
   }>;
 }
 
+export async function solicitarRecuperacaoSenha(dados: { usuario: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/password-reset/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<{
+    message: string;
+    expiresAt?: string;
+  }>;
+}
+
+export async function validarTokenRecuperacaoSenha(token: string) {
+  const searchParams = new URLSearchParams({ token });
+  const res = await fetch(`${API_BASE_URL}/auth/password-reset/validate?${searchParams.toString()}`);
+
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<{
+    valid: true;
+    email: string;
+    expiresAt: string;
+  }>;
+}
+
+export async function redefinirSenha(dados: { token: string; novaSenha: string }) {
+  const res = await fetch(`${API_BASE_URL}/auth/password-reset/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<{ message: string }>;
+}
+
 export async function logoutWithServer() {
   const refreshToken = getRefreshToken();
   logout();
