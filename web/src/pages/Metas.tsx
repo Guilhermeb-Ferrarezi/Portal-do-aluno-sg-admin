@@ -62,16 +62,16 @@ type GoalFormState = {
   name: string;
   description: string;
   type: string;
-  imageUrl: string;
-  imageFileName: string;
 };
+
+type PointsSubtype = "basic" | "between-dates";
 
 type RewardFormState = {
   goalId: string;
   badgeId: string;
   badgeIds: string[];
   courseId: string;
-  rewardType: string;
+  pointsSubtype: PointsSubtype;
   pointsTarget: string;
   points: string;
   startDateTarget: string;
@@ -113,6 +113,11 @@ const statGridClass = "grid gap-4 md:grid-cols-3";
 const statCardClass = "rounded-[24px] border border-border/70 bg-card/90 p-4";
 const emptyClass =
   "rounded-[24px] border border-dashed border-border/70 bg-muted/25 px-6 py-10 text-center text-sm text-muted-foreground";
+const modalSectionClass =
+  "rounded-[26px] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-6";
+const modalSectionTitleClass = "text-lg font-black tracking-[-0.03em] text-foreground";
+const modalSectionBodyClass = "mt-1 text-sm leading-6 text-muted-foreground";
+const modalLabelClass = "text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Nao definido";
@@ -178,23 +183,20 @@ function progressPercent(student: GoalStudent) {
   return Math.max(0, Math.min(100, Math.round((student.progress / target) * 100)));
 }
 
-async function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("Falha ao ler arquivo"));
-    reader.readAsDataURL(file);
-  });
-}
-
 function buildGoalForm(goal?: Goal): GoalFormState {
   return {
     name: goal?.name ?? "",
     description: goal?.description ?? "",
     type: isGoalType(goal?.type) ? String(goal.type) : String(GOAL_TYPE.CourseCompletion),
-    imageUrl: goal?.imageUrl ?? "",
-    imageFileName: "",
   };
+}
+
+function inferPointsSubtype(_reward?: GoalReward): PointsSubtype {
+  // TODO(human): classify an existing reward as "basic" or "between-dates"
+  // based on its date fields. Consider: are startDateTarget/endDateTarget
+  // meaningful (user-chosen future window), or just placeholder "current date"
+  // values we write when the subtype is basic?
+  return "basic";
 }
 
 function buildRewardForm(reward?: GoalReward): RewardFormState {
@@ -203,11 +205,25 @@ function buildRewardForm(reward?: GoalReward): RewardFormState {
     badgeId: reward?.badgeId ?? "",
     badgeIds: reward?.badgeId ? [reward.badgeId] : [],
     courseId: reward?.courseId ?? "",
-    rewardType: reward?.rewardType != null ? String(reward.rewardType) : "0",
+    pointsSubtype: inferPointsSubtype(reward),
     pointsTarget: reward?.pointsTarget != null ? String(reward.pointsTarget) : "",
     points: reward?.points != null ? String(reward.points) : "",
     startDateTarget: toDatetimeLocalInput(reward?.startDateTarget),
     endDateTarget: toDatetimeLocalInput(reward?.endDateTarget),
+  };
+}
+
+function normalizeRewardWindow(form: RewardFormState) {
+  if (form.pointsSubtype !== "between-dates") {
+    return {
+      startDateTarget: null,
+      endDateTarget: null,
+    };
+  }
+
+  return {
+    startDateTarget: fromDatetimeLocalInput(form.startDateTarget),
+    endDateTarget: fromDatetimeLocalInput(form.endDateTarget),
   };
 }
 
@@ -278,6 +294,7 @@ export default function MetasPage() {
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
+  const [metaModalOpen, setMetaModalOpen] = React.useState(false);
   const [goalModalOpen, setGoalModalOpen] = React.useState(false);
   const [rewardModalOpen, setRewardModalOpen] = React.useState(false);
   const [assignModalOpen, setAssignModalOpen] = React.useState(false);
@@ -290,12 +307,15 @@ export default function MetasPage() {
   const [deletingGoalItem, setDeletingGoalItem] = React.useState<Goal | null>(null);
   const [deletingRewardItem, setDeletingRewardItem] = React.useState<GoalReward | null>(null);
   const [deletingStudentItem, setDeletingStudentItem] = React.useState<GoalStudent | null>(null);
-  const goalFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [goalForm, setGoalForm] = React.useState<GoalFormState>(buildGoalForm());
   const [rewardForm, setRewardForm] = React.useState<RewardFormState>(buildRewardForm());
   const [studentForm, setStudentForm] = React.useState<StudentFormState>(buildStudentForm());
   const selectedGoalType = Number(goalForm.type) as GoalType;
+  const selectedRewardGoalType = React.useMemo(() => {
+    const goal = allGoals.find((item) => item.id === rewardForm.goalId);
+    return goal?.type ?? null;
+  }, [allGoals, rewardForm.goalId]);
 
   const goalOptions = React.useMemo<PaginatedSelectOption[]>(
     () =>
@@ -531,20 +551,16 @@ export default function MetasPage() {
 
   function openCreateGoalModal() {
     setEditingGoal(null);
+    setEditingReward(null);
     setGoalForm(buildGoalForm());
-    setGoalModalOpen(true);
+    setRewardForm(buildRewardForm());
+    setMetaModalOpen(true);
   }
 
   function openEditGoalModal(goal: Goal) {
     setEditingGoal(goal);
     setGoalForm(buildGoalForm(goal));
     setGoalModalOpen(true);
-  }
-
-  function openCreateRewardModal() {
-    setEditingReward(null);
-    setRewardForm(buildRewardForm());
-    setRewardModalOpen(true);
   }
 
   function openEditRewardModal(reward: GoalReward) {
@@ -571,23 +587,6 @@ export default function MetasPage() {
     setProgressModalOpen(true);
   }
 
-  async function handleGoalFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setGoalForm((current) => ({
-        ...current,
-        imageUrl: dataUrl,
-        imageFileName: file.name,
-      }));
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Erro ao ler imagem");
-    } finally {
-      event.target.value = "";
-    }
-  }
-
   async function submitGoal() {
     if (!goalForm.name.trim()) {
       setErrorMessage("Informe o nome da meta");
@@ -600,7 +599,7 @@ export default function MetasPage() {
         name: goalForm.name.trim(),
         description: goalForm.description.trim() || null,
         type: Number(goalForm.type) as GoalType,
-        imageUrl: goalForm.imageUrl.trim() || null,
+        imageUrl: null,
       };
 
       if (editingGoal) {
@@ -628,14 +627,19 @@ export default function MetasPage() {
 
     setSubmitting(true);
     try {
+      const rewardGoalType = selectedRewardGoalType;
+      const rewardWindow = normalizeRewardWindow(rewardForm);
       const payloadBase = {
         goalId: rewardForm.goalId,
         courseId: rewardForm.courseId,
-        rewardType: Number(rewardForm.rewardType || 0),
-        pointsTarget: rewardForm.pointsTarget ? Number(rewardForm.pointsTarget) : null,
+        rewardType: editingReward?.rewardType ?? 0,
+        pointsTarget:
+          rewardGoalType === GOAL_TYPE.PointQuantity && rewardForm.pointsTarget
+            ? Number(rewardForm.pointsTarget)
+            : null,
         points: rewardForm.points ? Number(rewardForm.points) : null,
-        startDateTarget: fromDatetimeLocalInput(rewardForm.startDateTarget),
-        endDateTarget: fromDatetimeLocalInput(rewardForm.endDateTarget),
+        startDateTarget: rewardWindow.startDateTarget,
+        endDateTarget: rewardWindow.endDateTarget,
       };
 
       if (editingReward) {
@@ -663,6 +667,79 @@ export default function MetasPage() {
       await Promise.all([loadRewards(), listarGoalRewards({ limit: 100, offset: 0 }).then((result) => setAllRewards(result.items))]);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Erro ao salvar recompensa");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitMetaCreation() {
+    if (!goalForm.name.trim()) {
+      setErrorMessage("Informe o nome da meta");
+      return;
+    }
+
+    if (!rewardForm.courseId) {
+      setErrorMessage("Selecione o curso");
+      return;
+    }
+
+    if (rewardForm.badgeIds.length === 0) {
+      setErrorMessage("Selecione pelo menos uma medalha");
+      return;
+    }
+
+    const goalType = Number(goalForm.type) as GoalType;
+    if (goalType === GOAL_TYPE.PointQuantity && !rewardForm.pointsTarget) {
+      setErrorMessage("Informe os pontos alvo");
+      return;
+    }
+
+    if (
+      goalType === GOAL_TYPE.PointQuantity &&
+      rewardForm.pointsSubtype === "between-dates" &&
+      (!rewardForm.startDateTarget || !rewardForm.endDateTarget)
+    ) {
+      setErrorMessage("Informe inicio e fim da janela");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const goalResponse = await criarGoal({
+        name: goalForm.name.trim(),
+        description: goalForm.description.trim() || null,
+        type: goalType,
+        imageUrl: null,
+      });
+
+      const rewardWindow = normalizeRewardWindow(rewardForm);
+      for (const badgeId of rewardForm.badgeIds) {
+        await criarGoalReward({
+          goalId: goalResponse.goal.id,
+          courseId: rewardForm.courseId,
+          badgeId,
+          rewardType: 0,
+          points: rewardForm.points ? Number(rewardForm.points) : null,
+          pointsTarget: goalType === GOAL_TYPE.PointQuantity ? Number(rewardForm.pointsTarget) : null,
+          startDateTarget: rewardWindow.startDateTarget,
+          endDateTarget: rewardWindow.endDateTarget,
+        });
+      }
+
+      setMetaModalOpen(false);
+      setSuccessMessage(
+        rewardForm.badgeIds.length > 1
+          ? `Meta criada com ${rewardForm.badgeIds.length} recompensas`
+          : "Meta criada"
+      );
+      await Promise.all([
+        loadGoals(),
+        loadRewards(),
+        listarGoals({ limit: 100, offset: 0 }).then((result) => setAllGoals(result.items)),
+        listarGoalRewards({ limit: 100, offset: 0 }).then((result) => setAllRewards(result.items)),
+      ]);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Erro ao criar meta");
     } finally {
       setSubmitting(false);
     }
@@ -1236,11 +1313,7 @@ export default function MetasPage() {
               <div className="flex flex-wrap gap-2">
                 <Button type="button" className="rounded-full" onClick={openCreateGoalModal}>
                   <Plus data-icon="inline-start" />
-                  Nova meta
-                </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={openCreateRewardModal}>
-                  <Gift data-icon="inline-start" />
-                  Nova recompensa
+                  Adicionar meta
                 </Button>
               </div>
             ) : null}
@@ -1388,6 +1461,239 @@ export default function MetasPage() {
         ) : null}
 
         <Modal
+          isOpen={metaModalOpen}
+          onClose={() => setMetaModalOpen(false)}
+          title="Adicionar Meta"
+          size="xl"
+          className="max-w-[1080px] overflow-visible"
+          bodyClassName="overflow-y-auto overflow-x-visible pb-16"
+          footer={
+            <div className="flex w-full justify-end gap-3">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setMetaModalOpen(false)} disabled={submitting}>
+                Cancelar
+              </Button>
+              <Button type="button" className="rounded-full" onClick={submitMetaCreation} disabled={submitting || loadingOptions}>
+                {submitting ? "Salvando..." : "Criar meta"}
+              </Button>
+            </div>
+          }
+        >
+          <div data-testid="add-goal-modal" className="grid gap-5">
+            <div className="rounded-[24px] border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
+              Crie a meta e vincule as recompensas no mesmo fluxo. O curso define o contexto, o tipo define a regra e as medalhas geram as recompensas que serao atribuidas depois.
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+              <section className={modalSectionClass}>
+                <div>
+                  <h3 className={modalSectionTitleClass}>Contexto da meta</h3>
+                  <p className={modalSectionBodyClass}>
+                    Defina onde a meta existe e como ela deve aparecer para a equipe.
+                  </p>
+                </div>
+
+                <div className="mt-5 grid gap-4">
+                  <div className="grid min-w-0 gap-2">
+                    <span className={modalLabelClass}>Curso</span>
+                    <PaginatedSelect
+                      value={rewardForm.courseId}
+                      onChange={(value) => setRewardForm((current) => ({ ...current, courseId: value }))}
+                      options={courseOptions}
+                      selectedOption={compactSelectedOption(courseOptions, rewardForm.courseId)}
+                      placeholder="Selecionar curso"
+                    />
+                  </div>
+
+                  <label className="grid gap-2">
+                    <span className={modalLabelClass}>Nome</span>
+                    <Input value={goalForm.name} onChange={(event) => setGoalForm((current) => ({ ...current, name: event.target.value }))} />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className={modalLabelClass}>Descricao</span>
+                    <textarea
+                      value={goalForm.description}
+                      onChange={(event) => setGoalForm((current) => ({ ...current, description: event.target.value }))}
+                      className={cn(textareaClass, "min-h-40")}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className={modalSectionClass}>
+                <div>
+                  <h3 className={modalSectionTitleClass}>Regras e recompensa</h3>
+                  <p className={modalSectionBodyClass}>
+                    Escolha o comportamento da meta e configure os pontos que o aluno recebe ao concluir.
+                  </p>
+                </div>
+
+                <div className="mt-5 grid gap-4">
+                  <div className="grid gap-2">
+                    <span className={modalLabelClass}>Tipo de meta</span>
+                    <div className="rounded-[24px] border border-border/70 bg-muted/20 p-3">
+                      <select
+                        aria-label="Tipo de meta"
+                        value={goalForm.type}
+                        onChange={(event) =>
+                          setGoalForm((current) => ({
+                            ...current,
+                            type: event.target.value,
+                          }))
+                        }
+                        className={fieldClass}
+                      >
+                        <option value={String(GOAL_TYPE.CourseCompletion)}>Conclusao de curso</option>
+                        <option value={String(GOAL_TYPE.PhaseCompletion)}>Conclusao de fase</option>
+                        <option value={String(GOAL_TYPE.PointQuantity)}>Quantidade de pontos</option>
+                        <option value={String(GOAL_TYPE.TimeSpent)}>Tempo gasto</option>
+                        <option value={String(GOAL_TYPE.Custom)}>Personalizada</option>
+                      </select>
+                      <div className="mt-3 rounded-[18px] border border-primary/20 bg-primary/5 px-4 py-3">
+                        <div className="text-sm font-semibold text-foreground">{goalTypeLabel(selectedGoalType)}</div>
+                        <div className="mt-1 text-sm leading-6 text-muted-foreground">{goalTypeDescription(selectedGoalType)}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedGoalType === GOAL_TYPE.PointQuantity ? (
+                    <label className="grid gap-2">
+                      <span className={modalLabelClass}>Subtipo</span>
+                      <select
+                        aria-label="Subtipo"
+                        value={rewardForm.pointsSubtype}
+                        onChange={(event) =>
+                          setRewardForm((current) => ({
+                            ...current,
+                            pointsSubtype: event.target.value as PointsSubtype,
+                          }))
+                        }
+                        className={fieldClass}
+                      >
+                        <option value="basic">Apenas pontos</option>
+                        <option value="between-dates">Pontos entre datas</option>
+                      </select>
+                    </label>
+                  ) : null}
+
+                  <div className={cn("grid gap-4", selectedGoalType === GOAL_TYPE.PointQuantity ? "sm:grid-cols-2" : "sm:grid-cols-1")}>
+                    <label className="grid gap-2">
+                      <span className={modalLabelClass}>Pontos recompensa</span>
+                      <Input type="number" min={0} value={rewardForm.points} onChange={(event) => setRewardForm((current) => ({ ...current, points: event.target.value }))} />
+                    </label>
+
+                    {selectedGoalType === GOAL_TYPE.PointQuantity ? (
+                      <label className="grid gap-2">
+                        <span className={modalLabelClass}>Pontos alvo</span>
+                        <Input type="number" min={0} value={rewardForm.pointsTarget} onChange={(event) => setRewardForm((current) => ({ ...current, pointsTarget: event.target.value }))} />
+                      </label>
+                    ) : null}
+                  </div>
+
+                  {selectedGoalType === GOAL_TYPE.PointQuantity && rewardForm.pointsSubtype === "between-dates" ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="grid gap-2">
+                        <span className={modalLabelClass}>Inicio da janela</span>
+                        <Input type="datetime-local" value={rewardForm.startDateTarget} onChange={(event) => setRewardForm((current) => ({ ...current, startDateTarget: event.target.value }))} />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className={modalLabelClass}>Fim da janela</span>
+                        <Input type="datetime-local" value={rewardForm.endDateTarget} onChange={(event) => setRewardForm((current) => ({ ...current, endDateTarget: event.target.value }))} />
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+
+            <section className={modalSectionClass}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className={modalSectionTitleClass}>Medalhas vinculadas</h3>
+                  <p className={modalSectionBodyClass}>
+                    Cada medalha selecionada gera uma recompensa ligada a esta meta.
+                  </p>
+                </div>
+                <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  {selectedBadgeChips.length} selecionada{selectedBadgeChips.length === 1 ? "" : "s"}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+                <div className="grid gap-2">
+                  <span className={modalLabelClass}>Adicionar medalha</span>
+                  <PaginatedSelect
+                    value=""
+                    onChange={(value) =>
+                      setRewardForm((current) => {
+                        if (current.badgeIds.includes(value)) return current;
+                        return {
+                          ...current,
+                          badgeId: current.badgeId || value,
+                          badgeIds: [...current.badgeIds, value],
+                        };
+                      })
+                    }
+                    options={badgeOptions.filter((option) => !rewardForm.badgeIds.includes(option.value))}
+                    selectedOption={null}
+                    placeholder="Adicionar medalha"
+                  />
+                  <div className="rounded-[20px] border border-dashed border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                    Selecione uma ou mais medalhas para criar as recompensas da meta.
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className={modalLabelClass}>Selecionadas</span>
+                    {selectedBadgeChips.length ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => setRewardForm((current) => ({ ...current, badgeId: "", badgeIds: [] }))}
+                      >
+                        Limpar tudo
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="min-h-28 rounded-[24px] border border-border/70 bg-muted/20 p-4">
+                    {selectedBadgeChips.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedBadgeChips.map((badge) => (
+                          <button
+                            key={badge.value}
+                            type="button"
+                            className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-3 py-2 text-sm font-semibold transition hover:border-primary/35 hover:bg-accent"
+                            onClick={() =>
+                              setRewardForm((current) => {
+                                const nextBadgeIds = current.badgeIds.filter((id) => id !== badge.value);
+                                return {
+                                  ...current,
+                                  badgeIds: nextBadgeIds,
+                                  badgeId: current.badgeId === badge.value ? nextBadgeIds[0] ?? "" : current.badgeId,
+                                };
+                              })
+                            }
+                          >
+                            <span>{badge.label}</span>
+                            <span className="text-muted-foreground">x</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex min-h-20 items-center rounded-[18px] border border-dashed border-border/60 bg-card/40 px-4 text-sm text-muted-foreground">
+                        Nenhuma medalha selecionada.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </Modal>
+
+        <Modal
           isOpen={goalModalOpen}
           onClose={() => setGoalModalOpen(false)}
           title={editingGoal ? "Editar meta" : "Nova meta"}
@@ -1433,56 +1739,7 @@ export default function MetasPage() {
                   </div>
                 </div>
               </div>
-              <label className="grid gap-2 content-start">
-                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Imagem da meta</span>
-                <input
-                  ref={goalFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleGoalFileChange}
-                />
-                <div className="flex min-h-12 items-center gap-3 rounded-2xl border border-border/75 bg-card px-3 py-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="shrink-0 rounded-full"
-                    onClick={() => goalFileInputRef.current?.click()}
-                  >
-                    Escolher imagem
-                  </Button>
-                  <span className="truncate text-sm text-muted-foreground">
-                    {goalForm.imageFileName || (goalForm.imageUrl ? "Imagem selecionada" : "Nenhum arquivo selecionado")}
-                  </span>
-                </div>
-                <div className="rounded-[18px] border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                  Use uma imagem horizontal de 1200 x 675 px para melhor encaixe no card da missao.
-                </div>
-              </label>
             </div>
-            {goalForm.imageUrl ? (
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() =>
-                    setGoalForm((current) => ({
-                      ...current,
-                      imageUrl: "",
-                      imageFileName: "",
-                    }))
-                  }
-                >
-                  Remover imagem
-                </Button>
-              </div>
-            ) : null}
-            {goalForm.imageUrl ? (
-              <div className="overflow-hidden rounded-[20px] border border-border/70">
-                <img src={goalForm.imageUrl} alt="Preview da meta" className="h-52 w-full object-cover" />
-              </div>
-            ) : null}
           </div>
         </Modal>
 
@@ -1624,33 +1881,30 @@ export default function MetasPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="grid gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Tipo de recompensa</span>
-                <select value={rewardForm.rewardType} onChange={(event) => setRewardForm((current) => ({ ...current, rewardType: event.target.value }))} className={fieldClass}>
-                  <option value="0">Badge</option>
-                  <option value="1">Pontuacao</option>
-                </select>
-              </label>
-              <label className="grid gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Pontos alvo</span>
-                <Input type="number" min={0} value={rewardForm.pointsTarget} onChange={(event) => setRewardForm((current) => ({ ...current, pointsTarget: event.target.value }))} />
-              </label>
+            <div className={cn("grid gap-4", selectedRewardGoalType === GOAL_TYPE.PointQuantity ? "sm:grid-cols-2" : "sm:grid-cols-1")}>
+              {selectedRewardGoalType === GOAL_TYPE.PointQuantity ? (
+                <label className="grid gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Pontos alvo</span>
+                  <Input type="number" min={0} value={rewardForm.pointsTarget} onChange={(event) => setRewardForm((current) => ({ ...current, pointsTarget: event.target.value }))} />
+                </label>
+              ) : null}
               <label className="grid gap-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Pontos recompensa</span>
                 <Input type="number" min={0} value={rewardForm.points} onChange={(event) => setRewardForm((current) => ({ ...current, points: event.target.value }))} />
               </label>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Inicio da janela</span>
-                <Input type="datetime-local" value={rewardForm.startDateTarget} onChange={(event) => setRewardForm((current) => ({ ...current, startDateTarget: event.target.value }))} />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Fim da janela</span>
-                <Input type="datetime-local" value={rewardForm.endDateTarget} onChange={(event) => setRewardForm((current) => ({ ...current, endDateTarget: event.target.value }))} />
-              </label>
-            </div>
+            {selectedRewardGoalType === GOAL_TYPE.PointQuantity ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Inicio da janela</span>
+                  <Input type="datetime-local" value={rewardForm.startDateTarget} onChange={(event) => setRewardForm((current) => ({ ...current, startDateTarget: event.target.value }))} />
+                </label>
+                <label className="grid gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Fim da janela</span>
+                  <Input type="datetime-local" value={rewardForm.endDateTarget} onChange={(event) => setRewardForm((current) => ({ ...current, endDateTarget: event.target.value }))} />
+                </label>
+              </div>
+            ) : null}
           </div>
         </Modal>
 

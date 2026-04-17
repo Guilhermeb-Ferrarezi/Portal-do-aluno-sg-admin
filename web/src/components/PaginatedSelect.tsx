@@ -43,7 +43,6 @@ const navButtonClass =
   "inline-flex items-center gap-1 rounded-xl border-2 border-border bg-card px-3 py-2 text-sm text-foreground transition hover:-translate-y-0.5 hover:border-primary/35 hover:bg-muted/60 disabled:pointer-events-none disabled:opacity-50";
 const pageSizeSelectClass =
   "h-9 min-w-[72px] rounded-xl border-2 border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus:border-primary/35";
-const estimatedPanelHeight = 360;
 
 export default function PaginatedSelect({
   value,
@@ -66,6 +65,7 @@ export default function PaginatedSelect({
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const pageSizeId = React.useId();
   const isRemote = !!remote;
+  const estimatedPanelHeight = 360;
 
   const currentQuery = isRemote ? remote.query : query;
   const currentPage = isRemote ? remote.page : page;
@@ -78,6 +78,12 @@ export default function PaginatedSelect({
       }
     };
 
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
     const updateDirection = () => {
       if (!rootRef.current) return;
       const rect = rootRef.current.getBoundingClientRect();
@@ -85,12 +91,6 @@ export default function PaginatedSelect({
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
       setOpenUpward(spaceBelow < estimatedPanelHeight && spaceAbove > spaceBelow);
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
     };
 
     document.addEventListener("mousedown", handleDocClick);
@@ -137,29 +137,31 @@ export default function PaginatedSelect({
   }, [currentQuery, isRemote, options]);
 
   React.useEffect(() => {
+    if (!isRemote) return;
     setCurrentPageSize(pageSize);
-  }, [pageSize]);
+  }, [isRemote, pageSize]);
 
   const safePageSize = Math.max(1, currentPageSize || 1);
   const sizeOptions = React.useMemo(() => {
+    if (!isRemote) return [];
     const merged = [pageSize, ...pageSizeOptions]
       .map((n) => Number(n))
       .filter((n) => Number.isFinite(n) && n > 0);
     return Array.from(new Set(merged)).sort((a, b) => a - b);
-  }, [pageSize, pageSizeOptions]);
+  }, [isRemote, pageSize, pageSizeOptions]);
 
   const totalPages = isRemote
     ? Math.max(1, remote.totalPages || 1)
-    : Math.max(1, Math.ceil(filtered.length / safePageSize));
+    : 1;
   const safePage = Math.min(currentPage, totalPages);
   const paged = isRemote
     ? filtered
-    : filtered.slice((safePage - 1) * safePageSize, safePage * safePageSize);
+    : filtered;
 
   React.useEffect(() => {
     if (isRemote) return;
     setPage(1);
-  }, [currentQuery, isRemote, options.length, safePageSize]);
+  }, [currentQuery, isRemote, options.length]);
 
   function handleQueryChange(next: string) {
     if (isRemote) {
@@ -290,7 +292,7 @@ export default function PaginatedSelect({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
-            {allowPageSizeChange ? (
+            {isRemote && allowPageSizeChange ? (
               <div className="flex w-full items-center justify-between gap-2 md:w-auto md:justify-start">
                 <label
                   htmlFor={pageSizeId}
@@ -322,19 +324,19 @@ export default function PaginatedSelect({
                 type="button"
                 className={navButtonClass}
                 onClick={() => handlePageChange(Math.max(1, safePage - 1))}
-                disabled={safePage <= 1}
+                disabled={!isRemote || safePage <= 1}
               >
                 <ChevronLeft size={14} />
                 Ant
               </button>
               <span className="text-sm text-muted-foreground">
-                {safePage}/{totalPages}
+                {isRemote ? `${safePage}/${totalPages}` : `${filtered.length} resultado${filtered.length === 1 ? "" : "s"}`}
               </span>
               <button
                 type="button"
                 className={navButtonClass}
                 onClick={() => handlePageChange(Math.min(totalPages, safePage + 1))}
-                disabled={safePage >= totalPages}
+                disabled={!isRemote || safePage >= totalPages}
               >
                 Prox
                 <ChevronRight size={14} />

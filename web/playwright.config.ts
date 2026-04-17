@@ -4,6 +4,8 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL?.trim() || "http://127.0.0.1:417
 const shouldManageWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER !== "1";
 const parsedBaseURL = new URL(baseURL);
 const port = parsedBaseURL.port || "4173";
+const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH?.trim() || undefined;
+const disableArtifacts = process.env.PLAYWRIGHT_DISABLE_ARTIFACTS === "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -13,9 +15,9 @@ export default defineConfig({
   reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : [["list"]],
   use: {
     baseURL,
-    trace: "on-first-retry",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    trace: disableArtifacts ? "off" : "on-first-retry",
+    screenshot: disableArtifacts ? "off" : "only-on-failure",
+    video: disableArtifacts ? "off" : "retain-on-failure",
   },
   webServer: shouldManageWebServer
     ? {
@@ -30,6 +32,13 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        ...(executablePath
+          ? {
+              launchOptions: {
+                executablePath,
+              },
+            }
+          : {}),
       },
     },
   ],

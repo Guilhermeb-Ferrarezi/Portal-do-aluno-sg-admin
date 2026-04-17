@@ -37,7 +37,21 @@ export default defineConfig({
           if (id.includes("@monaco-editor")) return "vendor-monaco";
           if (id.includes("framer-motion") || id.includes("animate-ui")) return "vendor-motion";
           if (id.includes("lucide-react")) return "vendor-icons";
-          return "vendor";
+          if (id.includes("/react-router/") || id.includes("/react-router-dom/")) {
+            return "vendor-react-router";
+          }
+          if (id.includes("/@radix-ui/") || id.includes("/radix-ui/")) {
+            return "vendor-radix";
+          }
+          if (
+            id.includes("/clsx/") ||
+            id.includes("/class-variance-authority/") ||
+            id.includes("/tailwind-merge/") ||
+            id.includes("/tw-animate-css/")
+          ) {
+            return "vendor-ui-utils";
+          }
+          return "vendor-misc";
         },
       },
     },

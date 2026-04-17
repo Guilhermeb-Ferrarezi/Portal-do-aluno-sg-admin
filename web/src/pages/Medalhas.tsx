@@ -127,8 +127,9 @@ const holderGroupItemsClass = (open: boolean) =>
     open ? "max-h-[1200px] pb-4 opacity-100" : "max-h-0 overflow-hidden pb-0 opacity-0",
   );
 const holderActionRowClass = "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-self-end";
-const assignCardClass = cn(surfaceCardClass, "grid gap-5 p-5 sm:p-6");
-const assignGridClass = "grid items-start gap-4 xl:grid-cols-2";
+const assignCardClass = cn(surfaceCardClass, "grid gap-5 overflow-visible p-5 sm:p-6");
+const assignGridClass = "grid items-start gap-4 overflow-visible xl:grid-cols-2";
+const assignBadgeFieldClass = "relative z-[140] overflow-visible";
 const assignSelectedListClass = "flex flex-wrap gap-2";
 const assignSelectedChipClass =
   "inline-flex h-8 items-center rounded-full border border-border/70 bg-muted/45 px-3 text-[13px] font-semibold leading-none text-foreground transition hover:border-primary/35 hover:bg-accent";
@@ -1313,7 +1314,7 @@ export default function MedalhasPage() {
                   <p className={panelCopyClass}>Busque usuários, selecione a medalha e conclua a atribuição em lote.</p>
                 </div>
                 <div className={assignGridClass}>
-                  <div className={medalhaFormRowClass}>
+                  <div className={cn(medalhaFormRowClass, assignBadgeFieldClass)}>
                     <span>Usuário</span>
                     <input
                       className={cn(fieldClass, "h-12")}

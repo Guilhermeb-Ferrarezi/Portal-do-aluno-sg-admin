@@ -7,13 +7,11 @@ import {
   listarTurmas,
   logoutWithServer,
   obterUsuarioAtual,
-  startStudentViewSso,
   type Turma,
 } from "../../services/api";
 import ProfilePopup from "../ProfilePopup";
 import SettingsOverlay from "../SettingsOverlay";
 import { cn } from "@/lib/utils";
-import { useToastActions } from "@/contexts/ToastContext";
 import { appRoutes, isExactRoute, isRouteBranch } from "@/router/routes";
 import {
   Dialog,
@@ -198,17 +196,14 @@ function DashboardShell({
   const navigate = useNavigate();
   const location = useLocation();
   const canCreateUser = hasRole(["admin"]);
-  const canOpenStudentView = hasRole(["admin", "professor"]);
   const name = getName() ?? "Aluno";
   const role = getRole();
-  const { addToast } = useToastActions();
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
   const [modalSelecionarTurmaAberto, setModalSelecionarTurmaAberto] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [studentViewPending, setStudentViewPending] = React.useState(false);
   const [openAreaIds, setOpenAreaIds] = React.useState<NavAreaId[]>(() => {
     if (typeof window === "undefined") return [];
 
@@ -271,23 +266,6 @@ function DashboardShell({
     void logoutWithServer().finally(() => {
       navigate(appRoutes.login, { replace: true });
     });
-  }
-
-  function handleOpenStudentView() {
-    if (studentViewPending) return;
-
-    setStudentViewPending(true);
-    void startStudentViewSso(window.location.href)
-      .then(({ redirectUrl }) => {
-        window.location.assign(redirectUrl);
-      })
-      .catch((error) => {
-        addToast(
-          error instanceof Error ? error.message : "Nao foi possivel abrir a visao do aluno.",
-          "error"
-        );
-        setStudentViewPending(false);
-      });
   }
 
   const handleMinhasTurmas = React.useCallback(() => {
@@ -820,21 +798,6 @@ function DashboardShell({
             </div>
 
             <div className="flex items-center gap-2">
-              {canOpenStudentView ? (
-                <button
-                  className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-muted-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={handleOpenStudentView}
-                  type="button"
-                  disabled={studentViewPending}
-                  aria-label="Abrir visao do aluno"
-                  title="Abrir visao do aluno"
-                >
-                  <Monitor size={14} />
-                  <span className="hidden sm:inline">
-                    {studentViewPending ? "Abrindo..." : "Visao do aluno"}
-                  </span>
-                </button>
-              ) : null}
               {canCreateUser ? (
                 <button
                   className={cn(

@@ -10,11 +10,11 @@
     "build": "node scripts/check-text-escapes.mjs && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "playwright:install": "playwright install chromium",
-    "test:e2e": "playwright test",
-    "test:e2e:smoke": "playwright test --grep @smoke",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:ui": "playwright test --ui"
+    "playwright:install": "node scripts/run-playwright.mjs install chromium",
+    "test:e2e": "node scripts/run-playwright.mjs test",
+    "test:e2e:smoke": "node scripts/run-playwright.mjs test --grep @smoke",
+    "test:e2e:headed": "node scripts/run-playwright.mjs test --headed",
+    "test:e2e:ui": "node scripts/run-playwright.mjs test --ui"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
