@@ -13,6 +13,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60_000;
+const PASSWORD_RESET_RESEND_STORAGE_KEY = "password-reset-last-request-at";
+const EMAIL_SYNTAX_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function PasswordRecoveryPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -29,6 +33,50 @@ export default function PasswordRecoveryPage() {
   const [tokenError, setTokenError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [resendCooldownMs, setResendCooldownMs] = React.useState(0);
+
+  const canRequestReset = !loading && resendCooldownMs <= 0;
+  const resendCooldownSeconds = Math.ceil(resendCooldownMs / 1000);
+  const requestButtonLabel = loading
+    ? "Enviando..."
+    : resendCooldownMs > 0
+    ? `Reenviar em ${resendCooldownSeconds}s`
+    : successMessage
+    ? "Enviar outro e-mail"
+    : "Gerar link de recuperacao";
+
+  React.useEffect(() => {
+    if (hasToken || typeof window === "undefined") {
+      return;
+    }
+
+    const storedTimestamp = window.localStorage.getItem(PASSWORD_RESET_RESEND_STORAGE_KEY);
+    if (!storedTimestamp) {
+      setResendCooldownMs(0);
+      return;
+    }
+
+    const lastRequestAt = Number(storedTimestamp);
+    if (!Number.isFinite(lastRequestAt)) {
+      window.localStorage.removeItem(PASSWORD_RESET_RESEND_STORAGE_KEY);
+      setResendCooldownMs(0);
+      return;
+    }
+
+    const updateCooldown = () => {
+      const remaining = Math.max(0, lastRequestAt + PASSWORD_RESET_RESEND_COOLDOWN_MS - Date.now());
+      setResendCooldownMs(remaining);
+      if (remaining <= 0) {
+        window.localStorage.removeItem(PASSWORD_RESET_RESEND_STORAGE_KEY);
+      }
+    };
+
+    updateCooldown();
+    const intervalId = window.setInterval(updateCooldown, 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [hasToken]);
 
   React.useEffect(() => {
     if (!hasToken) {
@@ -62,8 +110,17 @@ export default function PasswordRecoveryPage() {
 
   async function handleRequestSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!identifier.trim()) {
+    const trimmedIdentifier = identifier.trim();
+
+    if (!trimmedIdentifier) {
       setErrorMessage("Informe seu e-mail ou usuario.");
+      return;
+    }
+    if (trimmedIdentifier.includes("@") && !EMAIL_SYNTAX_REGEX.test(trimmedIdentifier)) {
+      setErrorMessage("Informe um e-mail valido.");
+      return;
+    }
+    if (!canRequestReset) {
       return;
     }
 
@@ -71,7 +128,12 @@ export default function PasswordRecoveryPage() {
       setLoading(true);
       setErrorMessage(null);
       setSuccessMessage(null);
-      const response = await solicitarRecuperacaoSenha({ usuario: identifier.trim() });
+      const response = await solicitarRecuperacaoSenha({ usuario: trimmedIdentifier });
+      const requestedAt = Date.now();
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(PASSWORD_RESET_RESEND_STORAGE_KEY, String(requestedAt));
+      }
+      setResendCooldownMs(PASSWORD_RESET_RESEND_COOLDOWN_MS);
       setSuccessMessage(response.message);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Erro ao solicitar recuperacao");
@@ -178,11 +240,15 @@ export default function PasswordRecoveryPage() {
               ) : (
                 <form className="space-y-5" onSubmit={handleConfirmSubmit}>
                   <div className="space-y-2.5">
-                    <Label className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase">
+                    <Label
+                      htmlFor="password-recovery-new-password"
+                      className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase"
+                    >
                       Nova senha
                     </Label>
                     <div className="relative">
                       <Input
+                        id="password-recovery-new-password"
                         className="h-12 rounded-2xl border-white/16 bg-white/8 px-4 pr-12 text-white shadow-[0_0_18px_rgba(225,29,72,0.12)] placeholder:text-white/45 hover:border-white/28 hover:bg-white/10 focus-visible:border-rose-500 focus-visible:ring-rose-500/24"
                         value={novaSenha}
                         onChange={(event) => setNovaSenha(event.target.value)}
@@ -203,10 +269,14 @@ export default function PasswordRecoveryPage() {
                   </div>
 
                   <div className="space-y-2.5">
-                    <Label className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase">
+                    <Label
+                      htmlFor="password-recovery-confirm-password"
+                      className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase"
+                    >
                       Confirmar senha
                     </Label>
                     <Input
+                      id="password-recovery-confirm-password"
                       className="h-12 rounded-2xl border-white/16 bg-white/8 px-4 text-white shadow-[0_0_18px_rgba(225,29,72,0.12)] placeholder:text-white/45 hover:border-white/28 hover:bg-white/10 focus-visible:border-rose-500 focus-visible:ring-rose-500/24"
                       value={confirmarSenha}
                       onChange={(event) => setConfirmarSenha(event.target.value)}
@@ -228,25 +298,34 @@ export default function PasswordRecoveryPage() {
             ) : (
               <form className="space-y-5" onSubmit={handleRequestSubmit}>
                 <div className="space-y-2.5">
-                  <Label className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase">
-                    E-mail ou usuário
+                  <Label
+                    htmlFor="password-recovery-identifier"
+                    className="text-[13px] font-semibold tracking-[0.08em] text-white/86 uppercase"
+                  >
+                    E-mail ou usuario
                   </Label>
                   <Input
+                    id="password-recovery-identifier"
                     className="h-12 rounded-2xl border-white/16 bg-white/8 px-4 text-white shadow-[0_0_18px_rgba(225,29,72,0.12)] placeholder:text-white/45 hover:border-white/28 hover:bg-white/10 focus-visible:border-rose-500 focus-visible:ring-rose-500/24"
                     value={identifier}
                     onChange={(event) => setIdentifier(event.target.value)}
                     type="text"
                     autoComplete="username"
-                    placeholder="Digite seu e-mail ou usuário"
+                    placeholder="Digite seu e-mail ou usuario"
                   />
                 </div>
                 <Button
                   type="submit"
                   className="h-12 w-full rounded-2xl border border-rose-500 bg-rose-600 text-sm font-black tracking-[0.18em] text-white uppercase shadow-[0_16px_38px_rgba(225,29,72,0.34)] hover:bg-rose-500"
-                  disabled={loading}
+                  disabled={!canRequestReset}
                 >
-                  {loading ? "Enviando..." : "Gerar link de recuperação"}
+                  {requestButtonLabel}
                 </Button>
+                <p className="text-center text-xs leading-5 text-white/52" aria-live="polite">
+                  {resendCooldownMs > 0
+                    ? `Aguarde ${resendCooldownSeconds}s para solicitar outro e-mail de redefinicao.`
+                    : "Voce pode pedir um novo e-mail se o link anterior expirar."}
+                </p>
               </form>
             )}
           </CardContent>

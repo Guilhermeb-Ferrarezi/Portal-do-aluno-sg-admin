@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +64,7 @@ type IncidentSummary = {
   outcome: string;
   count: number;
   lastAt: string;
+  sampleLog: ActivityLog;
 };
 
 const REFRESH_INTERVAL_MS = 15000;
@@ -132,66 +132,6 @@ function timeLabel(timestamp: number) {
   });
 }
 
-function buildBarStyle(value: number, max: number) {
-  const ratio = max > 0 ? value / max : 0;
-  return {
-    height: `${Math.max(8, ratio * 100)}%`,
-  };
-}
-
-function renderTrendBars(
-  items: MetricHistoryPoint[],
-  valueKey: "requestsPerMinute" | "errorsPerMinute",
-  barClassName: string
-) {
-  const max = items.reduce((acc, item) => Math.max(acc, item[valueKey]), 0);
-
-  return (
-    <div className="flex h-32 items-end gap-1.5">
-      {items.map((item) => (
-        <div
-          key={`${valueKey}-${item.capturedAt}`}
-          className="group relative flex flex-1 flex-col justify-end"
-          title={`${timeLabel(item.capturedAt)} - ${item[valueKey].toFixed(2)}/min`}
-        >
-          <div
-            className={cn(
-              "w-full rounded-t-xl transition-all duration-300 group-hover:opacity-100",
-              barClassName
-            )}
-            style={buildBarStyle(item[valueKey], max)}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function statusBadgeClass(statusClass: string) {
-  if (statusClass.startsWith("2")) {
-    return "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300";
-  }
-  if (statusClass.startsWith("4")) {
-    return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
-  }
-  if (statusClass.startsWith("5")) {
-    return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
-  }
-  return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
-}
-
-function statusLineBadge(statusClass: string) {
-  if (statusClass.startsWith("5")) return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
-  if (statusClass.startsWith("4")) return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
-  return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
-}
-
-function routeTone(item: MonitoringBreakdownItem) {
-  if (item.errorRate >= 10) return "bg-rose-500/80";
-  if (item.errorRate > 0) return "bg-amber-500/80";
-  return "bg-emerald-500/80";
-}
-
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -211,6 +151,58 @@ function timeAgoFromIso(value: string) {
   return formatDateTime(value);
 }
 
+function buildBarStyle(value: number, max: number) {
+  const ratio = max > 0 ? value / max : 0;
+  return {
+    height: `${Math.max(10, ratio * 100)}%`,
+  };
+}
+
+function routeTone(item: MonitoringBreakdownItem) {
+  if (item.errorRate >= 10) return "bg-rose-500";
+  if (item.errorRate > 0) return "bg-amber-500";
+  return "bg-emerald-500";
+}
+
+function riskTone(item: MonitoringBreakdownItem) {
+  if (item.errorRate >= 10) {
+    return {
+      chip: "border-rose-500/30 bg-rose-500/12 text-rose-200",
+    };
+  }
+  if (item.errorRate > 0 || item.avgLatencyMs > 500) {
+    return {
+      chip: "border-amber-500/30 bg-amber-500/12 text-amber-100",
+    };
+  }
+  return {
+    chip: "border-emerald-500/30 bg-emerald-500/12 text-emerald-100",
+  };
+}
+
+function statusBadgeClass(statusClass: string) {
+  if (statusClass.startsWith("2")) {
+    return "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300";
+  }
+  if (statusClass.startsWith("4")) {
+    return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
+  }
+  if (statusClass.startsWith("5")) {
+    return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
+  }
+  return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
+}
+
+function statusLineBadge(statusClass: string) {
+  if (statusClass.startsWith("5")) {
+    return "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300";
+  }
+  if (statusClass.startsWith("4")) {
+    return "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300";
+  }
+  return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
+}
+
 function outcomeBadgeClass(outcome: string | null | undefined) {
   if (outcome === "success") {
     return "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300";
@@ -224,7 +216,63 @@ function outcomeBadgeClass(outcome: string | null | undefined) {
   return "border-slate-300/60 bg-slate-500/10 text-slate-700 dark:border-slate-500/30 dark:text-slate-300";
 }
 
-function MetricCard(props: {
+function copyPayload(payloadLog: ActivityLog | null) {
+  if (!payloadLog) return;
+  void navigator.clipboard.writeText(
+    JSON.stringify(buildActivityLogPayload(payloadLog), null, 2)
+  );
+}
+
+function EmptyState({
+  title,
+  description,
+  icon,
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-border/70 bg-background/40 px-5 py-7 text-center">
+      <div className="mx-auto flex size-11 items-center justify-center rounded-2xl border border-border/70 bg-background/80 text-muted-foreground">
+        {icon}
+      </div>
+      <div className="mt-3 text-sm font-semibold text-foreground">{title}</div>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function UtilityChip({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-semibold text-muted-foreground backdrop-blur",
+        className
+      )}
+    >
+      <span className="text-muted-foreground">{label}: </span>
+      <span className="text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function CommandMetric({
+  title,
+  value,
+  subtitle,
+  icon,
+  accentClass,
+  onAction,
+}: {
   title: string;
   value: string;
   subtitle: string;
@@ -233,95 +281,131 @@ function MetricCard(props: {
   onAction?: { label: string; onClick: () => void };
 }) {
   return (
-    <Card className="flex h-full flex-col rounded-[28px] border-border bg-card shadow-sm">
-      <CardContent className="flex flex-1 items-start gap-4 p-5">
+    <div className="flex h-full min-h-[196px] flex-col rounded-[26px] border border-border/70 bg-card p-5 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.14)] backdrop-blur">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            {title}
+          </div>
+          <div className="mt-3 text-3xl font-black tracking-[-0.06em] text-foreground">{value}</div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{subtitle}</p>
+        </div>
         <div
           className={cn(
             "flex size-12 shrink-0 items-center justify-center rounded-2xl border",
-            props.accentClass
+            accentClass
           )}
         >
-          {props.icon}
+          {icon}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            {props.title}
-          </div>
-          <div className="mt-2 text-3xl font-black tracking-[-0.04em] text-foreground">
-            {props.value}
-          </div>
-          <div className="mt-1 text-sm text-muted-foreground">{props.subtitle}</div>
-        </div>
-      </CardContent>
-      {props.onAction && (
-        <div className="mt-auto border-t border-border px-5 pb-4">
+      </div>
+      <div className="mt-auto flex h-10 items-end">
+        {onAction ? (
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            onClick={props.onAction.onClick}
-            className="h-8 rounded-xl px-2 text-xs text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400"
+            onClick={onAction.onClick}
+            className="h-8 rounded-xl px-0 text-xs text-rose-600 hover:bg-transparent hover:text-rose-500"
           >
             <Search size={12} className="mr-1.5" />
-            {props.onAction.label}
+            {onAction.label}
           </Button>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function UtilityChip({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-full border border-border/80 bg-background/75 px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-      <span>{label}: </span>
-      <span className="text-foreground">{value}</span>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function ErrorLinesDialog(props: {
+function renderTrendBars(
+  items: MetricHistoryPoint[],
+  valueKey: "requestsPerMinute" | "errorsPerMinute",
+  barClassName: string
+) {
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        title="Ainda nao ha historico suficiente nesta sessao."
+        description="A coleta local precisa de mais de uma leitura para desenhar o ritmo."
+        icon={<Waves size={16} />}
+      />
+    );
+  }
+
+  const max = items.reduce((acc, item) => Math.max(acc, item[valueKey]), 0);
+  const labelStep = Math.max(1, Math.ceil(items.length / 6));
+
+  return (
+    <div className="flex h-40 items-end gap-2">
+      {items.map((item, index) => (
+        <div
+          key={`${valueKey}-${item.capturedAt}`}
+          className="group relative flex flex-1 flex-col justify-end"
+          title={`${timeLabel(item.capturedAt)} - ${item[valueKey].toFixed(2)}/min`}
+        >
+          <div
+            className={cn(
+              "w-full rounded-t-[14px] opacity-85 transition-all duration-300 group-hover:opacity-100",
+              barClassName
+            )}
+            style={buildBarStyle(item[valueKey], max)}
+          />
+          <span className="mt-2 text-center text-[10px] text-slate-500">
+            {index % labelStep === 0 || index === items.length - 1 ? timeLabel(item.capturedAt) : " "}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ErrorLinesDialog({
+  dialog,
+  onClose,
+}: {
   dialog: ErrorDialog;
   onClose: () => void;
 }) {
-  const { dialog, onClose } = props;
   return (
-    <Dialog open={dialog.open} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle size={16} className="text-rose-500" />
+    <Dialog
+      open={dialog.open}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-h-[80vh] max-w-3xl overflow-hidden border-border/70 bg-card text-foreground">
+        <DialogHeader className="border-b border-border/70 pb-4">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <AlertTriangle size={16} className="text-rose-400" />
             {dialog.title}
           </DialogTitle>
-          <DialogDescription>
-            Contadores acumulados de erros HTTP desde o ultimo boot da API (fonte: Prometheus).
+          <DialogDescription className="text-muted-foreground">
+            Contadores acumulados de erros HTTP desde o ultimo boot da API, com leitura direta do
+            texto Prometheus.
           </DialogDescription>
         </DialogHeader>
 
         {dialog.lines.length === 0 ? (
-          <div className="px-6 pb-6 text-center text-sm text-muted-foreground">
-            Nenhum erro registrado para esta rota.
+          <div className="px-1 pb-1">
+            <EmptyState
+              title="Nenhum erro registrado para esta rota."
+              description="Sem linhas acumuladas no contador de falhas para o filtro escolhido."
+              icon={<ShieldAlert size={16} />}
+            />
           </div>
         ) : (
-          <div className="overflow-y-auto px-6 pb-6">
-            <div className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="hidden grid-cols-[80px_1fr_90px_80px_60px] gap-3 border-b border-border bg-muted px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:grid">
+          <div className="overflow-y-auto pr-1">
+            <div className="overflow-hidden rounded-[24px] border border-border/70 bg-background/60">
+              <div className="hidden grid-cols-[80px_1fr_90px_80px_60px] gap-3 border-b border-border/70 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:grid">
                 <span>Metodo</span>
                 <span>Rota</span>
                 <span>Status</span>
                 <span>Classe</span>
                 <span className="text-right">Total</span>
               </div>
-              {dialog.lines.map((line, idx) => (
+              {dialog.lines.map((line, index) => (
                 <div
-                  key={idx}
-                  className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[80px_1fr_90px_80px_60px] sm:items-center sm:gap-3"
+                  key={`${line.route}-${line.statusCode}-${index}`}
+                  className="grid gap-2 border-b border-white/10 px-4 py-3 last:border-b-0 sm:grid-cols-[80px_1fr_90px_80px_60px] sm:items-center sm:gap-3"
                 >
                   <Badge variant="outline" className="w-fit rounded-full px-2.5 text-[11px] font-semibold">
                     {line.method}
@@ -329,15 +413,23 @@ function ErrorLinesDialog(props: {
                   <span className="truncate font-mono text-xs text-foreground" title={line.route}>
                     {line.route || "-"}
                   </span>
-                  <Badge className={cn("w-fit rounded-full px-2.5 text-[11px] font-semibold", statusLineBadge(line.statusClass))}>
+                  <Badge
+                    className={cn(
+                      "w-fit rounded-full px-2.5 text-[11px] font-semibold",
+                      statusLineBadge(line.statusClass)
+                    )}
+                  >
                     {line.statusCode}
                   </Badge>
-                  <Badge className={cn("w-fit rounded-full px-2.5 text-[11px] font-semibold", statusLineBadge(line.statusClass))}>
+                  <Badge
+                    className={cn(
+                      "w-fit rounded-full px-2.5 text-[11px] font-semibold",
+                      statusLineBadge(line.statusClass)
+                    )}
+                  >
                     {line.statusClass}
                   </Badge>
-                  <span className="text-right text-sm font-black text-foreground sm:block">
-                    {line.count}
-                  </span>
+                  <span className="text-right text-sm font-black text-foreground">{line.count}</span>
                 </div>
               ))}
             </div>
@@ -393,7 +485,11 @@ export default function AdminObservabilityPage() {
         if (item.method || item.endpoint || item.statusCode) {
           return true;
         }
-        return item.entityType === "auth" || item.entityType === "presence" || item.entityType === "security";
+        return (
+          item.entityType === "auth" ||
+          item.entityType === "presence" ||
+          item.entityType === "security"
+        );
       });
       setRecentOps(recentStructuredLogs.slice(0, 10));
 
@@ -440,21 +536,17 @@ export default function AdminObservabilityPage() {
   }, [loadSnapshot]);
 
   const totals = snapshot?.totals;
-  const errorRate =
-    totals && totals.requests > 0 ? (totals.errors / totals.requests) * 100 : 0;
+  const errorRate = totals && totals.requests > 0 ? (totals.errors / totals.requests) * 100 : 0;
   const topRoutes = React.useMemo(() => (snapshot?.routes ?? []).slice(0, 6), [snapshot]);
   const criticalRoutes = React.useMemo(
-    () => (snapshot?.criticalRoutes ?? []).slice(0, 6),
+    () => (snapshot?.criticalRoutes ?? []).slice(0, 5),
     [snapshot]
   );
   const riskRoutes = React.useMemo(
     () =>
       [...(snapshot?.routes ?? [])]
         .sort(
-          (a, b) =>
-            b.errorRate * 2 +
-            b.avgLatencyMs / 1000 -
-            (a.errorRate * 2 + a.avgLatencyMs / 1000)
+          (a, b) => b.errorRate * 2 + b.avgLatencyMs / 1000 - (a.errorRate * 2 + a.avgLatencyMs / 1000)
         )
         .slice(0, 6),
     [snapshot]
@@ -488,6 +580,7 @@ export default function AdminObservabilityPage() {
         outcome,
         count: 1,
         lastAt: item.createdAt,
+        sampleLog: item,
       });
     }
 
@@ -499,17 +592,16 @@ export default function AdminObservabilityPage() {
       .slice(0, 8);
   }, [recentOps]);
   const lastCaptureLabel = snapshot ? timeLabel(snapshot.capturedAt) : "--:--";
+  const latestRequestRate = history.at(-1)?.requestsPerMinute ?? 0;
+  const latestErrorRatePerMinute = history.at(-1)?.errorsPerMinute ?? 0;
 
   if (loading) {
     return (
-      <DashboardLayout
-        title="Observabilidade"
-        subtitle="Metricas operacionais da API em tempo real"
-      >
-        <div className="rounded-[28px] border border-border bg-card px-6 py-16 text-center shadow-sm">
+      <DashboardLayout title="Observabilidade" subtitle="Metricas operacionais da API em tempo real">
+        <div className="rounded-[32px] border border-border/70 bg-card px-6 py-16 text-center shadow-[0_30px_90px_-50px_rgba(15,23,42,0.18)]">
           <div className="mx-auto flex w-fit items-center gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-5 py-3 text-primary">
             <Loader2 size={18} className="animate-spin" />
-            <span className="text-sm font-semibold">Carregando metricas...</span>
+            <span className="text-sm font-semibold">Montando o war room operacional...</span>
           </div>
         </div>
       </DashboardLayout>
@@ -523,33 +615,53 @@ export default function AdminObservabilityPage() {
     >
       <FadeInUp duration={0.28}>
         <div className="space-y-5">
-          <Card className="overflow-hidden rounded-[28px] border-border/80 bg-card text-foreground shadow-[0_24px_60px_-40px_rgba(20,32,19,0.18)]">
-            <CardContent className="p-6 sm:p-8">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-3xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-foreground/72">
-                    <Radar size={14} />
-                    API pulse
-                  </div>
-                  <h2 className="mt-3 text-3xl font-black tracking-[-0.06em] text-foreground sm:text-[2.65rem]">
-                    Observabilidade da API em primeiro plano
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    Leitura direta de requisicoes, erros, latencia e incidentes recentes sem depender de paines secundarios.
-                  </p>
+          <section className="relative overflow-hidden rounded-[34px] border border-border/70 bg-card text-foreground shadow-[0_40px_120px_-50px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(24,33,51,0.98),rgba(15,21,35,1))] dark:text-slate-100 dark:shadow-[0_40px_120px_-50px_rgba(0,0,0,0.7)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(148,163,184,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(148,163,184,0.08),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(248,250,252,0.94))] dark:bg-[radial-gradient(circle_at_top_left,rgba(148,163,184,0.08),transparent_32%),radial-gradient(circle_at_top_right,rgba(148,163,184,0.05),transparent_24%),linear-gradient(180deg,rgba(36,45,61,0.72),rgba(15,21,35,0.1))]" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            <div className="relative grid gap-8 px-6 py-7 lg:grid-cols-[1.25fr_0.75fr] lg:px-8 lg:py-8">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300">
+                  <Radar size={14} />
+                  API war room
                 </div>
+                <h2 className="mt-4 text-3xl font-black tracking-[-0.07em] text-foreground dark:text-slate-50 sm:text-[3rem]">
+                  Centro de comando da API
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground dark:text-slate-400">
+                  Leitura operacional direta para saber o que esta degradando agora, quais rotas
+                  acumulam risco e quais eventos recentes merecem investigacao imediata.
+                </p>
 
-                <div className="flex flex-col items-start gap-3 lg:items-end">
-                  <div className="flex flex-wrap gap-2">
-                    <UtilityChip label="Ultima leitura" value={lastCaptureLabel} />
-                    <UtilityChip label="Taxa de erro" value={formatPercentage(errorRate)} />
-                    <UtilityChip label="P95" value={formatLatency(totals?.p95LatencyMs ?? 0)} />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Badge className="rounded-full border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">
-                      <Server size={13} className="mr-1.5" />
-                      API online
-                    </Badge>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <UtilityChip label="Ultima leitura" value={lastCaptureLabel} />
+                  <UtilityChip label="Taxa de erro" value={formatPercentage(errorRate)} />
+                  <UtilityChip label="P95" value={formatLatency(totals?.p95LatencyMs ?? 0)} />
+                  <UtilityChip
+                    label="Ritmo atual"
+                    value={`${latestRequestRate.toFixed(1)} req/min`}
+                    className="border-sky-400/20 bg-sky-500/10"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="rounded-[28px] border border-border/70 bg-background/70 p-5 backdrop-blur dark:border-white/10 dark:bg-white/[0.04]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground dark:text-slate-400">
+                        Estado da API
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Badge className="rounded-full border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">
+                          <Server size={13} className="mr-1.5" />
+                          API online
+                        </Badge>
+                        <Badge className="rounded-full border-border/70 bg-card px-3 py-1.5 text-foreground dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
+                          <ShieldAlert size={13} className="mr-1.5" />
+                          {formatCompactNumber(totals?.errors ?? 0)} erros acumulados
+                        </Badge>
+                      </div>
+                    </div>
                     <Button
                       type="button"
                       onClick={() => void loadSnapshot(true)}
@@ -563,376 +675,443 @@ export default function AdminObservabilityPage() {
                       Atualizar
                     </Button>
                   </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-border/70 bg-card px-4 py-3 dark:border-white/10 dark:bg-slate-900/40">
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground dark:text-slate-500">
+                        Req/min
+                      </div>
+                      <div className="mt-2 text-2xl font-black tracking-[-0.05em] text-foreground dark:text-slate-50">
+                        {latestRequestRate.toFixed(1)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-card px-4 py-3 dark:border-white/10 dark:bg-slate-900/40">
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground dark:text-slate-500">
+                        Erros/min
+                      </div>
+                      <div className="mt-2 text-2xl font-black tracking-[-0.05em] text-rose-300">
+                        {latestErrorRatePerMinute.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-card px-4 py-3 dark:border-white/10 dark:bg-slate-900/40">
+                      <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground dark:text-slate-500">
+                        Incidentes
+                      </div>
+                      <div className="mt-2 text-2xl font-black tracking-[-0.05em] text-foreground dark:text-slate-50">
+                        {incidentSummaries.length}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {error ? (
+                  <div className="rounded-[28px] border border-rose-500/20 bg-rose-500/8 p-5 text-rose-100">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex size-10 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-300">
+                        <AlertTriangle size={18} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold">Falha ao atualizar a observabilidade</div>
+                        <p className="mt-1 text-sm leading-6 text-rose-100/80">{error}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          {error ? (
-            <Card className="rounded-[28px] border-rose-500/20 bg-rose-500/5 shadow-[0_20px_50px_-36px_rgba(239,68,68,0.4)]">
-              <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400">
-                  <AlertTriangle size={20} />
-                </div>
-                <div className="text-base font-semibold text-foreground">Falha ao carregar metricas</div>
-                <div className="max-w-xl text-sm text-muted-foreground">{error}</div>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 xl:grid-cols-4">
             <ScaleIn delay={0}>
-              <MetricCard
+              <CommandMetric
                 title="Requisicoes"
                 value={formatCompactNumber(totals?.requests ?? 0)}
-                subtitle="contador acumulado desde o boot"
+                subtitle="contador acumulado desde o boot da API"
                 icon={<Activity size={20} />}
-                accentClass="border-sky-500/20 bg-sky-500/10 text-sky-500"
+                accentClass="border-sky-500/20 bg-sky-500/10 text-sky-300"
               />
             </ScaleIn>
-            <ScaleIn delay={0.05}>
-              <MetricCard
+            <ScaleIn delay={0.04}>
+              <CommandMetric
                 title="Erros"
                 value={formatCompactNumber(totals?.errors ?? 0)}
                 subtitle={`${formatPercentage(errorRate)} de taxa de erro total`}
                 icon={<ShieldAlert size={20} />}
-                accentClass="border-rose-500/20 bg-rose-500/10 text-rose-500"
+                accentClass="border-rose-500/20 bg-rose-500/10 text-rose-300"
                 onAction={{
-                  label: "Ver detalhes dos erros",
+                  label: "Abrir detalhes dos erros",
                   onClick: () => openErrorDialog("Todos os erros HTTP"),
                 }}
               />
             </ScaleIn>
-            <ScaleIn delay={0.1}>
-              <MetricCard
+            <ScaleIn delay={0.08}>
+              <CommandMetric
                 title="Latencia media"
                 value={formatLatency(totals?.avgLatencyMs ?? 0)}
-                subtitle="media acumulada das requisicoes"
+                subtitle="media acumulada das requisicoes da API"
                 icon={<Clock3 size={20} />}
-                accentClass="border-amber-500/20 bg-amber-500/10 text-amber-500"
+                accentClass="border-amber-500/20 bg-amber-500/10 text-amber-300"
               />
             </ScaleIn>
-            <ScaleIn delay={0.15}>
-              <MetricCard
+            <ScaleIn delay={0.12}>
+              <CommandMetric
                 title="P95"
                 value={formatLatency(totals?.p95LatencyMs ?? 0)}
-                subtitle="estimado a partir do histograma da API"
+                subtitle="estimativa do histograma de duracao"
                 icon={<Gauge size={20} />}
-                accentClass="border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                accentClass="border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
               />
             </ScaleIn>
           </div>
 
-          <div className="grid items-start gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <Card className="rounded-[30px] border-border bg-card shadow-sm">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="flex items-center gap-2">
-                  <Waves size={16} className="text-primary" />
-                  Ritmo recente
-                </CardTitle>
-                <CardDescription>
-                  Estimativa por minuto baseada nas ultimas leituras desta sessao.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6 p-5 lg:grid-cols-2">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-foreground">Requisicoes/min</div>
-                      <div className="text-xs text-muted-foreground">janela local de {history.length} amostras</div>
-                    </div>
-                    <Badge className="rounded-full border-sky-300/60 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:text-sky-300">
-                      {history.at(-1)?.requestsPerMinute?.toFixed(1) ?? "0.0"}/min
-                    </Badge>
-                  </div>
-                  {renderTrendBars(history, "requestsPerMinute", "bg-sky-500/80")}
+          <div className="grid gap-4 xl:grid-cols-3">
+            <section className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.18)]">
+              <div className="border-b border-border/70 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-primary" />
+                  <h3 className="text-lg font-black tracking-[-0.03em] text-foreground">Mapa de risco imediato</h3>
                 </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-foreground">Erros/min</div>
-                      <div className="text-xs text-muted-foreground">acompanha saltos recentes de falha</div>
-                    </div>
-                    <Badge className="rounded-full border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300">
-                      {history.at(-1)?.errorsPerMinute?.toFixed(2) ?? "0.00"}/min
-                    </Badge>
-                  </div>
-                  {renderTrendBars(history, "errorsPerMinute", "bg-rose-500/80")}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[30px] border-border bg-card shadow-sm">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="flex items-center gap-2">
-                  <ShieldAlert size={16} className="text-primary" />
-                  Rotas criticas
-                </CardTitle>
-                <CardDescription>
-                  Recorte operacional para auth, presence, activity logs e metrics.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-5 p-5">
-                {criticalRoutes.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 p-4 text-sm text-muted-foreground">
-                    Nenhuma rota critica foi capturada nas metricas atuais.
-                  </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Rotas priorizadas por taxa de erro e latencia media, com recorte operacional primeiro.
+                </p>
+              </div>
+              <div className="max-h-[20rem] space-y-3 overflow-y-auto p-5 sm:p-6">
+                {riskRoutes.length === 0 ? (
+                  <EmptyState
+                    title="Nenhuma rota entrou no mapa de risco nesta leitura."
+                    description="Sem erro relativo ou latencia anormal capturados no snapshot atual."
+                    icon={<Radar size={16} />}
+                  />
                 ) : (
-                  criticalRoutes.map((item) => (
-                    <div
-                      key={`critical-top-${item.key}`}
-                      className="rounded-2xl border border-border/70 bg-muted/20 p-4 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="truncate font-mono text-sm text-foreground">
-                            {item.label}
+                  riskRoutes.map((item, index) => {
+                    const tone = riskTone(item);
+                    return (
+                      <div
+                        key={`risk-${item.key}`}
+                        className="relative overflow-hidden rounded-[24px] border border-border/70 bg-background/70 p-4"
+                      >
+                        <div className="relative flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex size-7 items-center justify-center rounded-full border border-border/70 bg-card text-xs font-bold text-foreground">
+                                {index + 1}
+                              </span>
+                              <span className="truncate font-mono text-sm text-foreground">{item.label}</span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Badge className={cn("rounded-full", tone.chip)}>
+                                taxa {formatPercentage(item.errorRate)}
+                              </Badge>
+                              <Badge className="rounded-full border-border/70 bg-card text-foreground">
+                                media {formatLatency(item.avgLatencyMs)}
+                              </Badge>
+                              <Badge className="rounded-full border-border/70 bg-card text-foreground">
+                                {formatCompactNumber(item.requests)} req
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {formatCompactNumber(item.requests)} req · {formatCompactNumber(item.errors)} erros
-                          </div>
+                          {item.errors > 0 ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openErrorDialog(`Erros - ${item.label}`, item.key)}
+                              className="relative h-8 rounded-xl border border-rose-400/15 bg-rose-500/8 px-3 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/12 hover:text-rose-200"
+                            >
+                              <Search size={11} className="mr-1" />
+                              Ver erros
+                            </Button>
+                          ) : null}
                         </div>
-                        <Badge className={cn("rounded-full", statusBadgeClass(item.errorRate > 0 ? "5xx" : "2xx"))}>
-                          {formatPercentage(item.errorRate)}
-                        </Badge>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Badge variant="outline" className="rounded-full">
-                          media {formatLatency(item.avgLatencyMs)}
-                        </Badge>
-                        {item.errors > 0 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openErrorDialog(`Erros - ${item.label}`, item.key)}
-                            className="h-7 rounded-xl border border-rose-300/40 bg-rose-500/8 px-3 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
-                          >
-                            <Search size={11} className="mr-1" />
-                            Ver erros
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </section>
 
-          <div className="grid items-start gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-            <Card className="rounded-[30px] border-border bg-card shadow-sm">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="flex items-center gap-2">
-                  <Route size={16} className="text-primary" />
-                  Rotas mais acionadas
-                </CardTitle>
-                <CardDescription>
-                  Contagem acumulada por rota normalizada da API.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 p-5">
-                {topRoutes.map((item, index) => {
-                  const maxRequests = topRoutes[0]?.requests ?? 0;
-                  return (
-                    <div key={item.key} className="rounded-[22px] border border-border bg-card p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                              {index + 1}
-                            </span>
-                            <span className="truncate font-mono text-sm text-foreground">{item.label}</span>
-                          </div>
-                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className={cn("h-full rounded-full", routeTone(item))}
-                              style={{
-                                width: `${Math.min(100, maxRequests > 0 ? (item.requests / maxRequests) * 100 : 0)}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="text-lg font-black tracking-[-0.03em] text-foreground">
-                            {formatCompactNumber(item.requests)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">req</div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="rounded-full">
-                          erros {formatCompactNumber(item.errors)}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full">
-                          taxa {formatPercentage(item.errorRate)}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full">
-                          media {formatLatency(item.avgLatencyMs)}
-                        </Badge>
-                        {item.errors > 0 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openErrorDialog(`Erros — ${item.label}`, item.key)}
-                            className="h-7 rounded-xl border border-rose-300/40 bg-rose-500/8 px-3 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
-                          >
-                            <Search size={11} className="mr-1" />
-                            Ver erros
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[28px] border-border bg-card shadow-sm">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="flex items-center gap-2">
+            <section className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+              <div className="border-b border-border/70 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-2">
                   <ShieldAlert size={16} className="text-primary" />
-                  Rotas criticas
-                </CardTitle>
-                <CardDescription>
-                  Recorte operacional para auth, presence, activity logs e metrics.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 p-5">
+                  <h3 className="text-lg font-black tracking-[-0.03em] text-foreground">
+                    Rotas criticas
+                  </h3>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Auth, presence, activity logs e metrics com leitura condensada para triagem.
+                </p>
+              </div>
+              <div className="max-h-[20rem] space-y-3 overflow-y-auto p-5 sm:p-6">
                 {criticalRoutes.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 p-4 text-sm text-muted-foreground">
-                    Nenhuma rota critica foi capturada nas metricas atuais.
-                  </div>
+                  <EmptyState
+                    title="Nenhuma rota critica foi capturada nas metricas atuais."
+                    description="A leitura atual nao trouxe chamadas para os caminhos sensiveis monitorados."
+                    icon={<ShieldAlert size={16} />}
+                  />
                 ) : (
                   criticalRoutes.map((item) => (
                     <div
                       key={`critical-${item.key}`}
-                      className="rounded-2xl border/primary var(--surface-2) p-4 shadow-sm"
+                      className="rounded-[22px] border border-border/70 bg-background/70 p-4"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <div className="truncate font-mono text-sm text-foreground">
-                            {item.label}
-                          </div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {formatCompactNumber(item.requests)} req · {formatCompactNumber(item.errors)} erros
+                          <div className="truncate font-mono text-sm text-foreground">{item.label}</div>
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span>{formatCompactNumber(item.requests)} req</span>
+                            <span>{formatCompactNumber(item.errors)} erros</span>
+                            <span>media {formatLatency(item.avgLatencyMs)}</span>
                           </div>
                         </div>
-                        <Badge className={cn("rounded-full", statusBadgeClass(item.errorRate > 0 ? "5xx" : "2xx"))}>
+                        <Badge
+                          className={cn(
+                            "rounded-full",
+                            statusBadgeClass(item.errorRate > 0 ? "5xx" : "2xx")
+                          )}
+                        >
                           {formatPercentage(item.errorRate)}
                         </Badge>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Badge variant="outline" className="rounded-full">
-                          media {formatLatency(item.avgLatencyMs)}
-                        </Badge>
-                        {item.errors > 0 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openErrorDialog(`Erros - ${item.label}`, item.key)}
-                            className="h-7 rounded-xl border border-rose-300/40 bg-rose-500/8 px-3 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
-                          >
-                            <Search size={11} className="mr-1" />
-                            Ver erros
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid items-start gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-            <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-              <CardHeader className="border-b border-border/70">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle size={16} className="text-primary" />
-                  Mapa rapido de risco
-                </CardTitle>
-                <CardDescription>
-                  Prioriza rotas com mais erro relativo ou latencia media mais alta.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 p-5">
-                {riskRoutes.map((item) => (
-                  <div
-                    key={`risk-${item.key}`}
-                    className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-muted/20 p-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate font-mono text-sm text-foreground">{item.label}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {formatCompactNumber(item.requests)} req · {formatCompactNumber(item.errors)} erros
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge className={cn("rounded-full", statusBadgeClass(item.errorRate > 0 ? "5xx" : "2xx"))}>
-                        {formatPercentage(item.errorRate)}
-                      </Badge>
-                      <div className="text-xs text-muted-foreground">{formatLatency(item.avgLatencyMs)}</div>
-                      {item.errors > 0 && (
+                      {item.errors > 0 ? (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => openErrorDialog(`Erros — ${item.label}`, item.key)}
-                          className="mt-0.5 h-6 rounded-xl border border-rose-300/40 bg-rose-500/8 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
+                          onClick={() => openErrorDialog(`Erros - ${item.label}`, item.key)}
+                          className="mt-3 h-8 rounded-xl border border-rose-300/40 bg-rose-500/8 px-3 text-[11px] font-semibold text-rose-600 hover:bg-rose-500/15 dark:border-rose-500/25 dark:text-rose-300"
                         >
-                          <Search size={10} className="mr-1" />
+                          <Search size={11} className="mr-1" />
                           Ver erros
                         </Button>
-                      )}
+                      ) : null}
                     </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.18)]">
+              <div className="border-b border-border/70 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert size={16} className="text-primary" />
+                  <h3 className="text-lg font-black tracking-[-0.03em] text-foreground">Assinaturas de falha</h3>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Agrupamento local para destacar repeticao, origem e ultimo disparo.
+                </p>
+              </div>
+              <div className="max-h-[20rem] space-y-3 overflow-y-auto p-5 sm:p-6">
+                {incidentSummaries.length === 0 ? (
+                  <EmptyState
+                    title="Nenhuma assinatura de falha apareceu nos eventos recentes."
+                    description="Sem agrupamentos de erro ou negacao nos activity logs carregados."
+                    icon={<ShieldAlert size={16} />}
+                  />
+                ) : (
+                  incidentSummaries.map((item) => (
+                    <div
+                      key={`incident-${item.key}`}
+                      className="rounded-[24px] border border-border/70 bg-background/70 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-foreground">{item.errorType}</div>
+                          <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{item.route}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-black tracking-[-0.05em] text-foreground">
+                            {item.count}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">ocorrencias</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge className={cn("rounded-full", outcomeBadgeClass(item.outcome))}>
+                          {item.outcome}
+                        </Badge>
+                        <Badge className="rounded-full border-border/70 bg-card text-foreground">
+                          {item.source}
+                        </Badge>
+                        <Badge className="rounded-full border-border/70 bg-card text-foreground">
+                          ultimo {timeAgoFromIso(item.lastAt)}
+                        </Badge>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
+                          onClick={() => setPayloadLog(item.sampleLog)}
+                        >
+                          Ver request/response
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
           </div>
 
-          <div className="grid items-start gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-            <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-              <CardHeader className="border-b border-border/70">
-                <CardTitle className="flex items-center gap-2">
-                  <Activity size={16} className="text-primary" />
-                  Eventos operacionais recentes
-                </CardTitle>
-                <CardDescription>
-                  Ultimos eventos estruturados de auth, presence e falhas operacionais.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="max-h-[34rem] space-y-3 overflow-y-auto p-5">
-                {recentOps.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 p-4 text-sm text-muted-foreground">
-                    Nenhum evento estruturado recente foi encontrado.
+          <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <section className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+              <div className="border-b border-border/70 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <Waves size={16} className="text-primary" />
+                  <h3 className="text-lg font-black tracking-[-0.03em] text-foreground">
+                    Ritmo da sessao
+                  </h3>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Janela local para acompanhar o pulso de entrada e a aceleracao de falhas.
+                </p>
+              </div>
+              <div className="grid gap-5 p-5 lg:grid-cols-2 lg:p-6">
+                <div className="rounded-[24px] border border-border/70 bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">Requisicoes por minuto</div>
+                      <div className="text-xs text-muted-foreground">baseado nas ultimas {history.length} amostras</div>
+                    </div>
+                    <Badge className="rounded-full border-sky-400/20 bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                      {latestRequestRate.toFixed(1)}/min
+                    </Badge>
                   </div>
+                  <div className="mt-4">{renderTrendBars(history, "requestsPerMinute", "bg-sky-500")}</div>
+                </div>
+
+                <div className="rounded-[24px] border border-border/70 bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">Erros por minuto</div>
+                      <div className="text-xs text-muted-foreground">acompanha picos recentes de degrado</div>
+                    </div>
+                    <Badge className="rounded-full border-rose-400/20 bg-rose-500/10 text-rose-700 dark:text-rose-300">
+                      {latestErrorRatePerMinute.toFixed(2)}/min
+                    </Badge>
+                  </div>
+                  <div className="mt-4">{renderTrendBars(history, "errorsPerMinute", "bg-rose-500")}</div>
+                </div>
+              </div>
+            </section>
+            <section className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+              <div className="border-b border-border/70 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <Route size={16} className="text-primary" />
+                  <h3 className="text-lg font-black tracking-[-0.03em] text-foreground">
+                    Rotas mais acionadas
+                  </h3>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Volume acumulado por rota normalizada para separar carga de risco.
+                </p>
+              </div>
+              <div className="space-y-3 p-5 sm:p-6">
+                {topRoutes.length === 0 ? (
+                  <EmptyState
+                    title="Nenhuma rota apareceu nas metricas atuais."
+                    description="Sem contadores acumulados de requisicao na leitura recebida."
+                    icon={<Route size={16} />}
+                  />
+                ) : (
+                  topRoutes.map((item, index) => {
+                    const maxRequests = topRoutes[0]?.requests ?? 0;
+                    return (
+                      <div key={item.key} className="rounded-[22px] border border-border/70 bg-background/70 p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                {index + 1}
+                              </span>
+                              <span className="truncate font-mono text-sm text-foreground">{item.label}</span>
+                            </div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className={cn("h-full rounded-full", routeTone(item))}
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    maxRequests > 0 ? (item.requests / maxRequests) * 100 : 0
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Badge variant="outline" className="rounded-full">
+                                erros {formatCompactNumber(item.errors)}
+                              </Badge>
+                              <Badge variant="outline" className="rounded-full">
+                                taxa {formatPercentage(item.errorRate)}
+                              </Badge>
+                              <Badge variant="outline" className="rounded-full">
+                                media {formatLatency(item.avgLatencyMs)}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <div className="text-2xl font-black tracking-[-0.04em] text-foreground">
+                              {formatCompactNumber(item.requests)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">req</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="grid gap-4">
+            <section className="overflow-hidden rounded-[30px] border border-border/70 bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+              <div className="border-b border-border/70 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <Activity size={16} className="text-primary" />
+                  <h3 className="text-lg font-black tracking-[-0.03em] text-foreground">
+                    Feed de eventos recentes
+                  </h3>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Sequencia de eventos estruturados para auth, presence e falhas operacionais.
+                </p>
+              </div>
+              <div className="max-h-[36rem] space-y-3 overflow-y-auto p-5 sm:p-6">
+                {recentOps.length === 0 ? (
+                  <EmptyState
+                    title="Nenhum evento estruturado recente foi encontrado."
+                    description="A API nao devolveu logs recentes com contexto operacional utilizavel."
+                    icon={<Activity size={16} />}
+                  />
                 ) : (
                   recentOps.map((item) => (
                     <div
                       key={`recent-op-${item.id}`}
-                      className="rounded-2xl border border-border/70 bg-muted/20 p-4"
+                      className="rounded-[24px] border border-border/70 bg-background/70 p-4"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">
-                              {item.action}
-                            </span>
-                            {item.statusCode && (
-                              <Badge className={cn("rounded-full", item.statusCode >= 200 && item.statusCode < 300 ? "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300" : item.statusCode >= 400 && item.statusCode < 500 ? "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300" : "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300")}>
+                            <span className="text-sm font-semibold text-foreground">{item.action}</span>
+                            {item.statusCode ? (
+                              <Badge
+                                className={cn(
+                                  "rounded-full",
+                                  item.statusCode >= 200 && item.statusCode < 300
+                                    ? "border-emerald-300/60 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300"
+                                    : item.statusCode >= 400 && item.statusCode < 500
+                                      ? "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300"
+                                      : "border-rose-300/60 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:text-rose-300"
+                                )}
+                              >
                                 {item.statusCode}
                               </Badge>
-                            )}
+                            ) : null}
                           </div>
                           <div className="mt-2 text-xs text-muted-foreground">
-                            {item.endpoint ?? item.entityType ?? "operação"}
+                            {item.endpoint ?? item.entityType ?? "operacao"}
                           </div>
                         </div>
                         <div className="text-right">
@@ -946,21 +1125,21 @@ export default function AdminObservabilityPage() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {item.method && (
+                        {item.method ? (
                           <Badge variant="outline" className="rounded-full">
                             {item.method}
                           </Badge>
-                        )}
-                        {item.entityId && (
+                        ) : null}
+                        {item.entityId ? (
                           <Badge variant="outline" className="rounded-full" title={item.entityId}>
                             ID {item.entityId.slice(0, 12)}
                           </Badge>
-                        )}
+                        ) : null}
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-7 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
+                          className="h-8 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
                           onClick={() => setPayloadLog(item)}
                         >
                           Ver payload
@@ -969,12 +1148,8 @@ export default function AdminObservabilityPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-7 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
-                          onClick={() =>
-                            void navigator.clipboard.writeText(
-                              JSON.stringify(buildActivityLogPayload(item), null, 2)
-                            )
-                          }
+                          className="h-8 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
+                          onClick={() => copyPayload(item)}
                         >
                           <Copy size={11} className="mr-1" />
                           Copiar payload
@@ -983,63 +1158,8 @@ export default function AdminObservabilityPage() {
                     </div>
                   ))
                 )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[28px] border-border/70 bg-card/95 shadow-sm">
-              <CardHeader className="border-b border-border/70">
-                <CardTitle className="flex items-center gap-2">
-                  <ShieldAlert size={16} className="text-primary" />
-                  Assinaturas de falha recentes
-                </CardTitle>
-                <CardDescription>
-                  Agrupamento local por rota, source, error type e outcome.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 p-5">
-                {incidentSummaries.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 p-4 text-sm text-muted-foreground">
-                    Nenhuma assinatura de falha apareceu nos eventos recentes.
-                  </div>
-                ) : (
-                  incidentSummaries.map((item) => (
-                    <div
-                      key={`incident-${item.key}`}
-                      className="rounded-2xl border border-border/70 bg-muted/20 p-4"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-foreground">
-                            {item.errorType}
-                          </div>
-                          <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                            {item.route}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-black tracking-[-0.03em] text-foreground">
-                            {item.count}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground">ocorrencias</div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Badge className={cn("rounded-full", outcomeBadgeClass(item.outcome))}>
-                          {item.outcome}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full">
-                          {item.source}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full">
-                          ultimo {timeAgoFromIso(item.lastAt)}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           </div>
         </div>
       </FadeInUp>
@@ -1052,10 +1172,10 @@ export default function AdminObservabilityPage() {
           }
         }}
       >
-        <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
-          <DialogHeader className="border-b border-border/70 bg-muted/20">
-            <DialogTitle>Payload do log</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden border-border/70 bg-card p-0 text-foreground">
+          <DialogHeader className="border-b border-border/70 bg-muted/20 px-6 py-5">
+            <DialogTitle className="text-foreground">Payload do log</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               {payloadLog ? (
                 <>
                   Log <strong>#{payloadLog.id}</strong> em{" "}
@@ -1068,36 +1188,24 @@ export default function AdminObservabilityPage() {
           </DialogHeader>
 
           <div className="overflow-auto p-6">
-            <pre className="overflow-x-auto rounded-2xl border border-border/70 bg-background/90 p-4 text-xs leading-6 text-foreground">
+            <pre className="overflow-x-auto rounded-[24px] border border-border/70 bg-background/90 p-4 text-xs leading-6 text-foreground">
               <code>
-                {payloadLog
-                  ? JSON.stringify(buildActivityLogPayload(payloadLog), null, 2)
-                  : ""}
+                {payloadLog ? JSON.stringify(buildActivityLogPayload(payloadLog), null, 2) : ""}
               </code>
             </pre>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t border-border/70 px-6 py-4">
             <Button
               type="button"
               variant="outline"
               className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
-              onClick={() => {
-                if (payloadLog) {
-                  void navigator.clipboard.writeText(
-                    JSON.stringify(buildActivityLogPayload(payloadLog), null, 2)
-                  );
-                }
-              }}
+              onClick={() => copyPayload(payloadLog)}
             >
               <Copy size={16} />
               Copiar payload
             </Button>
-            <Button
-              type="button"
-              className="h-11 rounded-xl px-4"
-              onClick={() => setPayloadLog(null)}
-            >
+            <Button type="button" className="h-11 rounded-xl px-4" onClick={() => setPayloadLog(null)}>
               Fechar
             </Button>
           </DialogFooter>

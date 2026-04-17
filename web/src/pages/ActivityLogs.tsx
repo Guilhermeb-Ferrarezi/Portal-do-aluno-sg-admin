@@ -327,7 +327,7 @@ function metadataType(value: unknown): MetadataEntry["type"] {
 
 function metadataLabel(value: unknown) {
   if (value === null) return "null";
-  if (Array.isArray(value)) return `${value.length} item(ns)`;
+  if (Array.isArray(value)) return `${value.length} itens`;
   if (typeof value === "object") return `${Object.keys(value as Record<string, unknown>).length} campo(s)`;
   return String(value);
 }

@@ -75,21 +75,28 @@ export async function uploadToR2(
     buffer: Buffer;
     mimetype: string;
   },
-  folder: string = "materiais"
+  folder: string = "materiais",
+  options?: {
+    contentType?: string;
+    extension?: string;
+  }
 ): Promise<string> {
   if (!file.buffer || file.buffer.length === 0) {
     throw new Error("Arquivo vazio");
   }
 
   // Gera nome único para o arquivo
-  const fileExtension = file.originalname.split(".").pop() || "";
+  const fileExtension =
+    options?.extension?.trim().replace(/^\.+/, "") ||
+    file.originalname.split(".").pop() ||
+    "bin";
   const uniqueFilename = `${folder}/${uuidv4()}.${fileExtension}`;
 
   const uploadParams = {
     Bucket: bucketName,
     Key: uniqueFilename,
     Body: file.buffer,
-    ContentType: file.mimetype,
+    ContentType: options?.contentType || file.mimetype || "application/octet-stream",
   };
 
   try {

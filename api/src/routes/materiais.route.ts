@@ -6,11 +6,42 @@ import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
+import { isSafeHttpUrl, validateSafeImageFile } from "../utils/fileValidation";
+
+const ALLOWED_MATERIAL_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/csv",
+  "application/zip",
+  "application/x-rar-compressed",
+  "application/vnd.rar",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "video/mp4",
+  "video/quicktime",
+  "video/x-matroska",
+]);
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, cb) => {
+    const mime = (file.mimetype || "").toLowerCase().trim();
+    if (ALLOWED_MATERIAL_MIME_TYPES.has(mime)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Tipo de arquivo nao permitido"));
   },
 });
 
@@ -100,6 +131,27 @@ function normalizeMaterialFileType(file: Express.Multer.File): string {
   }
 
   return "arquivo";
+}
+
+function resolveMaterialUploadOptions(file: Express.Multer.File) {
+  const mime = (file.mimetype || "").toLowerCase().trim();
+  if (mime.startsWith("image/")) {
+    const safeImage = validateSafeImageFile(file);
+    return {
+      contentType: safeImage.contentType,
+      extension: safeImage.extension,
+      fileType: normalizeMaterialFileType({
+        ...file,
+        mimetype: safeImage.contentType,
+      }),
+    };
+  }
+
+  return {
+    contentType: mime || "application/octet-stream",
+    extension: (file.originalname.split(".").pop() || "bin").toLowerCase(),
+    fileType: normalizeMaterialFileType(file),
+  };
 }
 
 function parseDescriptionMetadata(description: string | null): ParsedDescription {
@@ -375,8 +427,12 @@ export function materiaisRouter(jwtSecret: string) {
             return;
           }
 
-          fileUrl = await uploadToR2(req.file);
-          fileType = normalizeMaterialFileType(req.file);
+          const uploadOptions = resolveMaterialUploadOptions(req.file);
+          fileUrl = await uploadToR2(req.file, "materiais", {
+            contentType: uploadOptions.contentType,
+            extension: uploadOptions.extension,
+          });
+          fileType = uploadOptions.fileType;
         } else {
           if (!data.url) {
             res.status(400).json({ message: "URL é obrigatória para tipo 'link'" });
@@ -384,7 +440,9 @@ export function materiaisRouter(jwtSecret: string) {
           }
 
           try {
-            new URL(data.url);
+            if (!isSafeHttpUrl(data.url)) {
+              throw new Error("unsafe_url");
+            }
           } catch {
             res.status(400).json({ message: "URL inválida" });
             return;
@@ -422,6 +480,10 @@ export function materiaisRouter(jwtSecret: string) {
 
         res.status(201).json({ message: "Material criado com sucesso", material: created });
       } catch (error) {
+        if (error instanceof Error && /arquivo|imagem|tipo|formato/i.test(error.message)) {
+          res.status(400).json({ message: error.message });
+          return;
+        }
         console.error(error);
         res.status(500).json({ message: "Erro ao criar material" });
       }
@@ -474,15 +536,21 @@ export function materiaisRouter(jwtSecret: string) {
           if (inferTipoFromFile(current.file_url, current.file_type) === "arquivo") {
             await deleteFromR2(current.file_url).catch(() => null);
           }
-          nextFileUrl = await uploadToR2(req.file);
-          nextFileType = normalizeMaterialFileType(req.file);
+          const uploadOptions = resolveMaterialUploadOptions(req.file);
+          nextFileUrl = await uploadToR2(req.file, "materiais", {
+            contentType: uploadOptions.contentType,
+            extension: uploadOptions.extension,
+          });
+          nextFileType = uploadOptions.fileType;
         } else if (data.tipo === "link" || typeof data.url === "string") {
           if (!data.url) {
             res.status(400).json({ message: "URL é obrigatória para tipo 'link'" });
             return;
           }
           try {
-            new URL(data.url);
+            if (!isSafeHttpUrl(data.url)) {
+              throw new Error("unsafe_url");
+            }
             nextFileUrl = data.url;
             nextFileType = "link";
           } catch {
@@ -554,6 +622,10 @@ export function materiaisRouter(jwtSecret: string) {
 
         res.json({ message: "Material atualizado com sucesso", material: updated });
       } catch (error) {
+        if (error instanceof Error && /arquivo|imagem|tipo|formato/i.test(error.message)) {
+          res.status(400).json({ message: error.message });
+          return;
+        }
         console.error(error);
         res.status(500).json({ message: "Erro ao atualizar material" });
       }

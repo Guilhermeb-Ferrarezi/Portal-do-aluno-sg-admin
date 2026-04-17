@@ -206,7 +206,8 @@ if exist "%ENV_FILE%" exit /b 0
   echo # Arquivo local criado automaticamente pelo deploy_and_push.bat
   echo # Ajuste os valores abaixo se precisar apontar para outro ambiente.
   echo JWT_SECRET=portal-do-aluno-local-dev
-  echo PRESENCE_PROXY_SECRET=portal-do-aluno-local-proxy
+  echo PRESENCE_PROXY_SECRET=portal-do-aluno-local-proxy-secret-2026
+  echo PASSWORD_RESET_TOKEN_SECRET=portal-do-aluno-local-password-reset-secret-2026
   echo POSTGRES_DB=portal_santos_tech
   echo POSTGRES_USER=iasg
   echo POSTGRES_PASSWORD=iasg123

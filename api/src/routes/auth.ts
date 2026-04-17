@@ -8,6 +8,7 @@ import { authGuard, type AuthRequest } from "../middlewares/auth";
 import { requireRole } from "../middlewares/requireRole";
 import { getRequestId } from "../observability/requestObservability";
 import { logActivity } from "../utils/activityLog";
+import { verifyPasswordForLoginMigration } from "../utils/verifyPassword";
 import type { StudentViewSsoStore } from "../services/studentViewSsoStore";
 import type { PasswordResetStore } from "../services/passwordResetStore";
 import type { PasswordResetMailer } from "../services/passwordResetMailer";
@@ -56,7 +57,16 @@ const refreshSchema = z.object({
 });
 
 const passwordResetRequestSchema = z.object({
-  usuario: z.string().min(1, "Usuario obrigatorio"),
+  usuario: z
+    .string()
+    .min(1, "Usuario obrigatorio")
+    .refine((value) => {
+      const normalized = value.trim();
+      if (!normalized.includes("@")) {
+        return true;
+      }
+      return z.email().safeParse(normalized).success;
+    }, "Informe um e-mail valido."),
 });
 
 const passwordResetValidateSchema = z.object({
@@ -86,14 +96,6 @@ function issueSecureUrlSafeToken(bytes = 48) {
 
 function isSafePasswordResetTokenFormat(token: string) {
   return /^[A-Za-z0-9_-]+$/.test(token);
-}
-
-function sha256Base64(value: string) {
-  return crypto.createHash("sha256").update(value).digest("base64");
-}
-
-function sha256Hex(value: string) {
-  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 function resolveHomeApiBaseUrl(rawUrl: string) {
@@ -143,30 +145,6 @@ function resolveSafeStudentViewReturnTo(req: AuthRequest, rawValue: string | und
   return parsed.toString();
 }
 
-async function verifyPassword(inputPassword: string, storedHash: string) {
-  const normalized = storedHash.trim();
-  const normalizedBcrypt = normalized.replace(/^\$\$2([aby])\$\$/i, "$2$1$");
-
-  if (
-    normalizedBcrypt.startsWith("$2a$") ||
-    normalizedBcrypt.startsWith("$2b$") ||
-    normalizedBcrypt.startsWith("$2y$")
-  ) {
-    return bcrypt.compare(inputPassword, normalizedBcrypt);
-  }
-
-  const matchesBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(normalized);
-  if (matchesBase64 && normalized.length >= 43) {
-    return sha256Base64(inputPassword) === normalized;
-  }
-
-  if (/^[A-Fa-f0-9]{64}$/.test(normalized)) {
-    return sha256Hex(inputPassword) === normalized.toLowerCase();
-  }
-
-  return false;
-}
-
 function parseDurationToMs(value: string, fallbackMs: number) {
   const trimmed = value.trim();
   const match = trimmed.match(/^(\d+)([smhdw])$/i);
@@ -214,13 +192,19 @@ export function authRouter(
   const studentViewSsoStore = options.studentViewSsoStore;
   const passwordResetBaseUrl = options.passwordResetBaseUrl?.trim();
   const passwordResetTtlMinutes = Math.max(5, options.passwordResetTtlMinutes ?? 30);
-  const passwordResetTokenSecret =
-    options.passwordResetTokenSecret?.trim() || `${jwtSecret}:password-reset`;
+  const passwordResetTokenSecret = options.passwordResetTokenSecret?.trim() || null;
   const passwordResetStore = options.passwordResetStore;
   const passwordResetMailer = options.passwordResetMailer;
 
+  function requirePasswordResetTokenSecret() {
+    if (!passwordResetTokenSecret) {
+      throw new Error("PASSWORD_RESET_TOKEN_SECRET nao configurado.");
+    }
+    return passwordResetTokenSecret;
+  }
+
   function resolvePasswordResetTokenHashes(rawToken: string) {
-    const currentHash = hashPasswordResetToken(rawToken, passwordResetTokenSecret);
+    const currentHash = hashPasswordResetToken(rawToken, requirePasswordResetTokenSecret());
     const legacyHash = hashToken(rawToken);
     return currentHash === legacyHash ? [currentHash] : [currentHash, legacyHash];
   }
@@ -303,7 +287,7 @@ export function authRouter(
     }
 
     const resetToken = issueSecureUrlSafeToken();
-    const tokenHash = hashPasswordResetToken(resetToken, passwordResetTokenSecret);
+    const tokenHash = hashPasswordResetToken(resetToken, requirePasswordResetTokenSecret());
     const expiresAt = new Date(Date.now() + passwordResetTtlMinutes * 60 * 1000);
     const userResult = await pool.query<Pick<DbUserRow, "id" | "email" | "role">>(
       `SELECT id, email, role
@@ -355,7 +339,7 @@ export function authRouter(
   }
 
   async function findValidPasswordResetToken(rawToken: string) {
-    if (!passwordResetStore) {
+    if (!passwordResetStore || !passwordResetTokenSecret) {
       return { ok: false as const, message: "Recuperacao de senha indisponivel no momento." };
     }
 
@@ -400,6 +384,7 @@ export function authRouter(
          FROM "user"
          WHERE LOWER(email) = LOWER($1)
             OR LOWER(TRIM(REGEXP_REPLACE(name, '\s+', ' ', 'g'))) = LOWER($1)
+         ORDER BY id ASC
          LIMIT 1`,
         [loginInput]
       );
@@ -421,7 +406,8 @@ export function authRouter(
         return res.status(401).json({ message: "Usuario ou senha invalidos" });
       }
 
-      if (!isValidRole(user.role)) {
+      if (!isValidRole(user.role) || user.role === 1) {
+        await bcrypt.compare(senha, "$2b$10$C6UzMDM.H6dfI/f/IKxGhuJx0P2Tn7YJYcqRR3YKHyCuXapnwYf6O");
         void trackAuthActivity({
           req: req as AuthRequest,
           actor: { id: String(user.id), role: String(user.role) },
@@ -429,21 +415,21 @@ export function authRouter(
           metadata: authObservabilityMetadata(req as AuthRequest, {
             source: "auth.login",
             outcome: "denied",
-            statusCode: 403,
-            errorType: "RoleNotAllowed",
+            statusCode: 401,
+            errorType: user.role === 1 ? "StudentAdminPortalDenied" : "RoleNotAllowed",
             loginInput,
-            motivo: "role_not_allowed",
+            motivo: user.role === 1 ? "student_admin_portal_denied" : "role_not_allowed",
           }),
         });
-        return res.status(403).json({ message: "Acesso indisponível para este perfil" });
+        return res.status(401).json({ message: "Usuario ou senha invalidos" });
       }
 
       if (!user.password_hash || user.password_hash.trim() === "") {
         return res.status(401).json({ message: "Usuario ou senha invalidos" });
       }
 
-      const ok = await verifyPassword(senha, user.password_hash);
-      if (!ok) {
+      const passwordCheck = await verifyPasswordForLoginMigration(senha, user.password_hash);
+      if (!passwordCheck.ok) {
         void trackAuthActivity({
           req: req as AuthRequest,
           actor: { id: String(user.id), role: String(user.role) },
@@ -460,23 +446,12 @@ export function authRouter(
         return res.status(401).json({ message: "Usuario ou senha invalidos" });
       }
 
-      if (user.role === 1) {
-        void trackAuthActivity({
-          req: req as AuthRequest,
-          actor: { id: String(user.id), role: String(user.role) },
-          action: "login_failed",
-          metadata: authObservabilityMetadata(req as AuthRequest, {
-            source: "auth.login",
-            outcome: "denied",
-            statusCode: 403,
-            errorType: "StudentAdminPortalDenied",
-            loginInput,
-            motivo: "student_admin_portal_denied",
-          }),
-        });
-        return res.status(403).json({
-          message: "Alunos nao podem acessar o portal administrativo.",
-        });
+      if (passwordCheck.needsRehash) {
+        const upgradedHash = await bcrypt.hash(senha, 10);
+        await pool.query(`UPDATE "user" SET password_hash = $1 WHERE id = $2`, [
+          upgradedHash,
+          user.id,
+        ]);
       }
 
       const token = signAccessToken(user);
@@ -524,7 +499,7 @@ export function authRouter(
     const loginInput = parsed.data.usuario.trim().replace(/\s+/g, " ");
 
     try {
-      if (!passwordResetStore || !passwordResetMailer) {
+      if (!passwordResetStore || !passwordResetMailer || !passwordResetTokenSecret) {
         return res.status(500).json({ message: "Recuperacao de senha indisponivel no momento." });
       }
 
@@ -533,6 +508,7 @@ export function authRouter(
          FROM "user"
          WHERE LOWER(email) = LOWER($1)
             OR LOWER(TRIM(REGEXP_REPLACE(name, '\s+', ' ', 'g'))) = LOWER($1)
+         ORDER BY id ASC
          LIMIT 1`,
         [loginInput]
       );
@@ -615,7 +591,7 @@ export function authRouter(
     }
 
     try {
-      if (!passwordResetStore) {
+      if (!passwordResetStore || !passwordResetTokenSecret) {
         return res.status(500).json({ message: "Recuperacao de senha indisponivel no momento." });
       }
 
@@ -732,7 +708,7 @@ export function authRouter(
             refreshTokenId: row.id,
           }),
         });
-        return res.status(403).json({ message: "Acesso indisponível para este perfil" });
+        return res.status(403).json({ message: "Acesso indisponivel para este perfil" });
       }
 
       if (row.role === 1) {
@@ -1182,3 +1158,4 @@ export function authRouter(
 
   return router;
 }
+

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "crypto";
 import {
   authenticateToken,
   type AuthRequest,
@@ -38,13 +39,48 @@ function toLegacyRole(roleId: NumericRole): LegacyRole {
   return "admin";
 }
 
+function isTrustedPresenceProxyIp(ip: string | undefined) {
+  if (!ip) {
+    return false;
+  }
+
+  const normalized = ip.replace(/^::ffff:/i, "").trim().toLowerCase();
+  if (normalized === "::1" || normalized === "127.0.0.1" || normalized === "localhost") {
+    return true;
+  }
+
+  if (normalized.startsWith("10.") || normalized.startsWith("192.168.")) {
+    return true;
+  }
+
+  const private172 = normalized.match(/^172\.(\d{1,2})\./);
+  if (private172) {
+    const secondOctet = Number(private172[1]);
+    if (secondOctet >= 16 && secondOctet <= 31) {
+      return true;
+    }
+  }
+
+  return normalized.startsWith("fc") || normalized.startsWith("fd");
+}
+
 function hasValidPresenceProxySecret(req: AuthRequest, presenceProxySecret: string | undefined) {
   if (!presenceProxySecret) {
     return false;
   }
 
   const providedSecret = req.header("x-presence-proxy-secret")?.trim();
-  return Boolean(providedSecret && providedSecret === presenceProxySecret);
+  if (!providedSecret || !isTrustedPresenceProxyIp(req.ip)) {
+    return false;
+  }
+
+  const expected = Buffer.from(presenceProxySecret);
+  const received = Buffer.from(providedSecret);
+  if (expected.length !== received.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expected, received);
 }
 
 function resolveTrustedProxyUser(

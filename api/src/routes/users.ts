@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcrypt";
-import crypto from "crypto";
 import multer from "multer";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
@@ -9,6 +8,8 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
+import { validateSafeImageFile } from "../utils/fileValidation";
+import { verifyPassword } from "../utils/verifyPassword";
 
 type UserRole = "aluno" | "professor" | "admin";
 type NumericRole = 1 | 2 | 3;
@@ -60,45 +61,14 @@ const profileUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
+    const mime = (file.mimetype || "").toLowerCase().trim();
+    if (mime === "image/png" || mime === "image/jpeg" || mime === "image/jpg" || mime === "image/webp") {
       cb(null, true);
       return;
     }
     cb(new Error("Apenas imagens são permitidas"));
   },
 });
-
-function sha256Base64(value: string) {
-  return crypto.createHash("sha256").update(value).digest("base64");
-}
-
-function sha256Hex(value: string) {
-  return crypto.createHash("sha256").update(value).digest("hex");
-}
-
-async function verifyPassword(inputPassword: string, storedHash: string) {
-  const normalized = storedHash.trim();
-  const normalizedBcrypt = normalized.replace(/^\$\$2([aby])\$\$/i, "$2$1$");
-
-  if (
-    normalizedBcrypt.startsWith("$2a$") ||
-    normalizedBcrypt.startsWith("$2b$") ||
-    normalizedBcrypt.startsWith("$2y$")
-  ) {
-    return bcrypt.compare(inputPassword, normalizedBcrypt);
-  }
-
-  const matchesBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(normalized);
-  if (matchesBase64 && normalized.length >= 43) {
-    return sha256Base64(inputPassword) === normalized;
-  }
-
-  if (/^[A-Fa-f0-9]{64}$/.test(normalized)) {
-    return sha256Hex(inputPassword) === normalized.toLowerCase();
-  }
-
-  return false;
-}
 
 function toNumericRole(role: UserRole): NumericRole {
   if (role === "aluno") return 1;
@@ -413,7 +383,11 @@ export function usersRouter(jwtSecret: string) {
         const now = new Date();
         const yyyy = now.getUTCFullYear();
         const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-        const pictureUrl = await uploadToR2(req.file, `users/profile/${yyyy}/${mm}`);
+        const safeImage = validateSafeImageFile(req.file);
+        const pictureUrl = await uploadToR2(req.file, `users/profile/${yyyy}/${mm}`, {
+          contentType: safeImage.contentType,
+          extension: safeImage.extension,
+        });
 
         const updated = await pool.query<DbUserRow>(
           `UPDATE "user"
@@ -448,13 +422,16 @@ export function usersRouter(jwtSecret: string) {
             nome: u.name,
             bio: u.bio,
             profilePictureUrl: u.profile_picture_url,
-      coverPictureUrl: u.cover_photo_url,
+            coverPictureUrl: u.cover_photo_url,
             role: toRole(u.role),
             ativo: true,
             createdAt: u.created_at,
           },
         });
       } catch (error) {
+        if (error instanceof Error && /imagem|tipo|formato|arquivo/i.test(error.message)) {
+          return res.status(400).json({ message: error.message });
+        }
         console.error(error);
         return res.status(500).json({ message: "Erro ao atualizar foto de perfil" });
       }
@@ -484,7 +461,11 @@ export function usersRouter(jwtSecret: string) {
         const now = new Date();
         const yyyy = now.getUTCFullYear();
         const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-        const coverUrl = await uploadToR2(req.file, `users/cover/${yyyy}/${mm}`);
+        const safeImage = validateSafeImageFile(req.file);
+        const coverUrl = await uploadToR2(req.file, `users/cover/${yyyy}/${mm}`, {
+          contentType: safeImage.contentType,
+          extension: safeImage.extension,
+        });
 
         const updated = await pool.query<DbUserRow>(
           `UPDATE "user"
@@ -526,6 +507,9 @@ export function usersRouter(jwtSecret: string) {
           },
         });
       } catch (error) {
+        if (error instanceof Error && /imagem|tipo|formato|arquivo/i.test(error.message)) {
+          return res.status(400).json({ message: error.message });
+        }
         console.error(error);
         return res.status(500).json({ message: "Erro ao atualizar banner de perfil" });
       }

@@ -64,7 +64,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.string().optional(),
   JWT_SECRET: z.string().min(10),
-  PRESENCE_PROXY_SECRET: z.string().min(10).optional(),
+  PRESENCE_PROXY_SECRET: z.string().min(32).optional(),
   JWT_EXPIRES_IN: z.string().optional(),
   REFRESH_TOKEN_EXPIRES_IN: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
@@ -96,6 +96,15 @@ const envSchema = z.object({
   OBSERVABILITY_ENV: z.string().optional(),
   SWAGGER_ENABLED: z.string().optional(),
 });
+
+function validateSecurityConfig(env: z.infer<typeof envSchema>) {
+  const isProduction = (env.NODE_ENV?.trim() || "").toLowerCase() === "production";
+  if (isProduction && !env.PASSWORD_RESET_TOKEN_SECRET?.trim()) {
+    throw new Error(
+      "Missing password reset token secret in production. Define PASSWORD_RESET_TOKEN_SECRET."
+    );
+  }
+}
 
 function validateNotificationsConfig(env: z.infer<typeof envSchema>) {
   const notificationsUrl = env.NOTIFICATIONS_PORTAL_API_URL?.trim();
@@ -223,6 +232,7 @@ function isAllowedCorsOrigin(
 
 const env = envSchema.parse(process.env);
 validateNotificationsConfig(env);
+validateSecurityConfig(env);
 const jwtExpiresIn = resolveJwtExpiresIn(env);
 const refreshTokenExpiresIn = resolveRefreshTokenExpiresIn(env);
 const allowedOrigins = resolveAllowedOrigins(env);
@@ -257,14 +267,10 @@ function shouldSkipApiLimiter(path: string) {
   return (
     path === "/docs" ||
     path === "/docs/openapi.json" ||
-    path === "/presence/socket-ticket" ||
-    path === "/presence/heartbeat" ||
     path === "/metrics" ||
     path === "/health" ||
     path === "/api/docs" ||
     path === "/api/docs/openapi.json" ||
-    path === "/api/presence/socket-ticket" ||
-    path === "/api/presence/heartbeat" ||
     path === "/api/metrics" ||
     path === "/api/health"
   );
@@ -299,9 +305,9 @@ function applyDocsCsp(res: express.Response) {
       "frame-ancestors 'self'",
       "img-src 'self' data:",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline' https://unpkg.com",
+      "script-src 'self' 'unsafe-inline' https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js",
       "script-src-attr 'none'",
-      "style-src 'self' https: 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://unpkg.com/swagger-ui-dist@5/swagger-ui.css",
       "connect-src 'self'",
       "upgrade-insecure-requests",
     ].join(";")
@@ -347,6 +353,32 @@ const loginLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    const rawUsuario =
+      typeof req.body?.usuario === "string" ? req.body.usuario.trim().toLowerCase() : "";
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    return `${ip}:${rawUsuario}`;
+  },
+});
+
+const presenceLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const authHeader = req.headers.authorization?.trim() || "";
+    const body =
+      typeof req.body === "object" && req.body !== null ? (req.body as Record<string, unknown>) : {};
+    const bodyUserId =
+      typeof body.userId === "string"
+        ? body.userId.trim()
+        : typeof body.sub === "string"
+          ? body.sub.trim()
+          : "";
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    return `${ip}:${authHeader || bodyUserId || "presence"}`;
+  },
 });
 
 app.use(apiLimiter);
@@ -391,19 +423,25 @@ if (swaggerEnabled) {
     }
   );
 }
-app.get("/metrics", async (_req, res) => {
+app.get("/metrics", authGuard(env.JWT_SECRET), requireRole(["admin"]), async (_req, res) => {
   res.setHeader("Content-Type", httpMetrics.registry.contentType);
   res.end(await httpMetrics.registry.metrics());
 });
-app.get("/api/metrics", async (_req, res) => {
+app.get(
+  "/api/metrics",
+  authGuard(env.JWT_SECRET),
+  requireRole(["admin"]),
+  async (_req, res) => {
   res.setHeader("Content-Type", httpMetrics.registry.contentType);
   res.end(await httpMetrics.registry.metrics());
-});
+  }
+);
 
 // ===== ROTAS SEM PREFIXO (local / simples) =====
+app.use(["/auth/login", "/auth/password-reset/request"], loginLimiter);
+app.use(["/presence/socket-ticket", "/presence/heartbeat"], presenceLimiter);
 app.use(
   "/auth",
-  loginLimiter,
   authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn, {
     studentPortalBaseUrl: env.STUDENT_PORTAL_BASE_URL,
     studentPortalSsoCallbackPath: env.STUDENT_PORTAL_SSO_CALLBACK_PATH,
@@ -432,9 +470,10 @@ app.use(notificationsRouter(env.JWT_SECRET));
 app.use(presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
 
 // ===== ROTAS COM /api (pra prod/proxy) =====
+app.use(["/api/auth/login", "/api/auth/password-reset/request"], loginLimiter);
+app.use(["/api/presence/socket-ticket", "/api/presence/heartbeat"], presenceLimiter);
 app.use(
   "/api/auth",
-  loginLimiter,
   authRouter(env.JWT_SECRET, jwtExpiresIn, refreshTokenExpiresIn, {
     studentPortalBaseUrl: env.STUDENT_PORTAL_BASE_URL,
     studentPortalSsoCallbackPath: env.STUDENT_PORTAL_SSO_CALLBACK_PATH,
@@ -494,12 +533,15 @@ app.use(
 
       if (e.type === "entity.too.large" || status === 413) {
         return res.status(413).json({
-          message: "Arquivo de ícone muito grande. Envie uma imagem menor.",
+          message: "Payload muito grande.",
         });
       }
 
       if (typeof status === "number" && status >= 400 && status < 600) {
-        return res.status(status).json({ message: e.message || "Erro na requisição" });
+        if (status >= 500) {
+          return res.status(status).json({ message: "Erro interno" });
+        }
+        return res.status(status).json({ message: e.message || "Erro na requisicao" });
       }
     }
 

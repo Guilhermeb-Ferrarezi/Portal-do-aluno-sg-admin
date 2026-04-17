@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { pool } from "../db";
 
 export type NumericRole = 1 | 2 | 3;
 export type LegacyRole = "aluno" | "professor" | "admin";
@@ -74,60 +73,11 @@ function toLegacyRole(role: NumericRole): LegacyRole {
   return "admin";
 }
 
-async function resolveRoleFromDatabase(sub: string | null, usuario: string | null) {
-  if (sub) {
-    const numericSub = Number(sub);
-    if (Number.isInteger(numericSub) && numericSub > 0) {
-      const byId = await pool.query<{ id: number; email: string; role: number }>(
-        `SELECT id, email, role
-         FROM "user"
-         WHERE id = $1
-         LIMIT 1`,
-        [numericSub]
-      );
-
-      if (byId.rowCount) {
-        const row = byId.rows[0];
-        const roleId = parseNumericRole(row.role);
-        if (roleId) {
-          return {
-            sub: String(row.id),
-            usuario: row.email,
-            roleId,
-          };
-        }
-      }
-    }
-  }
-
-  if (usuario) {
-    const byEmail = await pool.query<{ id: number; email: string; role: number }>(
-      `SELECT id, email, role
-       FROM "user"
-       WHERE LOWER(email) = LOWER($1)
-       LIMIT 1`,
-      [usuario]
-    );
-
-    if (byEmail.rowCount) {
-      const row = byEmail.rows[0];
-      const roleId = parseNumericRole(row.role);
-      if (roleId) {
-        return {
-          sub: String(row.id),
-          usuario: row.email,
-          roleId,
-        };
-      }
-    }
-  }
-
-  return null;
-}
-
 export async function authenticateToken(token: string, jwtSecret: string): Promise<AuthUser | null> {
   try {
-    const rawPayload = jwt.verify(token, jwtSecret) as JwtPayload;
+    const rawPayload = jwt.verify(token, jwtSecret, {
+      algorithms: ["HS256"],
+    }) as JwtPayload;
     if (!rawPayload || typeof rawPayload !== "object") {
       return null;
     }
@@ -138,28 +88,15 @@ export async function authenticateToken(token: string, jwtSecret: string): Promi
       .map((claimKey) => parseNumericRole(rawPayload[claimKey]))
       .find((roleId): roleId is NumericRole => roleId !== null) ?? null;
 
-    let sub = subFromToken;
-    let usuario = usuarioFromToken;
-    let roleId = roleFromToken;
-
-    if (!roleId || !sub || !usuario) {
-      const fallback = await resolveRoleFromDatabase(subFromToken, usuarioFromToken);
-      if (fallback) {
-        sub = sub ?? fallback.sub;
-        usuario = usuario ?? fallback.usuario;
-        roleId = roleId ?? fallback.roleId;
-      }
-    }
-
-    if (!roleId || !sub || !usuario) {
+    if (!roleFromToken || !subFromToken || !usuarioFromToken) {
       return null;
     }
 
     return {
-      sub: String(sub),
-      usuario: String(usuario),
-      role: toLegacyRole(roleId),
-      roleId,
+      sub: String(subFromToken),
+      usuario: String(usuarioFromToken),
+      role: toLegacyRole(roleFromToken),
+      roleId: roleFromToken,
       iat: Number(rawPayload.iat ?? 0),
       exp: Number(rawPayload.exp ?? 0),
     };
