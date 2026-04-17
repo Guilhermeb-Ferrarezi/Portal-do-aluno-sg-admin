@@ -26,13 +26,22 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconAction } from "@/components/ui/icon-action";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
+import { usePersistedListParams } from "@/hooks/use-persisted-list-params";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
+import { buildCsv, downloadCsv } from "@/lib/export-csv";
 import {
   listarUsuariosPaginado,
   atualizarUsuario,
   deletarUsuario,
+  listarTurmas,
+  adicionarAlunosNaTurma,
   type User,
+  type Turma,
 } from "../services/api";
 import { getPresenceSnapshot, subscribeToPresence } from "../services/presenceSocket";
 import { isPresenceStillOnline, formatRelativeActivity } from "../utils/presence";
@@ -50,6 +59,8 @@ import {
   Copy,
   Mail,
   MoreHorizontal,
+  Users,
+  Download,
 } from "lucide-react";
 
 const PRESENCE_RENDER_TICK_MS = 15_000;
@@ -101,12 +112,30 @@ function getRoleMeta(role: User["role"]) {
 }
 
 export default function AdminUsersPage() {
+  const { values: queryState, setParams } = usePersistedListParams({
+    q: { defaultValue: "" as string },
+    role: { defaultValue: "todos" as RoleFilter },
+    page: {
+      defaultValue: 1,
+      parse: (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
+      },
+    },
+    limit: {
+      defaultValue: 5,
+      parse: (value) => {
+        const parsed = Number(value);
+        return [5, 10, 20, 50].includes(parsed) ? parsed : 5;
+      },
+    },
+  }, { pageKey: "page" });
   const [usuarios, setUsuarios] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
-  const [filtroTipo, setFiltroTipo] = React.useState<RoleFilter>("todos");
-  const [busca, setBusca] = React.useState("");
+  const [filtroTipo, setFiltroTipo] = React.useState<RoleFilter>(queryState.role);
+  const [busca, setBusca] = React.useState<string>(queryState.q);
 
   const [editandoUsuario, setEditandoUsuario] = React.useState<User | null>(null);
   const [editNome, setEditNome] = React.useState("");
@@ -117,15 +146,32 @@ export default function AdminUsersPage() {
 
   const [usuarioDeletar, setUsuarioDeletar] = React.useState<User | null>(null);
   const [deletando, setDeletando] = React.useState(false);
+  const [turmaAtribuicaoAberta, setTurmaAtribuicaoAberta] = React.useState(false);
+  const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
+  const [turmaSelecionadaId, setTurmaSelecionadaId] = React.useState("");
+  const [carregandoTurmas, setCarregandoTurmas] = React.useState(false);
+  const [atribuindoTurma, setAtribuindoTurma] = React.useState(false);
 
   const [feedback, setFeedback] = React.useState<{
     tipo: "sucesso" | "erro";
     mensagem: string;
   } | null>(null);
 
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(5);
+  const [currentPage, setCurrentPage] = React.useState(queryState.page);
+  const [itemsPerPage, setItemsPerPage] = React.useState(queryState.limit);
   const [totalItems, setTotalItems] = React.useState(0);
+  const bulkSelection = useBulkSelection();
+  const {
+    selectedIds,
+    selectedIdSet,
+    selectedCount,
+    hasSelection,
+    isSelected,
+    toggleSelection,
+    replaceSelection,
+    toggleMany,
+    clearSelection,
+  } = bulkSelection;
   const [presenceNow, setPresenceNow] = React.useState(() => Date.now());
   const hasLoadedUsersRef = React.useRef(false);
   const lastSeenFormatter = React.useMemo(
@@ -193,6 +239,25 @@ export default function AdminUsersPage() {
     }, 3000);
     return () => window.clearTimeout(timer);
   }, [feedback]);
+
+  React.useEffect(() => {
+    if (busca !== queryState.q || filtroTipo !== queryState.role) {
+      setBusca(queryState.q);
+      setFiltroTipo(queryState.role);
+    }
+  }, [filtroTipo, busca, queryState.q, queryState.role]);
+
+  React.useEffect(() => {
+    if (currentPage !== queryState.page) {
+      setCurrentPage(queryState.page);
+    }
+  }, [currentPage, queryState.page]);
+
+  React.useEffect(() => {
+    if (itemsPerPage !== queryState.limit) {
+      setItemsPerPage(queryState.limit);
+    }
+  }, [itemsPerPage, queryState.limit]);
 
   React.useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -360,6 +425,7 @@ export default function AdminUsersPage() {
     try {
       setDeletando(true);
       await deletarUsuario(usuarioDeletar.id);
+      replaceSelection(selectedIds.filter((id) => id !== usuarioDeletar.id));
       await carregarUsuarios();
       setUsuarioDeletar(null);
       showFeedback("sucesso", "Usuario deletado com sucesso");
@@ -369,6 +435,157 @@ export default function AdminUsersPage() {
       setDeletando(false);
     }
   };
+
+  const visibleUserIds = React.useMemo(() => usuarios.map((usuario) => usuario.id), [usuarios]);
+  const allVisibleSelected =
+    visibleUserIds.length > 0 && visibleUserIds.every((id) => selectedIdSet.has(id));
+
+  const exportarUsuariosSelecionados = React.useCallback(() => {
+    const selecionados = usuarios.filter((usuario) => selectedIdSet.has(usuario.id));
+    if (selecionados.length === 0) {
+      showFeedback("erro", "Selecione ao menos um usuario para exportar");
+      return;
+    }
+
+    const csv = buildCsv(selecionados, [
+      { key: "nome", label: "Nome" },
+      { key: "email", label: "E-mail", format: (value, row) => value ?? row.usuario ?? "" },
+      { key: "role", label: "Papel" },
+      { key: "lastSeenAt", label: "Ultima atividade" },
+      { key: "isOnline", label: "Online", format: (value) => (value ? "Sim" : "Nao") },
+    ]);
+
+    downloadCsv("usuarios-selecionados.csv", csv);
+    showFeedback("sucesso", "CSV exportado com sucesso");
+  }, [selectedIdSet, showFeedback, usuarios]);
+
+  const excluirUsuariosSelecionados = React.useCallback(async () => {
+    const selecionados = usuarios.filter((usuario) => selectedIdSet.has(usuario.id));
+    if (selecionados.length === 0) {
+      showFeedback("erro", "Selecione ao menos um usuario para remover");
+      return;
+    }
+
+    try {
+      setDeletando(true);
+      await Promise.all(selecionados.map((usuario) => deletarUsuario(usuario.id)));
+      clearSelection();
+      await carregarUsuarios();
+      showFeedback("sucesso", `${selecionados.length} usuario(s) removido(s) com sucesso`);
+    } catch (err) {
+      showFeedback("erro", err instanceof Error ? err.message : "Erro ao remover usuarios selecionados");
+    } finally {
+      setDeletando(false);
+    }
+  }, [clearSelection, carregarUsuarios, selectedIdSet, showFeedback, usuarios]);
+
+  const alunosSelecionados = React.useMemo(
+    () => usuarios.filter((usuario) => selectedIdSet.has(usuario.id) && usuario.role === "aluno"),
+    [selectedIdSet, usuarios]
+  );
+
+  const atribuirTurmaSelecionada = React.useCallback(async () => {
+    const selecionados = usuarios.filter((usuario) => selectedIdSet.has(usuario.id));
+    if (selecionados.length === 0) {
+      showFeedback("erro", "Selecione ao menos um usuario para atribuir a uma turma");
+      return;
+    }
+
+    if (alunosSelecionados.length === 0) {
+      showFeedback("erro", "Somente usuarios com papel de aluno podem ser atribuidos a turmas");
+      return;
+    }
+
+    try {
+      setCarregandoTurmas(true);
+      const turmas = await listarTurmas();
+      setTurmasDisponiveis(turmas);
+      setTurmaSelecionadaId((current) => current || turmas[0]?.id || "");
+      setTurmaAtribuicaoAberta(true);
+    } catch (err) {
+      showFeedback("erro", err instanceof Error ? err.message : "Erro ao carregar turmas");
+    } finally {
+      setCarregandoTurmas(false);
+    }
+  }, [alunosSelecionados.length, selectedIdSet, showFeedback, usuarios]);
+
+  const confirmarAtribuicaoTurma = React.useCallback(async () => {
+    if (!turmaSelecionadaId) {
+      showFeedback("erro", "Selecione uma turma");
+      return;
+    }
+
+    if (alunosSelecionados.length === 0) {
+      showFeedback("erro", "Nenhum aluno selecionado para atribuir");
+      return;
+    }
+
+    try {
+      setAtribuindoTurma(true);
+      await adicionarAlunosNaTurma(
+        turmaSelecionadaId,
+        alunosSelecionados.map((usuario) => usuario.id)
+      );
+      setTurmaAtribuicaoAberta(false);
+      setTurmaSelecionadaId("");
+      clearSelection();
+      showFeedback("sucesso", `${alunosSelecionados.length} aluno(s) atribuido(s) com sucesso`);
+    } catch (err) {
+      showFeedback("erro", err instanceof Error ? err.message : "Erro ao atribuir alunos na turma");
+    } finally {
+      setAtribuindoTurma(false);
+    }
+  }, [alunosSelecionados, clearSelection, showFeedback, turmaSelecionadaId]);
+
+  const handleBuscaChange = React.useCallback(
+    (value: string) => {
+      if (selectedIds.length > 0) {
+        clearSelection();
+      }
+
+      setBusca(value);
+      setParams({ q: value, page: 1 });
+    },
+    [clearSelection, selectedIds.length, setParams]
+  );
+
+  const handleFiltroTipoChange = React.useCallback(
+    (value: RoleFilter) => {
+      if (selectedIds.length > 0) {
+        clearSelection();
+      }
+
+      setFiltroTipo(value);
+      setParams({ role: value, page: 1 });
+    },
+    [clearSelection, selectedIds.length, setParams]
+  );
+
+  const handleCurrentPageChange = React.useCallback(
+    (page: number) => {
+      setCurrentPage(page);
+      setParams({ page }, { resetPage: false });
+    },
+    [setParams]
+  );
+
+  const handleItemsPerPageChange = React.useCallback(
+    (limit: number) => {
+      setItemsPerPage(limit);
+      setParams({ limit, page: 1 });
+    },
+    [setParams]
+  );
+
+  React.useEffect(() => {
+    const nextSelectedIds = selectedIds.filter((id) =>
+      usuarios.some((usuario) => usuario.id === id)
+    );
+
+    if (nextSelectedIds.length !== selectedIds.length) {
+      replaceSelection(nextSelectedIds);
+    }
+  }, [replaceSelection, selectedIds, usuarios]);
 
   if (loading && !hasLoadedUsersRef.current) {
     return (
@@ -387,22 +604,16 @@ export default function AdminUsersPage() {
   if (erro && !hasLoadedUsersRef.current) {
     return (
       <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>
-        <div className={cn(emptyCardClass, "space-y-4")}>
-          <div className="space-y-2">
-            <p className="text-base font-semibold text-foreground">Nao foi possivel carregar os usuarios.</p>
-            <p className="mx-auto max-w-xl leading-6 text-muted-foreground">{erro}</p>
-          </div>
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={() => {
-              void carregarUsuarios();
-            }}
-          >
-            <RefreshCcw size={16} />
-            <span>Tentar novamente</span>
-          </button>
-        </div>
+        <EmptyState
+          className={emptyCardClass}
+          icon={<RefreshCcw size={18} />}
+          title="Nao foi possivel carregar os usuarios."
+          description={erro}
+          actionLabel="Tentar novamente"
+          onAction={() => {
+            void carregarUsuarios();
+          }}
+        />
       </DashboardLayout>
     );
   }
@@ -432,10 +643,7 @@ export default function AdminUsersPage() {
                     type="text"
                     placeholder="Buscar por nome ou e-mail..."
                     value={busca}
-                    onChange={(e) => {
-                      setBusca(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => handleBuscaChange(e.target.value)}
                     className={cn(fieldClass, "pl-16")}
                     style={{ paddingLeft: "4rem" }}
                   />
@@ -443,10 +651,7 @@ export default function AdminUsersPage() {
 
                 <select
                   value={filtroTipo}
-                  onChange={(e) => {
-                    setFiltroTipo(e.target.value as RoleFilter);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => handleFiltroTipoChange(e.target.value as RoleFilter)}
                   className={cn(fieldClass, "appearance-none")}
                 >
                   <option value="todos">Todos os tipos</option>
@@ -455,21 +660,43 @@ export default function AdminUsersPage() {
                   <option value="admin">Admins</option>
                 </select>
 
-                <button
-                  type="button"
-                  className={cn(secondaryButtonClass, "w-full xl:w-auto")}
+                <IconAction
+                  label={refreshing ? "Atualizando usuarios" : "Atualizar usuarios"}
+                  icon={refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
                   onClick={() => {
                     void carregarUsuarios();
                   }}
                   disabled={refreshing}
-                  title="Atualizar usuarios"
-                >
-                  {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
-                  <span>{refreshing ? "Atualizando..." : "Atualizar usuarios"}</span>
-                </button>
+                  variant="outline"
+                />
               </div>
             </section>
           </FadeInUp>
+
+          {hasSelection ? (
+            <FadeInUp duration={0.24} delay={0.06}>
+              <section className={cn(surfaceCardClass, "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between")}>
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Users size={16} />
+                  {selectedCount} usuario(s) selecionado(s)
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={secondaryButtonClass} onClick={exportarUsuariosSelecionados}>
+                    <Download size={16} />
+                    Exportar CSV
+                  </button>
+                  <button type="button" className={secondaryButtonClass} onClick={atribuirTurmaSelecionada}>
+                    {carregandoTurmas ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
+                    Atribuir turma
+                  </button>
+                  <button type="button" className={primaryButtonClass} onClick={() => void excluirUsuariosSelecionados()}>
+                    <Trash2 size={16} />
+                    Remover
+                  </button>
+                </div>
+              </section>
+            </FadeInUp>
+          ) : null}
 
           {erro ? (
             <FadeInUp duration={0.24} delay={0.08}>
@@ -493,12 +720,12 @@ export default function AdminUsersPage() {
 
           {totalItems === 0 ? (
             <FadeInUp duration={0.28} delay={0.12}>
-              <section className={emptyCardClass}>
-                <p className="text-base font-semibold text-foreground">Nenhum usuario encontrado.</p>
-                <p className="mx-auto mt-2 max-w-xl leading-6 text-muted-foreground">
-                  Ajuste a busca ou troque o filtro de tipo para ver outros registros.
-                </p>
-              </section>
+              <EmptyState
+                className={emptyCardClass}
+                icon={<Users size={22} />}
+                title="Nenhum usuario encontrado."
+                description="Ajuste a busca ou troque o filtro de tipo para ver outros registros."
+              />
             </FadeInUp>
           ) : (
             <>
@@ -510,7 +737,16 @@ export default function AdminUsersPage() {
                     </p>
                   </div>
 
-                  <div className="hidden grid-cols-[minmax(0,1.7fr)_160px_150px_170px] gap-4 border-b border-border/70 bg-muted/20 px-6 py-4 lg:grid">
+                  <div className="hidden grid-cols-[48px_minmax(0,1.7fr)_160px_150px_170px] gap-4 border-b border-border/70 bg-muted/20 px-6 py-4 lg:grid">
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        onCheckedChange={(checked) => toggleMany(visibleUserIds, checked === true)}
+                        aria-label="Selecionar usuarios visiveis"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                    </div>
                     <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                       Usuario
                     </span>
@@ -526,239 +762,255 @@ export default function AdminUsersPage() {
                   </div>
 
                   <div className="divide-y divide-border/70">
-                  {usuarios.map((usuario, idx) => {
-                    const isEffectivelyOnline = isPresenceStillOnline(
-                      usuario.isOnline,
-                      usuario.lastSeenAt,
-                      presenceNow
-                    );
-                    const roleMeta = getRoleMeta(usuario.role);
-                    const RoleIcon = roleMeta.icon;
-                    const contato = usuario.email ?? usuario.usuario ?? "Sem contato cadastrado";
-                    const copyTarget = usuario.email ?? usuario.usuario ?? null;
-                    const lastSeenLabel = usuario.lastSeenAt
-                      ? `Visto em ${lastSeenFormatter.format(new Date(usuario.lastSeenAt))}`
-                      : "Sem atividade recente";
-                    const activityLabel = formatRelativeActivity(
-                      usuario.lastSeenAt,
-                      isEffectivelyOnline,
-                      presenceNow
-                    );
-                    const initial = usuario.nome.trim().charAt(0).toUpperCase() || "U";
+                    {usuarios.map((usuario, idx) => {
+                      const isEffectivelyOnline = isPresenceStillOnline(
+                        usuario.isOnline,
+                        usuario.lastSeenAt,
+                        presenceNow
+                      );
+                      const roleMeta = getRoleMeta(usuario.role);
+                      const RoleIcon = roleMeta.icon;
+                      const contato = usuario.email ?? usuario.usuario ?? "Sem contato cadastrado";
+                      const copyTarget = usuario.email ?? usuario.usuario ?? null;
+                      const lastSeenLabel = usuario.lastSeenAt
+                        ? `Visto em ${lastSeenFormatter.format(new Date(usuario.lastSeenAt))}`
+                        : "Sem atividade recente";
+                      const activityLabel = formatRelativeActivity(
+                        usuario.lastSeenAt,
+                        isEffectivelyOnline,
+                        presenceNow
+                      );
+                      const initial = usuario.nome.trim().charAt(0).toUpperCase() || "U";
 
-                    return (
-                      <FadeInUp key={usuario.id} duration={0.24} delay={Math.min(0.08 + idx * 0.04, 0.28)}>
-                        <ContextMenu>
-                          <ContextMenuTrigger asChild>
+                      return (
+                        <FadeInUp key={usuario.id} duration={0.24} delay={Math.min(0.08 + idx * 0.04, 0.28)}>
+                          <ContextMenu>
                             <div
                               className={cn(
-                                "grid w-full cursor-context-menu gap-4 px-4 py-4 text-left transition hover:bg-accent/20 sm:px-6 lg:grid-cols-[minmax(0,1.7fr)_160px_150px_170px] lg:items-center",
+                                "grid w-full gap-4 px-4 py-4 text-left transition hover:bg-accent/20 sm:px-6 lg:grid-cols-[48px_minmax(0,1.7fr)_160px_150px_170px] lg:items-center",
                                 refreshing && "opacity-85"
                               )}
                             >
-                              <div className="flex min-w-0 items-center justify-between gap-3">
-                                <div className="flex min-w-0 items-center gap-3">
-                                <div
-                                  className={cn(
-                                    "grid size-10 shrink-0 place-items-center rounded-full border text-sm font-black uppercase shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
-                                    roleMeta.avatarClass
-                                  )}
-                                >
-                                  {initial}
-                                </div>
+                              <div className="flex items-center justify-center">
+                                <Checkbox
+                                  checked={isSelected(usuario.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked === "indeterminate") {
+                                      return;
+                                    }
 
-                                <div className="min-w-0">
-                                  <p className="truncate text-lg font-black tracking-[-0.02em] text-foreground">
-                                    {usuario.nome}
-                                  </p>
-                                  <p className="truncate font-mono text-sm text-muted-foreground">{contato}</p>
-                                </div>
-                                </div>
+                                    toggleSelection(usuario.id);
+                                  }}
+                                  aria-label={`Selecionar ${usuario.nome}`}
+                                />
+                              </div>
 
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className={cn(mobileActionTriggerClass, "lg:hidden")}
-                                      aria-label={`Acoes para ${usuario.nome}`}
+                              <ContextMenuTrigger asChild>
+                                <div className="grid min-w-0 cursor-context-menu gap-4 lg:col-span-4 lg:grid-cols-[minmax(0,1.7fr)_160px_150px_170px] lg:items-center">
+                                  <div className="flex min-w-0 items-center justify-between gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                      <div
+                                        className={cn(
+                                          "grid size-10 shrink-0 place-items-center rounded-full border text-sm font-black uppercase shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
+                                          roleMeta.avatarClass
+                                        )}
+                                      >
+                                        {initial}
+                                      </div>
+
+                                      <div className="min-w-0">
+                                        <p className="truncate text-lg font-black tracking-[-0.02em] text-foreground">
+                                          {usuario.nome}
+                                        </p>
+                                        <p className="truncate font-mono text-sm text-muted-foreground">{contato}</p>
+                                      </div>
+                                    </div>
+
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className={cn(mobileActionTriggerClass, "lg:hidden")}
+                                          aria-label={`Acoes para ${usuario.nome}`}
+                                        >
+                                          <MoreHorizontal />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="min-w-56 lg:hidden">
+                                        <DropdownMenuLabel>{usuario.nome}</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+
+                                        <DropdownMenuItem onSelect={() => abrirEditar(usuario)}>
+                                          <Pencil size={15} />
+                                          <span>Editar usuario</span>
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuItem
+                                          disabled={!copyTarget}
+                                          onSelect={() => {
+                                            void copiarContato(usuario);
+                                          }}
+                                        >
+                                          <Copy size={15} />
+                                          <span>Copiar contato</span>
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuItem
+                                          disabled={!usuario.email}
+                                          onSelect={() => enviarEmail(usuario)}
+                                        >
+                                          <Mail size={15} />
+                                          <span>Enviar email</span>
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSub>
+                                          <DropdownMenuSubTrigger disabled={alterandoPapelId === usuario.id}>
+                                            <KeyRound size={15} />
+                                            <span>{alterandoPapelId === usuario.id ? "Alterando papel..." : "Alterar papel"}</span>
+                                          </DropdownMenuSubTrigger>
+                                          <DropdownMenuSubContent className="min-w-48">
+                                            {(["admin", "professor", "aluno"] as const).map((roleOption) => {
+                                              const roleOptionMeta = getRoleMeta(roleOption);
+                                              const RoleOptionIcon = roleOptionMeta.icon;
+
+                                              return (
+                                                <DropdownMenuItem
+                                                  key={roleOption}
+                                                  disabled={alterandoPapelId === usuario.id || usuario.role === roleOption}
+                                                  onSelect={() => {
+                                                    void alterarPapel(usuario, roleOption);
+                                                  }}
+                                                >
+                                                  <RoleOptionIcon size={15} />
+                                                  <span>{roleOptionMeta.label}</span>
+                                                </DropdownMenuItem>
+                                              );
+                                            })}
+                                          </DropdownMenuSubContent>
+                                        </DropdownMenuSub>
+
+                                        <DropdownMenuSeparator />
+
+                                        <DropdownMenuItem variant="destructive" onSelect={() => setUsuarioDeletar(usuario)}>
+                                          <Trash2 size={15} />
+                                          <span>Deletar usuario</span>
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 lg:block">
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">
+                                      Papel
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.22em]",
+                                        roleMeta.badgeClass
+                                      )}
                                     >
-                                      <MoreHorizontal />
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="min-w-56 lg:hidden">
-                                    <DropdownMenuLabel>{usuario.nome}</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
+                                      <RoleIcon size={14} />
+                                      {roleMeta.label}
+                                    </span>
+                                  </div>
 
-                                    <DropdownMenuItem onSelect={() => abrirEditar(usuario)}>
-                                      <Pencil size={15} />
-                                      <span>Editar usuario</span>
-                                    </DropdownMenuItem>
-
-                                    <DropdownMenuItem
-                                      disabled={!copyTarget}
-                                      onSelect={() => {
-                                        void copiarContato(usuario);
-                                      }}
+                                  <div className="flex items-center gap-2 lg:block">
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">
+                                      Status
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "inline-flex items-center gap-2 text-sm font-semibold",
+                                        isEffectivelyOnline ? "text-emerald-300" : "text-muted-foreground"
+                                      )}
                                     >
-                                      <Copy size={15} />
-                                      <span>Copiar contato</span>
-                                    </DropdownMenuItem>
+                                      <span
+                                        className={cn(
+                                          "size-2 rounded-full",
+                                          isEffectivelyOnline ? "bg-emerald-400" : "bg-slate-400"
+                                        )}
+                                      />
+                                      {isEffectivelyOnline ? "Ativo" : "Offline"}
+                                    </span>
+                                  </div>
 
-                                    <DropdownMenuItem
-                                      disabled={!usuario.email}
-                                      onSelect={() => enviarEmail(usuario)}
-                                    >
-                                      <Mail size={15} />
-                                      <span>Enviar email</span>
-                                    </DropdownMenuItem>
-
-                                    <DropdownMenuSub>
-                                      <DropdownMenuSubTrigger disabled={alterandoPapelId === usuario.id}>
-                                        <KeyRound size={15} />
-                                        <span>{alterandoPapelId === usuario.id ? "Alterando papel..." : "Alterar papel"}</span>
-                                      </DropdownMenuSubTrigger>
-                                      <DropdownMenuSubContent className="min-w-48">
-                                        {(["admin", "professor", "aluno"] as const).map((roleOption) => {
-                                          const roleOptionMeta = getRoleMeta(roleOption);
-                                          const RoleOptionIcon = roleOptionMeta.icon;
-
-                                          return (
-                                            <DropdownMenuItem
-                                              key={roleOption}
-                                              disabled={alterandoPapelId === usuario.id || usuario.role === roleOption}
-                                              onSelect={() => {
-                                                void alterarPapel(usuario, roleOption);
-                                              }}
-                                            >
-                                              <RoleOptionIcon size={15} />
-                                              <span>{roleOptionMeta.label}</span>
-                                            </DropdownMenuItem>
-                                          );
-                                        })}
-                                      </DropdownMenuSubContent>
-                                    </DropdownMenuSub>
-
-                                    <DropdownMenuSeparator />
-
-                                    <DropdownMenuItem variant="destructive" onSelect={() => setUsuarioDeletar(usuario)}>
-                                      <Trash2 size={15} />
-                                      <span>Deletar usuario</span>
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-
-                              <div className="flex items-center gap-2 lg:block">
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">
-                                  Papel
-                                </span>
-                                <span
-                                  className={cn(
-                                    "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.22em]",
-                                    roleMeta.badgeClass
-                                  )}
-                                >
-                                  <RoleIcon size={14} />
-                                  {roleMeta.label}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-2 lg:block">
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">
-                                  Status
-                                </span>
-                                <span
-                                  className={cn(
-                                    "inline-flex items-center gap-2 text-sm font-semibold",
-                                    isEffectivelyOnline ? "text-emerald-300" : "text-muted-foreground"
-                                  )}
-                                >
-                                  <span
-                                    className={cn(
-                                      "size-2 rounded-full",
-                                      isEffectivelyOnline ? "bg-emerald-400" : "bg-slate-400"
-                                    )}
-                                  />
-                                  {isEffectivelyOnline ? "Ativo" : "Offline"}
-                                </span>
-                              </div>
-
-                              <div
-                                className="flex items-center gap-2 text-sm text-muted-foreground lg:justify-end"
-                                title={lastSeenLabel}
-                              >
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">
-                                  Ultima atividade
-                                </span>
-                                <span className="font-mono text-sm">{activityLabel}</span>
-                              </div>
+                                  <div
+                                    className="flex items-center gap-2 text-sm text-muted-foreground lg:justify-end"
+                                    title={lastSeenLabel}
+                                  >
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground lg:hidden">
+                                      Ultima atividade
+                                    </span>
+                                    <span className="font-mono text-sm">{activityLabel}</span>
+                                  </div>
+                                </div>
+                              </ContextMenuTrigger>
                             </div>
-                          </ContextMenuTrigger>
 
-                          <ContextMenuContent className="min-w-60">
-                            <ContextMenuLabel>{usuario.nome}</ContextMenuLabel>
-                            <ContextMenuSeparator />
+                            <ContextMenuContent className="min-w-60">
+                              <ContextMenuLabel>{usuario.nome}</ContextMenuLabel>
+                              <ContextMenuSeparator />
 
-                            <ContextMenuItem onSelect={() => abrirEditar(usuario)}>
-                              <Pencil size={15} />
-                              <span>Editar usuario</span>
-                            </ContextMenuItem>
+                              <ContextMenuItem onSelect={() => abrirEditar(usuario)}>
+                                <Pencil size={15} />
+                                <span>Editar usuario</span>
+                              </ContextMenuItem>
 
-                            <ContextMenuItem
-                              disabled={!copyTarget}
-                              onSelect={() => {
-                                void copiarContato(usuario);
-                              }}
-                            >
-                              <Copy size={15} />
-                              <span>Copiar contato</span>
-                            </ContextMenuItem>
+                              <ContextMenuItem
+                                disabled={!copyTarget}
+                                onSelect={() => {
+                                  void copiarContato(usuario);
+                                }}
+                              >
+                                <Copy size={15} />
+                                <span>Copiar contato</span>
+                              </ContextMenuItem>
 
-                            <ContextMenuItem
-                              disabled={!usuario.email}
-                              onSelect={() => enviarEmail(usuario)}
-                            >
-                              <Mail size={15} />
-                              <span>Enviar email</span>
-                            </ContextMenuItem>
+                              <ContextMenuItem
+                                disabled={!usuario.email}
+                                onSelect={() => enviarEmail(usuario)}
+                              >
+                                <Mail size={15} />
+                                <span>Enviar email</span>
+                              </ContextMenuItem>
 
-                            <ContextMenuSub>
-                              <ContextMenuSubTrigger disabled={alterandoPapelId === usuario.id}>
-                                <KeyRound size={15} />
-                                <span>{alterandoPapelId === usuario.id ? "Alterando papel..." : "Alterar papel"}</span>
-                              </ContextMenuSubTrigger>
-                              <ContextMenuSubContent className="min-w-48">
-                                {(["admin", "professor", "aluno"] as const).map((roleOption) => {
-                                  const roleOptionMeta = getRoleMeta(roleOption);
-                                  const RoleOptionIcon = roleOptionMeta.icon;
+                              <ContextMenuSub>
+                                <ContextMenuSubTrigger disabled={alterandoPapelId === usuario.id}>
+                                  <KeyRound size={15} />
+                                  <span>{alterandoPapelId === usuario.id ? "Alterando papel..." : "Alterar papel"}</span>
+                                </ContextMenuSubTrigger>
+                                <ContextMenuSubContent className="min-w-48">
+                                  {(["admin", "professor", "aluno"] as const).map((roleOption) => {
+                                    const roleOptionMeta = getRoleMeta(roleOption);
+                                    const RoleOptionIcon = roleOptionMeta.icon;
 
-                                  return (
-                                    <ContextMenuItem
-                                      key={roleOption}
-                                      disabled={alterandoPapelId === usuario.id || usuario.role === roleOption}
-                                      onSelect={() => {
-                                        void alterarPapel(usuario, roleOption);
-                                      }}
-                                    >
-                                      <RoleOptionIcon size={15} />
-                                      <span>{roleOptionMeta.label}</span>
-                                    </ContextMenuItem>
-                                  );
-                                })}
-                              </ContextMenuSubContent>
-                            </ContextMenuSub>
+                                    return (
+                                      <ContextMenuItem
+                                        key={roleOption}
+                                        disabled={alterandoPapelId === usuario.id || usuario.role === roleOption}
+                                        onSelect={() => {
+                                          void alterarPapel(usuario, roleOption);
+                                        }}
+                                      >
+                                        <RoleOptionIcon size={15} />
+                                        <span>{roleOptionMeta.label}</span>
+                                      </ContextMenuItem>
+                                    );
+                                  })}
+                                </ContextMenuSubContent>
+                              </ContextMenuSub>
 
-                            <ContextMenuSeparator />
+                              <ContextMenuSeparator />
 
-                            <ContextMenuItem variant="destructive" onSelect={() => setUsuarioDeletar(usuario)}>
-                              <Trash2 size={15} />
-                              <span>Deletar usuario</span>
-                            </ContextMenuItem>
-                          </ContextMenuContent>
-                        </ContextMenu>
-                      </FadeInUp>
-                    );
-                  })}
+                              <ContextMenuItem variant="destructive" onSelect={() => setUsuarioDeletar(usuario)}>
+                                <Trash2 size={15} />
+                                <span>Deletar usuario</span>
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        </FadeInUp>
+                      );
+                    })}
                   </div>
                 </section>
               </FadeInUp>
@@ -768,8 +1020,8 @@ export default function AdminUsersPage() {
                   currentPage={currentPage}
                   itemsPerPage={itemsPerPage}
                   totalItems={totalItems}
-                  onPageChange={setCurrentPage}
-                  onItemsPerPageChange={setItemsPerPage}
+                  onPageChange={handleCurrentPageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
                 />
               </FadeInUp>
             </>
@@ -862,6 +1114,73 @@ export default function AdminUsersPage() {
                   </p>
                 </div>
               </div>
+            </div>
+          </Modal>
+
+          <Modal
+            isOpen={turmaAtribuicaoAberta}
+            onClose={atribuindoTurma ? () => undefined : () => setTurmaAtribuicaoAberta(false)}
+            title="Atribuir Alunos A Uma Turma"
+            size="sm"
+            closeOnEscape={!atribuindoTurma}
+            closeOnBackdropClick={!atribuindoTurma}
+            footer={
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {alunosSelecionados.length} aluno(s) selecionado(s)
+                </div>
+
+                <div className="flex w-full gap-2 sm:w-auto sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className={cn(secondaryButtonClass, "flex-1 whitespace-nowrap sm:flex-none")}
+                    onClick={() => setTurmaAtribuicaoAberta(false)}
+                    disabled={atribuindoTurma}
+                  >
+                    <X size={16} />
+                    <span>Cancelar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={cn(primaryButtonClass, "flex-1 whitespace-nowrap sm:flex-none")}
+                    onClick={() => {
+                      void confirmarAtribuicaoTurma();
+                    }}
+                    disabled={atribuindoTurma || !turmaSelecionadaId}
+                  >
+                    {atribuindoTurma ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
+                    <span>{atribuindoTurma ? "Atribuindo..." : "Confirmar"}</span>
+                  </button>
+                </div>
+              </div>
+            }
+          >
+            <div className="grid gap-4">
+              <label className="grid gap-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Turma
+                </span>
+                <select
+                  className={fieldClass}
+                  value={turmaSelecionadaId}
+                  onChange={(event) => setTurmaSelecionadaId(event.target.value)}
+                  disabled={atribuindoTurma || carregandoTurmas || turmasDisponiveis.length === 0}
+                >
+                  <option value="" disabled>
+                    {carregandoTurmas ? "Carregando turmas..." : "Selecione uma turma"}
+                  </option>
+                  {turmasDisponiveis.map((turma) => (
+                    <option key={turma.id} value={turma.id}>
+                      {turma.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {turmasDisponiveis.length === 0 && !carregandoTurmas ? (
+                <p className="text-sm text-muted-foreground">Nenhuma turma disponivel para atribuicao.</p>
+              ) : null}
             </div>
           </Modal>
 

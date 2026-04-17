@@ -1,5 +1,14 @@
 import { apiFetch, type PaginatedItemsResponse } from "./core";
 
+export type UserNotification = {
+  id: number;
+  title: string;
+  message: string;
+  metadataJson: string;
+  readAt: string | null;
+  createdAt: string;
+};
+
 export type NotificationTemplate = {
   id: number;
   nome: string;
@@ -85,6 +94,46 @@ export async function listarDisparosNotificacao(params?: {
   return apiFetch<PaginatedItemsResponse<NotificationDispatch>>(
     `/notifications/dispatches${queryString ? `?${queryString}` : ""}`
   );
+}
+
+export async function listarMinhasNotificacoes(params?: {
+  limit?: number;
+  offset?: number;
+  status?: "all" | "read" | "unread";
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.limit) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  if (params?.offset) {
+    searchParams.set("offset", String(params.offset));
+  }
+
+  if (params?.status) {
+    searchParams.set("status", params.status);
+  }
+
+  const queryString = searchParams.toString();
+
+  return apiFetch<
+    PaginatedItemsResponse<UserNotification> & {
+      unreadCount: number;
+    }
+  >(`/notifications/me${queryString ? `?${queryString}` : ""}`);
+}
+
+export async function marcarNotificacaoComoLida(id: number) {
+  return apiFetch<{ notification: UserNotification }>(`/notifications/${id}/read`, {
+    method: "PATCH",
+  });
+}
+
+export async function marcarTodasNotificacoesComoLidas() {
+  return apiFetch<{ updatedCount: number; markedAt: string }>("/notifications/read-all", {
+    method: "PATCH",
+  });
 }
 
 export async function deletarDisparoNotificacao(id: number) {

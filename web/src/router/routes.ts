@@ -15,6 +15,7 @@ const ESTRUTURA_CURSO_BASE = `${CONTEUDO_BASE}/estrutura`;
 
 export const appRoutes = {
   login: "/login",
+  passwordRecovery: "/recuperar-senha",
   authSso: "/auth/sso",
   dashboard: DASHBOARD_BASE,
   profile: `${DASHBOARD_BASE}/perfil`,

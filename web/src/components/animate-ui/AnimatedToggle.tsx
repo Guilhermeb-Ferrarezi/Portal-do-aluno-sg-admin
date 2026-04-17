@@ -1,5 +1,6 @@
 import React from "react";
 import { m } from "framer-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 interface AnimatedToggleProps {
   checked: boolean;
@@ -20,10 +21,7 @@ export const AnimatedToggle: React.FC<AnimatedToggleProps> = ({
   title,
   "aria-label": ariaLabel,
 }) => {
-  // Check for prefers-reduced-motion
-  const prefersReduced =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const prefersReduced = usePrefersReducedMotion();
   const animationDuration = prefersReduced ? 0.05 : 0.2;
   const [isFocusVisible, setIsFocusVisible] = React.useState(false);
 

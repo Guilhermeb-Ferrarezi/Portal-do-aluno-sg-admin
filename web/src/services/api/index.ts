@@ -1,8 +1,11 @@
-export { API_BASE_URL, apiFetch } from "./core";
-export type { UserRef, PaginationMeta, PaginatedItemsResponse } from "./core";
+export { API_BASE_URL, apiFetch, uploadFormData } from "./core";
+export type { UserRef, PaginationMeta, PaginatedItemsResponse, UploadOptions, UploadProgress } from "./core";
 
 export {
   login,
+  solicitarRecuperacaoSenha,
+  validarTokenRecuperacaoSenha,
+  redefinirSenha,
   logoutWithServer,
   createPresenceSocketTicket,
   startStudentViewSso,
@@ -188,8 +191,11 @@ export type {
   MonitoringTotals,
 } from "./monitoring";
 export { fetchMonitoringSnapshot } from "./monitoring";
-export type { NotificationTemplate, NotificationDispatch } from "./notifications";
+export type { NotificationTemplate, NotificationDispatch, UserNotification } from "./notifications";
 export {
+  listarMinhasNotificacoes,
+  marcarTodasNotificacoesComoLidas,
+  marcarNotificacaoComoLida,
   listarTemplatesNotificacao,
   criarTemplateNotificacao,
   atualizarTemplateNotificacao,

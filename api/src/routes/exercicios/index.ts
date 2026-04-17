@@ -72,7 +72,34 @@ export function exerciciosRouter(jwtSecret: string) {
     const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
     const offset = (page - 1) * limit;
 
+    const resolveTurmaPhaseIds = async (selectedTurmaId: string) => {
+      if (!selectedTurmaId || selectedTurmaId === "todas") return null;
+
+      const classResult = await pool.query<{ current_module_id: number | null }>(
+        `SELECT current_module_id
+         FROM class
+         WHERE id = $1
+         LIMIT 1`,
+        [selectedTurmaId]
+      );
+
+      const currentModuleId = classResult.rows[0]?.current_module_id;
+      if (!Number.isFinite(currentModuleId)) {
+        return new Set<number>();
+      }
+
+      const phaseResult = await pool.query<{ id: number }>(
+        `SELECT id
+         FROM phase
+         WHERE module_id = $1`,
+        [currentModuleId]
+      );
+
+      return new Set(phaseResult.rows.map((row) => Number(row.id)).filter(Number.isFinite));
+    };
+
     if (!schema.hasExercicios) {
+      const turmaPhaseIds = await resolveTurmaPhaseIds(turmaId);
       const mapped = await listFromNewExerciseSchema(userId, isAluno, schema);
       const filtered = mapped.filter((ex) => {
         if (q) {
@@ -84,6 +111,11 @@ export function exerciciosRouter(jwtSecret: string) {
           if (!hasMatch) return false;
         }
         if (modulo && ex.modulo !== modulo) return false;
+        if (turmaId && turmaId !== "todas") {
+          if (!turmaPhaseIds || turmaPhaseIds.size === 0) return false;
+          const phaseId = Number(ex.phaseId ?? 0);
+          if (!Number.isFinite(phaseId) || !turmaPhaseIds.has(phaseId)) return false;
+        }
         if (!isAluno && status !== "todos") {
           const isPublished = ex.publicado !== false;
           const isScheduled = !!ex.publishedAt && new Date(ex.publishedAt).getTime() > Date.now();
@@ -293,6 +325,32 @@ export function exerciciosRouter(jwtSecret: string) {
     const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.floor(limitRaw))) : 20;
     const offset = (page - 1) * limit;
 
+    const resolveTurmaPhaseIds = async (selectedTurmaId: string) => {
+      if (!selectedTurmaId || selectedTurmaId === "todas") return null;
+
+      const classResult = await pool.query<{ current_module_id: number | null }>(
+        `SELECT current_module_id
+         FROM class
+         WHERE id = $1
+         LIMIT 1`,
+        [selectedTurmaId]
+      );
+
+      const currentModuleId = classResult.rows[0]?.current_module_id;
+      if (!Number.isFinite(currentModuleId)) {
+        return new Set<number>();
+      }
+
+      const phaseResult = await pool.query<{ id: number }>(
+        `SELECT id
+         FROM phase
+         WHERE module_id = $1`,
+        [currentModuleId]
+      );
+
+      return new Set(phaseResult.rows.map((row) => Number(row.id)).filter(Number.isFinite));
+    };
+
     if (!schema.hasExercicios) {
       if (!schema.hasExercise) {
         return hasPaginationInput
@@ -304,6 +362,7 @@ export function exerciciosRouter(jwtSecret: string) {
           : res.json([]);
       }
 
+      const turmaPhaseIds = await resolveTurmaPhaseIds(turmaId);
       const mapped = await listDailyTasksFromNewExerciseSchema(userId, isAluno, schema);
       const filtered = mapped.filter((ex) => {
         if (q) {
@@ -315,6 +374,11 @@ export function exerciciosRouter(jwtSecret: string) {
           if (!hasMatch) return false;
         }
         if (modulo && ex.modulo !== modulo) return false;
+        if (turmaId && turmaId !== "todas") {
+          if (!turmaPhaseIds || turmaPhaseIds.size === 0) return false;
+          const phaseId = Number(ex.phaseId ?? 0);
+          if (!Number.isFinite(phaseId) || !turmaPhaseIds.has(phaseId)) return false;
+        }
         if (!isAluno && status !== "todos") {
           const isPublished = ex.publicado !== false;
           const isScheduled = !!ex.publishedAt && new Date(ex.publishedAt).getTime() > Date.now();

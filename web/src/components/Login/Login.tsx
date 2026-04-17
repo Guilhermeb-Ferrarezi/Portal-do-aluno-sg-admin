@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { notifyAuthChanged } from "../../auth/auth";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { logout, normalizeRole, notifyAuthChanged } from "../../auth/auth";
 import { login } from "../../services/api";
 import { AnimatedToast } from "../animate-ui/AnimatedToast";
 import { appRoutes } from "@/router/routes";
@@ -72,6 +72,7 @@ function loginFormReducer(state: LoginFormState, action: LoginFormAction): Login
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [state, dispatch] = useReducer(
     loginFormReducer,
@@ -135,6 +136,25 @@ export default function Login() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (searchParams.get("access") !== "admin-only") {
+      return;
+    }
+
+    logout();
+
+    dispatch({
+      type: "set_erro",
+      value: "Alunos nao podem acessar o portal administrativo.",
+    });
+    dispatch({ type: "set_sucesso", value: null });
+    clearCountdown();
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("access");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -148,8 +168,19 @@ export default function Login() {
 
     try {
       const data = await login({ usuario: usuario.trim(), senha });
+      const resolvedRole = normalizeRole(data.user?.role);
 
       if (!mountedRef.current) return;
+
+      if (resolvedRole === "aluno") {
+        dispatch({
+          type: "set_erro",
+          value: "Alunos nao podem acessar o portal administrativo.",
+        });
+        dispatch({ type: "set_sucesso", value: null });
+        navigate(`${appRoutes.login}?access=admin-only`, { replace: true });
+        return;
+      }
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("refreshToken", data.refreshToken);
@@ -299,7 +330,7 @@ export default function Login() {
                   type="button"
                   variant="link"
                   className="h-auto p-0 text-[12px] font-bold tracking-[0.08em] text-rose-200 no-underline hover:text-rose-100 hover:no-underline"
-                  onClick={() => undefined}
+                  onClick={() => navigate(appRoutes.passwordRecovery)}
                   disabled={loading}
                 >
                   Esqueci minha senha

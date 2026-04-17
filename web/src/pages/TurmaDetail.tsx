@@ -845,7 +845,17 @@ export default function TurmaDetailPage() {
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                           <div className="flex min-w-0 items-center gap-4">
                             {canManageTurmas && turma.faseInicial && aluno.role === "aluno" ? (
-                              <label className="inline-flex items-center justify-center">
+                              <label
+                                className={cn(
+                                  "inline-flex items-center justify-center",
+                                  !podeIniciar && "cursor-not-allowed opacity-55"
+                                )}
+                                title={
+                                  podeIniciar
+                                    ? "Selecionar aluno para iniciar a fase"
+                                    : "Esse aluno ja iniciou a fase e nao pode ser selecionado novamente"
+                                }
+                              >
                                 <input
                                   type="checkbox"
                                   className="size-4 rounded border-border text-primary focus:ring-2 focus:ring-primary/25"
@@ -873,6 +883,14 @@ export default function TurmaDetailPage() {
                                 >
                                   {aluno.faseInicialStatusLabel ?? "Desconhecido"}
                                 </Badge>
+                                {!podeIniciar && turma.faseInicial && aluno.role === "aluno" ? (
+                                  <span
+                                    className="text-[11px] font-medium text-muted-foreground"
+                                    title="A selecao em lote so funciona para alunos que ainda nao iniciaram a fase"
+                                  >
+                                    Nao selecionavel
+                                  </span>
+                                ) : null}
                               </div>
                               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                                 <span>@{aluno.usuario}</span>

@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { m } from "framer-motion";
 import DashboardLayout from "./DashboardLayout";
-import { getName, getRole, hasRole } from "../../auth/auth";
+import { getName, getRole } from "../../auth/auth";
 import { FadeInUp } from "../animate-ui";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -34,13 +34,14 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  KeyRound,
   PenLine,
-  Plus,
   Radar,
   RefreshCcw,
   School,
   Users,
+  UserPlus,
+  Copy,
+  CheckCheck,
 } from "lucide-react";
 
 function ordenarExerciciosRecentes(items: Exercicio[]) {
@@ -260,7 +261,6 @@ export default function Dashboard() {
   const role = getRole();
   const isAdmin = role === "admin";
   const isManagementView = role === "admin" || role === "professor";
-  const canCreateUser = hasRole(["admin"]);
 
   const [totalTurmasAluno, setTotalTurmasAluno] = React.useState(0);
   const [hasTurmas, setHasTurmas] = React.useState(false);
@@ -449,6 +449,32 @@ export default function Dashboard() {
   const taxaAgendamento = totalExerciciosPublicados > 0
     ? Math.round((exerciciosProgramados / totalExerciciosPublicados) * 100)
     : 0;
+  const dashboardQuickActions = React.useMemo(() => {
+    if (role === "admin") {
+      return [
+        { label: "Criar usuario", icon: UserPlus, to: appRoutes.criarUsuario },
+        { label: "Criar turma", icon: School, to: appRoutes.estruturaCurso.tab("turmas") },
+        { label: "Criar exercicio", icon: PenLine, to: appRoutes.estruturaCurso.tab("exercicios") },
+      ];
+    }
+
+    if (role === "professor") {
+      return [
+        {
+          label: "Duplicar exercicio",
+          icon: Copy,
+          to: appRoutes.exercicios,
+          visible: totalExercicios > 0,
+        },
+        { label: "Adicionar aluno", icon: UserPlus, to: appRoutes.turmas },
+      ];
+    }
+
+    return [
+      { label: "Ultimo exercicio", icon: BookOpen, to: appRoutes.exercicios, visible: totalExercicios > 0 },
+      { label: "Ver pendentes", icon: CheckCheck, to: appRoutes.exercicios },
+    ];
+  }, [role, totalExercicios]);
 
   if (loading) {
     return (
@@ -496,6 +522,7 @@ export default function Dashboard() {
     <DashboardLayout
       title="Dashboard"
       subtitle={isManagementView ? "Painel operacional das turmas e entregas." : "Resumo rapido da sua rotina de estudos."}
+      quickActions={dashboardQuickActions}
     >
       <FadeInUp>
         <div className="flex flex-col gap-5">
@@ -801,73 +828,6 @@ export default function Dashboard() {
                 </div>
               </m.div>
 
-              <m.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.28, duration: 0.18 }}
-                className={sectionCardClass}
-              >
-                <h2 className="text-lg font-black tracking-[-0.03em] text-foreground">
-                  Acoes rapidas
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Atalhos diretos para as areas operacionais mais usadas.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Button
-                    variant="default"
-                    className="justify-start rounded-md"
-                    onClick={() => navigate(appRoutes.exercicios)}
-                  >
-                    <PenLine data-icon="inline-start" />
-                    Exercicios
-                  </Button>
-
-                  {role === "admin" || role === "professor" || hasTurmas ? (
-                    <Button
-                      variant="outline"
-                      className="justify-start rounded-md"
-                      onClick={() => navigate(appRoutes.turmas)}
-                    >
-                      <School data-icon="inline-start" />
-                      Turmas
-                    </Button>
-                  ) : null}
-
-                  {isAdmin ? (
-                    <Button
-                      variant="outline"
-                      className="justify-start rounded-md"
-                      onClick={() => navigate(appRoutes.notificacoes)}
-                    >
-                      <Bell data-icon="inline-start" />
-                      Notificacoes
-                    </Button>
-                  ) : null}
-
-                  {canCreateUser ? (
-                    <>
-                      <Button
-                        variant="default"
-                        className="justify-start rounded-md"
-                        onClick={() => navigate(appRoutes.criarUsuario)}
-                      >
-                        <Plus data-icon="inline-start" />
-                        Criar usuario
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="justify-start rounded-md"
-                        onClick={() => navigate(appRoutes.usuarios)}
-                      >
-                        <KeyRound data-icon="inline-start" />
-                        Gerenciar usuarios
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-              </m.div>
             </div>
           </section>
 

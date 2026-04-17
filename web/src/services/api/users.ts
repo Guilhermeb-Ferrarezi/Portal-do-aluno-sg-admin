@@ -1,5 +1,5 @@
 import { getRole as getAuthRole, type Role } from "../../auth/auth";
-import { apiFetch, API_BASE_URL, buildAuthHeaders, handleUnauthorized, parseError } from "./core";
+import { apiFetch, uploadFormData, type UploadOptions } from "./core";
 import type { PaginatedItemsResponse } from "./core";
 
 export type User = {
@@ -36,54 +36,26 @@ export async function atualizarMeuPerfil(dados: {
   });
 }
 
-export async function uploadMinhaFotoPerfil(file: File) {
+export async function uploadMinhaFotoPerfil(file: File, options?: UploadOptions) {
   const form = new FormData();
   form.append("file", file);
 
-  const res = await fetch(`${API_BASE_URL}/users/me/profile-picture`, {
-    method: "POST",
-    headers: await buildAuthHeaders(),
-    body: form,
-  });
-
-  if (!res.ok) {
-    const message = await parseError(res);
-    if (res.status === 401) {
-      handleUnauthorized(message);
-    }
-    throw new Error(message);
-  }
-
-  return res.json() as Promise<{
+  return uploadFormData<{
     message: string;
     profilePictureUrl: string;
     user: UserMe;
-  }>;
+  }>("/users/me/profile-picture", form, options);
 }
 
-export async function uploadMeuBannerPerfil(file: File) {
+export async function uploadMeuBannerPerfil(file: File, options?: UploadOptions) {
   const form = new FormData();
   form.append("file", file);
 
-  const res = await fetch(`${API_BASE_URL}/users/me/cover-picture`, {
-    method: "POST",
-    headers: await buildAuthHeaders(),
-    body: form,
-  });
-
-  if (!res.ok) {
-    const message = await parseError(res);
-    if (res.status === 401) {
-      handleUnauthorized(message);
-    }
-    throw new Error(message);
-  }
-
-  return res.json() as Promise<{
+  return uploadFormData<{
     message: string;
     coverPictureUrl: string;
     user: UserMe;
-  }>;
+  }>("/users/me/cover-picture", form, options);
 }
 
 export async function alterarMinhaSenha(dados: { senhaAtual: string; novaSenha: string }) {

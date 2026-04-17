@@ -5,9 +5,13 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getName, getRole, hasRole } from "../../auth/auth";
 import {
   listarTurmas,
+  listarMinhasNotificacoes,
+  marcarTodasNotificacoesComoLidas,
+  marcarNotificacaoComoLida,
   logoutWithServer,
   obterUsuarioAtual,
   type Turma,
+  type UserNotification,
 } from "../../services/api";
 import ProfilePopup from "../ProfilePopup";
 import SettingsOverlay from "../SettingsOverlay";
@@ -50,9 +54,18 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+type DashboardQuickAction = {
+  label: string;
+  icon: LucideIcon;
+  to?: string;
+  onClick?: () => void;
+  visible?: boolean;
+};
+
 type DashboardLayoutProps = {
   title?: string;
   subtitle?: string;
+  quickActions?: DashboardQuickAction[];
   children?: ReactNode;
 };
 
@@ -61,6 +74,8 @@ type BreadcrumbItem = {
   to?: string;
   icon: LucideIcon;
 };
+
+type NotificationsTab = "inbox" | "history";
 
 type NavAreaId = "operations" | "content" | "people" | "system";
 type NavEntry = {
@@ -80,7 +95,7 @@ type NavArea = {
 
 const SIDEBAR_OPEN_AREAS_STORAGE_KEY = "dashboard-sidebar-open-areas";
 const DashboardShellContext = React.createContext<{
-  setPageMeta: (meta: { title?: string; subtitle?: string }) => void;
+  setPageMeta: (meta: { title?: string; subtitle?: string; quickActions?: DashboardQuickAction[] }) => void;
 } | null>(null);
 
 function roleLabel(role: string | null) {
@@ -179,13 +194,14 @@ function NavButtonItem({
 function DashboardPageRegistration({
   title,
   subtitle,
+  quickActions,
   children,
 }: DashboardLayoutProps) {
   const shellContext = React.useContext(DashboardShellContext);
 
   React.useEffect(() => {
-    shellContext?.setPageMeta({ title, subtitle });
-  }, [shellContext, subtitle, title]);
+    shellContext?.setPageMeta({ title, subtitle, quickActions });
+  }, [quickActions, shellContext, subtitle, title]);
 
   return <>{children}</>;
 }
@@ -204,6 +220,17 @@ function DashboardShell({
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [notificationsDrawerOpen, setNotificationsDrawerOpen] = React.useState(false);
+  const [inboxNotifications, setInboxNotifications] = React.useState<UserNotification[]>([]);
+  const [historyNotifications, setHistoryNotifications] = React.useState<UserNotification[]>([]);
+  const [historyTotal, setHistoryTotal] = React.useState(0);
+  const [notificationsUnreadCount, setNotificationsUnreadCount] = React.useState(0);
+  const [notificationsLoading, setNotificationsLoading] = React.useState(false);
+  const [notificationsError, setNotificationsError] = React.useState<string | null>(null);
+  const [markingNotificationId, setMarkingNotificationId] = React.useState<number | null>(null);
+  const [markingAllNotifications, setMarkingAllNotifications] = React.useState(false);
+  const [loadingMoreHistory, setLoadingMoreHistory] = React.useState(false);
+  const [notificationsTab, setNotificationsTab] = React.useState<NotificationsTab>("inbox");
   const [openAreaIds, setOpenAreaIds] = React.useState<NavAreaId[]>(() => {
     if (typeof window === "undefined") return [];
 
@@ -219,7 +246,7 @@ function DashboardShell({
       return [];
     }
   });
-  const [pageMeta, setPageMeta] = React.useState<{ title?: string; subtitle?: string }>({});
+  const [pageMeta, setPageMeta] = React.useState<{ title?: string; subtitle?: string; quickActions?: DashboardQuickAction[] }>({});
   const shellContextValue = React.useMemo(() => ({ setPageMeta }), []);
   const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
@@ -229,6 +256,79 @@ function DashboardShell({
       .catch((e) => console.error("Erro ao carregar turmas:", e));
   }, []);
 
+  const mergeNotifications = React.useCallback(
+    (current: UserNotification[], incoming: UserNotification[]) => {
+      const byId = new Map<number, UserNotification>();
+      for (const item of [...current, ...incoming]) {
+        byId.set(item.id, item);
+      }
+      return Array.from(byId.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    },
+    []
+  );
+
+  const loadInboxNotifications = React.useCallback(async () => {
+    if (!canCreateUser) {
+      setInboxNotifications([]);
+      setHistoryNotifications([]);
+      setHistoryTotal(0);
+      setNotificationsUnreadCount(0);
+      return;
+    }
+
+    try {
+      setNotificationsLoading(true);
+      setNotificationsError(null);
+      const response = await listarMinhasNotificacoes({ limit: 20, offset: 0, status: "unread" });
+      setInboxNotifications(response.items);
+      setNotificationsUnreadCount(response.unreadCount);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error ? error.message : "Erro ao carregar notificacoes"
+      );
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [canCreateUser]);
+
+  const loadHistoryNotifications = React.useCallback(
+    async ({ reset = false }: { reset?: boolean } = {}) => {
+      if (!canCreateUser) {
+        setHistoryNotifications([]);
+        setHistoryTotal(0);
+        return;
+      }
+
+      const offset = reset ? 0 : historyNotifications.length;
+
+      try {
+        if (reset) {
+          setNotificationsLoading(true);
+        } else {
+          setLoadingMoreHistory(true);
+        }
+
+        setNotificationsError(null);
+        const response = await listarMinhasNotificacoes({ limit: 20, offset, status: "read" });
+        setHistoryNotifications((current) =>
+          reset ? response.items : mergeNotifications(current, response.items)
+        );
+        setHistoryTotal(response.total);
+        setNotificationsUnreadCount(response.unreadCount);
+      } catch (error) {
+        setNotificationsError(
+          error instanceof Error ? error.message : "Erro ao carregar historico de notificacoes"
+        );
+      } finally {
+        setNotificationsLoading(false);
+        setLoadingMoreHistory(false);
+      }
+    },
+    [canCreateUser, historyNotifications.length, mergeNotifications]
+  );
+
   React.useEffect(() => {
     obterUsuarioAtual()
       .then((user) => setProfilePictureUrl(user.profilePictureUrl ?? ""))
@@ -236,9 +336,26 @@ function DashboardShell({
   }, [settingsOpen]);
 
   React.useEffect(() => {
+    void loadInboxNotifications();
+  }, [loadInboxNotifications]);
+
+  React.useEffect(() => {
     setSidebarOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [location.pathname]);
+
+  React.useEffect(() => {
+    if (!notificationsDrawerOpen) return;
+    setNotificationsTab("inbox");
+    void loadInboxNotifications();
+  }, [loadInboxNotifications, notificationsDrawerOpen]);
+
+  React.useEffect(() => {
+    if (!notificationsDrawerOpen || notificationsTab !== "history" || historyNotifications.length > 0) {
+      return;
+    }
+    void loadHistoryNotifications({ reset: true });
+  }, [historyNotifications.length, loadHistoryNotifications, notificationsDrawerOpen, notificationsTab]);
 
   React.useEffect(() => {
     try {
@@ -396,13 +513,6 @@ function DashboardShell({
             branch: appRoutes.observabilidade,
             visible: canCreateUser,
           },
-          {
-            label: "Perfil",
-            icon: User,
-            to: appRoutes.perfil,
-            branch: appRoutes.perfil,
-            visible: canCreateUser,
-          },
         ],
       },
     ];
@@ -437,6 +547,20 @@ function DashboardShell({
 
   const resolvedTitle = pageMeta.title ?? "Dashboard";
   const pageSubtitle = pageMeta.subtitle ?? `Bem-vindo de volta, ${name}`;
+  const notificationsDateFormatter = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }),
+    []
+  );
+  const dashboardQuickActions = React.useMemo(
+    () => (pageMeta.quickActions ?? []).filter((action) => action.visible !== false),
+    [pageMeta.quickActions]
+  );
+  const visibleNotifications = notificationsTab === "history" ? historyNotifications : inboxNotifications;
+  const hasMoreHistory = historyNotifications.length < historyTotal;
   const breadcrumbs: BreadcrumbItem[] = React.useMemo(() => {
     if (isDashboard) {
       return [
@@ -549,6 +673,74 @@ function DashboardShell({
     activeArea,
     resolvedTitle,
   ]);
+
+  const handleNotificationItemClick = React.useCallback(
+    async (notification: UserNotification) => {
+      if (notification.readAt) {
+        return;
+      }
+
+      try {
+        setMarkingNotificationId(notification.id);
+        const response = await marcarNotificacaoComoLida(notification.id);
+        setInboxNotifications((current) => current.filter((item) => item.id !== notification.id));
+        setHistoryNotifications((current) => mergeNotifications([response.notification], current));
+        setHistoryTotal((current) => current + 1);
+        setNotificationsUnreadCount((current) => Math.max(0, current - 1));
+      } catch (error) {
+        setNotificationsError(
+          error instanceof Error ? error.message : "Erro ao marcar notificacao como lida"
+        );
+      } finally {
+        setMarkingNotificationId(null);
+      }
+    },
+    [mergeNotifications]
+  );
+
+  const handleMarkAllNotificationsAsRead = React.useCallback(async () => {
+    if (notificationsUnreadCount === 0) {
+      return;
+    }
+
+    try {
+      setMarkingAllNotifications(true);
+      const response = await marcarTodasNotificacoesComoLidas();
+      const markedNotifications = inboxNotifications.map((notification) => ({
+        ...notification,
+        readAt: response.markedAt,
+      }));
+
+      setInboxNotifications([]);
+      setHistoryNotifications((current) => mergeNotifications(markedNotifications, current));
+      setHistoryTotal((current) => current + response.updatedCount);
+      setNotificationsUnreadCount(0);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error ? error.message : "Erro ao marcar notificacoes como lidas"
+      );
+    } finally {
+      setMarkingAllNotifications(false);
+    }
+  }, [inboxNotifications, mergeNotifications, notificationsUnreadCount]);
+
+  const handleNotificationsScroll = React.useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      if (notificationsTab !== "history" || loadingMoreHistory || notificationsLoading || !hasMoreHistory) {
+        return;
+      }
+
+      const element = event.currentTarget;
+      const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+
+      if (distanceToBottom > 120) {
+        return;
+      }
+
+      void loadHistoryNotifications();
+    },
+    [hasMoreHistory, loadHistoryNotifications, loadingMoreHistory, notificationsLoading, notificationsTab]
+  );
   return (
     <DashboardShellContext.Provider value={shellContextValue}>
       <div className="min-h-screen bg-background text-foreground">
@@ -802,13 +994,18 @@ function DashboardShell({
                 <button
                   className={cn(
                     "relative inline-flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-muted/50 hover:text-foreground",
-                    isNotificacoes && "border-primary/30 bg-primary/10 text-primary"
+                    (isNotificacoes || notificationsDrawerOpen) && "border-primary/30 bg-primary/10 text-primary"
                   )}
                   aria-label="Notificacoes"
                   type="button"
-                  onClick={() => navigate(appRoutes.notificacoes)}
+                  onClick={() => setNotificationsDrawerOpen(true)}
                 >
                   <Bell size={18} />
+                  {notificationsUnreadCount > 0 ? (
+                    <span className="absolute -top-1 -right-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-black leading-none text-primary-foreground shadow-sm">
+                      {notificationsUnreadCount > 99 ? "99+" : notificationsUnreadCount}
+                    </span>
+                  ) : null}
                 </button>
               ) : null}
             </div>
@@ -816,6 +1013,49 @@ function DashboardShell({
         </header>
 
         <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+          {isDashboard && dashboardQuickActions.length > 0 ? (
+            <section className="rounded-[24px] border border-border/70 bg-card/85 p-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[0.68rem] font-black uppercase tracking-[0.24em] text-muted-foreground/80">
+                    Acoes rapidas
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Atalhos por perfil para concluir tarefas frequentes sem sair do dashboard.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {dashboardQuickActions.map((action) => {
+                    const content = (
+                      <>
+                        <action.icon data-icon="inline-start" size={16} />
+                        {action.label}
+                      </>
+                    );
+
+                    return action.to ? (
+                      <Link
+                        key={action.label}
+                        to={action.to}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border/80 bg-background/80 px-4 text-sm font-semibold text-foreground transition hover:border-primary/30 hover:bg-muted"
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      <button
+                        key={action.label}
+                        type="button"
+                        onClick={action.onClick}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border/80 bg-background/80 px-4 text-sm font-semibold text-foreground transition hover:border-primary/30 hover:bg-muted"
+                      >
+                        {content}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          ) : null}
           {children ?? <Outlet />}
         </main>
       </div>
@@ -825,6 +1065,181 @@ function DashboardShell({
         onClose={() => setSettingsOpen(false)}
         onLogout={handleLogout}
       />
+
+      <Dialog open={notificationsDrawerOpen} onOpenChange={setNotificationsDrawerOpen}>
+        <DialogContent
+          className="fixed top-0 right-0 left-auto z-50 flex h-screen w-full max-w-[420px] translate-x-0 translate-y-0 flex-col rounded-none border-l border-border/70 border-t-0 border-r-0 border-b-0 bg-card text-foreground shadow-[0_32px_90px_-40px_rgba(0,0,0,0.6)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-[460px]"
+          overlayClassName="bg-black/45 backdrop-blur-[1px]"
+          closeClassName="top-5 right-5 h-10 w-10 rounded-xl bg-muted text-foreground hover:bg-accent"
+        >
+          <DialogHeader className="gap-2 border-b border-border/60 pb-5 pr-16">
+            <DialogTitle className="text-lg">Minhas notificações</DialogTitle>
+            <DialogDescription>
+              {notificationsTab === "history"
+                ? `${historyTotal} item(ns) no historico recente.`
+                : notificationsUnreadCount > 0
+                ? `${notificationsUnreadCount} notificacao(oes) nao lida(s).`
+                : "Voce esta em dia com suas notificacoes."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6" onScroll={handleNotificationsScroll}>
+            <div className="sticky top-0 z-10 -mx-6 border-b border-border/50 bg-card px-6 py-4">
+              <div className="inline-flex w-full rounded-full border border-border/70 bg-background/70 p-1">
+                <button
+                  type="button"
+                  onClick={() => setNotificationsTab("inbox")}
+                  className={cn(
+                    "flex-1 rounded-full px-4 py-2 text-sm font-semibold transition",
+                    notificationsTab === "inbox"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Notificações
+                  <span className="ml-2 text-[11px] font-black">{notificationsUnreadCount}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotificationsTab("history")}
+                  className={cn(
+                    "flex-1 rounded-full px-4 py-2 text-sm font-semibold transition",
+                    notificationsTab === "history"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Histórico
+                  <span className="ml-2 text-[11px] font-black">{historyTotal}</span>
+                </button>
+              </div>
+
+              {notificationsTab === "inbox" && notificationsUnreadCount > 0 ? (
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleMarkAllNotificationsAsRead();
+                    }}
+                    disabled={markingAllNotifications}
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {markingAllNotifications ? "Lendo tudo..." : "Ler tudo"}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            {notificationsLoading ? (
+              <div className="flex h-full min-h-[240px] items-center justify-center">
+                <div className="inline-flex items-center gap-3 text-sm text-muted-foreground">
+                  <m.span
+                    className="inline-flex"
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1, ease: "linear" }}
+                  >
+                    <Bell size={16} />
+                  </m.span>
+                  Carregando notificacoes...
+                </div>
+              </div>
+            ) : notificationsError ? (
+              <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/8 p-4">
+                <p className="text-sm text-red-200">{notificationsError}</p>
+                <button
+                  type="button"
+                  className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground transition hover:bg-muted"
+                  onClick={() => {
+                    if (notificationsTab === "history") {
+                      void loadHistoryNotifications({ reset: true });
+                    } else {
+                      void loadInboxNotifications();
+                    }
+                  }}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : visibleNotifications.length === 0 ? (
+              <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 text-center">
+                <div className="inline-flex size-14 items-center justify-center rounded-full border border-border/70 bg-muted/40 text-muted-foreground">
+                  <Bell size={20} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base font-semibold text-foreground">
+                    {notificationsTab === "history" ? "Nenhum histórico" : "Nenhuma notificacao"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {notificationsTab === "history"
+                      ? "As notificacoes lidas vao aparecer aqui."
+                      : "Quando houver novidades, elas aparecem aqui."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-3">
+                {visibleNotifications.map((notification) => {
+                  const isUnread = !notification.readAt;
+                  const isMarking = markingNotificationId === notification.id;
+
+                  return (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() => {
+                        void handleNotificationItemClick(notification);
+                      }}
+                      className={cn(
+                        "flex flex-col gap-2 rounded-[20px] border p-4 text-left transition",
+                        isUnread
+                          ? "border-primary/25 bg-primary/8 hover:border-primary/35 hover:bg-primary/12"
+                          : "border-border/70 bg-background/70 hover:bg-muted/30"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            {isUnread ? (
+                              <span className="inline-flex size-2 rounded-full bg-primary" aria-hidden="true" />
+                            ) : null}
+                            <span className="truncate text-sm font-semibold text-foreground">
+                              {notification.title}
+                            </span>
+                          </div>
+                          <p className="text-sm leading-6 text-muted-foreground">
+                            {notification.message}
+                          </p>
+                        </div>
+
+                        {isMarking ? (
+                          <m.span
+                            className="shrink-0 text-muted-foreground"
+                            animate={{ rotate: 360 }}
+                            transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1, ease: "linear" }}
+                          >
+                            <Bell size={14} />
+                          </m.span>
+                        ) : null}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                        <span>{notificationsDateFormatter.format(new Date(notification.createdAt))}</span>
+                        <span>{isUnread ? "Nao lida" : "Lida"}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {notificationsTab === "history" && loadingMoreHistory ? (
+                  <div className="rounded-[20px] border border-dashed border-border/70 bg-background/60 px-4 py-5 text-center text-sm text-muted-foreground">
+                    Carregando mais itens do histórico...
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={modalSelecionarTurmaAberto} onOpenChange={setModalSelecionarTurmaAberto}>
         <DialogContent className="max-w-2xl overflow-hidden border-border/70 bg-card p-0 text-foreground shadow-[0_32px_90px_-40px_rgba(0,0,0,0.4)] dark:bg-[linear-gradient(180deg,rgba(24,33,51,0.98),rgba(15,21,35,1))] dark:shadow-[0_32px_90px_-40px_rgba(0,0,0,1)]">

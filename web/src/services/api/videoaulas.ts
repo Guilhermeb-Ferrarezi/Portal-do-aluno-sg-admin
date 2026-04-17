@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE_URL, buildAuthHeaders, handleUnauthorized, parseError } from "./core";
+import { apiFetch, uploadFormData, type UploadOptions } from "./core";
 import type { PaginatedItemsResponse } from "./core";
 import type { Turma } from "./turmas";
 import type { UserRef } from "./core";
@@ -54,38 +54,15 @@ export async function obterVideoaula(id: string) {
   return apiFetch<Videoaula>(`/videoaulas/${id}`);
 }
 
-export async function criarVideoaula(dados: FormData) {
-  const res = await fetch(`${API_BASE_URL}/videoaulas`, {
-    method: "POST",
-    headers: await buildAuthHeaders(),
-    body: dados,
-  });
-
-  if (!res.ok) {
-    const message = await parseError(res);
-    if (res.status === 401) {
-      handleUnauthorized(message);
-    }
-    throw new Error(message);
-  }
-  return res.json() as Promise<{ message: string; videoaula: Videoaula }>;
+export async function criarVideoaula(dados: FormData, options?: UploadOptions) {
+  return uploadFormData<{ message: string; videoaula: Videoaula }>("/videoaulas", dados, options);
 }
 
-export async function atualizarVideoaula(id: string, dados: FormData) {
-  const res = await fetch(`${API_BASE_URL}/videoaulas/${id}`, {
+export async function atualizarVideoaula(id: string, dados: FormData, options?: UploadOptions) {
+  return uploadFormData<{ message: string; videoaula: Videoaula }>(`/videoaulas/${id}`, dados, {
+    ...options,
     method: "PUT",
-    headers: await buildAuthHeaders(),
-    body: dados,
   });
-
-  if (!res.ok) {
-    const message = await parseError(res);
-    if (res.status === 401) {
-      handleUnauthorized(message);
-    }
-    throw new Error(message);
-  }
-  return res.json() as Promise<{ message: string; videoaula: Videoaula }>;
 }
 
 export async function deletarVideoaula(id: string) {

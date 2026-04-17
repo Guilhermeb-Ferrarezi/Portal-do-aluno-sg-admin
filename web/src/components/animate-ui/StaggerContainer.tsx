@@ -1,5 +1,6 @@
 import React from 'react';
 import { m } from 'framer-motion';
+import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 
 interface StaggerContainerProps {
   children: React.ReactNode;
@@ -14,9 +15,7 @@ export function StaggerContainer({
   staggerDelay = 0.05,
   reduceMotion = false,
 }: StaggerContainerProps) {
-  // Check for prefers-reduced-motion
-  const prefersReducedMotion =
-    reduceMotion || (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const prefersReducedMotion = usePrefersReducedMotion(reduceMotion);
 
   const containerVariants = {
     hidden: { opacity: 0 },

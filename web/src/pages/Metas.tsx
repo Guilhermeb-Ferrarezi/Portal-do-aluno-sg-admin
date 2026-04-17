@@ -918,7 +918,10 @@ export default function MetasPage() {
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {goals.map((goal) => (
-          <div key={goal.id} className="rounded-[24px] border border-border/70 bg-card/90 p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)]">
+          <div
+            key={goal.id}
+            className="flex h-full flex-col rounded-[24px] border border-border/70 bg-card/90 p-4 shadow-[0_12px_36px_rgba(0,0,0,0.12)]"
+          >
             <div className="overflow-hidden rounded-[18px] border border-border/70 bg-muted/35">
               {goal.imageUrl ? (
                 <img src={goal.imageUrl} alt={goal.name} className="h-40 w-full object-cover" />
@@ -928,28 +931,32 @@ export default function MetasPage() {
                 </div>
               )}
             </div>
-            <div className="mt-4 flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h3 className="min-w-0 break-words text-lg font-black tracking-[-0.02em] [overflow-wrap:anywhere]">
-                  {goal.name}
-                </h3>
-                <p className="mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
-                  {goal.description || "Sem descricao"}
-                </p>
+            <div className="mt-4 flex flex-1 flex-col">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="min-w-0 break-words text-lg font-black tracking-[-0.02em] [overflow-wrap:anywhere]">
+                    {goal.name}
+                  </h3>
+                  <p className="mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                    {goal.description || "Sem descricao"}
+                  </p>
+                </div>
+                <Badge variant="secondary" className="shrink-0">{goalTypeLabel(goal.type)}</Badge>
               </div>
-              <Badge variant="secondary" className="shrink-0">{goalTypeLabel(goal.type)}</Badge>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-              <span>{goal.rewardsCount} recompensas</span>
-              <span>ID {goal.id}</span>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Button type="button" variant="outline" className="flex-1 rounded-full" onClick={() => openEditGoalModal(goal)}>
-                Editar
-              </Button>
-              <Button type="button" variant="destructive" className="rounded-full" onClick={() => setDeletingGoalItem(goal)}>
-                Excluir
-              </Button>
+              <div className="mt-auto pt-4">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>{goal.rewardsCount} recompensas</span>
+                  <span>ID {goal.id}</span>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button type="button" variant="outline" className="flex-1 rounded-full" onClick={() => openEditGoalModal(goal)}>
+                    Editar
+                  </Button>
+                  <Button type="button" variant="destructive" className="rounded-full" onClick={() => setDeletingGoalItem(goal)}>
+                    Excluir
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         ))}

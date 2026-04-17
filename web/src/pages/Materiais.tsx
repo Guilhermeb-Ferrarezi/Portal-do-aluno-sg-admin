@@ -4,6 +4,9 @@ import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
 import Modal from "../components/Modal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconAction } from "@/components/ui/icon-action";
+import { usePersistedListParams } from "@/hooks/use-persisted-list-params";
 import { hasRole } from "../auth/auth";
 import { useToastActions } from "../contexts/ToastContext";
 import {
@@ -204,6 +207,26 @@ function turmaBadgeClass(tipo?: string) {
 }
 
 export default function MateriaisPage() {
+  const { values: queryState, setParams } = usePersistedListParams({
+    q: { defaultValue: "" as string },
+    tipo: { defaultValue: "todos" as "todos" | MaterialCategoria },
+    modulo: { defaultValue: "todos" as string },
+    turma: { defaultValue: "todas" as string },
+    page: {
+      defaultValue: 1,
+      parse: (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
+      },
+    },
+    limit: {
+      defaultValue: 5,
+      parse: (value) => {
+        const parsed = Number(value);
+        return [5, 10, 20, 50].includes(parsed) ? parsed : 5;
+      },
+    },
+  }, { pageKey: "page" });
   const canUpload = hasRole(["admin", "professor"]);
   const { addToast } = useToastActions();
   const iconLabel = (icon: React.ReactNode, label: string) => (
@@ -218,12 +241,12 @@ export default function MateriaisPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [totalItems, setTotalItems] = React.useState(0);
 
-  const [filtroModulo, setFiltroModulo] = React.useState<string>("todos");
-  const [buscaModuloFiltro, setBuscaModuloFiltro] = React.useState<string>("");
+  const [filtroModulo, setFiltroModulo] = React.useState<string>(queryState.modulo);
+  const [buscaModuloFiltro, setBuscaModuloFiltro] = React.useState<string>(queryState.modulo === "todos" ? "" : queryState.modulo);
   const [showSugestoesModuloFiltro, setShowSugestoesModuloFiltro] = React.useState(false);
-  const [filtroTipo, setFiltroTipo] = React.useState<"todos" | MaterialCategoria>("todos");
-  const [busca, setBusca] = React.useState<string>("");
-  const [turmaFiltro, setTurmaFiltro] = React.useState<string>("todas");
+  const [filtroTipo, setFiltroTipo] = React.useState<"todos" | MaterialCategoria>(queryState.tipo);
+  const [busca, setBusca] = React.useState<string>(queryState.q);
+  const [turmaFiltro, setTurmaFiltro] = React.useState<string>(queryState.turma);
   const [modalAberto, setModalAberto] = React.useState(false);
 
   const [formTitulo, setFormTitulo] = React.useState("");
@@ -244,8 +267,8 @@ export default function MateriaisPage() {
   const [deleting, setDeleting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(5);
+  const [currentPage, setCurrentPage] = React.useState(queryState.page);
+  const [itemsPerPage, setItemsPerPage] = React.useState(queryState.limit);
   const deferredBusca = React.useDeferredValue(busca);
   const moduloQuery = React.useMemo(() => {
     if (filtroModulo !== "todos") return filtroModulo;
@@ -263,6 +286,120 @@ export default function MateriaisPage() {
         .catch((err) => console.error("Erro ao carregar modulos:", err));
     }
   }, [canUpload]);
+
+  React.useEffect(() => {
+    if (busca !== queryState.q) setBusca(queryState.q);
+    if (filtroTipo !== queryState.tipo) setFiltroTipo(queryState.tipo);
+    if (filtroModulo !== queryState.modulo) setFiltroModulo(queryState.modulo);
+    if (turmaFiltro !== queryState.turma) setTurmaFiltro(queryState.turma);
+    if (currentPage !== queryState.page) setCurrentPage(queryState.page);
+    if (itemsPerPage !== queryState.limit) setItemsPerPage(queryState.limit);
+    if (queryState.modulo === "todos" && buscaModuloFiltro !== "") setBuscaModuloFiltro("");
+  }, [
+    busca,
+    buscaModuloFiltro,
+    currentPage,
+    filtroModulo,
+    filtroTipo,
+    itemsPerPage,
+    queryState.limit,
+    queryState.modulo,
+    queryState.page,
+    queryState.q,
+    queryState.tipo,
+    queryState.turma,
+    turmaFiltro,
+  ]);
+
+  const handleBuscaChange = React.useCallback((value: string) => {
+    setBusca(value);
+    setParams({ q: value, page: 1 });
+  }, [setParams]);
+
+  const handleTipoChange = React.useCallback((value: "todos" | MaterialCategoria) => {
+    setFiltroTipo(value);
+    setParams({ tipo: value, page: 1 });
+  }, [setParams]);
+
+  const handleModuloFilterChange = React.useCallback((value: string, rawText?: string) => {
+    setFiltroModulo(value);
+    setBuscaModuloFiltro(rawText ?? (value === "todos" ? "" : value));
+    setParams({ modulo: value, page: 1 });
+  }, [setParams]);
+
+  const handleTurmaFilterChange = React.useCallback((value: string) => {
+    setTurmaFiltro(value);
+    setParams({ turma: value, page: 1 });
+  }, [setParams]);
+
+  const handleCurrentPageChange = React.useCallback((page: number) => {
+    setCurrentPage(page);
+    setParams({ page }, { resetPage: false });
+  }, [setParams]);
+
+  const handleItemsPerPageChange = React.useCallback((limit: number) => {
+    setItemsPerPage(limit);
+    setParams({ limit, page: 1 });
+  }, [setParams]);
+
+  const copyMaterialLink = React.useCallback(async (material: Material) => {
+    try {
+      await navigator.clipboard.writeText(material.url);
+      addToast("Link copiado com sucesso.", "success");
+    } catch {
+      addToast("Nao foi possivel copiar o link.", "error");
+    }
+  }, [addToast]);
+
+  const filteredMateriais = React.useMemo(() => {
+    if (turmaFiltro === "todas") return materiais;
+    return materiais.filter((material) => material.turmas?.some((turma) => turma.id === turmaFiltro));
+  }, [materiais, turmaFiltro]);
+
+  const visibleTotalItems = filteredMateriais.length;
+
+  const selectedModuleName = React.useMemo(() => {
+    if (filtroModulo === "todos") return "";
+    return buscaModuloFiltro || filtroModulo;
+  }, [buscaModuloFiltro, filtroModulo]);
+
+  React.useEffect(() => {
+    if (currentPage > 1 && filteredMateriais.length === 0 && totalItems > 0) {
+      handleCurrentPageChange(Math.max(1, currentPage - 1));
+    }
+  }, [currentPage, filteredMateriais.length, handleCurrentPageChange, totalItems]);
+
+  React.useEffect(() => {
+    if (selectedModuleName === buscaModuloFiltro) return;
+  }, [buscaModuloFiltro, selectedModuleName]);
+
+  React.useEffect(() => {
+    if (queryState.modulo === filtroModulo) return;
+  }, [filtroModulo, queryState.modulo]);
+
+  React.useEffect(() => {
+    if (queryState.turma === turmaFiltro) return;
+  }, [queryState.turma, turmaFiltro]);
+
+  React.useEffect(() => {
+    if (queryState.tipo === filtroTipo) return;
+  }, [filtroTipo, queryState.tipo]);
+
+  React.useEffect(() => {
+    if (queryState.q === busca) return;
+  }, [busca, queryState.q]);
+
+  React.useEffect(() => {
+    if (queryState.page === currentPage) return;
+  }, [currentPage, queryState.page]);
+
+  React.useEffect(() => {
+    if (queryState.limit === itemsPerPage) return;
+  }, [itemsPerPage, queryState.limit]);
+
+  React.useEffect(() => {
+    if (buscaModuloFiltro !== "" || queryState.modulo !== "todos") return;
+  }, [buscaModuloFiltro, queryState.modulo]);
 
   const carregarMateriais = React.useCallback(async () => {
     try {
@@ -515,8 +652,7 @@ export default function MateriaisPage() {
                     placeholder="Buscar materiais..."
                     value={busca}
                     onChange={(event) => {
-                      setBusca(event.target.value);
-                      setCurrentPage(1);
+                      handleBuscaChange(event.target.value);
                     }}
                     className={cn(fieldClass, "pl-14")}
                     style={{ paddingLeft: "3.75rem" }}
@@ -526,8 +662,7 @@ export default function MateriaisPage() {
                 <AnimatedSelect
                   value={filtroTipo}
                   onChange={(event) => {
-                    setFiltroTipo(event.target.value as "todos" | MaterialCategoria);
-                    setCurrentPage(1);
+                    handleTipoChange(event.target.value as "todos" | MaterialCategoria);
                   }}
                   className={cn(fieldClass, "appearance-none pr-10")}
                 >
@@ -553,8 +688,7 @@ export default function MateriaisPage() {
                     }}
                     onChange={(event) => {
                       setBuscaModuloFiltro(event.target.value);
-                      setFiltroModulo("todos");
-                      setCurrentPage(1);
+                      handleModuloFilterChange("todos", event.target.value);
                       setShowSugestoesModuloFiltro(true);
                     }}
                     className={fieldClass}
@@ -566,9 +700,7 @@ export default function MateriaisPage() {
                           key={modulo}
                           type="button"
                           onClick={() => {
-                            setFiltroModulo(modulo);
-                            setBuscaModuloFiltro(modulo);
-                            setCurrentPage(1);
+                            handleModuloFilterChange(modulo, modulo);
                             setShowSugestoesModuloFiltro(false);
                           }}
                           className={suggestionOptionClass}
@@ -583,8 +715,7 @@ export default function MateriaisPage() {
                 <AnimatedSelect
                   value={turmaFiltro}
                   onChange={(event) => {
-                    setTurmaFiltro(event.target.value);
-                    setCurrentPage(1);
+                    handleTurmaFilterChange(event.target.value);
                   }}
                   className={cn(fieldClass, "appearance-none pr-10")}
                 >
@@ -611,28 +742,24 @@ export default function MateriaisPage() {
             </div>
           </div>
 
-          {totalItems === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-border/80 bg-[radial-gradient(circle_at_top,rgba(225,29,46,0.09),transparent_44%)] bg-muted/35 px-6 py-16 text-center shadow-[0_18px_44px_rgba(0,0,0,0.12)]">
-              <div className="mx-auto flex max-w-lg flex-col items-center gap-4">
-                <div className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-border/80 bg-card text-primary shadow-[0_16px_36px_rgba(0,0,0,0.2)]">
-                  <BookOpen size={24} />
-                </div>
-                <div className="space-y-2">
-                  <h2 className="text-xl font-black tracking-[-0.02em] text-foreground">
-                    {!hasAnyFiltro ? "Nenhum material disponivel" : "Nenhum material encontrado"}
-                  </h2>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    {!hasAnyFiltro
-                      ? "Em breve novos materiais de estudo serao adicionados."
-                      : "Tente ajustar sua busca ou os filtros da listagem."}
-                  </p>
-                </div>
-              </div>
-            </div>
+          {visibleTotalItems === 0 ? (
+            <EmptyState
+              className="rounded-[28px] border border-dashed border-border/80 bg-[radial-gradient(circle_at_top,rgba(225,29,46,0.09),transparent_44%)] bg-muted/35 px-6 py-16 shadow-[0_18px_44px_rgba(0,0,0,0.12)]"
+              icon={<BookOpen size={24} />}
+              title={!hasAnyFiltro ? "Nenhum material disponivel" : "Nenhum material encontrado"}
+              description={!hasAnyFiltro
+                ? "Em breve novos materiais de estudo serao adicionados."
+                : "Tente ajustar sua busca ou os filtros da listagem."}
+              actionLabel={!hasAnyFiltro && canUpload ? "Adicionar material" : undefined}
+              onAction={!hasAnyFiltro && canUpload ? () => {
+                setModalAberto(true);
+                setFormError(null);
+              } : undefined}
+            />
           ) : (
             <>
               <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
-                {materiais.map((material, index) => {
+                {filteredMateriais.map((material, index) => {
                   const categoria = getMaterialCategoria(material);
 
                   return (
@@ -715,10 +842,27 @@ export default function MateriaisPage() {
                                 : iconLabel(<LinkIcon size={16} />, "Abrir link")}
                             </AnimatedButton>
 
+                            <div className="hidden sm:flex sm:items-center sm:gap-2">
+                              <IconAction
+                                label="Copiar link"
+                                icon={<LinkIcon size={16} />}
+                                onClick={() => {
+                                  void copyMaterialLink(material);
+                                }}
+                              />
+                              {canUpload ? (
+                                <IconAction
+                                  label="Excluir material"
+                                  icon={<Trash2 size={16} />}
+                                  variant="destructive"
+                                  onClick={() => setDeleteTarget(material)}
+                                />
+                              ) : null}
+                            </div>
                             {canUpload ? (
                               <AnimatedButton
                                 onClick={() => setDeleteTarget(material)}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-500/35 bg-red-500/10 text-red-300 transition hover:bg-red-500/18 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-500/35 bg-red-500/10 text-red-300 transition hover:bg-red-500/18 disabled:cursor-not-allowed disabled:opacity-60 sm:hidden"
                                 title="Deletar"
                               >
                                 <Trash2 size={16} />
@@ -736,8 +880,8 @@ export default function MateriaisPage() {
                 currentPage={currentPage}
                 itemsPerPage={itemsPerPage}
                 totalItems={totalItems}
-                onPageChange={setCurrentPage}
-                onItemsPerPageChange={setItemsPerPage}
+                onPageChange={handleCurrentPageChange}
+                onItemsPerPageChange={handleItemsPerPageChange}
               />
             </>
           )}

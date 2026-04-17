@@ -1,5 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconAction } from "@/components/ui/icon-action";
+import { usePersistedListParams } from "@/hooks/use-persisted-list-params";
 import {
   ArrowRight,
   BookOpen,
@@ -69,8 +72,24 @@ export default function TurmasPage() {
     type: "success" | "error";
     msg: string;
   } | null>(null);
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(5);
+  const { values: queryState, setParams } = usePersistedListParams({
+    page: {
+      defaultValue: 1,
+      parse: (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
+      },
+    },
+    limit: {
+      defaultValue: 5,
+      parse: (value) => {
+        const parsed = Number(value);
+        return [5, 10, 20, 50].includes(parsed) ? parsed : 5;
+      },
+    },
+  }, { pageKey: "page" });
+  const [currentPage, setCurrentPage] = React.useState(queryState.page);
+  const [itemsPerPage, setItemsPerPage] = React.useState(queryState.limit);
   const [nome, setNome] = React.useState("");
   const [tipo, setTipo] = React.useState<"turma" | "particular">("turma");
   const [categoria, setCategoria] = React.useState<"programacao" | "informatica">("programacao");
@@ -98,6 +117,16 @@ export default function TurmasPage() {
   const [alunosDisponiveis, setAlunosDisponiveis] = React.useState<User[]>([]);
   const [alunosSelecionados, setAlunosSelecionados] = React.useState<string[]>([]);
   const [adicionando, setAdicionando] = React.useState(false);
+
+  const handleCurrentPageChange = React.useCallback((page: number) => {
+    setCurrentPage(page);
+    setParams({ page }, { resetPage: false });
+  }, [setParams]);
+
+  const handleItemsPerPageChange = React.useCallback((limit: number) => {
+    setItemsPerPage(limit);
+    setParams({ limit, page: 1 });
+  }, [setParams]);
 
   const load = React.useCallback(async () => {
     try {
@@ -150,6 +179,11 @@ export default function TurmasPage() {
         .catch((e) => console.error("Erro ao carregar cursos:", e));
     }
   }, [carregarModulosDoCurso, role]);
+
+  React.useEffect(() => {
+    if (currentPage !== queryState.page) setCurrentPage(queryState.page);
+    if (itemsPerPage !== queryState.limit) setItemsPerPage(queryState.limit);
+  }, [currentPage, itemsPerPage, queryState.limit, queryState.page]);
 
   React.useEffect(() => {
     void load();
@@ -596,13 +630,14 @@ export default function TurmasPage() {
                 <PulseLoader size="large" text="Carregando turmas..." />
               </div>
             ) : !loading && totalItems === 0 ? (
-              <div className={`${panelClass} flex flex-col items-center gap-3 px-6 py-14 text-center`}>
-                <span className="inline-flex rounded-full bg-muted p-4 text-muted-foreground">
-                  <BookOpen size={22} />
-                </span>
-                <div className="text-lg font-semibold text-foreground">{emptyTitle}</div>
-                <p className="max-w-xl text-sm text-muted-foreground">{emptyDescription}</p>
-              </div>
+              <EmptyState
+                className={`${panelClass} px-6 py-14`}
+                icon={<BookOpen size={22} />}
+                title={emptyTitle}
+                description={emptyDescription}
+                actionLabel={canCreate ? "Criar primeira turma" : undefined}
+                onAction={canCreate ? () => formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }) : undefined}
+              />
             ) : (
               <>
                 <div className="grid gap-4 xl:grid-cols-2">
@@ -650,26 +685,18 @@ export default function TurmasPage() {
 
                           {canCreate ? (
                             <div className="flex gap-2">
-                              <Button
-                                type="button"
+                              <IconAction
+                                label="Editar turma"
+                                icon={<Pencil size={16} />}
                                 variant="outline"
-                                size="icon"
-                                className="size-10 rounded-xl border-border/70 bg-background/80"
                                 onClick={() => handleEdit(turma)}
-                                title="Editar turma"
-                              >
-                                <Pencil size={16} />
-                              </Button>
-                              <Button
-                                type="button"
+                              />
+                              <IconAction
+                                label="Excluir turma"
+                                icon={<Trash2 size={16} />}
                                 variant="destructive"
-                                size="icon"
-                                className="size-10 rounded-xl"
                                 onClick={() => abrirModalDeletar(turma.id, turma.nome)}
-                                title="Deletar turma"
-                              >
-                                <Trash2 size={16} />
-                              </Button>
+                              />
                             </div>
                           ) : null}
                         </div>
@@ -720,8 +747,8 @@ export default function TurmasPage() {
                     currentPage={currentPage}
                     itemsPerPage={itemsPerPage}
                     totalItems={totalItems}
-                    onPageChange={setCurrentPage}
-                    onItemsPerPageChange={setItemsPerPage}
+                    onPageChange={handleCurrentPageChange}
+                    onItemsPerPageChange={handleItemsPerPageChange}
                   />
                 </div>
               </>

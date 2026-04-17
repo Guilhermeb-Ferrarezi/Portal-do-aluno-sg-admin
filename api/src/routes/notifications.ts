@@ -25,6 +25,22 @@ const dispatchListQuerySchema = z.object({
   q: z.string().trim().default(""),
 });
 
+const myNotificationsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+  status: z.enum(["all", "read", "unread"]).default("all"),
+});
+
+type NotificationRow = {
+  id: number;
+  user_id: number;
+  title: string;
+  message: string;
+  metadata_json: string;
+  read_at: string | null;
+  created_at: string;
+};
+
 type GatewayTemplate = {
   Id: number;
   Name: string;
@@ -93,6 +109,18 @@ type GatewayResponsePayload<T> = {
   errors?: string[];
   result?: T;
   totalRows?: number;
+};
+
+type DispatchFilterPayload = {
+  cursoIds: number[];
+  turmaIds: number[];
+  alunoIds: number[];
+};
+
+type RecipientContextRow = {
+  id: number;
+  has_turma: boolean;
+  has_curso: boolean;
 };
 
 function normalizeGatewayBaseUrl(baseUrl: string) {
@@ -248,8 +276,293 @@ function mapDispatch(dispatch: GatewayDispatchPayload) {
   };
 }
 
+function extractTemplateContextRequirements(template: {
+  tituloTemplate: string;
+  mensagemTemplate: string;
+}) {
+  const matches = `${template.tituloTemplate}\n${template.mensagemTemplate}`.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g);
+  let requiresCurso = false;
+  let requiresTurma = false;
+
+  for (const match of matches) {
+    const expression = (match[1] ?? "").trim().toLowerCase();
+    if (!expression) continue;
+
+    const root = expression.split(".")[0]?.trim();
+    if (root === "curso" || root === "course") {
+      requiresCurso = true;
+    }
+    if (root === "turma" || root === "class") {
+      requiresTurma = true;
+    }
+  }
+
+  return {
+    requiresCurso,
+    requiresTurma,
+  };
+}
+
+async function loadTemplateForDispatch(templateId: number) {
+  const response = await callGateway<GatewayTemplatePayload[]>("/api/Notification/Admin/Templates");
+  if (!response.Success) {
+    throw new Error(response.Errors?.[0] ?? "Erro ao carregar template para disparo");
+  }
+
+  const template = (response.Result ?? [])
+    .map(mapTemplate)
+    .find((item) => item.id === templateId);
+
+  if (!template) {
+    throw new Error("Template nao encontrado");
+  }
+
+  return template;
+}
+
+async function resolveTargetUserIds(filters: DispatchFilterPayload) {
+  const userIds = new Set<number>();
+
+  for (const userId of filters.alunoIds) {
+    if (Number.isInteger(userId) && userId > 0) {
+      userIds.add(userId);
+    }
+  }
+
+  if (filters.turmaIds.length > 0) {
+    const turmaRecipients = await pool.query<{ user_id: number }>(
+      `SELECT DISTINCT e.user_id
+       FROM enrollment e
+       WHERE e.class_id = ANY($1::int[])`,
+      [filters.turmaIds]
+    );
+
+    for (const row of turmaRecipients.rows) {
+      userIds.add(row.user_id);
+    }
+  }
+
+  if (filters.cursoIds.length > 0) {
+    const cursoRecipients = await pool.query<{ user_id: number }>(
+      `SELECT DISTINCT e.user_id
+       FROM enrollment e
+       JOIN class c ON c.id = e.class_id
+       WHERE c.course_id = ANY($1::int[])`,
+      [filters.cursoIds]
+    );
+
+    for (const row of cursoRecipients.rows) {
+      userIds.add(row.user_id);
+    }
+  }
+
+  return Array.from(userIds);
+}
+
+async function filterRecipientsByTemplateContext(
+  recipientIds: number[],
+  requirements: { requiresCurso: boolean; requiresTurma: boolean }
+) {
+  if (recipientIds.length === 0) {
+    return [];
+  }
+
+  if (!requirements.requiresCurso && !requirements.requiresTurma) {
+    return recipientIds;
+  }
+
+  const recipients = await pool.query<RecipientContextRow>(
+    `SELECT
+       u.id,
+       EXISTS(
+         SELECT 1
+         FROM enrollment e
+         WHERE e.user_id = u.id
+       ) AS has_turma,
+       EXISTS(
+         SELECT 1
+         FROM enrollment e
+         JOIN class c ON c.id = e.class_id
+         WHERE e.user_id = u.id
+           AND c.course_id IS NOT NULL
+       ) AS has_curso
+     FROM "user" u
+     WHERE u.id = ANY($1::int[])`,
+    [recipientIds]
+  );
+
+  return recipients.rows
+    .filter((row) => {
+      if (requirements.requiresTurma && !row.has_turma) {
+        return false;
+      }
+      if (requirements.requiresCurso && !row.has_curso) {
+        return false;
+      }
+      return true;
+    })
+    .map((row) => row.id);
+}
+
 export function notificationsRouter(jwtSecret: string) {
   const router = Router();
+
+  router.get(
+    "/notifications/me",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      const parsedQuery = myNotificationsQuerySchema.safeParse(req.query);
+      if (!parsedQuery.success) {
+        return res.status(400).json({ message: "Parametros invalidos para listagem de notificacoes" });
+      }
+
+      const userId = Number(req.user?.sub);
+      if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ message: "Usuario autenticado invalido" });
+      }
+
+      try {
+        const { limit, offset, status } = parsedQuery.data;
+        const statusCondition =
+          status === "read"
+            ? "AND read_at IS NOT NULL"
+            : status === "unread"
+            ? "AND read_at IS NULL"
+            : "";
+        const [itemsResult, totalResult, unreadResult] = await Promise.all([
+          pool.query<NotificationRow>(
+            `SELECT id, user_id, title, message, metadata_json, read_at, created_at
+             FROM notification
+             WHERE user_id = $1
+             ${statusCondition}
+             ORDER BY created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [userId, limit, offset]
+          ),
+          pool.query<{ total: string }>(
+            `SELECT COUNT(*)::text AS total
+             FROM notification
+             WHERE user_id = $1
+             ${statusCondition}`,
+            [userId]
+          ),
+          pool.query<{ total: string }>(
+            `SELECT COUNT(*)::text AS total
+             FROM notification
+             WHERE user_id = $1
+               AND read_at IS NULL`,
+            [userId]
+          ),
+        ]);
+
+        const total = Number(totalResult.rows[0]?.total ?? "0");
+        const unreadCount = Number(unreadResult.rows[0]?.total ?? "0");
+
+        return res.json({
+          items: itemsResult.rows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            message: row.message,
+            metadataJson: row.metadata_json,
+            readAt: row.read_at,
+            createdAt: row.created_at,
+          })),
+          unreadCount,
+          total,
+          pagination: {
+            page: Math.floor(offset / limit) + 1,
+            limit,
+            total,
+            totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao listar notificacoes do usuario:", error);
+        return res.status(500).json({ message: "Erro ao listar notificacoes do usuario" });
+      }
+    }
+  );
+
+  router.patch(
+    "/notifications/read-all",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      const userId = Number(req.user?.sub);
+
+      if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ message: "Usuario autenticado invalido" });
+      }
+
+      try {
+        const result = await pool.query<{ id: number }>(
+          `UPDATE notification
+           SET read_at = NOW()
+           WHERE user_id = $1
+             AND read_at IS NULL
+           RETURNING id`,
+          [userId]
+        );
+
+        return res.json({
+          updatedCount: result.rowCount ?? 0,
+          markedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("Erro ao marcar todas notificacoes como lidas:", error);
+        return res.status(500).json({ message: "Erro ao marcar todas notificacoes como lidas" });
+      }
+    }
+  );
+
+  router.patch(
+    "/notifications/:id/read",
+    authGuard(jwtSecret),
+    requireRole(["admin"]),
+    async (req: AuthRequest, res) => {
+      const notificationId = Number(req.params.id);
+      const userId = Number(req.user?.sub);
+
+      if (!Number.isInteger(notificationId) || notificationId <= 0) {
+        return res.status(400).json({ message: "ID invalido" });
+      }
+
+      if (!Number.isInteger(userId) || userId <= 0) {
+        return res.status(400).json({ message: "Usuario autenticado invalido" });
+      }
+
+      try {
+        const result = await pool.query<NotificationRow>(
+          `UPDATE notification
+           SET read_at = COALESCE(read_at, NOW())
+           WHERE id = $1
+             AND user_id = $2
+           RETURNING id, user_id, title, message, metadata_json, read_at, created_at`,
+          [notificationId, userId]
+        );
+
+        if (!result.rowCount) {
+          return res.status(404).json({ message: "Notificacao nao encontrada" });
+        }
+
+        const row = result.rows[0];
+        return res.json({
+          notification: {
+            id: row.id,
+            title: row.title,
+            message: row.message,
+            metadataJson: row.metadata_json,
+            readAt: row.read_at,
+            createdAt: row.created_at,
+          },
+        });
+      } catch (error) {
+        console.error("Erro ao marcar notificacao como lida:", error);
+        return res.status(500).json({ message: "Erro ao marcar notificacao como lida" });
+      }
+    }
+  );
 
   router.get(
     "/notifications/templates",
@@ -479,6 +792,24 @@ export function notificationsRouter(jwtSecret: string) {
 
       try {
         const actor = await resolveActor(req);
+        const template = await loadTemplateForDispatch(id);
+        const templateRequirements = extractTemplateContextRequirements(template);
+        const needsContextFiltering =
+          templateRequirements.requiresCurso || templateRequirements.requiresTurma;
+        const recipientIds = needsContextFiltering
+          ? await resolveTargetUserIds(parsed.data)
+          : [];
+        const eligibleRecipientIds = needsContextFiltering
+          ? await filterRecipientsByTemplateContext(recipientIds, templateRequirements)
+          : [];
+
+        if (needsContextFiltering && eligibleRecipientIds.length === 0) {
+          return res.status(400).json({
+            message:
+              "Nenhum destinatario elegivel encontrado para os placeholders usados no template.",
+          });
+        }
+
         const response = await callGateway<{
           DispatchId?: number;
           dispatchId?: number;
@@ -496,9 +827,9 @@ export function notificationsRouter(jwtSecret: string) {
           method: "POST",
           body: JSON.stringify({
             filters: {
-              courseIds: parsed.data.cursoIds,
-              classIds: parsed.data.turmaIds,
-              studentIds: parsed.data.alunoIds,
+              courseIds: needsContextFiltering ? [] : parsed.data.cursoIds,
+              classIds: needsContextFiltering ? [] : parsed.data.turmaIds,
+              studentIds: needsContextFiltering ? eligibleRecipientIds : parsed.data.alunoIds,
             },
             actor,
           }),

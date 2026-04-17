@@ -98,7 +98,6 @@ export default function Pagination({
             value={safeItemsPerPage}
             onChange={(e) => {
               onItemsPerPageChange(normalizeItemsPerPage(parseInt(e.target.value, 10)));
-              onPageChange(1);
             }}
             className="h-10 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground outline-none transition hover:border-border/80 hover:bg-muted/40 focus:border-primary focus:ring-3 focus:ring-ring/30"
           >

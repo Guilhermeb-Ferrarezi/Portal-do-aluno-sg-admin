@@ -34,7 +34,7 @@ import {
   type ExercicioFase,
   type ContainerGroup,
 } from "../services/api";
-import { AnimatedButton, AnimatedToast } from "../components/animate-ui";
+import { AnimatedButton, AnimatedToast, AnimatedToggle } from "../components/animate-ui";
 import { Loader2, Plus, Layers, GitBranch, Trash2, PenLine, School, ChevronUp, ChevronDown, Eye, Package, RefreshCw } from "lucide-react";
 import CriarExercicioForm from "../components/CriarExercicioForm";
 import CriarTurmaForm from "../components/CriarTurmaForm";
@@ -1005,10 +1005,6 @@ export default function EstruturaCursoPage() {
     "[&>select]:w-full [&>select]:appearance-none [&>select]:rounded-xl [&>select]:border [&>select]:border-input [&>select]:bg-background [&>select]:px-3.5 [&>select]:py-3 [&>select]:text-sm [&>select]:text-foreground [&>select]:transition [&>select]:focus-visible:border-ring [&>select]:focus-visible:outline-none [&>select]:focus-visible:ring-4 [&>select]:focus-visible:ring-ring/20"
   );
   const switchRowClass = "mt-1 inline-flex items-center gap-3 self-start";
-  const switchInputClass = "peer sr-only";
-  const switchTrackClass =
-    "inline-flex h-7 w-12 items-center rounded-full border border-border bg-muted px-1 transition peer-checked:border-primary/60 peer-checked:bg-primary/15 peer-focus-visible:ring-4 peer-focus-visible:ring-ring/20";
-  const switchThumbClass = "size-5 rounded-full bg-foreground/90 shadow-sm transition peer-checked:translate-x-5";
   const switchTextClass = "text-sm font-semibold text-foreground";
   const infoBoxClass = "rounded-xl border border-accent/25 bg-accent/10 px-3 py-2.5";
   const infoBoxTitleClass = "text-sm font-semibold text-foreground";
@@ -1156,10 +1152,11 @@ export default function EstruturaCursoPage() {
                 <textarea value={novoCursoDescricao} onChange={(e) => setNovoCursoDescricao(e.target.value)} placeholder="Opcional" />
 
                 <label className={switchRowClass}>
-                  <input type="checkbox" className={switchInputClass} checked={novoCursoPago} onChange={(e) => setNovoCursoPago(e.target.checked)} />
-                  <span className={switchTrackClass} aria-hidden="true">
-                    <span className={switchThumbClass} />
-                  </span>
+                  <AnimatedToggle
+                    checked={novoCursoPago}
+                    onChange={setNovoCursoPago}
+                    aria-label="Alternar entre curso gratuito e curso pago"
+                  />
                   <span className={switchTextClass}>{novoCursoPago ? "Curso pago" : "Curso gratuito"}</span>
                 </label>
 
