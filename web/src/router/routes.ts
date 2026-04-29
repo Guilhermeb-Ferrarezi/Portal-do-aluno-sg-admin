@@ -26,6 +26,12 @@ export const appRoutes = {
     metas: `${OPERACOES_BASE}/metas`,
     medalhas: `${OPERACOES_BASE}/medalhas`,
     notificacoes: `${OPERACOES_BASE}/notificacoes`,
+    rankings: {
+      base: `${OPERACOES_BASE}/rankings`,
+      notas: `${OPERACOES_BASE}/rankings/notas`,
+      pontos: `${OPERACOES_BASE}/rankings/pontos`,
+      eventos: `${OPERACOES_BASE}/rankings/eventos`,
+    },
   },
   content: {
     base: CONTEUDO_BASE,
@@ -62,6 +68,9 @@ export const appRoutes = {
   criarUsuario: `${USUARIOS_BASE}/criar`,
   usuarios: `${USUARIOS_BASE}/usuarios`,
   notificacoes: `${OPERACOES_BASE}/notificacoes`,
+  rankingNotas: `${OPERACOES_BASE}/rankings/notas`,
+  rankingPontos: `${OPERACOES_BASE}/rankings/pontos`,
+  rankingEventos: `${OPERACOES_BASE}/rankings/eventos`,
   logs: `${SISTEMA_BASE}/logs`,
   observabilidade: `${SISTEMA_BASE}/observabilidade`,
   estruturaCurso: {

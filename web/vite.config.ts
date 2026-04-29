@@ -1,7 +1,7 @@
 import path from "path";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -17,6 +17,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      "/api/Point": {
+        target: process.env.VITE_POINTS_PROXY_TARGET || "http://localhost:5068",
+        changeOrigin: true,
+      },
       "/api": {
         target: "http://localhost:3000",
         ws: true,
@@ -55,5 +59,14 @@ export default defineConfig({
         },
       },
     },
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
+    setupFiles: ["./src/test/setup.ts"],
+    css: true,
+    passWithNoTests: true,
   },
 });

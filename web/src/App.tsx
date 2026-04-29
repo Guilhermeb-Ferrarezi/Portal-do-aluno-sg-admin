@@ -23,6 +23,9 @@ const MateriaisPage = React.lazy(() => import("./pages/Materiais"));
 const MedalhasPage = React.lazy(() => import("./pages/Medalhas"));
 const MetasPage = React.lazy(() => import("./pages/Metas"));
 const NotificationsPage = React.lazy(() => import("./pages/Notifications"));
+const RankingNotasPage = React.lazy(() => import("./pages/RankingNotas"));
+const RankingPontosPage = React.lazy(() => import("./pages/RankingPontos"));
+const RankingEventosPage = React.lazy(() => import("./pages/RankingEventos"));
 const PasswordRecoveryPage = React.lazy(() => import("./pages/PasswordRecovery"));
 const SsoCallback = React.lazy(() => import("./pages/SsoCallback"));
 const TurmaDetail = React.lazy(() => import("./pages/TurmaDetail"));
@@ -92,6 +95,9 @@ function AnimatedRoutes() {
 
               <Route element={<ProtectedRoute allowedRoles={["admin", "professor"]} />}>
                 <Route path={appRoutes.operations.turmas} element={<TurmasPage />} />
+                <Route path={appRoutes.operations.rankings.notas} element={<RankingNotasPage />} />
+                <Route path={appRoutes.operations.rankings.pontos} element={<RankingPontosPage />} />
+                <Route path={appRoutes.operations.rankings.eventos} element={<RankingEventosPage />} />
               </Route>
             </Route>
           </Route>

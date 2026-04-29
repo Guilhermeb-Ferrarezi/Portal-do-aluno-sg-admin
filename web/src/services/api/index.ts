@@ -204,3 +204,33 @@ export {
   deletarDisparoNotificacao,
   dispararTemplateNotificacao,
 } from "./notifications";
+
+export type {
+  CustomResponse,
+  RankingEventType,
+  PointRanking,
+  CategoryRankingEntry,
+  RankingPerCategory,
+  RankingCategory,
+  PageResult,
+  RankingEventAward,
+  RankingEventListItem,
+  RankingEventInput,
+  RankingEventResponse,
+  RankingEventHistoryItem,
+} from "./rankings";
+export {
+  RANKING_EVENT_TYPE,
+  RANKING_EVENT_TYPE_LABEL,
+  getRankingPoints,
+  getRankingCategories,
+  getAvailableRankingPerCategory,
+  getAvailableRankingPerCategoryPage,
+  getRankingEventsByType,
+  getRankingEventHistory,
+  getRankingEventHistoryPage,
+  scheduleRankingEvent,
+  criarRankingEvent,
+  atualizarRankingEvent,
+  deletarRankingEvent,
+} from "./rankings";
