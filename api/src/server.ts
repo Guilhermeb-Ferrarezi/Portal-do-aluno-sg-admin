@@ -423,19 +423,14 @@ if (swaggerEnabled) {
     }
   );
 }
-app.get("/metrics", authGuard(env.JWT_SECRET), requireRole(["admin"]), async (_req, res) => {
+app.get("/metrics", async (_req, res) => {
   res.setHeader("Content-Type", httpMetrics.registry.contentType);
   res.end(await httpMetrics.registry.metrics());
 });
-app.get(
-  "/api/metrics",
-  authGuard(env.JWT_SECRET),
-  requireRole(["admin"]),
-  async (_req, res) => {
+app.get("/api/metrics", async (_req, res) => {
   res.setHeader("Content-Type", httpMetrics.registry.contentType);
   res.end(await httpMetrics.registry.metrics());
-  }
-);
+});
 
 // ===== ROTAS SEM PREFIXO (local / simples) =====
 app.use(["/auth/login", "/auth/password-reset/request"], loginLimiter);
