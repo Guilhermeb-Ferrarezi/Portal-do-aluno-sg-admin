@@ -10,7 +10,7 @@ export const env = {
   pointsApiUrl:
     trimEnv(import.meta.env.VITE_POINTS_API_URL) ||
     trimEnv(process.env.POINTS_API_URL) ||
-    apiUrl,
+    "/Point",
   wsUrl: trimEnv(import.meta.env.VITE_WS_URL),
   desktopInstallerUrl: trimEnv(import.meta.env.VITE_DESKTOP_INSTALLER_URL),
   isDev: import.meta.env.DEV,

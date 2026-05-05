@@ -14,6 +14,8 @@ const okResponse = <T,>(result: T) =>
   });
 
 describe("rankings api", () => {
+  const pointsBaseUrl = "https://portal.santos-tech.com/api";
+
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
@@ -31,7 +33,7 @@ describe("rankings api", () => {
     ]);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/Point/GetRankingPoints",
+      `${pointsBaseUrl}/Point/GetRankingPoints`,
       expect.objectContaining({
         headers: expect.any(Headers),
       })
@@ -44,7 +46,7 @@ describe("rankings api", () => {
     await getRankingEventsByType(2);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/Point/GetRankingEvent?eventType=2",
+      `${pointsBaseUrl}/Point/GetRankingEvent?eventType=2`,
       expect.any(Object)
     );
   });
@@ -57,7 +59,7 @@ describe("rankings api", () => {
     await expect(scheduleRankingEvent(42)).resolves.toBe(true);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/Point/ScheduleRankingEvent",
+      `${pointsBaseUrl}/Point/ScheduleRankingEvent`,
       expect.objectContaining({
         method: "POST",
         body: "42",
@@ -124,7 +126,7 @@ describe("rankings api", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/Point/RankingEvent",
+      `${pointsBaseUrl}/Point/RankingEvent`,
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -152,7 +154,7 @@ describe("rankings api", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/Point/RankingEvent/7",
+      `${pointsBaseUrl}/Point/RankingEvent/7`,
       expect.objectContaining({ method: "PUT" })
     );
   });

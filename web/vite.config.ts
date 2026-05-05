@@ -9,6 +9,7 @@ export default defineConfig({
   define: {
     "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(process.env.VITE_API_URL),
     "process.env.API_URL": JSON.stringify(process.env.VITE_API_URL),
+    "process.env.POINTS_API_URL": JSON.stringify(process.env.VITE_POINTS_API_URL),
   },
   resolve: {
     alias: {
@@ -17,6 +18,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      "/Point": {
+        target: process.env.VITE_POINTS_PROXY_TARGET || "http://localhost:5068",
+        changeOrigin: true,
+      },
       "/api/Point": {
         target: process.env.VITE_POINTS_PROXY_TARGET || "http://localhost:5068",
         changeOrigin: true,

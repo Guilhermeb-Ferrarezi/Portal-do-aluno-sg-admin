@@ -1,7 +1,6 @@
-import { env } from "@/env";
 import { buildJsonHeaders, handleUnauthorized, parseError } from "./core";
 
-const BASE = env.pointsApiUrl;
+const BASE = import.meta.env.VITE_POINTS_API_URL?.trim() || "/api";
 
 export type CustomResponse<T> = {
   success: boolean;
@@ -168,7 +167,7 @@ function normalizeRankingEvent(item: RankingEventListItem): RankingEventListItem
 
 export async function getRankingPoints() {
   const res = await pointsFetch<CustomResponse<PointRanking[]>>(
-    "/Point/GetRankingPoints"
+   `/Point/GetRankingPoints`
   );
   return unwrap(res);
 }
