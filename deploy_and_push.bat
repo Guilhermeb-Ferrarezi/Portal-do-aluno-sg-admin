@@ -221,6 +221,7 @@ if exist "%ENV_FILE%" exit /b 0
   echo IA_SG_WEB_PORT=8080
   echo IA_SG_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:5173
   echo VITE_API_URL=/api
+  echo VITE_POINTS_API_URL=https://portal.santos-tech.com/api
 ) > "%ENV_FILE%"
 
 echo [INFO] .env nao existia e foi criado com defaults locais.

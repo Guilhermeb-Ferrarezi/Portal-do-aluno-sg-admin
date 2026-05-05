@@ -84,6 +84,7 @@ IA_SG_API_PORT=3001
 IA_SG_WEB_PORT=8080
 IA_SG_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:5173
 VITE_API_URL=/api
+VITE_POINTS_API_URL=https://portal.santos-tech.com/api
 EOF
 
   echo "[INFO] .env nao existia e foi criado com defaults locais."

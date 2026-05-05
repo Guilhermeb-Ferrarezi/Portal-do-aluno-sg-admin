@@ -5,8 +5,10 @@ WORKDIR /app
 
 ARG VITE_API_URL=/api
 ARG VITE_WS_URL=
+ARG VITE_POINTS_API_URL=https://portal.santos-tech.com/api
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_POINTS_API_URL=$VITE_POINTS_API_URL
 
 # instala deps primeiro (cache)
 COPY package.json bun.lock ./

@@ -1,6 +1,7 @@
+import { env } from "@/env";
 import { buildJsonHeaders, handleUnauthorized, parseError } from "./core";
 
-const BASE = import.meta.env.VITE_POINTS_API_URL?.trim() || "/api";
+const BASE = env.pointsApiUrl;
 
 export type CustomResponse<T> = {
   success: boolean;

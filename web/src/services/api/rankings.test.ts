@@ -1,4 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/env", () => ({
+  env: {
+    apiUrl: "/api",
+    pointsApiUrl: "/api",
+    wsUrl: undefined,
+    desktopInstallerUrl: undefined,
+    isDev: true,
+  },
+}));
+
 import {
   atualizarRankingEvent,
   criarRankingEvent,
@@ -14,7 +25,7 @@ const okResponse = <T,>(result: T) =>
   });
 
 describe("rankings api", () => {
-  const pointsBaseUrl = "https://portal.santos-tech.com/api";
+  const pointsBaseUrl = "/api";
 
   beforeEach(() => {
     localStorage.clear();
