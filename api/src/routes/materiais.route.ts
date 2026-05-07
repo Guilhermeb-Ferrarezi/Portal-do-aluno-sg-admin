@@ -50,7 +50,7 @@ const MODULE_META_REGEX = /^\[\[module:(\d+)\|([^\]]+)\]\]\n?/;
 
 type MaterialRow = {
   id: number;
-  class_id: number;
+  course_id: number;
   title: string;
   description: string | null;
   file_url: string;
@@ -76,11 +76,28 @@ type ParsedDescription = {
   descricao: string | null;
 };
 
+type MaterialResponse = {
+  id: string;
+  titulo: string;
+  tipo: "arquivo" | "link";
+  modulo: string;
+  moduloId?: string;
+  descricao: string | null;
+  url: string;
+  createdBy: null;
+  createdAt: string;
+  updatedAt: string;
+  turmas?: undefined;
+  alunos?: undefined;
+};
+
 const createMaterialSchema = z.object({
   titulo: z.string().min(3, "Título deve ter no mínimo 3 caracteres"),
   tipo: z.enum(["arquivo", "link"]),
+  courseId: z.coerce.number().int().positive().optional(),
   modulo: z.string().optional().nullable(),
   moduloId: z.coerce.number().int().positive().optional(),
+  exerciseId: z.coerce.number().int().positive().optional(),
   descricao: z.string().optional().nullable(),
   url: z.string().optional(),
 });
@@ -88,8 +105,10 @@ const createMaterialSchema = z.object({
 const updateMaterialSchema = z.object({
   titulo: z.string().min(3).optional(),
   tipo: z.enum(["arquivo", "link"]).optional(),
+  courseId: z.coerce.number().int().positive().optional(),
   modulo: z.string().optional().nullable(),
   moduloId: z.coerce.number().int().positive().optional(),
+  exerciseId: z.coerce.number().int().positive().optional(),
   descricao: z.string().optional().nullable(),
   url: z.string().optional(),
 });
@@ -239,18 +258,52 @@ async function resolveClassIdByCourse(courseId: number): Promise<number | null> 
   return found.rows[0].id;
 }
 
-function transformMaterial(row: MaterialRow) {
+async function resolveExerciseReference(params: { moduleId: number; exerciseId: number }) {
+  const result = await pool.query<{
+    exercise_title: string;
+    phase_name: string | null;
+    container_name: string | null;
+  }>(
+    `SELECT e.title AS exercise_title,
+            p.name AS phase_name,
+            ct.name AS container_name
+     FROM exercise e
+     JOIN phase p ON p.id = e.phase_id
+     JOIN container_tasks ct ON ct.exercise_id = e.id AND ct.phase_id = p.id
+     WHERE e.id = $1
+       AND p.module_id = $2
+     LIMIT 1`,
+    [params.exerciseId, params.moduleId]
+  );
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    exerciseTitle: row.exercise_title,
+    phaseName: row.phase_name,
+    containerName: row.container_name,
+    referenceDescription: `Material relacionado ao exercicio ${row.exercise_title} no container ${row.container_name ?? "sem nome"}`,
+  };
+}
+
+function transformMaterial(row: MaterialRow): MaterialResponse | null {
+  const fileUrl = typeof row.file_url === "string" ? row.file_url.trim() : "";
+  if (!fileUrl) {
+    return null;
+  }
+
   const createdAt = row.uploaded_at instanceof Date ? row.uploaded_at.toISOString() : String(row.uploaded_at);
   const parsedDescription = parseDescriptionMetadata(row.description);
 
   return {
     id: String(row.id),
     titulo: row.title,
-    tipo: inferTipoFromFile(row.file_url, row.file_type),
+    tipo: inferTipoFromFile(fileUrl, row.file_type),
     modulo: parsedDescription.modulo,
     moduloId: parsedDescription.moduloId ? String(parsedDescription.moduloId) : undefined,
     descricao: parsedDescription.descricao,
-    url: row.file_url,
+    url: fileUrl,
     createdBy: null,
     createdAt,
     updatedAt: createdAt,
@@ -265,7 +318,7 @@ function getFileExtension(value: string): string | null {
   return ext.length > 0 && ext !== noQuery.toLowerCase() ? ext : null;
 }
 
-function getMaterialCategoria(material: ReturnType<typeof transformMaterial>) {
+function getMaterialCategoria(material: MaterialResponse) {
   if (material.tipo === "link") return "link";
   const ext = getFileExtension(material.url);
   if (!ext) return "arquivo";
@@ -308,7 +361,7 @@ export function materiaisRouter(jwtSecret: string) {
       const where = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
       const result = await pool.query<MaterialRow>(
-        `SELECT id, class_id, title, description, file_url, file_type, visibility, uploaded_at
+        `SELECT id, course_id, title, description, file_url, file_type, visibility, uploaded_at
          FROM material
          ${where}
          ORDER BY uploaded_at DESC`,
@@ -317,6 +370,7 @@ export function materiaisRouter(jwtSecret: string) {
 
       const mapped = result.rows
         .map(transformMaterial)
+        .filter((material): material is MaterialResponse => material !== null)
         .filter((m) => {
           if (modulo && modulo.toLowerCase() !== "todos" && !m.modulo.toLowerCase().includes(modulo.toLowerCase())) {
             return false;
@@ -359,7 +413,7 @@ export function materiaisRouter(jwtSecret: string) {
       }
 
       const result = await pool.query<MaterialRow>(
-        `SELECT id, class_id, title, description, file_url, file_type, visibility, uploaded_at
+        `SELECT id, course_id, title, description, file_url, file_type, visibility, uploaded_at
          FROM material
          WHERE id = $1`,
         [id]
@@ -370,7 +424,13 @@ export function materiaisRouter(jwtSecret: string) {
         return;
       }
 
-      res.json(transformMaterial(result.rows[0]));
+      const material = transformMaterial(result.rows[0]);
+      if (!material) {
+        res.status(500).json({ message: "Material inválido encontrado no banco" });
+        return;
+      }
+
+      res.json(material);
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Erro ao obter material" });
@@ -412,43 +472,19 @@ export function materiaisRouter(jwtSecret: string) {
           return;
         }
 
-        const classId = await resolveClassIdByCourse(modulo.courseId);
-        if (!classId) {
-          res.status(400).json({ message: "Não existe turma (class) para o curso deste módulo" });
+        const courseId = data.courseId ?? modulo.courseId;
+        if (courseId !== modulo.courseId) {
+          res.status(400).json({ message: "Selecione um curso compativel com o modulo" });
           return;
         }
 
-        let fileUrl = data.url;
-        let fileType = "arquivo";
-
-        if (data.tipo === "arquivo") {
-          if (!req.file) {
-            res.status(400).json({ message: "Arquivo é obrigatório para tipo 'arquivo'" });
-            return;
-          }
-
-          const uploadOptions = resolveMaterialUploadOptions(req.file);
-          fileUrl = await uploadToR2(req.file, "materiais", {
-            contentType: uploadOptions.contentType,
-            extension: uploadOptions.extension,
-          });
-          fileType = uploadOptions.fileType;
-        } else {
-          if (!data.url) {
-            res.status(400).json({ message: "URL é obrigatória para tipo 'link'" });
-            return;
-          }
-
-          try {
-            if (!isSafeHttpUrl(data.url)) {
-              throw new Error("unsafe_url");
-            }
-          } catch {
-            res.status(400).json({ message: "URL inválida" });
-            return;
-          }
-
-          fileType = "link";
+        const exerciseReference =
+          typeof data.exerciseId === "number"
+            ? await resolveExerciseReference({ moduleId: modulo.id, exerciseId: data.exerciseId })
+            : null;
+        if (typeof data.exerciseId === "number" && !exerciseReference) {
+          res.status(400).json({ message: "Selecione um exercicio que pertença ao container do modulo" });
+          return;
         }
 
         const descricaoComModulo = composeDescriptionWithModule(data.descricao, {
@@ -456,31 +492,95 @@ export function materiaisRouter(jwtSecret: string) {
           name: modulo.name,
         });
 
-        const result = await pool.query<MaterialRow>(
-          `INSERT INTO material (class_id, title, description, file_url, file_type, visibility, uploaded_at)
-           VALUES ($1, $2, $3, $4, $5, 1, NOW())
-           RETURNING id, class_id, title, description, file_url, file_type, visibility, uploaded_at`,
-          [classId, data.titulo, descricaoComModulo, fileUrl, fileType]
-        );
+        const client = await pool.connect();
+        let uploadedFileUrl: string | null = null;
+        let created: MaterialResponse | null = null;
 
-        const created = transformMaterial(result.rows[0]);
+        try {
+          await client.query("BEGIN");
+
+          let fileUrl = data.url;
+          let fileType = "arquivo";
+
+          if (data.tipo === "arquivo") {
+            if (!req.file) {
+              throw new Error("Arquivo é obrigatório para tipo 'arquivo'");
+            }
+
+            const uploadOptions = resolveMaterialUploadOptions(req.file);
+            uploadedFileUrl = await uploadToR2(req.file, "materiais", {
+              contentType: uploadOptions.contentType,
+              extension: uploadOptions.extension,
+            });
+            fileUrl = uploadedFileUrl;
+            fileType = uploadOptions.fileType;
+          } else {
+            if (!data.url) {
+              throw new Error("URL é obrigatória para tipo 'link'");
+            }
+
+            if (!isSafeHttpUrl(data.url)) {
+              throw new Error("URL inválida");
+            }
+
+            fileType = "link";
+          }
+
+          const result = await client.query<MaterialRow>(
+            `INSERT INTO material (course_id, title, description, file_url, file_type, visibility, uploaded_at)
+             VALUES ($1, $2, $3, $4, $5, 1, NOW())
+             RETURNING id, course_id, title, description, file_url, file_type, visibility, uploaded_at`,
+            [courseId, data.titulo, descricaoComModulo, fileUrl, fileType]
+          );
+
+          created = transformMaterial(result.rows[0]);
+          if (!created) {
+            throw new Error("Material criado com dados inválidos");
+          }
+
+          if (typeof data.exerciseId === "number") {
+            const referenceDescription =
+              exerciseReference?.referenceDescription ?? `Material relacionado ao exercicio ${created.titulo}`;
+            await client.query(
+              `INSERT INTO materials_reference_exercises (material_id, exercise_id, reference_description, created_at)
+               VALUES ($1, $2, $3, NOW())`,
+              [Number(created.id), data.exerciseId, referenceDescription]
+            );
+          }
+
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK").catch(() => null);
+          if (uploadedFileUrl) {
+            await deleteFromR2(uploadedFileUrl).catch(() => null);
+          }
+          throw error;
+        } finally {
+          client.release();
+        }
+
+        const responseMaterial = created;
+        if (!responseMaterial) {
+          res.status(500).json({ message: "Material criado com dados inválidos" });
+          return;
+        }
 
         logActivity({
           actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
           action: "create",
           entityType: "material",
-          entityId: created.id,
+          entityId: responseMaterial.id,
           metadata: {
-            titulo: created.titulo,
-            tipo: created.tipo,
-            modulo: created.modulo,
+            titulo: responseMaterial.titulo,
+            tipo: responseMaterial.tipo,
+            modulo: responseMaterial.modulo,
           },
           req,
         }).catch((err) => console.error("activity log error:", err));
 
-        res.status(201).json({ message: "Material criado com sucesso", material: created });
+        res.status(201).json({ message: "Material criado com sucesso", material: responseMaterial });
       } catch (error) {
-        if (error instanceof Error && /arquivo|imagem|tipo|formato/i.test(error.message)) {
+        if (error instanceof Error && /arquivo|imagem|tipo|formato|url|curso|modulo|exercicio/i.test(error.message)) {
           res.status(400).json({ message: error.message });
           return;
         }
@@ -515,7 +615,7 @@ export function materiaisRouter(jwtSecret: string) {
         }
 
         const currentResult = await pool.query<MaterialRow>(
-          `SELECT id, class_id, title, description, file_url, file_type, visibility, uploaded_at
+          `SELECT id, course_id, title, description, file_url, file_type, visibility, uploaded_at
            FROM material
            WHERE id = $1`,
           [id]
@@ -528,13 +628,16 @@ export function materiaisRouter(jwtSecret: string) {
 
         const current = currentResult.rows[0];
         const currentParsed = parseDescriptionMetadata(current.description);
+        const nextCourseId = data.courseId ?? current.course_id;
+        const previousFileUrl = current.file_url;
 
         let nextFileUrl = current.file_url;
         let nextFileType = current.file_type || "arquivo";
+        let deletePreviousFileAfterCommit = false;
 
         if (req.file) {
           if (inferTipoFromFile(current.file_url, current.file_type) === "arquivo") {
-            await deleteFromR2(current.file_url).catch(() => null);
+            deletePreviousFileAfterCommit = true;
           }
           const uploadOptions = resolveMaterialUploadOptions(req.file);
           nextFileUrl = await uploadToR2(req.file, "materiais", {
@@ -547,16 +650,12 @@ export function materiaisRouter(jwtSecret: string) {
             res.status(400).json({ message: "URL é obrigatória para tipo 'link'" });
             return;
           }
-          try {
-            if (!isSafeHttpUrl(data.url)) {
-              throw new Error("unsafe_url");
-            }
-            nextFileUrl = data.url;
-            nextFileType = "link";
-          } catch {
+          if (!isSafeHttpUrl(data.url)) {
             res.status(400).json({ message: "URL inválida" });
             return;
           }
+          nextFileUrl = data.url;
+          nextFileType = "link";
         }
 
         let moduloAtual: { id: number; name: string; courseId: number } | null = null;
@@ -579,9 +678,17 @@ export function materiaisRouter(jwtSecret: string) {
           return;
         }
 
-        const classId = await resolveClassIdByCourse(moduloAtual.courseId);
-        if (!classId) {
-          res.status(400).json({ message: "Não existe turma (class) para o curso deste módulo" });
+        if (nextCourseId !== moduloAtual.courseId) {
+          res.status(400).json({ message: "Selecione um curso compativel com o modulo" });
+          return;
+        }
+
+        const exerciseReference =
+          typeof data.exerciseId === "number"
+            ? await resolveExerciseReference({ moduleId: moduloAtual.id, exerciseId: data.exerciseId })
+            : null;
+        if (typeof data.exerciseId === "number" && !exerciseReference) {
+          res.status(400).json({ message: "Selecione um exercicio que pertença ao container do modulo" });
           return;
         }
 
@@ -593,19 +700,59 @@ export function materiaisRouter(jwtSecret: string) {
           name: moduloAtual.name,
         });
 
-        const result = await pool.query<MaterialRow>(
-          `UPDATE material
-           SET class_id = $1,
-               title = COALESCE($2, title),
-               description = $3,
-               file_url = $4,
-               file_type = $5
-           WHERE id = $6
-           RETURNING id, class_id, title, description, file_url, file_type, visibility, uploaded_at`,
-          [classId, data.titulo ?? null, nextDescription, nextFileUrl, nextFileType, id]
-        );
+        const client = await pool.connect();
+        let updated: MaterialResponse | null = null;
 
-        const updated = transformMaterial(result.rows[0]);
+        try {
+          await client.query("BEGIN");
+
+          const result = await client.query<MaterialRow>(
+            `UPDATE material
+             SET course_id = $1,
+                 title = COALESCE($2, title),
+                 description = $3,
+                 file_url = $4,
+                 file_type = $5
+             WHERE id = $6
+             RETURNING id, course_id, title, description, file_url, file_type, visibility, uploaded_at`,
+            [moduloAtual.courseId, data.titulo ?? null, nextDescription, nextFileUrl, nextFileType, id]
+          );
+
+          updated = transformMaterial(result.rows[0]);
+          if (!updated) {
+            throw new Error("Material atualizado com dados inválidos");
+          }
+
+          if (typeof data.exerciseId === "number") {
+            await client.query("DELETE FROM materials_reference_exercises WHERE material_id = $1", [id]);
+            const referenceDescription =
+              exerciseReference?.referenceDescription ?? `Material relacionado ao exercicio ${updated.titulo}`;
+            await client.query(
+              `INSERT INTO materials_reference_exercises (material_id, exercise_id, reference_description, created_at)
+               VALUES ($1, $2, $3, NOW())`,
+              [id, data.exerciseId, referenceDescription]
+            );
+          }
+
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK").catch(() => null);
+          if (req.file && deletePreviousFileAfterCommit) {
+            await deleteFromR2(nextFileUrl).catch(() => null);
+          }
+          throw error;
+        } finally {
+          client.release();
+        }
+
+        if (req.file && deletePreviousFileAfterCommit) {
+          await deleteFromR2(previousFileUrl).catch(() => null);
+        }
+
+        if (!updated) {
+          res.status(500).json({ message: "Material atualizado com dados inválidos" });
+          return;
+        }
 
         logActivity({
           actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
@@ -622,7 +769,7 @@ export function materiaisRouter(jwtSecret: string) {
 
         res.json({ message: "Material atualizado com sucesso", material: updated });
       } catch (error) {
-        if (error instanceof Error && /arquivo|imagem|tipo|formato/i.test(error.message)) {
+        if (error instanceof Error && /arquivo|imagem|tipo|formato|url|curso|modulo|exercicio/i.test(error.message)) {
           res.status(400).json({ message: error.message });
           return;
         }
@@ -645,7 +792,7 @@ export function materiaisRouter(jwtSecret: string) {
         }
 
         const currentResult = await pool.query<MaterialRow>(
-          `SELECT id, class_id, title, description, file_url, file_type, visibility, uploaded_at
+          `SELECT id, course_id, title, description, file_url, file_type, visibility, uploaded_at
            FROM material
            WHERE id = $1`,
           [id]

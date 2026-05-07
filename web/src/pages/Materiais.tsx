@@ -38,12 +38,17 @@ import {
   criarMaterial,
   deletarMaterial,
   type Material,
+  listarCursos,
+  type Curso,
   listarModulos,
   type Modulo,
+  listarFasesDoModulo,
+  listarContainersPorFase,
   listarTurmas,
-  atribuirMaterialTurmas,
   type Turma,
+  type ContainerGroup,
 } from "../services/api";
+import { collectMaterialExerciseOptions, type MaterialExerciseOption } from "./Materiais.helpers";
 
 type MaterialCategoria =
   | "link"
@@ -57,6 +62,10 @@ type MaterialCategoria =
   | "arquivo";
 
 type FormatoArquivo = Exclude<MaterialCategoria, "link">;
+
+type MaterialModuloOption = Modulo & {
+  courseName: string;
+};
 
 const pageTitle = "Materiais";
 const pageSubtitle = "Acesse arquivos e links de estudo";
@@ -206,6 +215,14 @@ function turmaBadgeClass(tipo?: string) {
     : "border-fuchsia-500/25 bg-fuchsia-500/12 text-fuchsia-300";
 }
 
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export default function MateriaisPage() {
   const { values: queryState, setParams } = usePersistedListParams({
     q: { defaultValue: "" as string },
@@ -250,6 +267,7 @@ export default function MateriaisPage() {
   const [modalAberto, setModalAberto] = React.useState(false);
 
   const [formTitulo, setFormTitulo] = React.useState("");
+  const [formCursoId, setFormCursoId] = React.useState("");
   const [formModuloId, setFormModuloId] = React.useState("");
   const [buscaModuloForm, setBuscaModuloForm] = React.useState("");
   const [showSugestoesModuloForm, setShowSugestoesModuloForm] = React.useState(false);
@@ -258,9 +276,12 @@ export default function MateriaisPage() {
   const [formDescricao, setFormDescricao] = React.useState("");
   const [formUrl, setFormUrl] = React.useState("");
   const [formArquivo, setFormArquivo] = React.useState<File | null>(null);
-  const [turmasSelecionadas, setTurmasSelecionadas] = React.useState<string[]>([]);
-  const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
+  const [formExerciseId, setFormExerciseId] = React.useState("");
+  const [cursosDisponiveis, setCursosDisponiveis] = React.useState<Curso[]>([]);
   const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
+  const [exerciciosDisponiveis, setExerciciosDisponiveis] = React.useState<MaterialExerciseOption[]>([]);
+  const [loadingExercicios, setLoadingExercicios] = React.useState(false);
+  const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<Material | null>(null);
@@ -278,6 +299,9 @@ export default function MateriaisPage() {
 
   React.useEffect(() => {
     if (canUpload) {
+      listarCursos()
+        .then(setCursosDisponiveis)
+        .catch((err) => console.error("Erro ao carregar cursos:", err));
       listarTurmas()
         .then(setTurmasDisponiveis)
         .catch((err) => console.error("Erro ao carregar turmas:", err));
@@ -438,6 +462,72 @@ export default function MateriaisPage() {
     ])
   );
 
+  const modulosComCurso = React.useMemo<MaterialModuloOption[]>(() => {
+    return [...modulosDisponiveis]
+      .map((modulo) => ({
+        ...modulo,
+        courseName: cursosDisponiveis.find((curso) => curso.id === modulo.courseId)?.nome ?? "",
+      }))
+      .sort((a, b) => {
+        const courseOrder = a.courseName.localeCompare(b.courseName, "pt-BR", { sensitivity: "base" });
+        if (courseOrder !== 0) return courseOrder;
+        return a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" });
+      });
+  }, [cursosDisponiveis, modulosDisponiveis]);
+
+  React.useEffect(() => {
+    if (!formModuloId) {
+      setExerciciosDisponiveis([]);
+      setFormExerciseId("");
+      setLoadingExercicios(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingExercicios(true);
+
+    void (async () => {
+      try {
+        const fases = await listarFasesDoModulo(formModuloId);
+        const containersPorFase = await Promise.all(
+          fases.map((fase) =>
+            listarContainersPorFase(fase.id).catch((error) => {
+              console.error("Erro ao carregar containers da fase:", error);
+              return [] as ContainerGroup[];
+            })
+          )
+        );
+        if (cancelled) return;
+        setExerciciosDisponiveis(
+          collectMaterialExerciseOptions(containersPorFase.flat())
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Erro ao carregar exercicios do modulo:", error);
+          setExerciciosDisponiveis([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingExercicios(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formModuloId]);
+
+  const cursoSelecionado = React.useMemo(
+    () => cursosDisponiveis.find((curso) => curso.id === formCursoId) ?? null,
+    [cursosDisponiveis, formCursoId]
+  );
+
+  const modulosBaseParaAutocomplete = React.useMemo(() => {
+    if (!formCursoId) return modulosComCurso;
+    return modulosComCurso.filter((modulo) => modulo.courseId === formCursoId);
+  }, [formCursoId, modulosComCurso]);
+
   const termoModuloFiltro = buscaModuloFiltro.trim().toLowerCase();
   const modulosFiltradosNoFiltro =
     termoModuloFiltro.length === 0
@@ -445,12 +535,20 @@ export default function MateriaisPage() {
       : modulos.filter((modulo) => modulo.toLowerCase().includes(termoModuloFiltro));
 
   const termoModuloForm = buscaModuloForm.trim().toLowerCase();
+  const termoModuloFormNormalizado = normalizeSearchValue(buscaModuloForm);
   const modulosFiltradosNoForm =
     termoModuloForm.length === 0
-      ? []
-      : modulosDisponiveis.filter((modulo) =>
-          modulo.nome.toLowerCase().includes(termoModuloForm)
-        );
+      ? modulosBaseParaAutocomplete
+      : modulosComCurso.filter((modulo) => {
+          const normalizedModulo = normalizeSearchValue(modulo.nome);
+          const normalizedCourse = normalizeSearchValue(modulo.courseName);
+          return (
+            normalizedModulo.includes(termoModuloFormNormalizado) ||
+            normalizedCourse.includes(termoModuloFormNormalizado) ||
+            `${normalizedCourse} ${normalizedModulo}`.includes(termoModuloFormNormalizado) ||
+            `${normalizedModulo} ${normalizedCourse}`.includes(termoModuloFormNormalizado)
+          );
+        });
 
   const hasAnyFiltro =
     busca.trim() !== "" ||
@@ -461,6 +559,7 @@ export default function MateriaisPage() {
 
   const resetForm = () => {
     setFormTitulo("");
+    setFormCursoId("");
     setFormModuloId("");
     setBuscaModuloForm("");
     setShowSugestoesModuloForm(false);
@@ -469,7 +568,9 @@ export default function MateriaisPage() {
     setFormDescricao("");
     setFormUrl("");
     setFormArquivo(null);
-    setTurmasSelecionadas([]);
+    setFormExerciseId("");
+    setExerciciosDisponiveis([]);
+    setLoadingExercicios(false);
     setFormError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -497,16 +598,21 @@ export default function MateriaisPage() {
   const handleSubmit = async () => {
     setFormError(null);
 
+    const cursoIdSelecionado = formCursoId.trim();
     const moduloIdSelecionado = formModuloId.trim();
     const moduloDigitado = buscaModuloForm.trim().toLowerCase();
     const moduloEncontrado =
       moduloIdSelecionado ||
-      modulosDisponiveis.find((modulo) => modulo.nome.toLowerCase() === moduloDigitado)?.id ||
-      modulosDisponiveis.find((modulo) => modulo.nome.toLowerCase().includes(moduloDigitado))
+      modulosComCurso.find(
+        (modulo) => normalizeSearchValue(modulo.nome) === normalizeSearchValue(moduloDigitado)
+      )?.id ||
+      modulosComCurso.find(
+        (modulo) => normalizeSearchValue(modulo.nome).includes(normalizeSearchValue(moduloDigitado))
+      )
         ?.id ||
       "";
 
-    if (!formTitulo.trim() || !moduloEncontrado) {
+    if (!formTitulo.trim() || !cursoIdSelecionado || !moduloEncontrado) {
       setFormError("Preencha todos os campos obrigatorios.");
       return;
     }
@@ -527,9 +633,14 @@ export default function MateriaisPage() {
       const formData = new FormData();
       formData.append("titulo", formTitulo);
       formData.append("tipo", formTipo);
+      formData.append("courseId", cursoIdSelecionado);
       formData.append("moduloId", moduloEncontrado);
       if (formDescricao.trim()) {
         formData.append("descricao", formDescricao);
+      }
+
+      if (formExerciseId.trim()) {
+        formData.append("exerciseId", formExerciseId.trim());
       }
 
       if (formTipo === "arquivo" && formArquivo) {
@@ -538,19 +649,7 @@ export default function MateriaisPage() {
         formData.append("url", formUrl);
       }
 
-      if (turmasSelecionadas.length > 0) {
-        formData.append("turma_ids", JSON.stringify(turmasSelecionadas));
-      }
-
-      const resultado = await criarMaterial(formData);
-
-      if (turmasSelecionadas.length > 0 && resultado.material?.id) {
-        try {
-          await atribuirMaterialTurmas(resultado.material.id, turmasSelecionadas);
-        } catch (err) {
-          console.error("Erro ao atribuir turmas:", err);
-        }
-      }
+      await criarMaterial(formData);
 
       setModalAberto(false);
       resetForm();
@@ -939,12 +1038,42 @@ export default function MateriaisPage() {
 
               <div className="space-y-2.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Curso *
+                </span>
+                <select
+                  className={fieldClass}
+                  value={formCursoId}
+                  onChange={(event) => {
+                    const nextCursoId = event.target.value;
+                    setFormCursoId(nextCursoId);
+                    setFormModuloId("");
+                    setBuscaModuloForm("");
+                    setFormExerciseId("");
+                    setShowSugestoesModuloForm(false);
+                    if (formError) setFormError(null);
+                  }}
+                >
+                  <option value="">Selecione um curso</option>
+                  {cursosDisponiveis.map((curso) => (
+                    <option key={curso.id} value={curso.id}>
+                      {curso.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                   Modulo *
                 </span>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Buscar modulo por nome..."
+                    placeholder={
+                      cursoSelecionado
+                        ? "Buscar curso ou modulo..."
+                        : "Busque por curso ou modulo"
+                    }
                     className={fieldClass}
                     value={buscaModuloForm}
                     onFocus={() => {
@@ -958,27 +1087,49 @@ export default function MateriaisPage() {
                     onChange={(event) => {
                       setBuscaModuloForm(event.target.value);
                       setFormModuloId("");
+                      setFormExerciseId("");
                       setShowSugestoesModuloForm(true);
+                      const termo = normalizeSearchValue(event.target.value);
+                      const moduloCorrespondente =
+                        modulosComCurso.find((modulo) => normalizeSearchValue(modulo.nome) === termo) ??
+                        modulosComCurso.find((modulo) => normalizeSearchValue(`${modulo.courseName} ${modulo.nome}`) === termo) ??
+                        null;
+                      if (moduloCorrespondente) {
+                        setFormCursoId(moduloCorrespondente.courseId);
+                      }
                       if (formError) setFormError(null);
                     }}
                   />
                   {showSugestoesModuloForm && modulosFiltradosNoForm.length > 0 ? (
                     <div className={suggestionPanelClass}>
-                      {modulosFiltradosNoForm.map((modulo) => (
-                        <button
-                          key={modulo.id}
-                          type="button"
-                          onClick={() => {
-                            setFormModuloId(modulo.id);
-                            setBuscaModuloForm(modulo.nome);
-                            setShowSugestoesModuloForm(false);
-                            if (formError) setFormError(null);
-                          }}
-                          className={suggestionOptionClass}
-                        >
-                          {modulo.nome}
-                        </button>
-                      ))}
+                      {modulosFiltradosNoForm.map((modulo) => {
+                        const suggestionLabel = modulo.courseName
+                          ? `${modulo.courseName} • ${modulo.nome}`
+                          : modulo.nome;
+
+                        return (
+                          <button
+                            key={modulo.id}
+                            type="button"
+                            onClick={() => {
+                              setFormCursoId(modulo.courseId);
+                              setFormModuloId(modulo.id);
+                              setBuscaModuloForm(suggestionLabel);
+                              setShowSugestoesModuloForm(false);
+                              setFormExerciseId("");
+                              if (formError) setFormError(null);
+                            }}
+                            className={suggestionOptionClass}
+                          >
+                            <div className="flex flex-col gap-0.5">
+                              <span>{modulo.nome}</span>
+                              <span className="text-xs font-normal text-muted-foreground">
+                                {suggestionLabel}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : null}
                 </div>
@@ -1028,27 +1179,32 @@ export default function MateriaisPage() {
 
               <div className="space-y-2.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                  Turmas (opcional)
+                  Exercicio do container (opcional)
                 </span>
                 <select
-                  className={cn(fieldClass, "h-32 py-3")}
-                  multiple
-                  value={turmasSelecionadas}
-                  onChange={(event) =>
-                    setTurmasSelecionadas(
-                      Array.from(event.target.selectedOptions, (option) => option.value)
-                    )
-                  }
-                  size={4}
+                  className={fieldClass}
+                  value={formExerciseId}
+                  disabled={!formModuloId || loadingExercicios}
+                  onChange={(event) => {
+                    setFormExerciseId(event.target.value);
+                    if (formError) setFormError(null);
+                  }}
                 >
-                  {turmasDisponiveis.map((turma) => (
-                    <option key={turma.id} value={turma.id}>
-                      {turma.nome} ({turma.tipo})
+                  <option value="">
+                    {!formModuloId
+                      ? "Selecione um modulo primeiro"
+                      : loadingExercicios
+                        ? "Carregando exercicios..."
+                        : "Sem exercicio vinculado"}
+                  </option>
+                  {exerciciosDisponiveis.map((exercicio) => (
+                    <option key={exercicio.id} value={exercicio.id} title={`${exercicio.containerName} / ${exercicio.phaseId}`}>
+                      {exercicio.label}
                     </option>
                   ))}
                 </select>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  Segure Ctrl ou Cmd para selecionar multiplas turmas. Deixe vazio para liberar a todos.
+                  Selecione opcionalmente um exercicio que esteja em um container do modulo.
                 </p>
               </div>
 
