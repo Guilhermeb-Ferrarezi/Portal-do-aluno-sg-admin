@@ -1037,7 +1037,7 @@ function DashboardShell({
         </header>
 
         <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-          {isDashboard && dashboardQuickActions.length > 0 ? (
+          {dashboardQuickActions.length > 0 ? (
             <section className="rounded-[24px] border border-border/70 bg-card/85 p-4 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -1045,7 +1045,7 @@ function DashboardShell({
                     Acoes rapidas
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Atalhos por perfil para concluir tarefas frequentes sem sair do dashboard.
+                    Atalhos por perfil para concluir tarefas frequentes sem procurar no menu lateral.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">

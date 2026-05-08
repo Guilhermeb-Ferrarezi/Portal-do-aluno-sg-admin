@@ -20,6 +20,12 @@ export type UserMe = User & {
   createdAt: string;
 };
 
+export type UserAcademicContext = {
+  cursos: string[];
+  turmas: string[];
+  modulos: string[];
+};
+
 export async function obterUsuarioAtual() {
   return apiFetch<UserMe>("/users/me");
 }
@@ -90,6 +96,20 @@ export async function listarUsuariosPaginado(params?: {
   if (params?.limit) search.set("limit", String(params.limit));
   const query = search.toString();
   return apiFetch<PaginatedItemsResponse<User>>(`/users${query ? `?${query}` : ""}`);
+}
+
+export async function obterContextoAcademicoUsuario(id: string) {
+  return apiFetch<UserAcademicContext>(`/users/${id}/academic-context`);
+}
+
+export async function enviarEmailParaUsuario(
+  id: string,
+  dados: { subject: string; message: string }
+) {
+  return apiFetch<{ message: string }>(`/users/${id}/send-email`, {
+    method: "POST",
+    body: JSON.stringify(dados),
+  });
 }
 
 export async function atualizarUsuario(

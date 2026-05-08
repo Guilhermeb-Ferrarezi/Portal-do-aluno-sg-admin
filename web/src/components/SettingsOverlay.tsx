@@ -111,6 +111,15 @@ const defaultSettings: ProfileSettings = {
   corPreferida: "#e11d2e",
 };
 
+const PREFERRED_COLOR_PRESETS = [
+  { label: "Vermelho", value: "#e11d2e" },
+  { label: "Azul", value: "#2563eb" },
+  { label: "Verde", value: "#0f766e" },
+  { label: "Dourado", value: "#ca8a04" },
+  { label: "Violeta", value: "#7c3aed" },
+  { label: "Laranja", value: "#ea580c" },
+];
+
 function normalizeHexColor(value: string | null | undefined): string {
   const raw = (value ?? "").trim();
   if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toLowerCase();
@@ -1863,36 +1872,60 @@ export default function SettingsOverlay({ isOpen, onClose, onLogout }: SettingsO
                               <h3 className={settingsTitleClass}>Cor preferida</h3>
                               <p className={settingsTextClass}>Escolha a cor de destaque do portal</p>
                             </div>
-                            <div className="inline-flex items-center gap-3">
-                              <input
-                                type="color"
-                                className="size-11 rounded-xl border border-border/70 bg-transparent p-1"
-                                value={settings.corPreferida}
-                                onChange={(e) =>
-                                  setSettings((prev) => ({
-                                    ...prev,
-                                    corPreferida: normalizeHexColor(e.target.value),
-                                  }))
-                                }
-                              />
-                              <input
-                                type="text"
-                                className={cn(formInputClass, "h-11 w-28 lowercase")}
-                                value={settings.corPreferida}
-                                onChange={(e) =>
-                                  setSettings((prev) => ({
-                                    ...prev,
-                                    corPreferida: e.target.value,
-                                  }))
-                                }
-                                onBlur={(e) =>
-                                  setSettings((prev) => ({
-                                    ...prev,
-                                    corPreferida: normalizeHexColor(e.target.value),
-                                  }))
-                                }
-                                placeholder="#e11d2e"
-                              />
+                            <div className="flex w-full flex-col gap-4">
+                              <div className="ml-auto flex w-fit items-center gap-3 rounded-full border border-border/70 bg-background/55 px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                <span className="text-sm font-medium text-foreground">Selecione uma cor</span>
+                                <label className="relative block size-10 shrink-0 cursor-pointer">
+                                  <span
+                                    aria-hidden="true"
+                                    className="block size-10 rounded-full border border-white/15 shadow-[0_10px_24px_rgba(0,0,0,0.18)]"
+                                    style={{ backgroundColor: normalizeHexColor(settings.corPreferida) }}
+                                  />
+                                  <input
+                                    type="color"
+                                    aria-label="Selecione uma cor"
+                                    className="absolute inset-0 cursor-pointer opacity-0"
+                                    value={normalizeHexColor(settings.corPreferida)}
+                                    onChange={(e) =>
+                                      setSettings((prev) => ({
+                                        ...prev,
+                                        corPreferida: normalizeHexColor(e.target.value),
+                                      }))
+                                    }
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                {PREFERRED_COLOR_PRESETS.map((option) => {
+                                  const active = normalizeHexColor(settings.corPreferida) === option.value;
+
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      className={cn(
+                                        "flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition",
+                                        active
+                                          ? "border-primary/40 bg-primary/10 text-foreground"
+                                          : "border-border/70 bg-background/60 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                      )}
+                                      onClick={() =>
+                                        setSettings((prev) => ({
+                                          ...prev,
+                                          corPreferida: option.value,
+                                        }))
+                                      }
+                                    >
+                                      <span
+                                        className="size-4 rounded-full border border-white/15"
+                                        style={{ backgroundColor: option.value }}
+                                      />
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         </div>

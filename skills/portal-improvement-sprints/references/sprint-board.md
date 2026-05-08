@@ -34,14 +34,14 @@ Progresso: `6/6`
 
 Objetivo: melhorar o que ja esta bom sem reinventar a base visual do painel.
 
-Progresso: `0/6`
+Progresso: `5/6`
 
-- [ ] Adicionar uma barra de acoes rapidas no dashboard para admin, professor e aluno
-- [ ] Padronizar estados vazios com CTA util e mensagem contextual
-- [ ] Padronizar estados de loading, erro e retry com componentes reutilizaveis
+- [x] Adicionar uma barra de acoes rapidas no dashboard para admin, professor e aluno
+- [x] Padronizar estados vazios com CTA util e mensagem contextual
+- [x] Padronizar estados de loading, erro e retry com componentes reutilizaveis
 - [ ] Revisar responsividade dos paineis mais densos em mobile e telas intermediarias
-- [ ] Expandir context menus uteis para listas-chave alem de `AdminUsers`
-- [ ] Adicionar sugestoes contextuais como `duplicar rascunho`, `criar primeira turma` e `revisar pendencias`
+- [x] Expandir context menus uteis para listas-chave alem de `AdminUsers`
+- [x] Adicionar sugestoes contextuais como `duplicar rascunho`, `criar primeira turma` e `revisar pendencias`
 
 ## Sprint 3 - Produtividade administrativa e tempo real
 

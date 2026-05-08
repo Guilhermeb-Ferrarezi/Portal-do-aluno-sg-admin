@@ -1,14 +1,33 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconAction } from "@/components/ui/icon-action";
+import { ListStatusState } from "@/components/ui/list-status-state";
 import { usePersistedListParams } from "@/hooks/use-persisted-list-params";
 import {
   ArrowRight,
   BookOpen,
   Calendar,
   Loader2,
+  MoreHorizontal,
   Pencil,
+  Plus,
   RefreshCcw,
   Save,
   Trash2,
@@ -31,7 +50,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import DashboardLayout from "../components/Dashboard/DashboardLayout";
 import Pagination from "../components/Pagination";
-import { FadeInUp, PulseLoader, AnimatedToast } from "../components/animate-ui";
+import { FadeInUp, AnimatedToast } from "../components/animate-ui";
 import ConfirmModal from "../components/ConfirmModal";
 import {
   adicionarAlunosNaTurma,
@@ -68,6 +87,7 @@ export default function TurmasPage() {
   const [turmas, setTurmas] = React.useState<Turma[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
+  const [erroLista, setErroLista] = React.useState<string | null>(null);
   const [toastMsg, setToastMsg] = React.useState<{
     type: "success" | "error";
     msg: string;
@@ -96,6 +116,7 @@ export default function TurmasPage() {
   const [descricao, setDescricao] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [editandoId, setEditandoId] = React.useState<string | null>(null);
+  const [formAberto, setFormAberto] = React.useState(false);
   const [cursos, setCursos] = React.useState<Curso[]>([]);
   const [modulosCurso, setModulosCurso] = React.useState<Modulo[]>([]);
   const [courseIdSelecionado, setCourseIdSelecionado] = React.useState("");
@@ -131,24 +152,29 @@ export default function TurmasPage() {
   const load = React.useCallback(async () => {
     try {
       setLoading(true);
+      setErroLista(null);
       const data = await listarTurmas({
         page: currentPage,
         limit: itemsPerPage,
       });
       setTurmas(data.items);
       setTotalItems(data.total);
-      if (currentPage > data.pagination.totalPages) {
-        setCurrentPage(data.pagination.totalPages);
+      const safeTotalPages = Math.max(data.pagination.totalPages || 1, 1);
+      if (currentPage > safeTotalPages) {
+        handleCurrentPageChange(safeTotalPages);
+        return;
       }
     } catch (e) {
+      const message = e instanceof Error ? e.message : "Erro ao carregar turmas";
+      setErroLista(message);
       setToastMsg({
         type: "error",
-        msg: e instanceof Error ? e.message : "Erro ao carregar turmas",
+        msg: message,
       });
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, handleCurrentPageChange, itemsPerPage]);
 
   const carregarModulosDoCurso = React.useCallback(async (courseId: string, moduloAtual?: string) => {
     if (!courseId) {
@@ -164,6 +190,44 @@ export default function TurmasPage() {
     }
     setModuloIdSelecionado(mods[0]?.id ?? "");
   }, []);
+
+  const resetForm = React.useCallback(() => {
+    setNome("");
+    setTipo("turma");
+    setCategoria("programacao");
+    setDescricao("");
+    setDataInicio("");
+    setDuracaoSemanas(12);
+    setCronogramaAtivo(false);
+    setExerciciosSelecionados([]);
+    setSemanaExercicios(1);
+    setEditandoId(null);
+
+    const firstCourseId = cursos[0]?.id ?? "";
+    setCourseIdSelecionado(firstCourseId);
+    if (firstCourseId) {
+      void carregarModulosDoCurso(firstCourseId);
+    } else {
+      setModuloIdSelecionado("");
+      setModulosCurso([]);
+    }
+  }, [carregarModulosDoCurso, cursos]);
+
+  const abrirCriacao = React.useCallback(() => {
+    resetForm();
+    setFormAberto(true);
+    window.setTimeout(() => {
+      formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }, [resetForm]);
+
+  const abrirDetalhes = React.useCallback((turmaId: string) => {
+    navigate(appRoutes.turmaDetalhe(turmaId));
+  }, [navigate]);
+
+  const abrirSalaDeAula = React.useCallback((turmaId: string) => {
+    navigate(`${appRoutes.turmaDetalhe(turmaId)}?tab=sala-de-aula`);
+  }, [navigate]);
 
   React.useEffect(() => {
     if (role === "admin") {
@@ -284,6 +348,7 @@ export default function TurmasPage() {
         }
 
         setEditandoId(null);
+        setFormAberto(false);
       } else {
         const criarDados: any = { nome, tipo, categoria, descricao: descricao || null };
         criarDados.data_inicio = dataInicio || null;
@@ -318,15 +383,7 @@ export default function TurmasPage() {
         }
       }
 
-      setNome("");
-      setTipo("turma");
-      setCategoria("programacao");
-      setDescricao("");
-      setDataInicio("");
-      setDuracaoSemanas(12);
-      setCronogramaAtivo(false);
-      setExerciciosSelecionados([]);
-      setSemanaExercicios(1);
+      resetForm();
       await load();
     } catch (e) {
       setToastMsg({ type: "error", msg: e instanceof Error ? e.message : "Erro ao salvar turma" });
@@ -352,6 +409,7 @@ export default function TurmasPage() {
       setModuloIdSelecionado("");
     }
     setEditandoId(turma.id);
+    setFormAberto(true);
 
     setTimeout(() => {
       formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -359,21 +417,8 @@ export default function TurmasPage() {
   }
 
   function handleCancel() {
-    setNome("");
-    setTipo("turma");
-    setCategoria("programacao");
-    setDescricao("");
-    setDataInicio("");
-    setDuracaoSemanas(12);
-    setCronogramaAtivo(false);
-    const firstCourseId = cursos[0]?.id ?? "";
-    setCourseIdSelecionado(firstCourseId);
-    if (firstCourseId) {
-      void carregarModulosDoCurso(firstCourseId);
-    } else {
-      setModuloIdSelecionado("");
-    }
-    setEditandoId(null);
+    resetForm();
+    setFormAberto(false);
   }
 
   function abrirModalDeletar(id: string, nomeAtual: string) {
@@ -434,10 +479,30 @@ export default function TurmasPage() {
   const emptyTitle = role === "aluno" ? "Nao registrado em nenhuma turma" : "Nenhuma turma registrada";
   const emptyDescription = !canCreate
     ? "Voce ainda nao esta registrado em nenhuma turma. Aguarde administrador adiciona-lo a uma turma."
-    : "Crie turmas atraves da pagina Estrutura do Curso.";
+    : "Crie a primeira turma, defina o cronograma e depois adicione os alunos no mesmo fluxo.";
 
   return (
-    <DashboardLayout title="Turmas" subtitle="Gerencie suas turmas e alunos">
+    <DashboardLayout
+      title="Turmas"
+      subtitle="Gerencie suas turmas e alunos"
+      quickActions={[
+        {
+          label: canCreate ? "Nova turma" : "Atualizar lista",
+          icon: canCreate ? Plus : RefreshCcw,
+          onClick: canCreate ? abrirCriacao : () => {
+            void load();
+          },
+        },
+        {
+          label: "Atualizar lista",
+          icon: RefreshCcw,
+          onClick: () => {
+            void load();
+          },
+          visible: canCreate,
+        },
+      ]}
+    >
       <FadeInUp duration={0.28}>
         <div className="space-y-6">
           <AnimatedToast
@@ -447,34 +512,16 @@ export default function TurmasPage() {
             onClose={() => setToastMsg(null)}
           />
 
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
-              onClick={load}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Carregando...
-                </>
-              ) : (
-                <>
-                  <RefreshCcw size={16} />
-                  Atualizar
-                </>
-              )}
-            </Button>
-          </div>
-
-          {canCreate && editandoId ? (
+          {canCreate && formAberto ? (
             <section ref={formCardRef} className={`${panelClass} p-6 sm:p-7`}>
               <div className="mb-6 flex flex-col gap-2">
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">Editar Turma</h2>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                  {editandoId ? "Editar Turma" : "Criar nova turma"}
+                </h2>
                 <p className={textMutedClass}>
-                  Ajuste os dados da turma, modulo inicial e configuracoes do cronograma automatico.
+                  {editandoId
+                    ? "Ajuste os dados da turma, modulo inicial e configuracoes do cronograma automatico."
+                    : "Cadastre a turma, defina o modulo inicial e prepare o cronograma automatico antes de adicionar alunos."}
                 </p>
               </div>
 
@@ -604,7 +651,7 @@ export default function TurmasPage() {
                     ) : (
                       <>
                         <Save size={16} />
-                        Atualizar Turma
+                        {editandoId ? "Atualizar Turma" : "Criar Turma"}
                       </>
                     )}
                   </Button>
@@ -626,118 +673,206 @@ export default function TurmasPage() {
 
           <section>
             {loading && turmas.length === 0 ? (
-              <div className={`${panelClass} px-6 py-14 text-center`}>
-                <PulseLoader size="large" text="Carregando turmas..." />
-              </div>
+              <ListStatusState
+                mode="loading"
+                className={panelClass}
+                loadingTitle="Carregando turmas..."
+                loadingDescription="Buscando turmas, cronogramas e acessos recentes para professores e admins."
+              />
+            ) : erroLista && turmas.length === 0 ? (
+              <ListStatusState
+                mode="error"
+                className={panelClass}
+                title="Nao foi possivel carregar as turmas."
+                description={erroLista}
+                onRetry={() => {
+                  void load();
+                }}
+              />
             ) : !loading && totalItems === 0 ? (
               <EmptyState
                 className={`${panelClass} px-6 py-14`}
                 icon={<BookOpen size={22} />}
                 title={emptyTitle}
                 description={emptyDescription}
-                actionLabel={canCreate ? "Criar primeira turma" : undefined}
-                onAction={canCreate ? () => formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }) : undefined}
+                actionLabel={canCreate ? "Criar primeira turma" : "Atualizar lista"}
+                onAction={canCreate ? abrirCriacao : () => {
+                  void load();
+                }}
               />
             ) : (
               <>
                 <div className="grid gap-4 xl:grid-cols-2">
                   {turmas.map((turma, index) => (
                     <FadeInUp key={turma.id} delay={index * 0.05}>
-                      <article className={`${panelClass} flex h-full flex-col p-6`}>
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0 space-y-3">
-                            <div className="space-y-2">
-                              <h3 className="truncate text-xl font-bold tracking-tight text-foreground">
-                                {turma.nome}
-                              </h3>
-                              <div className="flex flex-wrap gap-2">
-                                <Badge
-                                  className={cn(
-                                    "rounded-full px-3 py-1",
-                                    turma.tipo === "turma"
-                                      ? "border-primary/25 bg-primary/10 text-primary"
-                                      : "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300"
-                                  )}
-                                >
-                                  {turma.tipo === "turma" ? (
-                                    <>
-                                      <Users size={14} />
-                                      Grupo
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserIcon size={14} />
-                                      Particular
-                                    </>
-                                  )}
-                                </Badge>
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <article className={`${panelClass} flex h-full flex-col p-6`}>
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0 space-y-3">
+                                <div className="space-y-2">
+                                  <h3 className="truncate text-xl font-bold tracking-tight text-foreground">
+                                    {turma.nome}
+                                  </h3>
+                                  <div className="flex flex-wrap gap-2">
+                                    <Badge
+                                      className={cn(
+                                        "rounded-full px-3 py-1",
+                                        turma.tipo === "turma"
+                                          ? "border-primary/25 bg-primary/10 text-primary"
+                                          : "border-amber-300/60 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:text-amber-300"
+                                      )}
+                                    >
+                                      {turma.tipo === "turma" ? (
+                                        <>
+                                          <Users size={14} />
+                                          Grupo
+                                        </>
+                                      ) : (
+                                        <>
+                                          <UserIcon size={14} />
+                                          Particular
+                                        </>
+                                      )}
+                                    </Badge>
+                                  </div>
+                                </div>
+
+                                {turma.descricao ? (
+                                  <p className="text-sm leading-6 text-muted-foreground">{turma.descricao}</p>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">
+                                    Sem descricao cadastrada para esta turma.
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex items-start gap-2">
+                                {canCreate ? (
+                                  <div className="hidden gap-2 sm:flex">
+                                    <IconAction
+                                      label="Editar turma"
+                                      icon={<Pencil size={16} />}
+                                      variant="outline"
+                                      onClick={() => handleEdit(turma)}
+                                    />
+                                    <IconAction
+                                      label="Excluir turma"
+                                      icon={<Trash2 size={16} />}
+                                      variant="destructive"
+                                      onClick={() => abrirModalDeletar(turma.id, turma.nome)}
+                                    />
+                                  </div>
+                                ) : null}
+
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      className="h-10 w-10 rounded-xl border-border/70 bg-background/80 px-0"
+                                      aria-label={`Acoes para ${turma.nome}`}
+                                    >
+                                      <MoreHorizontal size={16} />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="min-w-52">
+                                    <DropdownMenuLabel>{turma.nome}</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onSelect={() => abrirDetalhes(turma.id)}>
+                                      <ArrowRight size={15} />
+                                      <span>Ver detalhes</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => abrirSalaDeAula(turma.id)}>
+                                      <BookOpen size={15} />
+                                      <span>Abrir sala de aula</span>
+                                    </DropdownMenuItem>
+                                    {canCreate ? (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onSelect={() => handleEdit(turma)}>
+                                          <Pencil size={15} />
+                                          <span>Editar turma</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          variant="destructive"
+                                          onSelect={() => abrirModalDeletar(turma.id, turma.nome)}
+                                        >
+                                          <Trash2 size={15} />
+                                          <span>Excluir turma</span>
+                                        </DropdownMenuItem>
+                                      </>
+                                    ) : null}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </div>
 
-                            {turma.descricao ? (
-                              <p className="text-sm leading-6 text-muted-foreground">{turma.descricao}</p>
-                            ) : (
-                              <p className="text-sm text-muted-foreground">
-                                Sem descricao cadastrada para esta turma.
-                              </p>
-                            )}
-                          </div>
-
-                          {canCreate ? (
-                            <div className="flex gap-2">
-                              <IconAction
-                                label="Editar turma"
-                                icon={<Pencil size={16} />}
-                                variant="outline"
-                                onClick={() => handleEdit(turma)}
-                              />
-                              <IconAction
-                                label="Excluir turma"
-                                icon={<Trash2 size={16} />}
-                                variant="destructive"
-                                onClick={() => abrirModalDeletar(turma.id, turma.nome)}
-                              />
+                            <div className="mt-5 flex flex-wrap gap-3">
+                              <div className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm text-foreground">
+                                <Users size={16} className="text-muted-foreground" />
+                                <span>{turma.tipo === "turma" ? "Turma em grupo" : "Turma particular"}</span>
+                              </div>
+                              <div className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm text-foreground">
+                                <Calendar size={16} className="text-muted-foreground" />
+                                <span>
+                                  {new Date(turma.createdAt).toLocaleDateString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                              </div>
                             </div>
+
+                            <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-border/70 pt-5">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
+                                onClick={() => abrirSalaDeAula(turma.id)}
+                              >
+                                <BookOpen size={16} />
+                                Sala de aula
+                              </Button>
+                              <Button
+                                type="button"
+                                className="h-11 rounded-xl px-4"
+                                onClick={() => abrirDetalhes(turma.id)}
+                              >
+                                <ArrowRight size={16} />
+                                Ver Detalhes
+                              </Button>
+                            </div>
+                          </article>
+                        </ContextMenuTrigger>
+
+                        <ContextMenuContent className="min-w-56">
+                          <ContextMenuLabel>{turma.nome}</ContextMenuLabel>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem onSelect={() => abrirDetalhes(turma.id)}>
+                            <ArrowRight size={15} />
+                            <span>Ver detalhes</span>
+                          </ContextMenuItem>
+                          <ContextMenuItem onSelect={() => abrirSalaDeAula(turma.id)}>
+                            <BookOpen size={15} />
+                            <span>Abrir sala de aula</span>
+                          </ContextMenuItem>
+                          {canCreate ? (
+                            <>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem onSelect={() => handleEdit(turma)}>
+                                <Pencil size={15} />
+                                <span>Editar turma</span>
+                              </ContextMenuItem>
+                              <ContextMenuItem onSelect={() => abrirModalDeletar(turma.id, turma.nome)}>
+                                <Trash2 size={15} />
+                                <span>Excluir turma</span>
+                              </ContextMenuItem>
+                            </>
                           ) : null}
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap gap-3">
-                          <div className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm text-foreground">
-                            <Users size={16} className="text-muted-foreground" />
-                            <span>Alunos</span>
-                          </div>
-                          <div className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm text-foreground">
-                            <Calendar size={16} className="text-muted-foreground" />
-                            <span>
-                              {new Date(turma.createdAt).toLocaleDateString("pt-BR", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-border/70 pt-5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-11 rounded-xl border-border/70 bg-background/80 px-4"
-                            onClick={() => navigate(`${appRoutes.turmaDetalhe(turma.id)}?tab=sala-de-aula`)}
-                          >
-                            <BookOpen size={16} />
-                            Sala de aula
-                          </Button>
-                          <Button
-                            type="button"
-                            className="h-11 rounded-xl px-4"
-                            onClick={() => navigate(appRoutes.turmaDetalhe(turma.id))}
-                          >
-                            <ArrowRight size={16} />
-                            Ver Detalhes
-                          </Button>
-                        </div>
-                      </article>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     </FadeInUp>
                   ))}
                 </div>

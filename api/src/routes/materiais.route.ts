@@ -326,7 +326,7 @@ function getMaterialCategoria(material: MaterialResponse) {
   if (["doc", "docx"].includes(ext)) return "word";
   if (["xls", "xlsx", "csv"].includes(ext)) return "excel";
   if (["ppt", "pptx"].includes(ext)) return "powerpoint";
-  if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) return "imagem";
+  if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "imagem";
   if (["txt", "md"].includes(ext)) return "texto";
   if (["zip", "rar", "7z"].includes(ext)) return "compactado";
   return "arquivo";

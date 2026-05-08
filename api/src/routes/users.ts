@@ -10,6 +10,7 @@ import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
 import { validateSafeImageFile } from "../utils/fileValidation";
 import { verifyPassword } from "../utils/verifyPassword";
+import type { SendgridMailer } from "../services/sendgridMailer";
 
 type UserRole = "aluno" | "professor" | "admin";
 type NumericRole = 1 | 2 | 3;
@@ -25,6 +26,12 @@ type DbUserRow = {
   created_at: string;
   last_seen_at?: string | null;
   is_online?: boolean;
+};
+
+type UserAcademicContextRow = {
+  turma_nome: string | null;
+  curso_nome: string | null;
+  modulo_nome: string | null;
 };
 
 const passwordSchema = z.string().min(6, "Senha muito curta");
@@ -55,6 +62,11 @@ const updateUserSchema = z.object({
 const changePasswordSchema = z.object({
   senhaAtual: z.string().min(1, "Senha atual obrigatória"),
   novaSenha: passwordSchema,
+});
+
+const sendUserEmailSchema = z.object({
+  subject: z.string().trim().min(3, "Assunto muito curto").max(160, "Assunto muito longo"),
+  message: z.string().trim().min(5, "Mensagem muito curta").max(10000, "Mensagem muito longa"),
 });
 
 const profileUpload = multer({
@@ -99,8 +111,14 @@ function mapUserRow(u: DbUserRow) {
   };
 }
 
-export function usersRouter(jwtSecret: string) {
+export function usersRouter(
+  jwtSecret: string,
+  options?: {
+    sendgridMailer?: SendgridMailer;
+  }
+) {
   const router = Router();
+  const sendgridMailer = options?.sendgridMailer;
 
   router.get("/users/me", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const userId = Number(req.user!.sub);
@@ -209,6 +227,114 @@ export function usersRouter(jwtSecret: string) {
           totalPages: Math.max(1, Math.ceil(total / limit)),
         },
       });
+    }
+  );
+
+  router.get(
+    "/users/:id/academic-context",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+      }
+
+      const userResult = await pool.query<{ id: number }>(
+        `SELECT id FROM "user" WHERE id = $1 LIMIT 1`,
+        [id]
+      );
+
+      if (!userResult.rowCount) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const contextResult = await pool.query<UserAcademicContextRow>(
+        `SELECT
+           c.name AS turma_nome,
+           co.name AS curso_nome,
+           m.name AS modulo_nome
+         FROM enrollment e
+         JOIN class c ON c.id = e.class_id
+         LEFT JOIN course co ON co.id = c.course_id
+         LEFT JOIN module m ON m.id = c.current_module_id
+         WHERE e.user_id = $1
+         ORDER BY c.name ASC`,
+        [id]
+      );
+
+      const unique = (values: Array<string | null>) =>
+        Array.from(new Set(values.filter((value): value is string => !!value && value.trim().length > 0)));
+
+      return res.json({
+        cursos: unique(contextResult.rows.map((row) => row.curso_nome)),
+        turmas: unique(contextResult.rows.map((row) => row.turma_nome)),
+        modulos: unique(contextResult.rows.map((row) => row.modulo_nome)),
+      });
+    }
+  );
+
+  router.post(
+    "/users/:id/send-email",
+    authGuard(jwtSecret),
+    requireRole(["admin", "professor"]),
+    async (req: AuthRequest, res) => {
+      if (!sendgridMailer) {
+        return res.status(503).json({ message: "Servico de e-mail nao configurado no servidor" });
+      }
+
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+      }
+
+      const parsed = sendUserEmailSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const userResult = await pool.query<{ id: number; name: string; email: string | null }>(
+        `SELECT id, name, email FROM "user" WHERE id = $1 LIMIT 1`,
+        [id]
+      );
+
+      if (!userResult.rowCount) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const targetUser = userResult.rows[0];
+      if (!targetUser.email?.trim()) {
+        return res.status(400).json({ message: "Usuario sem e-mail configurado" });
+      }
+
+      try {
+        await sendgridMailer.sendEmail({
+          toEmail: targetUser.email.trim(),
+          toName: targetUser.name,
+          subject: parsed.data.subject,
+          text: parsed.data.message,
+        });
+
+        logActivity({
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+          action: "user_email_send",
+          entityType: "user",
+          entityId: String(targetUser.id),
+          metadata: {
+            subject: parsed.data.subject,
+            recipientEmail: targetUser.email.trim(),
+          },
+          req,
+        }).catch((error) => console.error("activity log error:", error));
+
+        return res.json({ message: "E-mail enviado com sucesso" });
+      } catch (error) {
+        console.error("Erro ao enviar e-mail manual:", error);
+        return res.status(502).json({ message: "Falha ao enviar e-mail pelo SendGrid" });
+      }
     }
   );
 
@@ -727,8 +853,6 @@ export function usersRouter(jwtSecret: string) {
 
   return router;
 }
-
-
 
 
 

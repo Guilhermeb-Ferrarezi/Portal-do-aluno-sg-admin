@@ -83,9 +83,11 @@ export {
   deletarSalaDaTurma,
 } from "./turmas";
 
-export type { User, UserMe } from "./users";
+export type { User, UserMe, UserAcademicContext } from "./users";
 export {
   obterUsuarioAtual,
+  obterContextoAcademicoUsuario,
+  enviarEmailParaUsuario,
   atualizarMeuPerfil,
   uploadMinhaFotoPerfil,
   uploadMeuBannerPerfil,

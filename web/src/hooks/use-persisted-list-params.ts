@@ -41,6 +41,11 @@ export function usePersistedListParams<TValues extends Record<string, Primitive>
 ) {
   const [searchParams, setSearchParams] = useSearchParams();
   const pageKey = options?.pageKey;
+  const definitionsRef = React.useRef(definitions);
+
+  React.useEffect(() => {
+    definitionsRef.current = definitions;
+  }, [definitions]);
 
   const defaultValues = React.useMemo(() => {
     const nextDefaults = {} as TValues;
@@ -78,6 +83,7 @@ export function usePersistedListParams<TValues extends Record<string, Primitive>
     (updates: Partial<TValues>, updateOptions?: UpdateOptions) => {
       const shouldReplace = updateOptions?.replace ?? true;
       const shouldResetPage = updateOptions?.resetPage ?? true;
+      const currentDefinitions = definitionsRef.current;
 
       setSearchParams((current) => {
         const next = new URLSearchParams(current);
@@ -87,7 +93,7 @@ export function usePersistedListParams<TValues extends Record<string, Primitive>
           keyof TValues & string,
           TValues[keyof TValues & string]
         ]>) {
-          const definition = definitions[key];
+          const definition = currentDefinitions[key];
           const serializedValue = definition.serialize
             ? definition.serialize(nextValue)
             : serializePrimitive(nextValue);
@@ -106,22 +112,13 @@ export function usePersistedListParams<TValues extends Record<string, Primitive>
         }
 
         if (pageKey && shouldResetPage && nonPageFilterChanged) {
-          const pageDefinition = definitions[pageKey];
-          const serializedDefaultPage = pageDefinition.serialize
-            ? pageDefinition.serialize(pageDefinition.defaultValue)
-            : serializePrimitive(pageDefinition.defaultValue);
-
-          if (pageDefinition.defaultValue === updates[pageKey]) {
-            next.delete(pageKey);
-          } else {
-            next.set(pageKey, serializedDefaultPage);
-          }
+          next.delete(pageKey);
         }
 
         return next;
       }, { replace: shouldReplace });
     },
-    [definitions, pageKey, setSearchParams, values]
+    [pageKey, setSearchParams]
   );
 
   return {

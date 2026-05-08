@@ -54,6 +54,7 @@ type ErrorDialog = {
   open: boolean;
   title: string;
   lines: ErrorLine[];
+  samples: ActivityLog[];
 };
 
 type IncidentSummary = {
@@ -361,9 +362,11 @@ function renderTrendBars(
 function ErrorLinesDialog({
   dialog,
   onClose,
+  onOpenPayload,
 }: {
   dialog: ErrorDialog;
   onClose: () => void;
+  onOpenPayload: (log: ActivityLog) => void;
 }) {
   return (
     <Dialog
@@ -372,7 +375,7 @@ function ErrorLinesDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-h-[80vh] max-w-3xl overflow-hidden border-border/70 bg-card text-foreground">
+      <DialogContent className="max-h-[85vh] max-w-4xl overflow-hidden border-border/70 bg-card text-foreground">
         <DialogHeader className="border-b border-border/70 pb-4">
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <AlertTriangle size={16} className="text-rose-400" />
@@ -393,7 +396,7 @@ function ErrorLinesDialog({
             />
           </div>
         ) : (
-          <div className="overflow-y-auto pr-1">
+          <div className="space-y-4 overflow-y-auto pr-1">
             <div className="overflow-hidden rounded-[24px] border border-border/70 bg-background/60">
               <div className="hidden grid-cols-[80px_1fr_90px_80px_60px] gap-3 border-b border-border/70 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:grid">
                 <span>Metodo</span>
@@ -433,6 +436,68 @@ function ErrorLinesDialog({
                 </div>
               ))}
             </div>
+
+            <div className="rounded-[24px] border border-border/70 bg-background/60">
+              <div className="border-b border-border/70 px-4 py-3">
+                <div className="text-sm font-semibold text-foreground">Amostras reais de request/response</div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Eventos estruturados recentes da mesma rota para inspecionar payload e resposta.
+                </p>
+              </div>
+
+              <div className="space-y-3 p-4">
+                {dialog.samples.length === 0 ? (
+                  <EmptyState
+                    title="Nenhuma amostra recente encontrada."
+                    description="Os contadores acusam erro, mas os logs recentes carregados nao trouxeram payload dessa rota."
+                    icon={<Activity size={16} />}
+                  />
+                ) : (
+                  dialog.samples.map((sample) => (
+                    <div
+                      key={sample.id}
+                      className="rounded-[20px] border border-border/70 bg-card/80 p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="rounded-full px-2.5 text-[11px] font-semibold">
+                              {sample.method ?? "HTTP"}
+                            </Badge>
+                            {sample.statusCode ? (
+                              <Badge
+                                className={cn(
+                                  "rounded-full px-2.5 text-[11px] font-semibold",
+                                  statusBadgeClass(String(sample.statusCode))
+                                )}
+                              >
+                                {sample.statusCode}
+                              </Badge>
+                            ) : null}
+                            <span className="truncate font-mono text-xs text-foreground">
+                              {sample.endpoint ?? sample.route ?? "-"}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {timeAgoFromIso(sample.createdAt)} · {formatDateTime(sample.createdAt)}
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-xl border-border/70 bg-background/80 px-3 text-[11px]"
+                          onClick={() => onOpenPayload(sample)}
+                        >
+                          Ver request/response
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </DialogContent>
@@ -451,15 +516,29 @@ export default function AdminObservabilityPage() {
     open: false,
     title: "",
     lines: [],
+    samples: [],
   });
   const [payloadLog, setPayloadLog] = React.useState<ActivityLog | null>(null);
 
   const openErrorDialog = React.useCallback(
     (title: string, routeFilter?: string) => {
       const lines = parseErrorLines(snapshot?.rawText ?? "", routeFilter);
-      setErrorDialog({ open: true, title, lines });
+      const normalize = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
+      const normalizedRoute = normalize(routeFilter);
+      const samples = recentOps
+        .filter((item) => {
+          if (!item.statusCode || item.statusCode < 400) return false;
+          if (!normalizedRoute) return true;
+          return (
+            normalize(item.route) === normalizedRoute ||
+            normalize(item.endpoint) === normalizedRoute
+          );
+        })
+        .slice(0, 5);
+
+      setErrorDialog({ open: true, title, lines, samples });
     },
-    [snapshot]
+    [recentOps, snapshot]
   );
 
   const closeErrorDialog = React.useCallback(() => {
@@ -594,6 +673,16 @@ export default function AdminObservabilityPage() {
   const lastCaptureLabel = snapshot ? timeLabel(snapshot.capturedAt) : "--:--";
   const latestRequestRate = history.at(-1)?.requestsPerMinute ?? 0;
   const latestErrorRatePerMinute = history.at(-1)?.errorsPerMinute ?? 0;
+  const routesWithErrorsCount = React.useMemo(
+    () => (snapshot?.routes ?? []).filter((item) => item.errors > 0).length,
+    [snapshot]
+  );
+  const slowRoutesCount = React.useMemo(
+    () => (snapshot?.routes ?? []).filter((item) => item.avgLatencyMs >= 500).length,
+    [snapshot]
+  );
+  const topRiskRoute = riskRoutes[0] ?? null;
+  const latestIncident = incidentSummaries[0] ?? null;
 
   if (loading) {
     return (
@@ -717,6 +806,60 @@ export default function AdminObservabilityPage() {
                   </div>
                 ) : null}
               </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[26px] border border-border/70 bg-card/95 p-5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Prioridade imediata
+              </div>
+              <div className="mt-3 text-sm font-semibold text-foreground">
+                {topRiskRoute ? topRiskRoute.label : "Nenhuma rota critica agora"}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {topRiskRoute
+                  ? `${formatPercentage(topRiskRoute.errorRate)} de erro e media ${formatLatency(topRiskRoute.avgLatencyMs)}.`
+                  : "Sem rota com risco destacado nesta leitura."}
+              </p>
+            </div>
+
+            <div className="rounded-[26px] border border-border/70 bg-card/95 p-5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Rotas com erro
+              </div>
+              <div className="mt-3 text-3xl font-black tracking-[-0.05em] text-foreground">
+                {routesWithErrorsCount}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Caminhos com ao menos uma falha acumulada desde o boot atual.
+              </p>
+            </div>
+
+            <div className="rounded-[26px] border border-border/70 bg-card/95 p-5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Rotas lentas
+              </div>
+              <div className="mt-3 text-3xl font-black tracking-[-0.05em] text-foreground">
+                {slowRoutesCount}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Rotas com latencia media acima de 500 ms no snapshot atual.
+              </p>
+            </div>
+
+            <div className="rounded-[26px] border border-border/70 bg-card/95 p-5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Ultimo incidente
+              </div>
+              <div className="mt-3 text-sm font-semibold text-foreground">
+                {latestIncident ? latestIncident.errorType : "Nenhum incidente recente"}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {latestIncident
+                  ? `${latestIncident.route} · ${timeAgoFromIso(latestIncident.lastAt)}`
+                  : "Nao houve erro estruturado recente nos logs carregados."}
+              </p>
             </div>
           </section>
 
@@ -1212,7 +1355,11 @@ export default function AdminObservabilityPage() {
         </DialogContent>
       </Dialog>
 
-      <ErrorLinesDialog dialog={errorDialog} onClose={closeErrorDialog} />
+      <ErrorLinesDialog
+        dialog={errorDialog}
+        onClose={closeErrorDialog}
+        onOpenPayload={(log) => setPayloadLog(log)}
+      />
     </DashboardLayout>
   );
 }

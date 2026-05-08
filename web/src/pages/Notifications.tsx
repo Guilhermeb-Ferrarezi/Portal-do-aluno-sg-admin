@@ -169,6 +169,18 @@ function highlightText(value: string, query: string) {
   return parts;
 }
 
+function summarizeSelectedLabels(labels: string[], fallback: string) {
+  if (labels.length === 0) {
+    return fallback;
+  }
+
+  if (labels.length <= 2) {
+    return labels.join(", ");
+  }
+
+  return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
+}
+
 function SegmentList({
   title,
   subtitle,
@@ -1256,6 +1268,66 @@ export default function NotificationsPage() {
 
   const selectedRecipientsCount =
     selectedCursoIds.length + selectedTurmaIds.length + selectedAlunoIds.length;
+  const selectedCursoLabels = React.useMemo(
+    () =>
+      cursos
+        .filter((curso) => selectedCursoIds.includes(Number(curso.id)))
+        .map((curso) => curso.nome),
+    [cursos, selectedCursoIds]
+  );
+  const selectedTurmaLabels = React.useMemo(
+    () =>
+      turmas
+        .filter((turma) => selectedTurmaIds.includes(Number(turma.id)))
+        .map((turma) => turma.nome),
+    [selectedTurmaIds, turmas]
+  );
+  const selectedAlunoLabels = React.useMemo(
+    () =>
+      alunos
+        .filter((aluno) => selectedAlunoIds.includes(Number(aluno.id)))
+        .map((aluno) => aluno.nome),
+    [alunos, selectedAlunoIds]
+  );
+  const dispatchSelectionSummary = React.useMemo(
+    () => [
+      {
+        label: "Templates",
+        value:
+          dispatchTemplate?.nome ??
+          (selectedTemplates.length > 0
+            ? summarizeSelectedLabels(
+                selectedTemplates.map((template) => template.nome),
+                "Nenhum template"
+              )
+            : "Nenhum template"),
+      },
+      {
+        label: "Modo",
+        value: dispatchWithoutFilters ? "Todos os usuarios" : "Segmentado por filtros",
+      },
+      {
+        label: "Cursos",
+        value: summarizeSelectedLabels(selectedCursoLabels, "Sem filtro"),
+      },
+      {
+        label: "Turmas",
+        value: summarizeSelectedLabels(selectedTurmaLabels, "Sem filtro"),
+      },
+      {
+        label: "Usuarios",
+        value: summarizeSelectedLabels(selectedAlunoLabels, "Sem filtro"),
+      },
+    ],
+    [
+      dispatchTemplate,
+      dispatchWithoutFilters,
+      selectedAlunoLabels,
+      selectedCursoLabels,
+      selectedTemplates,
+      selectedTurmaLabels,
+    ]
+  );
 
   return (
     <DashboardLayout
@@ -2106,26 +2178,46 @@ export default function NotificationsPage() {
                     </label>
                   </div>
 
-                  <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
-                    {dispatchWithoutFilters ? (
-                      <>
-                        Publico selecionado: <strong className="text-foreground">todos os usuarios</strong>
-                      </>
-                    ) : (
-                      <>
-                        Filtros selecionados: <strong className="text-foreground">{selectedRecipientsCount}</strong>
-                      </>
-                    )}
-                  </div>
-
-                  {selectedTemplates.length > 1 ? (
-                    <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
-                      Templates selecionados:{" "}
-                      <strong className="text-foreground">
-                        {selectedTemplates.map((template) => template.nome).join(", ")}
-                      </strong>
+                  <div className="rounded-3xl border border-border/70 bg-background/70 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground">
+                          Resumo do disparo
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Revise o publico antes de confirmar para evitar envio amplo por engano.
+                        </p>
+                      </div>
+                      <Badge className="rounded-full border-primary/25 bg-primary/10 px-3 py-1.5 text-primary">
+                        {dispatchWithoutFilters
+                          ? `${alunosTotal} usuarios na base`
+                          : `${selectedRecipientsCount} filtros ativos`}
+                      </Badge>
                     </div>
-                  ) : null}
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                      {dispatchSelectionSummary.map((item) => (
+                        <div
+                          key={item.label}
+                          className="rounded-2xl border border-border/70 bg-card/80 px-4 py-3"
+                        >
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            {item.label}
+                          </div>
+                          <div className="mt-2 text-sm font-medium text-foreground">
+                            {item.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {!dispatchWithoutFilters && selectedRecipientsCount === 0 ? (
+                      <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                        Nenhum filtro foi marcado ainda. Se a intencao for disparo amplo, use a opcao
+                        <strong> Nenhum filtro</strong>.
+                      </div>
+                    ) : null}
+                  </div>
 
                   <div
                     className={cn(

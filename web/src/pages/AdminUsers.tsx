@@ -29,19 +29,24 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconAction } from "@/components/ui/icon-action";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ListStatusState } from "@/components/ui/list-status-state";
 import { FadeInUp } from "../components/animate-ui/FadeInUp";
 import { AnimatedToast } from "../components/animate-ui/AnimatedToast";
 import { usePersistedListParams } from "@/hooks/use-persisted-list-params";
 import { useBulkSelection } from "@/hooks/use-bulk-selection";
 import { buildCsv, downloadCsv } from "@/lib/export-csv";
+import { appRoutes } from "@/router/routes";
 import {
   listarUsuariosPaginado,
+  obterContextoAcademicoUsuario,
+  enviarEmailParaUsuario,
   atualizarUsuario,
   deletarUsuario,
   listarTurmas,
   adicionarAlunosNaTurma,
   type User,
   type Turma,
+  type UserAcademicContext,
 } from "../services/api";
 import { getPresenceSnapshot, subscribeToPresence } from "../services/presenceSocket";
 import { isPresenceStillOnline, formatRelativeActivity } from "../utils/presence";
@@ -61,6 +66,10 @@ import {
   MoreHorizontal,
   Users,
   Download,
+  Plus,
+  RotateCcw,
+  BookOpen,
+  School,
 } from "lucide-react";
 
 const PRESENCE_RENDER_TICK_MS = 15_000;
@@ -83,6 +92,12 @@ const mobileActionTriggerClass =
   "inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition hover:bg-accent";
 
 type RoleFilter = "todos" | "aluno" | "professor" | "admin";
+
+type UserAcademicContextState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "loaded"; data: UserAcademicContext }
+  | { status: "error"; message: string };
 
 function getRoleMeta(role: User["role"]) {
   if (role === "aluno") {
@@ -156,6 +171,12 @@ export default function AdminUsersPage() {
     tipo: "sucesso" | "erro";
     mensagem: string;
   } | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = React.useState(false);
+  const [emailTargetUser, setEmailTargetUser] = React.useState<User | null>(null);
+  const [emailSubject, setEmailSubject] = React.useState("");
+  const [emailMessage, setEmailMessage] = React.useState("");
+  const [sendingEmail, setSendingEmail] = React.useState(false);
+  const [academicContextModalUser, setAcademicContextModalUser] = React.useState<User | null>(null);
 
   const [currentPage, setCurrentPage] = React.useState(queryState.page);
   const [itemsPerPage, setItemsPerPage] = React.useState(queryState.limit);
@@ -174,6 +195,10 @@ export default function AdminUsersPage() {
   } = bulkSelection;
   const [presenceNow, setPresenceNow] = React.useState(() => Date.now());
   const hasLoadedUsersRef = React.useRef(false);
+  const [academicContextByUserId, setAcademicContextByUserId] = React.useState<
+    Record<string, UserAcademicContextState>
+  >({});
+  const filtersActive = queryState.q.trim().length > 0 || queryState.role !== "todos";
   const lastSeenFormatter = React.useMemo(
     () =>
       new Intl.DateTimeFormat("pt-BR", {
@@ -186,6 +211,56 @@ export default function AdminUsersPage() {
   const showFeedback = React.useCallback((tipo: "sucesso" | "erro", mensagem: string) => {
     setFeedback({ tipo, mensagem });
   }, []);
+
+  const formatAcademicContextValue = React.useCallback((items: string[], emptyLabel: string) => {
+    if (items.length === 0) return emptyLabel;
+    if (items.length <= 2) return items.join(", ");
+    return `${items.slice(0, 2).join(", ")} +${items.length - 2}`;
+  }, []);
+
+  const copyAcademicContextLine = React.useCallback(
+    async (label: string, items: string[], emptyLabel: string) => {
+      const value = items.length > 0 ? items.join(", ") : emptyLabel;
+      try {
+        await navigator.clipboard.writeText(`${label}: ${value}`);
+        showFeedback("sucesso", `${label} copiado`);
+      } catch {
+        showFeedback("erro", `Nao foi possivel copiar ${label.toLowerCase()}`);
+      }
+    },
+    [showFeedback]
+  );
+
+  const ensureAcademicContextLoaded = React.useCallback(
+    async (usuario: User) => {
+      const current = academicContextByUserId[usuario.id];
+      if (current?.status === "loading" || current?.status === "loaded") {
+        return;
+      }
+
+      setAcademicContextByUserId((prev) => ({
+        ...prev,
+        [usuario.id]: { status: "loading" },
+      }));
+
+      try {
+        const data = await obterContextoAcademicoUsuario(usuario.id);
+        setAcademicContextByUserId((prev) => ({
+          ...prev,
+          [usuario.id]: { status: "loaded", data },
+        }));
+      } catch (err) {
+        setAcademicContextByUserId((prev) => ({
+          ...prev,
+          [usuario.id]: {
+            status: "error",
+            message: err instanceof Error ? err.message : "Erro ao carregar contexto academico",
+          },
+        }));
+      }
+    },
+    [academicContextByUserId]
+  );
 
   const applyPresenceState = React.useCallback((userId: string, isOnline: boolean, lastSeenAt: string) => {
     setUsuarios((current) =>
@@ -269,6 +344,14 @@ export default function AdminUsersPage() {
     };
   }, []);
 
+  const handleCurrentPageChange = React.useCallback(
+    (page: number) => {
+      setCurrentPage(page);
+      setParams({ page }, { resetPage: false });
+    },
+    [setParams]
+  );
+
   const carregarUsuarios = React.useCallback(async () => {
     const keepVisibleContent = hasLoadedUsersRef.current;
 
@@ -293,7 +376,8 @@ export default function AdminUsersPage() {
 
       const safeTotalPages = Math.max(response.pagination.totalPages || 1, 1);
       if (currentPage > safeTotalPages) {
-        setCurrentPage(safeTotalPages);
+        handleCurrentPageChange(safeTotalPages);
+        return;
       }
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao carregar usuarios");
@@ -304,7 +388,7 @@ export default function AdminUsersPage() {
         setLoading(false);
       }
     }
-  }, [busca, currentPage, filtroTipo, itemsPerPage, mergePresenceSnapshot]);
+  }, [busca, currentPage, filtroTipo, handleCurrentPageChange, itemsPerPage, mergePresenceSnapshot]);
 
   React.useEffect(() => {
     void carregarUsuarios();
@@ -371,10 +455,50 @@ export default function AdminUsersPage() {
         return;
       }
 
-      window.location.href = `mailto:${usuario.email}`;
+      setEmailTargetUser(usuario);
+      setEmailSubject("");
+      setEmailMessage("");
+      setEmailModalOpen(true);
     },
     [showFeedback]
   );
+
+  const fecharEmailModal = React.useCallback(() => {
+    if (sendingEmail) return;
+    setEmailModalOpen(false);
+    setEmailTargetUser(null);
+    setEmailSubject("");
+    setEmailMessage("");
+  }, [sendingEmail]);
+
+  const confirmarEnvioEmail = React.useCallback(async () => {
+    if (!emailTargetUser?.email) {
+      showFeedback("erro", "Usuario sem e-mail configurado");
+      return;
+    }
+
+    if (!emailSubject.trim() || !emailMessage.trim()) {
+      showFeedback("erro", "Preencha assunto e mensagem");
+      return;
+    }
+
+    try {
+      setSendingEmail(true);
+      await enviarEmailParaUsuario(emailTargetUser.id, {
+        subject: emailSubject.trim(),
+        message: emailMessage.trim(),
+      });
+      showFeedback("sucesso", `E-mail enviado para ${emailTargetUser.nome}`);
+      setEmailModalOpen(false);
+      setEmailTargetUser(null);
+      setEmailSubject("");
+      setEmailMessage("");
+    } catch (err) {
+      showFeedback("erro", err instanceof Error ? err.message : "Erro ao enviar e-mail");
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [emailMessage, emailSubject, emailTargetUser, showFeedback]);
 
   const alterarPapel = React.useCallback(
     async (usuario: User, role: User["role"]) => {
@@ -537,6 +661,102 @@ export default function AdminUsersPage() {
     }
   }, [alunosSelecionados, clearSelection, showFeedback, turmaSelecionadaId]);
 
+  const abrirContextoAcademicoModal = React.useCallback(
+    (usuario: User) => {
+      void ensureAcademicContextLoaded(usuario);
+      setAcademicContextModalUser(usuario);
+    },
+    [ensureAcademicContextLoaded]
+  );
+
+  const fecharContextoAcademicoModal = React.useCallback(() => {
+    setAcademicContextModalUser(null);
+  }, []);
+
+  const academicContextMenuItems = React.useCallback(
+    (usuario: User) => {
+      const state = academicContextByUserId[usuario.id] ?? { status: "idle" as const };
+
+      if (state.status === "loading" || state.status === "idle") {
+        return (
+          <>
+            <ContextMenuItem disabled>
+              <Loader2 size={15} className="animate-spin" />
+              <span>Carregando contexto academico...</span>
+            </ContextMenuItem>
+          </>
+        );
+      }
+
+      if (state.status === "error") {
+        return (
+          <>
+            <ContextMenuItem disabled>
+              <School size={15} />
+              <span>Falha ao carregar contexto</span>
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => {
+                void ensureAcademicContextLoaded(usuario);
+              }}
+            >
+              <RefreshCcw size={15} />
+              <span>Tentar novamente</span>
+            </ContextMenuItem>
+          </>
+        );
+      }
+
+      return (
+        <>
+          <ContextMenuItem
+            className="items-start"
+            onSelect={() => {
+              void copyAcademicContextLine("Cursos", state.data.cursos, "Sem curso");
+            }}
+          >
+            <GraduationCap size={15} />
+            <span className="min-w-0 whitespace-normal break-words leading-5">
+              Cursos: {formatAcademicContextValue(state.data.cursos, "Sem curso")}
+            </span>
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="items-start"
+            onSelect={() => {
+              void copyAcademicContextLine("Turmas", state.data.turmas, "Sem turma");
+            }}
+          >
+            <Users size={15} />
+            <span className="min-w-0 whitespace-normal break-words leading-5">
+              Turmas: {formatAcademicContextValue(state.data.turmas, "Sem turma")}
+            </span>
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="items-start"
+            onSelect={() => {
+              void copyAcademicContextLine("Modulos", state.data.modulos, "Sem modulo");
+            }}
+          >
+            <BookOpen size={15} />
+            <span className="min-w-0 whitespace-normal break-words leading-5">
+              Modulos: {formatAcademicContextValue(state.data.modulos, "Sem modulo")}
+            </span>
+          </ContextMenuItem>
+        </>
+      );
+    },
+    [
+      academicContextByUserId,
+      copyAcademicContextLine,
+      ensureAcademicContextLoaded,
+      formatAcademicContextValue,
+    ]
+  );
+
+  const academicContextModalState = academicContextModalUser
+    ? academicContextByUserId[academicContextModalUser.id] ?? { status: "idle" as const }
+    : null;
+
   const handleBuscaChange = React.useCallback(
     (value: string) => {
       if (selectedIds.length > 0) {
@@ -561,13 +781,23 @@ export default function AdminUsersPage() {
     [clearSelection, selectedIds.length, setParams]
   );
 
-  const handleCurrentPageChange = React.useCallback(
-    (page: number) => {
-      setCurrentPage(page);
-      setParams({ page }, { resetPage: false });
-    },
-    [setParams]
-  );
+  const resetFilters = React.useCallback(() => {
+    if (selectedIds.length > 0) {
+      clearSelection();
+    }
+
+    setBusca("");
+    setFiltroTipo("todos");
+    setCurrentPage(1);
+    setParams(
+      {
+        q: "",
+        role: "todos",
+        page: 1,
+      },
+      { resetPage: false }
+    );
+  }, [clearSelection, selectedIds.length, setParams]);
 
   const handleItemsPerPageChange = React.useCallback(
     (limit: number) => {
@@ -590,13 +820,12 @@ export default function AdminUsersPage() {
   if (loading && !hasLoadedUsersRef.current) {
     return (
       <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>
-        <div className={cn(surfaceCardClass, "grid place-items-center gap-3 px-6 py-16 text-center")}>
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <div className="space-y-1">
-            <p className="text-base font-semibold text-foreground">Carregando usuarios...</p>
-            <p className="text-sm text-muted-foreground">Buscando a lista paginada e o status de presence.</p>
-          </div>
-        </div>
+        <ListStatusState
+          mode="loading"
+          className={surfaceCardClass}
+          loadingTitle="Carregando usuarios..."
+          loadingDescription="Buscando a lista paginada e o status de presence."
+        />
       </DashboardLayout>
     );
   }
@@ -604,13 +833,12 @@ export default function AdminUsersPage() {
   if (erro && !hasLoadedUsersRef.current) {
     return (
       <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>
-        <EmptyState
+        <ListStatusState
+          mode="error"
           className={emptyCardClass}
-          icon={<RefreshCcw size={18} />}
           title="Nao foi possivel carregar os usuarios."
           description={erro}
-          actionLabel="Tentar novamente"
-          onAction={() => {
+          onRetry={() => {
             void carregarUsuarios();
           }}
         />
@@ -622,7 +850,35 @@ export default function AdminUsersPage() {
   const EditRoleIcon = editRoleMeta?.icon;
 
   return (
-    <DashboardLayout title={pageTitle} subtitle={pageSubtitle}>
+    <DashboardLayout
+      title={pageTitle}
+      subtitle={pageSubtitle}
+      quickActions={[
+        {
+          label: "Criar usuario",
+          icon: Plus,
+          to: appRoutes.criarUsuario,
+        },
+        {
+          label: "Professores",
+          icon: UserIcon,
+          onClick: () => handleFiltroTipoChange("professor"),
+          visible: queryState.role !== "professor",
+        },
+        {
+          label: "Admins",
+          icon: KeyRound,
+          onClick: () => handleFiltroTipoChange("admin"),
+          visible: queryState.role !== "admin",
+        },
+        {
+          label: "Limpar filtros",
+          icon: RotateCcw,
+          onClick: resetFilters,
+          visible: filtersActive,
+        },
+      ]}
+    >
       <AnimatedToast
         message={feedback?.mensagem || null}
         type={feedback?.tipo === "sucesso" ? "success" : "error"}
@@ -723,8 +979,15 @@ export default function AdminUsersPage() {
               <EmptyState
                 className={emptyCardClass}
                 icon={<Users size={22} />}
-                title="Nenhum usuario encontrado."
-                description="Ajuste a busca ou troque o filtro de tipo para ver outros registros."
+                title={filtersActive ? "Nenhum usuario encontrado com os filtros atuais." : "Nenhum usuario encontrado."}
+                description={
+                  filtersActive
+                    ? "Limpe os filtros para voltar a lista completa ou ajuste a busca para encontrar outro perfil."
+                    : "Crie um novo perfil para professores, admins ou alunos e comece a operar o portal."
+                }
+                actionLabel={filtersActive ? "Limpar filtros" : "Criar usuario"}
+                onAction={filtersActive ? resetFilters : undefined}
+                actionHref={filtersActive ? undefined : appRoutes.criarUsuario}
               />
             </FadeInUp>
           ) : (
@@ -784,14 +1047,20 @@ export default function AdminUsersPage() {
 
                       return (
                         <FadeInUp key={usuario.id} duration={0.24} delay={Math.min(0.08 + idx * 0.04, 0.28)}>
-                          <ContextMenu>
+                          <ContextMenu
+                            onOpenChange={(open) => {
+                              if (open) {
+                                void ensureAcademicContextLoaded(usuario);
+                              }
+                            }}
+                          >
                             <div
                               className={cn(
-                                "grid w-full gap-4 px-4 py-4 text-left transition hover:bg-accent/20 sm:px-6 lg:grid-cols-[48px_minmax(0,1.7fr)_160px_150px_170px] lg:items-center",
+                                "flex w-full items-start gap-4 px-4 py-4 text-left transition hover:bg-accent/20 sm:px-6 lg:grid lg:grid-cols-[48px_minmax(0,1.7fr)_160px_150px_170px] lg:items-center",
                                 refreshing && "opacity-85"
                               )}
                             >
-                              <div className="flex items-center justify-center">
+                              <div className="flex shrink-0 items-center justify-center pt-1 lg:pt-0">
                                 <Checkbox
                                   checked={isSelected(usuario.id)}
                                   onCheckedChange={(checked) => {
@@ -806,7 +1075,7 @@ export default function AdminUsersPage() {
                               </div>
 
                               <ContextMenuTrigger asChild>
-                                <div className="grid min-w-0 cursor-context-menu gap-4 lg:col-span-4 lg:grid-cols-[minmax(0,1.7fr)_160px_150px_170px] lg:items-center">
+                                <div className="grid min-w-0 flex-1 cursor-context-menu gap-4 lg:col-span-4 lg:grid-cols-[minmax(0,1.7fr)_160px_150px_170px] lg:items-center">
                                   <div className="flex min-w-0 items-center justify-between gap-3">
                                     <div className="flex min-w-0 items-center gap-3">
                                       <div
@@ -826,7 +1095,13 @@ export default function AdminUsersPage() {
                                       </div>
                                     </div>
 
-                                    <DropdownMenu>
+                                    <DropdownMenu
+                                      onOpenChange={(open) => {
+                                        if (open) {
+                                          void ensureAcademicContextLoaded(usuario);
+                                        }
+                                      }}
+                                    >
                                       <DropdownMenuTrigger asChild>
                                         <button
                                           type="button"
@@ -857,10 +1132,23 @@ export default function AdminUsersPage() {
 
                                         <DropdownMenuItem
                                           disabled={!usuario.email}
-                                          onSelect={() => enviarEmail(usuario)}
+                                          onSelect={(event) => {
+                                            event.preventDefault();
+                                            enviarEmail(usuario);
+                                          }}
                                         >
                                           <Mail size={15} />
                                           <span>Enviar email</span>
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuItem
+                                          onSelect={(event) => {
+                                            event.preventDefault();
+                                            abrirContextoAcademicoModal(usuario);
+                                          }}
+                                        >
+                                          <School size={15} />
+                                          <span>Contexto academico</span>
                                         </DropdownMenuItem>
 
                                         <DropdownMenuSub>
@@ -968,11 +1256,24 @@ export default function AdminUsersPage() {
 
                               <ContextMenuItem
                                 disabled={!usuario.email}
-                                onSelect={() => enviarEmail(usuario)}
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  enviarEmail(usuario);
+                                }}
                               >
                                 <Mail size={15} />
                                 <span>Enviar email</span>
                               </ContextMenuItem>
+
+                              <ContextMenuSub>
+                                <ContextMenuSubTrigger>
+                                  <School size={15} />
+                                  <span>Contexto academico</span>
+                                </ContextMenuSubTrigger>
+                                <ContextMenuSubContent className="w-[min(20rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)]">
+                                  {academicContextMenuItems(usuario)}
+                                </ContextMenuSubContent>
+                              </ContextMenuSub>
 
                               <ContextMenuSub>
                                 <ContextMenuSubTrigger disabled={alterandoPapelId === usuario.id}>
@@ -1115,6 +1416,153 @@ export default function AdminUsersPage() {
                 </div>
               </div>
             </div>
+          </Modal>
+
+          <Modal
+            isOpen={emailModalOpen}
+            onClose={sendingEmail ? () => undefined : fecharEmailModal}
+            title={emailTargetUser ? `Enviar e-mail para ${emailTargetUser.nome}` : "Enviar e-mail"}
+            size="md"
+            closeOnEscape={!sendingEmail}
+            closeOnBackdropClick={!sendingEmail}
+            footer={
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              
+
+                <div className="flex w-full gap-2 sm:w-auto sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className={cn(secondaryButtonClass, "flex-1 whitespace-nowrap sm:flex-none")}
+                    onClick={fecharEmailModal}
+                    disabled={sendingEmail}
+                  >
+                    <X size={16} />
+                    <span>Cancelar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={cn(primaryButtonClass, "flex-1 whitespace-nowrap sm:flex-none")}
+                    onClick={() => {
+                      void confirmarEnvioEmail();
+                    }}
+                    disabled={sendingEmail || !emailSubject.trim() || !emailMessage.trim()}
+                  >
+                    {sendingEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                    <span>{sendingEmail ? "Enviando..." : "Enviar e-mail"}</span>
+                  </button>
+                </div>
+              </div>
+            }
+          >
+            <div className="grid gap-4">
+              <div className="rounded-[24px] border border-border/70 bg-muted/25 p-4 text-sm text-muted-foreground">
+                Destinatario:{" "}
+                <strong className="text-foreground">{emailTargetUser?.email ?? "Sem e-mail"}</strong>
+              </div>
+
+              <label className="grid gap-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Assunto
+                </span>
+                <input
+                  type="text"
+                  className={fieldClass}
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Digite o assunto"
+                  disabled={sendingEmail}
+                />
+              </label>
+
+              <label className="grid gap-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Mensagem
+                </span>
+                <textarea
+                  className={cn(fieldClass, "min-h-40 resize-y py-3 leading-6")}
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  placeholder="Digite a mensagem que sera enviada."
+                  disabled={sendingEmail}
+                />
+              </label>
+            </div>
+          </Modal>
+
+          <Modal
+            isOpen={!!academicContextModalUser}
+            onClose={fecharContextoAcademicoModal}
+            title={
+              academicContextModalUser
+                ? `Contexto academico de ${academicContextModalUser.nome}`
+                : "Contexto academico"
+            }
+            size="sm"
+            footer={
+              <div className="flex w-full justify-end">
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  onClick={fecharContextoAcademicoModal}
+                >
+                  <X size={16} />
+                  <span>Fechar</span>
+                </button>
+              </div>
+            }
+          >
+            {academicContextModalUser ? (
+              <div className="grid gap-3">
+                {academicContextModalState?.status === "loading" || academicContextModalState?.status === "idle" ? (
+                  <div className="rounded-[24px] border border-border/70 bg-muted/25 px-4 py-6 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Loader2 size={16} className="animate-spin" />
+                      Carregando contexto academico...
+                    </div>
+                  </div>
+                ) : academicContextModalState?.status === "error" ? (
+                  <div className="rounded-[24px] border border-red-500/30 bg-red-500/8 px-4 py-4 text-sm text-red-200">
+                    {academicContextModalState.message}
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-[24px] border border-border/70 bg-muted/25 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                        Cursos
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-foreground break-words">
+                        {academicContextModalState?.data.cursos.length
+                          ? academicContextModalState.data.cursos.join(", ")
+                          : "Sem curso"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-border/70 bg-muted/25 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                        Turmas
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-foreground break-words">
+                        {academicContextModalState?.data.turmas.length
+                          ? academicContextModalState.data.turmas.join(", ")
+                          : "Sem turma"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-border/70 bg-muted/25 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                        Modulos
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-foreground break-words">
+                        {academicContextModalState?.data.modulos.length
+                          ? academicContextModalState.data.modulos.join(", ")
+                          : "Sem modulo"}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : null}
           </Modal>
 
           <Modal

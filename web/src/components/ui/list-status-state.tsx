@@ -1,5 +1,5 @@
 import * as React from "react";
-import { RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,8 @@ type ListStatusStateProps = {
   mode: "loading" | "error";
   title?: string;
   description?: string;
+  loadingTitle?: string;
+  loadingDescription?: string;
   onRetry?: () => void;
   skeleton?: React.ReactNode;
   compact?: boolean;
@@ -33,13 +35,40 @@ export function ListStatusState({
   mode,
   title,
   description,
+  loadingTitle,
+  loadingDescription,
   onRetry,
   skeleton,
   compact = false,
   className,
 }: ListStatusStateProps) {
   if (mode === "loading") {
-    return <div className={className}>{skeleton ?? <DefaultListSkeleton compact={compact} />}</div>;
+    if (skeleton) {
+      return <div className={className}>{skeleton}</div>;
+    }
+
+    if (loadingTitle || loadingDescription) {
+      return (
+        <div
+          className={cn(
+            "grid place-items-center gap-3 rounded-[28px] border border-border/70 bg-card/80 px-6 py-16 text-center shadow-sm",
+            className
+          )}
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-primary motion-reduce:animate-none" />
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-foreground">
+              {loadingTitle ?? "Carregando dados..."}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {loadingDescription ?? "Aguarde enquanto os dados mais recentes sao buscados."}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return <div className={className}>{<DefaultListSkeleton compact={compact} />}</div>;
   }
 
   return (

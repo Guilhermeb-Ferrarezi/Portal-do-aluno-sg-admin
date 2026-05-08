@@ -128,20 +128,19 @@ const EXT_BY_FORMAT: Record<FormatoArquivo, string[]> = {
     "jpeg",
     "webp",
     "gif",
-    "svg",
   ],
   pdf: ["pdf"],
   word: ["doc", "docx"],
   excel: ["xls", "xlsx", "csv"],
   powerpoint: ["ppt", "pptx"],
-  imagem: ["png", "jpg", "jpeg", "webp", "gif", "svg"],
+  imagem: ["png", "jpg", "jpeg", "webp", "gif"],
   texto: ["txt", "md"],
   compactado: ["zip", "rar", "7z"],
 };
 
 const ACCEPT_BY_FORMAT: Record<FormatoArquivo, string> = {
   arquivo:
-    ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md,.zip,.rar,.7z,.png,.jpg,.jpeg,.webp,.gif,.svg",
+    ".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md,.zip,.rar,.7z,.png,.jpg,.jpeg,.webp,.gif",
   pdf: ".pdf,application/pdf",
   word: ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   excel:
@@ -442,14 +441,15 @@ export default function MateriaisPage() {
       setTotalItems(response.total);
       const lastPage = Math.max(1, response.pagination.totalPages);
       if (currentPage > lastPage) {
-        setCurrentPage(lastPage);
+        handleCurrentPageChange(lastPage);
+        return;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar materiais");
     } finally {
       setLoading(false);
     }
-  }, [currentPage, deferredBusca, filtroTipo, itemsPerPage, moduloQuery]);
+  }, [currentPage, deferredBusca, filtroTipo, handleCurrentPageChange, itemsPerPage, moduloQuery]);
 
   React.useEffect(() => {
     void carregarMateriais();

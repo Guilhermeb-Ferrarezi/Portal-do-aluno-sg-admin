@@ -453,20 +453,34 @@ export default function Dashboard() {
     if (role === "admin") {
       return [
         { label: "Criar usuario", icon: UserPlus, to: appRoutes.criarUsuario },
-        { label: "Criar turma", icon: School, to: appRoutes.estruturaCurso.tab("turmas") },
+        {
+          label: totalTurmasDoSistema === 0 ? "Criar primeira turma" : "Gerenciar turmas",
+          icon: School,
+          to: appRoutes.turmas,
+        },
         { label: "Criar exercicio", icon: PenLine, to: appRoutes.estruturaCurso.tab("exercicios") },
+        {
+          label: "Ver observabilidade",
+          icon: Radar,
+          to: appRoutes.observabilidade,
+          visible: activeAlerts > 0,
+        },
       ];
     }
 
     if (role === "professor") {
       return [
         {
-          label: "Duplicar exercicio",
-          icon: Copy,
+          label: pendenciasCorrecao > 0 ? "Revisar pendencias" : "Ver exercicios",
+          icon: pendenciasCorrecao > 0 ? CheckCheck : Copy,
           to: appRoutes.exercicios,
-          visible: totalExercicios > 0,
         },
-        { label: "Adicionar aluno", icon: UserPlus, to: appRoutes.turmas },
+        {
+          label: turmasResponsavel === 0 ? "Criar primeira turma" : "Ver minhas turmas",
+          icon: School,
+          to: appRoutes.turmas,
+        },
+        { label: "Adicionar aluno", icon: UserPlus, to: appRoutes.turmas, visible: turmasResponsavel > 0 },
       ];
     }
 
@@ -474,7 +488,7 @@ export default function Dashboard() {
       { label: "Ultimo exercicio", icon: BookOpen, to: appRoutes.exercicios, visible: totalExercicios > 0 },
       { label: "Ver pendentes", icon: CheckCheck, to: appRoutes.exercicios },
     ];
-  }, [role, totalExercicios]);
+  }, [activeAlerts, pendenciasCorrecao, role, totalExercicios, totalTurmasDoSistema, turmasResponsavel]);
 
   if (loading) {
     return (

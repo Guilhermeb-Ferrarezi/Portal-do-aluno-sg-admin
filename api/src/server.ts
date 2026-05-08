@@ -24,6 +24,7 @@ import { setupPresenceWebSocketServer } from "./realtime/presence";
 import { createStudentViewSsoStore } from "./services/studentViewSsoStore";
 import { createPasswordResetStore } from "./services/passwordResetStore";
 import { createPasswordResetMailer } from "./services/passwordResetMailer";
+import { createSendgridMailer } from "./services/sendgridMailer";
 import { createHttpMetrics } from "./observability/httpMetrics";
 import { createLogger } from "./observability/logger";
 import { authGuard } from "./middlewares/auth";
@@ -262,6 +263,14 @@ const passwordResetMailer =
         replyToEmail: env.EMAIL_REPLY_TO,
       })
     : undefined;
+const sendgridMailer =
+  env.SENDGRID_API_KEY && (env.EMAIL_FROM || env.SENDGRID_FROM_EMAIL || env.FromEmail)
+    ? createSendgridMailer({
+        apiKey: env.SENDGRID_API_KEY,
+        fromEmail: env.EMAIL_FROM || env.SENDGRID_FROM_EMAIL || env.FromEmail || "",
+        replyToEmail: env.EMAIL_REPLY_TO,
+      })
+    : undefined;
 
 function shouldSkipApiLimiter(path: string) {
   return (
@@ -450,7 +459,7 @@ app.use(
     passwordResetTtlMinutes: env.PASSWORD_RESET_TTL_MINUTES,
   })
 );
-app.use(usersRouter(env.JWT_SECRET));
+app.use(usersRouter(env.JWT_SECRET, { sendgridMailer }));
 app.use(exerciciosRouter(env.JWT_SECRET));
 app.use(submissoesRouter(env.JWT_SECRET));
 app.use(turmasRouter(env.JWT_SECRET));
@@ -482,7 +491,7 @@ app.use(
     passwordResetTtlMinutes: env.PASSWORD_RESET_TTL_MINUTES,
   })
 );
-app.use("/api", usersRouter(env.JWT_SECRET));
+app.use("/api", usersRouter(env.JWT_SECRET, { sendgridMailer }));
 // (se usersRouter registra /users, vira /api/users)
 app.use("/api", exerciciosRouter(env.JWT_SECRET));
 // (se exerciciosRouter registra /exercicios, vira /api/exercicios)

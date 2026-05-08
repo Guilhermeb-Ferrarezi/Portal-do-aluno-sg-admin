@@ -1,3 +1,5 @@
+import { createSendgridMailer } from "./sendgridMailer";
+
 type PasswordResetMailerOptions = {
   apiKey: string;
   fromEmail: string;
@@ -49,43 +51,17 @@ function buildText(params: PasswordResetEmailParams) {
 export function createPasswordResetMailer(
   options: PasswordResetMailerOptions
 ): PasswordResetMailer {
-  const apiKey = options.apiKey.trim();
-  const fromEmail = options.fromEmail.trim();
-  const replyToEmail = options.replyToEmail?.trim();
+  const mailer = createSendgridMailer(options);
 
   return {
     async sendPasswordResetEmail(params) {
-      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: { email: fromEmail },
-          reply_to: replyToEmail ? { email: replyToEmail } : undefined,
-          personalizations: [
-            {
-              to: [
-                {
-                  email: params.toEmail,
-                  ...(params.toName?.trim() ? { name: params.toName.trim() } : {}),
-                },
-              ],
-              subject: "Recuperação de senha",
-            },
-          ],
-          content: [
-            { type: "text/plain", value: buildText(params) },
-            { type: "text/html", value: buildHtml(params) },
-          ],
-        }),
+      await mailer.sendEmail({
+        toEmail: params.toEmail,
+        toName: params.toName,
+        subject: "Recuperação de senha",
+        text: buildText(params),
+        html: buildHtml(params),
       });
-
-      if (!response.ok) {
-        const raw = await response.text().catch(() => "");
-        throw new Error(`SendGrid ${response.status}: ${raw || response.statusText}`);
-      }
     },
   };
 }
