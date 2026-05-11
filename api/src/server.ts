@@ -35,6 +35,10 @@ import {
   createRequestObservabilityMiddleware,
   logRequestError,
 } from "./observability/requestObservability";
+import {
+  createMongoHttpLogSink,
+  parseRouteList,
+} from "./observability/mongoHttpLogSink";
 
 function optionalEmailEnv() {
   return z.preprocess((value) => {
@@ -96,6 +100,11 @@ const envSchema = z.object({
   OBSERVABILITY_SERVICE_NAME: z.string().optional(),
   OBSERVABILITY_ENV: z.string().optional(),
   SWAGGER_ENABLED: z.string().optional(),
+  MONGO_URI: z.string().min(1).optional(),
+  MONGO_DB_NAME: z.string().min(1).optional(),
+  LOGS_HTTP_COLLECTION: z.string().min(1).optional(),
+  LOGS_ROUTE_BLACKLIST: z.string().optional(),
+  LOGS_GET_ROUTE_BLACKLIST: z.string().optional(),
 });
 
 function validateSecurityConfig(env: z.infer<typeof envSchema>) {
@@ -301,6 +310,29 @@ const logger = createLogger({
   environment: observabilityEnvironment,
 });
 const httpMetrics = createHttpMetrics(observabilityServiceName);
+const httpLogSink =
+  observabilityEnabled && env.MONGO_URI?.trim()
+    ? createMongoHttpLogSink({
+        mongoUri: env.MONGO_URI.trim(),
+        dbName: env.MONGO_DB_NAME?.trim() || "logs",
+        collectionName: env.LOGS_HTTP_COLLECTION?.trim() || "portal_aluno_logs",
+        routeBlacklist: [
+          "/health",
+          "/api/health",
+          "/metrics",
+          "/api/metrics",
+          "/docs",
+          "/api/docs",
+          ...parseRouteList(env.LOGS_ROUTE_BLACKLIST),
+        ],
+        getRouteBlacklist: [
+          "/users/me",
+          "/api/users/me",
+          ...parseRouteList(env.LOGS_GET_ROUTE_BLACKLIST),
+        ],
+        logger,
+      })
+    : undefined;
 const openApiSpec = buildOpenApiSpec();
 
 function applyDocsCsp(res: express.Response) {
@@ -345,6 +377,7 @@ if (observabilityEnabled) {
     createRequestObservabilityMiddleware({
       logger,
       metrics: httpMetrics,
+      logSink: httpLogSink,
     })
   );
 }
@@ -557,6 +590,7 @@ app.use(
 (async () => {
   try {
     await initializeDatabaseTables();
+    await httpLogSink?.connect();
     setupPresenceWebSocketServer(server, env.JWT_SECRET, allowedOrigins);
 
     server.listen(env.PORT, "0.0.0.0", () => {
@@ -586,6 +620,7 @@ app.use(
 async function shutdown() {
   await studentViewSsoStore?.disconnect();
   await passwordResetStore?.disconnect();
+  await httpLogSink?.close();
 }
 
 process.on("SIGINT", () => {
