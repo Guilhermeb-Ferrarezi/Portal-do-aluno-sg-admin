@@ -91,9 +91,10 @@ export function containersRouter(jwtSecret: string) {
   const router = Router();
   const auth = authGuard(jwtSecret);
   const adminOnly = requireRole(["admin"]);
+  const adminOrProfessor = requireRole(["admin", "professor"]);
 
   // GET /containers/by-phase/:phaseId
-  router.get("/containers/by-phase/:phaseId", auth, adminOnly, async (req: AuthRequest, res) => {
+  router.get("/containers/by-phase/:phaseId", auth, adminOrProfessor, async (req: AuthRequest, res) => {
     try {
       const phaseId = Number(req.params.phaseId);
       if (!phaseId || phaseId < 1) {

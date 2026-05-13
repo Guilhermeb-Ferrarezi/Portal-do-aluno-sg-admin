@@ -1,27 +1,70 @@
-import type { ContainerGroup } from "@/services/api";
+import type { ExercicioFase, Fase, Modulo } from "@/services/api";
 
 export type MaterialExerciseOption = {
   id: string;
   label: string;
   phaseId: string;
-  containerName: string;
-  containerTaskId: string;
+  phaseName: string;
+  moduleId: string;
+  moduleName: string;
 };
 
-export function collectMaterialExerciseOptions(containers: ContainerGroup[]): MaterialExerciseOption[] {
-  const options: MaterialExerciseOption[] = [];
+export type MaterialExerciseGroup = {
+  moduleId: string;
+  moduleName: string;
+  phases: Array<{
+    phaseId: string;
+    phaseName: string;
+    options: MaterialExerciseOption[];
+  }>;
+};
 
-  for (const container of containers) {
-    for (const exercise of container.exercises) {
-      options.push({
+export function collectMaterialExerciseGroups(
+  modules: Modulo[],
+  phases: Fase[],
+  exercisesByPhase: Map<string, ExercicioFase[]>
+): MaterialExerciseGroup[] {
+  const modulesById = new Map(modules.map((module) => [module.id, module]));
+  const groups = new Map<string, MaterialExerciseGroup>();
+
+  for (const phase of phases) {
+    const module = modulesById.get(phase.moduleId);
+    if (!module) continue;
+
+    let group = groups.get(module.id);
+    if (!group) {
+      group = {
+        moduleId: module.id,
+        moduleName: module.nome,
+        phases: [],
+      };
+      groups.set(module.id, group);
+    }
+
+    let phaseGroup = group.phases.find((item) => item.phaseId === phase.id);
+    if (!phaseGroup) {
+      phaseGroup = {
+        phaseId: phase.id,
+        phaseName: phase.nome,
+        options: [],
+      };
+      group.phases.push(phaseGroup);
+    }
+
+    const exercises = exercisesByPhase.get(phase.id) ?? [];
+    for (const exercise of exercises) {
+      phaseGroup.options.push({
         id: exercise.id,
-        label: `${container.name} - ${exercise.title}`,
-        phaseId: container.phaseId,
-        containerName: container.name,
-        containerTaskId: exercise.containerTaskId,
+        label: exercise.titulo,
+        phaseId: phase.id,
+        phaseName: phase.nome,
+        moduleId: module.id,
+        moduleName: module.nome,
       });
     }
   }
 
-  return options;
+  return modules
+    .map((module) => groups.get(module.id))
+    .filter((group): group is MaterialExerciseGroup => !!group && group.phases.some((phase) => phase.options.length > 0));
 }

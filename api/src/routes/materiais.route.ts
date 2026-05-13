@@ -25,6 +25,7 @@ const ALLOWED_MATERIAL_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/webp",
+  "image/svg+xml",
   "video/mp4",
   "video/quicktime",
   "video/x-matroska",
@@ -46,7 +47,8 @@ const upload = multer({
 });
 
 const DEFAULT_MODULO = "Geral";
-const MODULE_META_REGEX = /^\[\[module:(\d+)\|([^\]]+)\]\]\n?/;
+const MODULE_META_REGEX = /^\[\[module:(\d+)\|([^\]]+)\]\](?:\s*\r?\n|\s+)?/;
+const DESCRIPTION_LABEL_REGEX = /^descri[cç][aã]o:\s*/i;
 
 type MaterialRow = {
   id: number;
@@ -154,6 +156,13 @@ function normalizeMaterialFileType(file: Express.Multer.File): string {
 
 function resolveMaterialUploadOptions(file: Express.Multer.File) {
   const mime = (file.mimetype || "").toLowerCase().trim();
+  if (mime === "image/svg+xml") {
+    return {
+      contentType: "image/svg+xml",
+      extension: "svg",
+      fileType: "svg",
+    };
+  }
   if (mime.startsWith("image/")) {
     const safeImage = validateSafeImageFile(file);
     return {
@@ -174,14 +183,21 @@ function resolveMaterialUploadOptions(file: Express.Multer.File) {
 }
 
 function parseDescriptionMetadata(description: string | null): ParsedDescription {
-  const raw = description ?? "";
-  const match = raw.match(MODULE_META_REGEX);
+  const raw = normalizeMaterialDescription(description);
+  if (!raw) {
+    return {
+      modulo: DEFAULT_MODULO,
+      moduloId: null,
+      descricao: null,
+    };
+  }
 
+  const match = raw.match(MODULE_META_REGEX);
   if (!match) {
     return {
       modulo: DEFAULT_MODULO,
       moduloId: null,
-      descricao: description,
+      descricao: raw,
     };
   }
 
@@ -192,12 +208,39 @@ function parseDescriptionMetadata(description: string | null): ParsedDescription
   return {
     modulo,
     moduloId: Number.isFinite(moduloId) ? moduloId : null,
-    descricao: withoutMeta.length > 0 ? withoutMeta : null,
+    descricao: normalizeMaterialDescription(withoutMeta),
   };
 }
 
+function normalizeMaterialDescription(description: string | null | undefined): string | null {
+  const raw = (description ?? "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  const duplicateLabelMatch = raw.match(/^(.*?)(?:\r?\n){2,}descri[cç][aã]o:\s*(.+)$/is);
+  if (duplicateLabelMatch) {
+    const leading = duplicateLabelMatch[1].trim();
+    const trailing = duplicateLabelMatch[2].trim();
+    const normalizedLeading = leading.replace(/\s+/g, " ");
+    const normalizedTrailing = trailing.replace(/\s+/g, " ");
+
+    if (normalizedLeading.length > 0 && normalizedLeading === normalizedTrailing) {
+      return leading;
+    }
+  }
+
+  return raw
+    .split(/\r?\n/)
+    .filter((line, index, lines) => !(index === 0 && DESCRIPTION_LABEL_REGEX.test(line) && lines.length > 1))
+    .join("\n")
+    .trim()
+    .replace(DESCRIPTION_LABEL_REGEX, "")
+    .trim() || null;
+}
+
 function composeDescriptionWithModule(descricao: string | null | undefined, modulo: { id: number; name: string } | null): string | null {
-  const body = (descricao ?? "").trim();
+  const body = normalizeMaterialDescription(descricao) ?? "";
   const meta = modulo ? `[[module:${modulo.id}|${modulo.name}]]` : "";
   const joined = [meta, body].filter(Boolean).join("\n").trim();
   return joined.length > 0 ? joined : null;
@@ -258,7 +301,7 @@ async function resolveClassIdByCourse(courseId: number): Promise<number | null> 
   return found.rows[0].id;
 }
 
-async function resolveExerciseReference(params: { moduleId: number; exerciseId: number }) {
+async function resolveExerciseReference(params: { courseId: number; exerciseId: number }) {
   const result = await pool.query<{
     exercise_title: string;
     phase_name: string | null;
@@ -269,11 +312,12 @@ async function resolveExerciseReference(params: { moduleId: number; exerciseId: 
             ct.name AS container_name
      FROM exercise e
      JOIN phase p ON p.id = e.phase_id
+     JOIN module m ON m.id = p.module_id
      JOIN container_tasks ct ON ct.exercise_id = e.id AND ct.phase_id = p.id
      WHERE e.id = $1
-       AND p.module_id = $2
+       AND m.course_id = $2
      LIMIT 1`,
-    [params.exerciseId, params.moduleId]
+    [params.exerciseId, params.courseId]
   );
 
   if (result.rows.length === 0) return null;
@@ -462,35 +506,22 @@ export function materiaisRouter(jwtSecret: string) {
           throw error;
         }
 
-        const modulo = await resolveModulo({
-          moduloId: data.moduloId,
-          moduloNome: data.modulo,
-        });
-
-        if (!modulo) {
-          res.status(400).json({ message: "Selecione um módulo existente" });
-          return;
-        }
-
-        const courseId = data.courseId ?? modulo.courseId;
-        if (courseId !== modulo.courseId) {
-          res.status(400).json({ message: "Selecione um curso compativel com o modulo" });
+        const courseId = data.courseId;
+        if (!courseId) {
+          res.status(400).json({ message: "Selecione um curso" });
           return;
         }
 
         const exerciseReference =
           typeof data.exerciseId === "number"
-            ? await resolveExerciseReference({ moduleId: modulo.id, exerciseId: data.exerciseId })
+            ? await resolveExerciseReference({ courseId, exerciseId: data.exerciseId })
             : null;
         if (typeof data.exerciseId === "number" && !exerciseReference) {
-          res.status(400).json({ message: "Selecione um exercicio que pertença ao container do modulo" });
+          res.status(400).json({ message: "Selecione um exercicio que pertença ao curso selecionado" });
           return;
         }
 
-        const descricaoComModulo = composeDescriptionWithModule(data.descricao, {
-          id: modulo.id,
-          name: modulo.name,
-        });
+        const descricaoNormalizada = normalizeMaterialDescription(data.descricao);
 
         const client = await pool.connect();
         let uploadedFileUrl: string | null = null;
@@ -530,7 +561,7 @@ export function materiaisRouter(jwtSecret: string) {
             `INSERT INTO material (course_id, title, description, file_url, file_type, visibility, uploaded_at)
              VALUES ($1, $2, $3, $4, $5, 1, NOW())
              RETURNING id, course_id, title, description, file_url, file_type, visibility, uploaded_at`,
-            [courseId, data.titulo, descricaoComModulo, fileUrl, fileType]
+            [courseId, data.titulo, descricaoNormalizada, fileUrl, fileType]
           );
 
           created = transformMaterial(result.rows[0]);
@@ -573,7 +604,7 @@ export function materiaisRouter(jwtSecret: string) {
           metadata: {
             titulo: responseMaterial.titulo,
             tipo: responseMaterial.tipo,
-            modulo: responseMaterial.modulo,
+            cursoId: String(courseId),
           },
           req,
         }).catch((err) => console.error("activity log error:", err));
@@ -627,7 +658,6 @@ export function materiaisRouter(jwtSecret: string) {
         }
 
         const current = currentResult.rows[0];
-        const currentParsed = parseDescriptionMetadata(current.description);
         const nextCourseId = data.courseId ?? current.course_id;
         const previousFileUrl = current.file_url;
 
@@ -658,47 +688,23 @@ export function materiaisRouter(jwtSecret: string) {
           nextFileType = "link";
         }
 
-        let moduloAtual: { id: number; name: string; courseId: number } | null = null;
-        if (currentParsed.moduloId) {
-          const mod = await resolveModulo({ moduloId: currentParsed.moduloId });
-          if (mod) moduloAtual = mod;
-        }
-
-        if (typeof data.moduloId === "number" || typeof data.modulo === "string") {
-          const mod = await resolveModulo({ moduloId: data.moduloId, moduloNome: data.modulo });
-          if (!mod) {
-            res.status(400).json({ message: "Selecione um módulo existente" });
-            return;
-          }
-          moduloAtual = mod;
-        }
-
-        if (!moduloAtual) {
-          res.status(400).json({ message: "Selecione um módulo existente" });
-          return;
-        }
-
-        if (nextCourseId !== moduloAtual.courseId) {
-          res.status(400).json({ message: "Selecione um curso compativel com o modulo" });
+        if (!nextCourseId) {
+          res.status(400).json({ message: "Selecione um curso" });
           return;
         }
 
         const exerciseReference =
           typeof data.exerciseId === "number"
-            ? await resolveExerciseReference({ moduleId: moduloAtual.id, exerciseId: data.exerciseId })
+            ? await resolveExerciseReference({ courseId: nextCourseId, exerciseId: data.exerciseId })
             : null;
         if (typeof data.exerciseId === "number" && !exerciseReference) {
-          res.status(400).json({ message: "Selecione um exercicio que pertença ao container do modulo" });
+          res.status(400).json({ message: "Selecione um exercicio que pertença ao curso selecionado" });
           return;
         }
 
         const descricaoBase =
-          typeof data.descricao === "undefined" ? currentParsed.descricao : data.descricao;
-
-        const nextDescription = composeDescriptionWithModule(descricaoBase, {
-          id: moduloAtual.id,
-          name: moduloAtual.name,
-        });
+          typeof data.descricao === "undefined" ? normalizeMaterialDescription(current.description) : data.descricao;
+        const nextDescription = normalizeMaterialDescription(descricaoBase);
 
         const client = await pool.connect();
         let updated: MaterialResponse | null = null;
@@ -715,7 +721,7 @@ export function materiaisRouter(jwtSecret: string) {
                  file_type = $5
              WHERE id = $6
              RETURNING id, course_id, title, description, file_url, file_type, visibility, uploaded_at`,
-            [moduloAtual.courseId, data.titulo ?? null, nextDescription, nextFileUrl, nextFileType, id]
+            [nextCourseId, data.titulo ?? null, nextDescription, nextFileUrl, nextFileType, id]
           );
 
           updated = transformMaterial(result.rows[0]);
@@ -762,7 +768,7 @@ export function materiaisRouter(jwtSecret: string) {
           metadata: {
             titulo: updated.titulo,
             tipo: updated.tipo,
-            modulo: updated.modulo,
+            cursoId: String(nextCourseId),
           },
           req,
         }).catch((err) => console.error("activity log error:", err));

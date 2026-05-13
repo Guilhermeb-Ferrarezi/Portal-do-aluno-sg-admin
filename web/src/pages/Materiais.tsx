@@ -32,7 +32,16 @@ import {
   RefreshCw,
   FolderUp,
   Check,
+  ChevronDown,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   listarMateriais,
   criarMaterial,
@@ -43,12 +52,16 @@ import {
   listarModulos,
   type Modulo,
   listarFasesDoModulo,
-  listarContainersPorFase,
+  listarExerciciosPorFase,
   listarTurmas,
   type Turma,
-  type ContainerGroup,
+  type Fase,
+  type ExercicioFase,
 } from "../services/api";
-import { collectMaterialExerciseOptions, type MaterialExerciseOption } from "./Materiais.helpers";
+import {
+  collectMaterialExerciseGroups,
+  type MaterialExerciseGroup,
+} from "./Materiais.helpers";
 
 type MaterialCategoria =
   | "link"
@@ -63,26 +76,24 @@ type MaterialCategoria =
 
 type FormatoArquivo = Exclude<MaterialCategoria, "link">;
 
-type MaterialModuloOption = Modulo & {
-  courseName: string;
-};
-
 const pageTitle = "Materiais";
 const pageSubtitle = "Acesse arquivos e links de estudo";
 
 const fieldClass =
   "h-12 w-full rounded-2xl border border-border/75 bg-card px-4 text-sm text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition placeholder:text-muted-foreground/90 hover:border-primary/35 focus:border-primary focus:ring-4 focus:ring-ring/30";
 const textareaClass = cn(fieldClass, "min-h-28 py-3 leading-6");
-const suggestionPanelClass =
-  "absolute left-0 right-0 top-[calc(100%+0.45rem)] z-30 overflow-hidden rounded-2xl border border-border/80 bg-popover shadow-[0_18px_45px_rgba(0,0,0,0.24)]";
-const suggestionOptionClass =
-  "block w-full border-b border-border/60 px-4 py-3 text-left text-sm font-medium text-foreground transition last:border-b-0 hover:bg-accent/70";
 const primaryButtonClass =
   "inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-[0_14px_30px_rgba(225,29,46,0.28)] transition disabled:cursor-not-allowed disabled:opacity-65";
 const secondaryButtonClass =
   "inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-border/80 bg-muted/50 px-5 text-sm font-semibold text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-65";
 const surfaceCardClass =
   "rounded-[28px] border border-border/70 bg-[radial-gradient(circle_at_top_right,rgba(225,29,46,0.12),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] bg-card/95 shadow-[0_18px_44px_rgba(0,0,0,0.16)]";
+const compactDropdownTriggerClass =
+  "flex h-12 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-border/75 bg-card px-4 text-left text-sm text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition hover:border-primary/35 focus:border-primary focus:ring-4 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-65";
+const compactDropdownContentClass =
+  "z-[70] w-[min(var(--radix-dropdown-menu-trigger-width),calc(100vw-2rem))] min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-popover p-1.5 shadow-[0_18px_45px_rgba(0,0,0,0.24)]";
+const compactDropdownItemClass =
+  "flex w-full items-start gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-foreground transition hover:bg-accent/70 focus:bg-accent/70 focus:outline-none";
 
 const FORMATO_ARQUIVO_OPTIONS: Array<{ value: FormatoArquivo; label: string }> = [
   { value: "arquivo", label: "Qualquer arquivo" },
@@ -214,19 +225,112 @@ function turmaBadgeClass(tipo?: string) {
     : "border-fuchsia-500/25 bg-fuchsia-500/12 text-fuchsia-300";
 }
 
-function normalizeSearchValue(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim();
+function MaterialExerciseSelect({
+  groups,
+  value,
+  onChange,
+  disabled,
+  loading,
+  placeholder,
+}: {
+  groups: MaterialExerciseGroup[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  loading?: boolean;
+  placeholder: string;
+}) {
+  const selected = React.useMemo(() => {
+    for (const group of groups) {
+      for (const phase of group.phases) {
+        for (const option of phase.options) {
+          if (option.id === value) return option;
+        }
+      }
+    }
+    return null;
+  }, [groups, value]);
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={compactDropdownTriggerClass} disabled={disabled}>
+          <span className="min-w-0 flex-1 overflow-hidden">
+            <span className={cn("block truncate", !selected && "text-muted-foreground")}>
+              {selected ? selected.label : placeholder}
+            </span>
+            {selected ? (
+              <span className="block truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                {selected.moduleName} · {selected.phaseName}
+              </span>
+            ) : null}
+          </span>
+          <ChevronDown size={16} className="shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={8} className={compactDropdownContentClass}>
+        <DropdownMenuLabel className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          Exercícios
+        </DropdownMenuLabel>
+        <div className="max-h-72 overflow-y-auto">
+          {loading ? (
+            <div className="px-3 py-2 text-sm text-muted-foreground">Carregando exercicios...</div>
+          ) : groups.length > 0 ? (
+            groups.map((group, groupIndex) => {
+              const visiblePhases = group.phases.filter((phase) => phase.options.length > 0);
+              return (
+                <div key={group.moduleId}>
+                  {groupIndex > 0 ? <DropdownMenuSeparator className="mx-2 my-2" /> : null}
+                  <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                    {group.moduleName}
+                  </div>
+                  <div className="space-y-2">
+                    {visiblePhases.map((phase) => (
+                      <div key={phase.phaseId} className="space-y-1">
+                        <div className="px-3 pt-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground/90">
+                          {phase.phaseName}
+                        </div>
+                        {phase.options.map((option) => (
+                          <DropdownMenuItem
+                            key={option.id}
+                            className={compactDropdownItemClass}
+                            onSelect={(event) => {
+                              event.preventDefault();
+                              onChange(option.id);
+                              setOpen(false);
+                            }}
+                          >
+                            <span className="mt-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border/70">
+                              {value === option.id ? <Check size={11} /> : null}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-medium">{option.label}</span>
+                              <span className="block truncate text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                                {phase.phaseName}
+                              </span>
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="px-3 py-2 text-sm text-muted-foreground">Sem exercicios disponiveis</div>
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export default function MateriaisPage() {
   const { values: queryState, setParams } = usePersistedListParams({
     q: { defaultValue: "" as string },
     tipo: { defaultValue: "todos" as "todos" | MaterialCategoria },
-    modulo: { defaultValue: "todos" as string },
     turma: { defaultValue: "todas" as string },
     page: {
       defaultValue: 1,
@@ -257,9 +361,6 @@ export default function MateriaisPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [totalItems, setTotalItems] = React.useState(0);
 
-  const [filtroModulo, setFiltroModulo] = React.useState<string>(queryState.modulo);
-  const [buscaModuloFiltro, setBuscaModuloFiltro] = React.useState<string>(queryState.modulo === "todos" ? "" : queryState.modulo);
-  const [showSugestoesModuloFiltro, setShowSugestoesModuloFiltro] = React.useState(false);
   const [filtroTipo, setFiltroTipo] = React.useState<"todos" | MaterialCategoria>(queryState.tipo);
   const [busca, setBusca] = React.useState<string>(queryState.q);
   const [turmaFiltro, setTurmaFiltro] = React.useState<string>(queryState.turma);
@@ -267,9 +368,6 @@ export default function MateriaisPage() {
 
   const [formTitulo, setFormTitulo] = React.useState("");
   const [formCursoId, setFormCursoId] = React.useState("");
-  const [formModuloId, setFormModuloId] = React.useState("");
-  const [buscaModuloForm, setBuscaModuloForm] = React.useState("");
-  const [showSugestoesModuloForm, setShowSugestoesModuloForm] = React.useState(false);
   const [formTipo, setFormTipo] = React.useState<"arquivo" | "link">("arquivo");
   const [formFormatoArquivo, setFormFormatoArquivo] = React.useState<FormatoArquivo>("arquivo");
   const [formDescricao, setFormDescricao] = React.useState("");
@@ -278,7 +376,7 @@ export default function MateriaisPage() {
   const [formExerciseId, setFormExerciseId] = React.useState("");
   const [cursosDisponiveis, setCursosDisponiveis] = React.useState<Curso[]>([]);
   const [modulosDisponiveis, setModulosDisponiveis] = React.useState<Modulo[]>([]);
-  const [exerciciosDisponiveis, setExerciciosDisponiveis] = React.useState<MaterialExerciseOption[]>([]);
+  const [exerciciosAgrupados, setExerciciosAgrupados] = React.useState<MaterialExerciseGroup[]>([]);
   const [loadingExercicios, setLoadingExercicios] = React.useState(false);
   const [turmasDisponiveis, setTurmasDisponiveis] = React.useState<Turma[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
@@ -290,11 +388,6 @@ export default function MateriaisPage() {
   const [currentPage, setCurrentPage] = React.useState(queryState.page);
   const [itemsPerPage, setItemsPerPage] = React.useState(queryState.limit);
   const deferredBusca = React.useDeferredValue(busca);
-  const moduloQuery = React.useMemo(() => {
-    if (filtroModulo !== "todos") return filtroModulo;
-    const termo = buscaModuloFiltro.trim();
-    return termo.length > 0 ? termo : undefined;
-  }, [buscaModuloFiltro, filtroModulo]);
 
   React.useEffect(() => {
     if (canUpload) {
@@ -313,20 +406,15 @@ export default function MateriaisPage() {
   React.useEffect(() => {
     if (busca !== queryState.q) setBusca(queryState.q);
     if (filtroTipo !== queryState.tipo) setFiltroTipo(queryState.tipo);
-    if (filtroModulo !== queryState.modulo) setFiltroModulo(queryState.modulo);
     if (turmaFiltro !== queryState.turma) setTurmaFiltro(queryState.turma);
     if (currentPage !== queryState.page) setCurrentPage(queryState.page);
     if (itemsPerPage !== queryState.limit) setItemsPerPage(queryState.limit);
-    if (queryState.modulo === "todos" && buscaModuloFiltro !== "") setBuscaModuloFiltro("");
   }, [
     busca,
-    buscaModuloFiltro,
     currentPage,
-    filtroModulo,
     filtroTipo,
     itemsPerPage,
     queryState.limit,
-    queryState.modulo,
     queryState.page,
     queryState.q,
     queryState.tipo,
@@ -342,12 +430,6 @@ export default function MateriaisPage() {
   const handleTipoChange = React.useCallback((value: "todos" | MaterialCategoria) => {
     setFiltroTipo(value);
     setParams({ tipo: value, page: 1 });
-  }, [setParams]);
-
-  const handleModuloFilterChange = React.useCallback((value: string, rawText?: string) => {
-    setFiltroModulo(value);
-    setBuscaModuloFiltro(rawText ?? (value === "todos" ? "" : value));
-    setParams({ modulo: value, page: 1 });
   }, [setParams]);
 
   const handleTurmaFilterChange = React.useCallback((value: string) => {
@@ -381,24 +463,11 @@ export default function MateriaisPage() {
 
   const visibleTotalItems = filteredMateriais.length;
 
-  const selectedModuleName = React.useMemo(() => {
-    if (filtroModulo === "todos") return "";
-    return buscaModuloFiltro || filtroModulo;
-  }, [buscaModuloFiltro, filtroModulo]);
-
   React.useEffect(() => {
     if (currentPage > 1 && filteredMateriais.length === 0 && totalItems > 0) {
       handleCurrentPageChange(Math.max(1, currentPage - 1));
     }
   }, [currentPage, filteredMateriais.length, handleCurrentPageChange, totalItems]);
-
-  React.useEffect(() => {
-    if (selectedModuleName === buscaModuloFiltro) return;
-  }, [buscaModuloFiltro, selectedModuleName]);
-
-  React.useEffect(() => {
-    if (queryState.modulo === filtroModulo) return;
-  }, [filtroModulo, queryState.modulo]);
 
   React.useEffect(() => {
     if (queryState.turma === turmaFiltro) return;
@@ -420,17 +489,12 @@ export default function MateriaisPage() {
     if (queryState.limit === itemsPerPage) return;
   }, [itemsPerPage, queryState.limit]);
 
-  React.useEffect(() => {
-    if (buscaModuloFiltro !== "" || queryState.modulo !== "todos") return;
-  }, [buscaModuloFiltro, queryState.modulo]);
-
   const carregarMateriais = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const response = await listarMateriais({
-        modulo: moduloQuery,
         q: deferredBusca.trim() || undefined,
         tipo: filtroTipo,
         page: currentPage,
@@ -449,35 +513,23 @@ export default function MateriaisPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, deferredBusca, filtroTipo, handleCurrentPageChange, itemsPerPage, moduloQuery]);
+  }, [currentPage, deferredBusca, filtroTipo, handleCurrentPageChange, itemsPerPage]);
 
   React.useEffect(() => {
     void carregarMateriais();
   }, [carregarMateriais]);
 
-  const modulos = Array.from(
-    new Set([
-      ...materiais.map((material) => material.modulo).filter(Boolean),
-      ...modulosDisponiveis.map((modulo) => modulo.nome).filter(Boolean),
-    ])
-  );
-
-  const modulosComCurso = React.useMemo<MaterialModuloOption[]>(() => {
-    return [...modulosDisponiveis]
-      .map((modulo) => ({
-        ...modulo,
-        courseName: cursosDisponiveis.find((curso) => curso.id === modulo.courseId)?.nome ?? "",
-      }))
-      .sort((a, b) => {
-        const courseOrder = a.courseName.localeCompare(b.courseName, "pt-BR", { sensitivity: "base" });
-        if (courseOrder !== 0) return courseOrder;
-        return a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" });
-      });
-  }, [cursosDisponiveis, modulosDisponiveis]);
-
   React.useEffect(() => {
-    if (!formModuloId) {
-      setExerciciosDisponiveis([]);
+    if (!formCursoId) {
+      setExerciciosAgrupados([]);
+      setFormExerciseId("");
+      setLoadingExercicios(false);
+      return;
+    }
+
+    const modulosDoCurso = modulosDisponiveis.filter((modulo) => modulo.courseId === formCursoId);
+    if (modulosDoCurso.length === 0) {
+      setExerciciosAgrupados([]);
       setFormExerciseId("");
       setLoadingExercicios(false);
       return;
@@ -488,23 +540,35 @@ export default function MateriaisPage() {
 
     void (async () => {
       try {
-        const fases = await listarFasesDoModulo(formModuloId);
-        const containersPorFase = await Promise.all(
-          fases.map((fase) =>
-            listarContainersPorFase(fase.id).catch((error) => {
-              console.error("Erro ao carregar containers da fase:", error);
-              return [] as ContainerGroup[];
+        const fasesPorModulo = await Promise.all(
+          modulosDoCurso.map((modulo) =>
+            listarFasesDoModulo(modulo.id).catch((error) => {
+              console.error("Erro ao carregar fases do modulo:", error);
+              return [] as Fase[];
             })
           )
         );
-        if (cancelled) return;
-        setExerciciosDisponiveis(
-          collectMaterialExerciseOptions(containersPorFase.flat())
+
+        const fases = fasesPorModulo.flat();
+        const exercisesByPhase = await Promise.all(
+          fases.map((fase) =>
+            listarExerciciosPorFase(fase.id).catch((error) => {
+              console.error("Erro ao carregar exercicios da fase:", error);
+              return [] as ExercicioFase[];
+            })
+          )
         );
+
+        if (cancelled) return;
+        const exerciseMap = new Map<string, ExercicioFase[]>();
+        fases.forEach((fase, index) => {
+          exerciseMap.set(fase.id, exercisesByPhase[index] ?? []);
+        });
+        setExerciciosAgrupados(collectMaterialExerciseGroups(modulosDoCurso, fases, exerciseMap));
       } catch (error) {
         if (!cancelled) {
-          console.error("Erro ao carregar exercicios do modulo:", error);
-          setExerciciosDisponiveis([]);
+          console.error("Erro ao carregar exercicios do curso:", error);
+          setExerciciosAgrupados([]);
         }
       } finally {
         if (!cancelled) {
@@ -516,60 +580,23 @@ export default function MateriaisPage() {
     return () => {
       cancelled = true;
     };
-  }, [formModuloId]);
-
-  const cursoSelecionado = React.useMemo(
-    () => cursosDisponiveis.find((curso) => curso.id === formCursoId) ?? null,
-    [cursosDisponiveis, formCursoId]
-  );
-
-  const modulosBaseParaAutocomplete = React.useMemo(() => {
-    if (!formCursoId) return modulosComCurso;
-    return modulosComCurso.filter((modulo) => modulo.courseId === formCursoId);
-  }, [formCursoId, modulosComCurso]);
-
-  const termoModuloFiltro = buscaModuloFiltro.trim().toLowerCase();
-  const modulosFiltradosNoFiltro =
-    termoModuloFiltro.length === 0
-      ? []
-      : modulos.filter((modulo) => modulo.toLowerCase().includes(termoModuloFiltro));
-
-  const termoModuloForm = buscaModuloForm.trim().toLowerCase();
-  const termoModuloFormNormalizado = normalizeSearchValue(buscaModuloForm);
-  const modulosFiltradosNoForm =
-    termoModuloForm.length === 0
-      ? modulosBaseParaAutocomplete
-      : modulosComCurso.filter((modulo) => {
-          const normalizedModulo = normalizeSearchValue(modulo.nome);
-          const normalizedCourse = normalizeSearchValue(modulo.courseName);
-          return (
-            normalizedModulo.includes(termoModuloFormNormalizado) ||
-            normalizedCourse.includes(termoModuloFormNormalizado) ||
-            `${normalizedCourse} ${normalizedModulo}`.includes(termoModuloFormNormalizado) ||
-            `${normalizedModulo} ${normalizedCourse}`.includes(termoModuloFormNormalizado)
-          );
-        });
+  }, [formCursoId, modulosDisponiveis]);
 
   const hasAnyFiltro =
     busca.trim() !== "" ||
     filtroTipo !== "todos" ||
-    filtroModulo !== "todos" ||
-    buscaModuloFiltro.trim() !== "" ||
     turmaFiltro !== "todas";
 
   const resetForm = () => {
     setFormTitulo("");
     setFormCursoId("");
-    setFormModuloId("");
-    setBuscaModuloForm("");
-    setShowSugestoesModuloForm(false);
     setFormTipo("arquivo");
     setFormFormatoArquivo("arquivo");
     setFormDescricao("");
     setFormUrl("");
     setFormArquivo(null);
     setFormExerciseId("");
-    setExerciciosDisponiveis([]);
+    setExerciciosAgrupados([]);
     setLoadingExercicios(false);
     setFormError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -599,20 +626,8 @@ export default function MateriaisPage() {
     setFormError(null);
 
     const cursoIdSelecionado = formCursoId.trim();
-    const moduloIdSelecionado = formModuloId.trim();
-    const moduloDigitado = buscaModuloForm.trim().toLowerCase();
-    const moduloEncontrado =
-      moduloIdSelecionado ||
-      modulosComCurso.find(
-        (modulo) => normalizeSearchValue(modulo.nome) === normalizeSearchValue(moduloDigitado)
-      )?.id ||
-      modulosComCurso.find(
-        (modulo) => normalizeSearchValue(modulo.nome).includes(normalizeSearchValue(moduloDigitado))
-      )
-        ?.id ||
-      "";
 
-    if (!formTitulo.trim() || !cursoIdSelecionado || !moduloEncontrado) {
+    if (!formTitulo.trim() || !cursoIdSelecionado) {
       setFormError("Preencha todos os campos obrigatorios.");
       return;
     }
@@ -634,7 +649,6 @@ export default function MateriaisPage() {
       formData.append("titulo", formTitulo);
       formData.append("tipo", formTipo);
       formData.append("courseId", cursoIdSelecionado);
-      formData.append("moduloId", moduloEncontrado);
       if (formDescricao.trim()) {
         formData.append("descricao", formDescricao);
       }
@@ -772,45 +786,6 @@ export default function MateriaisPage() {
                   ))}
                 </AnimatedSelect>
 
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Filtrar modulo..."
-                    value={buscaModuloFiltro}
-                    onFocus={() => {
-                      if (modulosFiltradosNoFiltro.length > 0) {
-                        setShowSugestoesModuloFiltro(true);
-                      }
-                    }}
-                    onBlur={() => {
-                      window.setTimeout(() => setShowSugestoesModuloFiltro(false), 120);
-                    }}
-                    onChange={(event) => {
-                      setBuscaModuloFiltro(event.target.value);
-                      handleModuloFilterChange("todos", event.target.value);
-                      setShowSugestoesModuloFiltro(true);
-                    }}
-                    className={fieldClass}
-                  />
-                  {showSugestoesModuloFiltro && modulosFiltradosNoFiltro.length > 0 ? (
-                    <div className={suggestionPanelClass}>
-                      {modulosFiltradosNoFiltro.map((modulo) => (
-                        <button
-                          key={modulo}
-                          type="button"
-                          onClick={() => {
-                            handleModuloFilterChange(modulo, modulo);
-                            setShowSugestoesModuloFiltro(false);
-                          }}
-                          className={suggestionOptionClass}
-                        >
-                          {modulo}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
                 <AnimatedSelect
                   value={turmaFiltro}
                   onChange={(event) => {
@@ -872,9 +847,6 @@ export default function MateriaisPage() {
 
                             <div className="min-w-0 flex-1 space-y-2">
                               <div className="flex flex-wrap gap-2">
-                                <span className="inline-flex rounded-full border border-sky-500/20 bg-sky-500/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-300">
-                                  {material.modulo}
-                                </span>
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground">
                                   {getCategoriaLabel(categoria)}
                                 </span>
@@ -1046,10 +1018,7 @@ export default function MateriaisPage() {
                   onChange={(event) => {
                     const nextCursoId = event.target.value;
                     setFormCursoId(nextCursoId);
-                    setFormModuloId("");
-                    setBuscaModuloForm("");
                     setFormExerciseId("");
-                    setShowSugestoesModuloForm(false);
                     if (formError) setFormError(null);
                   }}
                 >
@@ -1060,79 +1029,9 @@ export default function MateriaisPage() {
                     </option>
                   ))}
                 </select>
-              </div>
-
-              <div className="space-y-2.5">
-                <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                  Modulo *
-                </span>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder={
-                      cursoSelecionado
-                        ? "Buscar curso ou modulo..."
-                        : "Busque por curso ou modulo"
-                    }
-                    className={fieldClass}
-                    value={buscaModuloForm}
-                    onFocus={() => {
-                      if (modulosFiltradosNoForm.length > 0) {
-                        setShowSugestoesModuloForm(true);
-                      }
-                    }}
-                    onBlur={() => {
-                      window.setTimeout(() => setShowSugestoesModuloForm(false), 120);
-                    }}
-                    onChange={(event) => {
-                      setBuscaModuloForm(event.target.value);
-                      setFormModuloId("");
-                      setFormExerciseId("");
-                      setShowSugestoesModuloForm(true);
-                      const termo = normalizeSearchValue(event.target.value);
-                      const moduloCorrespondente =
-                        modulosComCurso.find((modulo) => normalizeSearchValue(modulo.nome) === termo) ??
-                        modulosComCurso.find((modulo) => normalizeSearchValue(`${modulo.courseName} ${modulo.nome}`) === termo) ??
-                        null;
-                      if (moduloCorrespondente) {
-                        setFormCursoId(moduloCorrespondente.courseId);
-                      }
-                      if (formError) setFormError(null);
-                    }}
-                  />
-                  {showSugestoesModuloForm && modulosFiltradosNoForm.length > 0 ? (
-                    <div className={suggestionPanelClass}>
-                      {modulosFiltradosNoForm.map((modulo) => {
-                        const suggestionLabel = modulo.courseName
-                          ? `${modulo.courseName} • ${modulo.nome}`
-                          : modulo.nome;
-
-                        return (
-                          <button
-                            key={modulo.id}
-                            type="button"
-                            onClick={() => {
-                              setFormCursoId(modulo.courseId);
-                              setFormModuloId(modulo.id);
-                              setBuscaModuloForm(suggestionLabel);
-                              setShowSugestoesModuloForm(false);
-                              setFormExerciseId("");
-                              if (formError) setFormError(null);
-                            }}
-                            className={suggestionOptionClass}
-                          >
-                            <div className="flex flex-col gap-0.5">
-                              <span>{modulo.nome}</span>
-                              <span className="text-xs font-normal text-muted-foreground">
-                                {suggestionLabel}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Os exercícios abaixo são carregados a partir das fases vinculadas aos módulos deste curso.
+                </p>
               </div>
 
               <div className="space-y-2.5">
@@ -1181,30 +1080,27 @@ export default function MateriaisPage() {
                 <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                   Exercicio do container (opcional)
                 </span>
-                <select
-                  className={fieldClass}
+                <MaterialExerciseSelect
                   value={formExerciseId}
-                  disabled={!formModuloId || loadingExercicios}
-                  onChange={(event) => {
-                    setFormExerciseId(event.target.value);
+                  groups={exerciciosAgrupados}
+                  disabled={!formCursoId || loadingExercicios}
+                  loading={loadingExercicios}
+                  placeholder={
+                    !formCursoId
+                      ? "Selecione um curso primeiro"
+                        : loadingExercicios
+                          ? "Carregando exercicios..."
+                        : exerciciosAgrupados.length > 0
+                          ? "Selecione um exercicio"
+                          : "Sem exercicios disponiveis"
+                  }
+                  onChange={(nextValue) => {
+                    setFormExerciseId(nextValue);
                     if (formError) setFormError(null);
                   }}
-                >
-                  <option value="">
-                    {!formModuloId
-                      ? "Selecione um modulo primeiro"
-                      : loadingExercicios
-                        ? "Carregando exercicios..."
-                        : "Sem exercicio vinculado"}
-                  </option>
-                  {exerciciosDisponiveis.map((exercicio) => (
-                    <option key={exercicio.id} value={exercicio.id} title={`${exercicio.containerName} / ${exercicio.phaseId}`}>
-                      {exercicio.label}
-                    </option>
-                  ))}
-                </select>
+                />
                 <p className="text-xs leading-5 text-muted-foreground">
-                  Selecione opcionalmente um exercicio que esteja em um container do modulo.
+                  Selecione opcionalmente um exercicio que pertença a qualquer fase dos módulos deste curso.
                 </p>
               </div>
 
