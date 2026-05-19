@@ -16,6 +16,10 @@ RUN bun run build
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+ENV CODEX_HOME=/root/.codex
+
+RUN apk add --no-cache ca-certificates git \
+  && npm install -g @openai/codex
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

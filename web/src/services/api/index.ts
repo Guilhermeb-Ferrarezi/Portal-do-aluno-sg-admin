@@ -208,6 +208,25 @@ export {
 } from "./notifications";
 
 export type {
+  AiThreadSummary,
+  AiThreadMessage,
+  AiThreadRun,
+  AiThreadDetail,
+  AiSendMessageContext,
+  CodexDeviceAuthChallenge,
+  CodexLoginStatus,
+} from "./ai";
+export {
+  listarAiThreads,
+  criarAiThread,
+  obterAiThread,
+  enviarAiMessage,
+  interromperAiThread,
+  obterCodexLoginStatus,
+  iniciarCodexDeviceAuth,
+} from "./ai";
+
+export type {
   CustomResponse,
   RankingEventType,
   PointRanking,
@@ -236,3 +255,16 @@ export {
   atualizarRankingEvent,
   deletarRankingEvent,
 } from "./rankings";
+export type {
+  ApiTokenScopeItem,
+  ApiTokenScopeGroup,
+  ApiTokenDetails,
+  ApiTokenCreatedResponse,
+} from "./apiTokens";
+export {
+  listarApiTokenScopes,
+  listarApiTokens,
+  criarApiToken,
+  atualizarApiToken,
+  revogarApiToken,
+} from "./apiTokens";
