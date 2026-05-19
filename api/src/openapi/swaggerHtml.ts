@@ -131,7 +131,7 @@ export function renderSwaggerHtml() {
   <body>
     <div class="doc-banner">
       <h1>Portal do Aluno API</h1>
-      <p>Swagger protegido pelo token do admin portal salvo no localStorage.</p>
+      <p>Swagger protegido pelo token do admin portal salvo no localStorage. A UI aceita JWT de sessão e API tokens emitidos em API Tokens.</p>
     </div>
     <div id="doc-error" class="doc-error" style="display:none;"></div>
     <div id="swagger-ui"></div>

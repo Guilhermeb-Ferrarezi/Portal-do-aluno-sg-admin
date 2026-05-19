@@ -2,9 +2,12 @@ import { Router, type Response } from "express";
 import { type PoolClient } from "pg";
 import { z } from "zod";
 import { pool } from "../db";
-import { authGuard } from "../middlewares/auth";
-import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
+import {
+  authOrApiTokenGuard,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+} from "../middlewares/apiTokenAuth";
 import { logActivity } from "../utils/activityLog";
 
 type Queryable = Pick<PoolClient, "query">;
@@ -349,10 +352,11 @@ function mapRoomRows(rows: DbRoomExerciseListRow[]) {
 
 export function classRoomsRouter(jwtSecret: string) {
   const router = Router();
-  const auth = authGuard(jwtSecret);
-  const adminOnly = requireRole(["admin"]);
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("turmas:read");
+  const adminOnly = requireRoleOrApiTokenScope(["admin"], "turmas:write");
 
-  router.get("/turmas/:id/salas", auth, async (req: AuthRequest, res) => {
+  router.get("/turmas/:id/salas", auth, requireRead, async (req: AuthRequest, res) => {
     const classId = Number(req.params.id);
     if (!Number.isFinite(classId)) {
       return res.status(400).json({ message: "ID de turma invalido" });
@@ -401,7 +405,11 @@ export function classRoomsRouter(jwtSecret: string) {
     }
   });
 
-  router.get("/turmas/:id/salas/exercicios-disponiveis", auth, adminOnly, async (req: AuthRequest, res) => {
+  router.get(
+    "/turmas/:id/salas/exercicios-disponiveis",
+    auth,
+    requireRead,
+    async (req: AuthRequest, res) => {
     const classId = Number(req.params.id);
     if (!Number.isFinite(classId)) {
       return res.status(400).json({ message: "ID de turma invalido" });

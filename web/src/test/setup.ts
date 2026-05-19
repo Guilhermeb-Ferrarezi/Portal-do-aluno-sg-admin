@@ -16,7 +16,7 @@ const memoryStorage = () => {
   };
 };
 
-if (typeof localStorage.clear !== "function") {
+if (typeof globalThis.localStorage === "undefined" || typeof globalThis.localStorage.clear !== "function") {
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
     value: memoryStorage(),

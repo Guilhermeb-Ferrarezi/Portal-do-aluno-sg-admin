@@ -6,6 +6,9 @@ export const usersOpenApi: OpenApiFragment = {
       get: {
         tags: ["Users"],
         summary: "Retorna o usuario autenticado",
+        description:
+          "Aceita JWT de sessão ou API token. Com API token, o endpoint valida o escopo usuarios:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         responses: {
           "200": {
             description: "Perfil atual",
@@ -28,6 +31,9 @@ export const usersOpenApi: OpenApiFragment = {
       put: {
         tags: ["Users"],
         summary: "Atualiza perfil do usuario autenticado",
+        description:
+          "Aceita JWT de sessão ou API token. Com API token, o endpoint valida o escopo usuarios:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -67,6 +73,9 @@ export const usersOpenApi: OpenApiFragment = {
       get: {
         tags: ["Users"],
         summary: "Lista usuarios",
+        description:
+          "Aceita JWT de sessão ou API token. Com API token, a leitura exige usuarios:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           {
             in: "query",
@@ -133,6 +142,9 @@ export const usersOpenApi: OpenApiFragment = {
       post: {
         tags: ["Users"],
         summary: "Cria um usuario",
+        description:
+          "Aceita JWT de sessão ou API token. Com API token, a escrita exige usuarios:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -178,6 +190,9 @@ export const usersOpenApi: OpenApiFragment = {
       put: {
         tags: ["Users"],
         summary: "Altera a senha do usuario autenticado",
+        description:
+          "Aceita JWT de sessão ou API token. Com API token, o request precisa de usuarios:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -209,6 +224,9 @@ export const usersOpenApi: OpenApiFragment = {
       post: {
         tags: ["Users"],
         summary: "Atualiza a foto de perfil do usuario autenticado",
+        description:
+          "Aceita JWT de sessão ou API token. Com API token, o request precisa de usuarios:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {

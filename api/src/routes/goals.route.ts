@@ -2,7 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
-import { requireRole } from "../middlewares/requireRole";
+import {
+  authOrApiTokenGuard,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+} from "../middlewares/apiTokenAuth";
 import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
 import { deleteFromR2, isR2ManagedUrl, uploadToR2 } from "../utils/uploadR2";
@@ -268,8 +272,11 @@ function isStudent(req: AuthRequest) {
 
 export function goalsRouter(jwtSecret: string) {
   const router = Router();
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("metas:read");
+  const requireWrite = requireRoleOrApiTokenScope(["admin"], "metas:write");
 
-  router.get("/goals", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/goals", auth, requireRead, async (req: AuthRequest, res) => {
     const limitParam = Number(req.query.limit ?? 10);
     const offsetParam = Number(req.query.offset ?? 0);
     const qParam =
@@ -316,8 +323,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.post(
     "/goals",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const parsed = createGoalSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -367,8 +374,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.put(
     "/goals/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const goalId = Number(req.params.id);
       if (!Number.isInteger(goalId) || goalId <= 0) {
@@ -445,8 +452,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.delete(
     "/goals/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const goalId = Number(req.params.id);
       if (!Number.isInteger(goalId) || goalId <= 0) {
@@ -503,7 +510,7 @@ export function goalsRouter(jwtSecret: string) {
     }
   );
 
-  router.get("/goals/rewards", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/goals/rewards", auth, requireRead, async (req: AuthRequest, res) => {
     const goalId =
       typeof req.query.goalId === "string" && req.query.goalId.trim() !== ""
         ? Number(req.query.goalId)
@@ -565,8 +572,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.post(
     "/goals/rewards",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const parsed = createGoalRewardSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -639,8 +646,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.put(
     "/goals/rewards/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const rewardId = Number(req.params.id);
       if (!Number.isInteger(rewardId) || rewardId <= 0) {
@@ -766,8 +773,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.delete(
     "/goals/rewards/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const rewardId = Number(req.params.id);
       if (!Number.isInteger(rewardId) || rewardId <= 0) {
@@ -809,7 +816,7 @@ export function goalsRouter(jwtSecret: string) {
     }
   );
 
-  router.get("/goals/students", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/goals/students", auth, requireRead, async (req: AuthRequest, res) => {
     const courseId =
       typeof req.query.courseId === "string" && req.query.courseId.trim() !== ""
         ? Number(req.query.courseId)
@@ -886,8 +893,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.post(
     "/goals/students",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const parsed = createGoalStudentSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -982,8 +989,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.put(
     "/goals/students/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const goalStudentId = Number(req.params.id);
       if (!Number.isInteger(goalStudentId) || goalStudentId <= 0) {
@@ -1101,8 +1108,8 @@ export function goalsRouter(jwtSecret: string) {
 
   router.delete(
     "/goals/students/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const goalStudentId = Number(req.params.id);
       if (!Number.isInteger(goalStudentId) || goalStudentId <= 0) {
@@ -1140,7 +1147,11 @@ export function goalsRouter(jwtSecret: string) {
     }
   );
 
-  router.post("/goals/students/:id/claim", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.post(
+    "/goals/students/:id/claim",
+    auth,
+    requireApiTokenScopeIfPresent("metas:write"),
+    async (req: AuthRequest, res) => {
     const goalStudentId = Number(req.params.id);
     if (!Number.isInteger(goalStudentId) || goalStudentId <= 0) {
       return res.status(400).json({ message: "ID do progresso invalido" });
@@ -1207,7 +1218,7 @@ export function goalsRouter(jwtSecret: string) {
     return res.json({ message: "Recompensa resgatada com sucesso!", goalStudent });
   });
 
-  router.get("/goals/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/goals/:id", auth, requireRead, async (req: AuthRequest, res) => {
     const goalId = Number(req.params.id);
     if (!Number.isInteger(goalId) || goalId <= 0) {
       return res.status(400).json({ message: "ID da meta invalido" });

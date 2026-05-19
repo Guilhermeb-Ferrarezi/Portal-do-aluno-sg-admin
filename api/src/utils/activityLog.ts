@@ -1,5 +1,6 @@
 import { pool } from "../db";
 import type { AuthRequest } from "../middlewares/auth";
+import { resolveAuthenticatedUserId, type ApiTokenAuthRequest } from "../middlewares/apiTokenAuth";
 
 export type ActivityLogActor = {
   id: string | null;
@@ -130,10 +131,15 @@ export async function logActivity(params: ActivityLogParams) {
   if (sanitizedMetadata !== null) payload.metadata = sanitizedMetadata;
 
   const message = JSON.stringify(payload).slice(0, 8000);
+  const resolvedActorId = actor.id
+    ? Number(actor.id)
+    : req
+      ? resolveAuthenticatedUserId(req as ApiTokenAuthRequest)
+      : null;
 
   await pool.query(
     `INSERT INTO logs (user_id, "Message", action, entity_name, "LogDate")
      VALUES ($1, $2, $3, $4, NOW())`,
-    [actor.id ? Number(actor.id) : null, message, action, entityType]
+    [resolvedActorId, message, action, entityType]
   );
 }

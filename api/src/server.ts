@@ -18,6 +18,8 @@ import { goalsRouter } from "./routes/goals.route";
 import { containersRouter } from "./routes/containers.route";
 import { classRoomsRouter } from "./routes/classRooms.route";
 import { notificationsRouter } from "./routes/notifications";
+import { aiRouter } from "./routes/ai";
+import { apiTokensRouter } from "./routes/apiTokens";
 import { presenceRouter } from "./routes/presence";
 import { initializeDatabaseTables } from "./db/migrations";
 import { setupPresenceWebSocketServer } from "./realtime/presence";
@@ -542,7 +544,9 @@ app.use("/api", goalsRouter(env.JWT_SECRET));
 app.use("/api", containersRouter(env.JWT_SECRET));
 app.use("/api", classRoomsRouter(env.JWT_SECRET));
 app.use("/api", notificationsRouter(env.JWT_SECRET));
+app.use("/api", aiRouter(env.JWT_SECRET));
 app.use("/api", presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
+app.use("/api", apiTokensRouter(env.JWT_SECRET));
 
 // handler de 404
 app.use((req, res) => {

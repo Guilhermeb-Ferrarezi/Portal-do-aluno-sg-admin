@@ -10,7 +10,8 @@ export const baseOpenApiSpec = {
     title: "Portal do Aluno API",
     version: "1.0.0",
     description:
-      "Documentacao operacional da API do Portal do Aluno. O servidor suporta uso com e sem prefixo /api.",
+      "Documentacao operacional da API do Portal do Aluno. O servidor suporta uso com e sem prefixo /api. " +
+      "A API aceita JWT de sessao e API tokens opacos gerados pelo usuario.",
   },
   servers: [
     {
@@ -26,9 +27,14 @@ export const baseOpenApiSpec = {
   tags: [
     { name: "Auth", description: "Autenticacao, refresh e SSO" },
     { name: "Users", description: "Perfil e gerenciamento de usuarios" },
+    { name: "API Tokens", description: "Geracao, listagem e revogacao de tokens de integracao" },
     { name: "Activity Logs", description: "Auditoria administrativa" },
     { name: "Badges", description: "Medalhas e atribuicoes" },
     { name: "Goals", description: "Metas, recompensas e progresso dos alunos" },
+    { name: "Turmas", description: "Cursos, turmas, modulos, fases e salas" },
+    { name: "Materials", description: "Materiais de estudo e vinculos" },
+    { name: "Videoaulas", description: "Videoaulas e modulos" },
+    { name: "Notifications", description: "Templates, disparos e notificacoes" },
     { name: "Presence", description: "Presenca em tempo real e heartbeat HTTP" },
   ],
   components: {
@@ -37,9 +43,109 @@ export const baseOpenApiSpec = {
         type: "http",
         scheme: "bearer",
         bearerFormat: "JWT",
+        description: "JWT de sessao do portal.",
+      },
+      apiTokenAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "opaque token",
+        description:
+          "API token opaco emitido por /api/tokens. Use em integrações e automações.",
       },
     },
     schemas: {
+      ApiTokenScopeCatalogGroup: {
+        type: "object",
+        properties: {
+          key: { type: "string" },
+          label: { type: "string" },
+          description: { type: "string" },
+          permissions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                value: { type: "string" },
+                label: { type: "string" },
+                description: { type: "string" },
+                access: { type: "string", enum: ["read", "write"] },
+              },
+              required: ["value", "label", "description", "access"],
+            },
+          },
+        },
+        required: ["key", "label", "description", "permissions"],
+      },
+      ApiTokenScopeCatalog: {
+        type: "object",
+        properties: {
+          items: {
+            type: "array",
+            items: { $ref: "#/components/schemas/ApiTokenScopeCatalogGroup" },
+          },
+        },
+        required: ["items"],
+      },
+      ApiTokenScopeDetail: {
+        type: "object",
+        properties: {
+          values: {
+            type: "array",
+            items: { type: "string" },
+          },
+          labels: {
+            type: "array",
+            items: { type: "string" },
+          },
+        },
+        required: ["values", "labels"],
+      },
+      ApiToken: {
+        type: "object",
+        properties: {
+          publicId: { type: "string" },
+          userId: { type: "integer" },
+          name: { type: "string" },
+          description: { type: ["string", "null"] },
+          scopes: {
+            type: "array",
+            items: { type: "string" },
+          },
+          scopesDetail: { $ref: "#/components/schemas/ApiTokenScopeDetail" },
+          expiresAt: { type: ["string", "null"], format: "date-time" },
+          revokedAt: { type: ["string", "null"], format: "date-time" },
+          lastUsedAt: { type: ["string", "null"], format: "date-time" },
+          createdAt: { type: "string", format: "date-time" },
+        },
+        required: ["publicId", "userId", "name", "scopes", "scopesDetail", "createdAt"],
+      },
+      ApiTokenCreateRequest: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          description: { type: ["string", "null"] },
+          scopes: {
+            type: "array",
+            items: { type: "string" },
+          },
+          expiresAt: { type: ["string", "null"], format: "date-time" },
+        },
+        required: ["name", "scopes"],
+      },
+      ApiTokenCreateResponse: {
+        type: "object",
+        properties: {
+          token: { $ref: "#/components/schemas/ApiToken" },
+          secret: { type: "string", description: "Mostrado apenas uma vez no create." },
+          secretHint: { type: "string" },
+          scopes: {
+            type: "array",
+            items: { type: "string" },
+          },
+          scopesDetail: { $ref: "#/components/schemas/ApiTokenScopeDetail" },
+        },
+        required: ["token", "secret", "secretHint", "scopes", "scopesDetail"],
+      },
       ErrorResponse: {
         type: "object",
         properties: {

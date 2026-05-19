@@ -4,6 +4,13 @@ import bcrypt from "bcrypt";
 import multer from "multer";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
+import {
+  authOrApiTokenGuard,
+  resolveAuthenticatedUserId,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+  type ApiTokenAuthRequest,
+} from "../middlewares/apiTokenAuth";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthRequest } from "../middlewares/auth";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
@@ -115,14 +122,24 @@ export function usersRouter(
   jwtSecret: string,
   options?: {
     sendgridMailer?: SendgridMailer;
+    db?: typeof pool;
   }
 ) {
   const router = Router();
   const sendgridMailer = options?.sendgridMailer;
+  const db = options?.db ?? pool;
 
-  router.get("/users/me", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const userId = Number(req.user!.sub);
-    const r = await pool.query<DbUserRow>(
+  router.get(
+    "/users/me",
+    authOrApiTokenGuard(jwtSecret, db),
+    requireApiTokenScopeIfPresent("usuarios:read"),
+    async (req: ApiTokenAuthRequest, res) => {
+      const userId = resolveAuthenticatedUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Token ausente" });
+      }
+
+      const r = await db.query<DbUserRow>(
       `SELECT id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at,
               last_seen_at,
               COALESCE(last_seen_at >= NOW() - INTERVAL '90 seconds', false) AS is_online
@@ -132,29 +149,30 @@ export function usersRouter(
       [userId]
     );
 
-    if (!r.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+      if (!r.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
 
-    const u = r.rows[0];
-    return res.json({
-      id: String(u.id),
-      usuario: u.email,
-      email: u.email,
-      nome: u.name,
-      bio: u.bio,
-      profilePictureUrl: u.profile_picture_url,
-      coverPictureUrl: u.cover_photo_url,
-      role: toRole(u.role),
-      ativo: true,
-      createdAt: u.created_at,
-      lastSeenAt: u.last_seen_at ?? null,
-      isOnline: u.is_online ?? false,
-    });
-  });
+      const u = r.rows[0];
+      return res.json({
+        id: String(u.id),
+        usuario: u.email,
+        email: u.email,
+        nome: u.name,
+        bio: u.bio,
+        profilePictureUrl: u.profile_picture_url,
+        coverPictureUrl: u.cover_photo_url,
+        role: toRole(u.role),
+        ativo: true,
+        createdAt: u.created_at,
+        lastSeenAt: u.last_seen_at ?? null,
+        isOnline: u.is_online ?? false,
+      });
+    }
+  );
 
   router.get(
     "/users",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    authOrApiTokenGuard(jwtSecret, db),
+    requireRoleOrApiTokenScope(["admin", "professor"], "usuarios:read"),
     async (req: AuthRequest, res) => {
       const roleFilter = req.query.role as UserRole | undefined;
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -232,8 +250,8 @@ export function usersRouter(
 
   router.get(
     "/users/:id/academic-context",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    authOrApiTokenGuard(jwtSecret, db),
+    requireRoleOrApiTokenScope(["admin", "professor"], "usuarios:read"),
     async (req: AuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isInteger(id)) {
@@ -276,8 +294,8 @@ export function usersRouter(
 
   router.post(
     "/users/:id/send-email",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    authOrApiTokenGuard(jwtSecret, db),
+    requireRoleOrApiTokenScope(["admin", "professor"], "usuarios:write"),
     async (req: AuthRequest, res) => {
       if (!sendgridMailer) {
         return res.status(503).json({ message: "Servico de e-mail nao configurado no servidor" });
@@ -338,166 +356,186 @@ export function usersRouter(
     }
   );
 
-  router.put("/users/me", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const parsed = updateMeSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({
-        message: "Dados inválidos",
-        issues: parsed.error.flatten().fieldErrors,
+  router.put(
+    "/users/me",
+    authOrApiTokenGuard(jwtSecret, db),
+    requireApiTokenScopeIfPresent("usuarios:write"),
+    async (req: ApiTokenAuthRequest, res) => {
+      const parsed = updateMeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const userId = resolveAuthenticatedUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Token ausente" });
+      }
+      const current = await db.query<{
+        profile_picture_url: string | null;
+        cover_photo_url: string | null;
+      }>(
+        `SELECT profile_picture_url, cover_photo_url FROM "user" WHERE id = $1 LIMIT 1`,
+        [userId]
+      );
+      if (!current.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let idx = 1;
+
+      if (parsed.data.nome !== undefined) {
+        updates.push(`name = $${idx++}`);
+        values.push(parsed.data.nome.trim());
+      }
+      if (parsed.data.bio !== undefined) {
+        updates.push(`bio = $${idx++}`);
+        values.push(parsed.data.bio.trim() === "" ? null : parsed.data.bio.trim());
+      }
+      if (parsed.data.profilePictureUrl !== undefined) {
+        updates.push(`profile_picture_url = $${idx++}`);
+        values.push(
+          parsed.data.profilePictureUrl.trim() === ""
+            ? null
+            : parsed.data.profilePictureUrl.trim()
+        );
+      }
+      if (parsed.data.coverPictureUrl !== undefined) {
+        updates.push(`cover_photo_url = $${idx++}`);
+        values.push(
+          parsed.data.coverPictureUrl.trim() === ""
+            ? null
+            : parsed.data.coverPictureUrl.trim()
+        );
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ message: "Nenhum campo para atualizar" });
+      }
+
+      values.push(userId);
+      const updated = await db.query<DbUserRow>(
+        `UPDATE "user"
+         SET ${updates.join(", ")}, updated_at = NOW()
+         WHERE id = $${idx}
+         RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
+        values
+      );
+
+      if (!updated.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
+      const u = updated.rows[0];
+      const oldProfilePicture = current.rows[0]?.profile_picture_url;
+      const oldCoverPicture = current.rows[0]?.cover_photo_url;
+      if (oldProfilePicture && oldProfilePicture !== u.profile_picture_url) {
+        deleteFromR2(oldProfilePicture).catch(() => undefined);
+      }
+      if (oldCoverPicture && oldCoverPicture !== u.cover_photo_url) {
+        deleteFromR2(oldCoverPicture).catch(() => undefined);
+      }
+      const pictureChanged = parsed.data.profilePictureUrl !== undefined;
+      const pictureRemoved = pictureChanged && parsed.data.profilePictureUrl?.trim() === "";
+      const action = pictureRemoved
+        ? "profile_picture_remove"
+        : pictureChanged
+          ? "profile_picture_update"
+          : "profile_update";
+
+      logActivity({
+        actor: { id: String(userId), role: req.user?.role ?? null },
+        action,
+        entityType: "user",
+        entityId: String(u.id),
+        metadata: {
+          nome: parsed.data.nome !== undefined,
+          bio: parsed.data.bio !== undefined,
+          profilePictureUrl: parsed.data.profilePictureUrl !== undefined,
+          coverPictureUrl: parsed.data.coverPictureUrl !== undefined,
+        },
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+      return res.json({
+        message: "Perfil atualizado com sucesso!",
+        user: {
+          id: String(u.id),
+          usuario: u.email,
+          email: u.email,
+          nome: u.name,
+          bio: u.bio,
+          profilePictureUrl: u.profile_picture_url,
+          coverPictureUrl: u.cover_photo_url,
+          role: toRole(u.role),
+          ativo: true,
+          createdAt: u.created_at,
+        },
       });
     }
+  );
 
-    const userId = Number(req.user!.sub);
-    const current = await pool.query<{
-      profile_picture_url: string | null;
-      cover_photo_url: string | null;
-    }>(
-      `SELECT profile_picture_url, cover_photo_url FROM "user" WHERE id = $1 LIMIT 1`,
-      [userId]
-    );
-    if (!current.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+  router.put(
+    "/users/me/password",
+    authOrApiTokenGuard(jwtSecret, db),
+    requireApiTokenScopeIfPresent("usuarios:write"),
+    async (req: ApiTokenAuthRequest, res) => {
+      const parsed = changePasswordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
 
-    const updates: string[] = [];
-    const values: unknown[] = [];
-    let idx = 1;
-
-    if (parsed.data.nome !== undefined) {
-      updates.push(`name = $${idx++}`);
-      values.push(parsed.data.nome.trim());
-    }
-    if (parsed.data.bio !== undefined) {
-      updates.push(`bio = $${idx++}`);
-      values.push(parsed.data.bio.trim() === "" ? null : parsed.data.bio.trim());
-    }
-    if (parsed.data.profilePictureUrl !== undefined) {
-      updates.push(`profile_picture_url = $${idx++}`);
-      values.push(
-        parsed.data.profilePictureUrl.trim() === ""
-          ? null
-          : parsed.data.profilePictureUrl.trim()
+      const userId = resolveAuthenticatedUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Token ausente" });
+      }
+      const result = await db.query<{ password_hash: string }>(
+        `SELECT password_hash FROM "user" WHERE id = $1 LIMIT 1`,
+        [userId]
       );
+
+      if (!result.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
+      const ok = await verifyPassword(parsed.data.senhaAtual, result.rows[0].password_hash);
+      if (!ok) return res.status(403).json({ message: "Senha atual incorreta" });
+
+      const senhaHash = await bcrypt.hash(parsed.data.novaSenha, 10);
+      await db.query(`UPDATE "user" SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [
+        senhaHash,
+        userId,
+      ]);
+
+      logActivity({
+        actor: { id: String(userId), role: req.user?.role ?? null },
+        action: "password_change",
+        entityType: "security",
+        entityId: String(userId),
+        req,
+      }).catch((err) => console.error("activity log error:", err));
+
+      return res.json({ message: "Senha alterada com sucesso!" });
     }
-    if (parsed.data.coverPictureUrl !== undefined) {
-      updates.push(`cover_photo_url = $${idx++}`);
-      values.push(
-        parsed.data.coverPictureUrl.trim() === ""
-          ? null
-          : parsed.data.coverPictureUrl.trim()
-      );
-    }
-
-    if (updates.length === 0) {
-      return res.status(400).json({ message: "Nenhum campo para atualizar" });
-    }
-
-    values.push(userId);
-    const updated = await pool.query<DbUserRow>(
-      `UPDATE "user"
-       SET ${updates.join(", ")}, updated_at = NOW()
-       WHERE id = $${idx}
-       RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
-      values
-    );
-
-    if (!updated.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
-
-    const u = updated.rows[0];
-    const oldProfilePicture = current.rows[0]?.profile_picture_url;
-    const oldCoverPicture = current.rows[0]?.cover_photo_url;
-    if (oldProfilePicture && oldProfilePicture !== u.profile_picture_url) {
-      deleteFromR2(oldProfilePicture).catch(() => undefined);
-    }
-    if (oldCoverPicture && oldCoverPicture !== u.cover_photo_url) {
-      deleteFromR2(oldCoverPicture).catch(() => undefined);
-    }
-    const pictureChanged = parsed.data.profilePictureUrl !== undefined;
-    const pictureRemoved = pictureChanged && parsed.data.profilePictureUrl?.trim() === "";
-    const action = pictureRemoved
-      ? "profile_picture_remove"
-      : pictureChanged
-        ? "profile_picture_update"
-        : "profile_update";
-
-    logActivity({
-      actor: { id: String(userId), role: req.user?.role ?? null },
-      action,
-      entityType: "user",
-      entityId: String(u.id),
-      metadata: {
-        nome: parsed.data.nome !== undefined,
-        bio: parsed.data.bio !== undefined,
-        profilePictureUrl: parsed.data.profilePictureUrl !== undefined,
-        coverPictureUrl: parsed.data.coverPictureUrl !== undefined,
-      },
-      req,
-    }).catch((err) => console.error("activity log error:", err));
-
-    return res.json({
-      message: "Perfil atualizado com sucesso!",
-      user: {
-        id: String(u.id),
-        usuario: u.email,
-        email: u.email,
-        nome: u.name,
-        bio: u.bio,
-        profilePictureUrl: u.profile_picture_url,
-      coverPictureUrl: u.cover_photo_url,
-        role: toRole(u.role),
-        ativo: true,
-        createdAt: u.created_at,
-      },
-    });
-  });
-
-  router.put("/users/me/password", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const parsed = changePasswordSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({
-        message: "Dados inválidos",
-        issues: parsed.error.flatten().fieldErrors,
-      });
-    }
-
-    const userId = Number(req.user!.sub);
-    const result = await pool.query<{ password_hash: string }>(
-      `SELECT password_hash FROM "user" WHERE id = $1 LIMIT 1`,
-      [userId]
-    );
-
-    if (!result.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
-
-    const ok = await verifyPassword(parsed.data.senhaAtual, result.rows[0].password_hash);
-    if (!ok) return res.status(403).json({ message: "Senha atual incorreta" });
-
-    const senhaHash = await bcrypt.hash(parsed.data.novaSenha, 10);
-    await pool.query(`UPDATE "user" SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [
-      senhaHash,
-      userId,
-    ]);
-
-    logActivity({
-      actor: { id: String(userId), role: req.user?.role ?? null },
-      action: "password_change",
-      entityType: "security",
-      entityId: String(userId),
-      req,
-    }).catch((err) => console.error("activity log error:", err));
-
-    return res.json({ message: "Senha alterada com sucesso!" });
-  });
+  );
 
   router.post(
     "/users/me/profile-picture",
-    authGuard(jwtSecret),
+    authOrApiTokenGuard(jwtSecret, db),
+    requireApiTokenScopeIfPresent("usuarios:write"),
     profileUpload.single("file"),
-    async (req: AuthRequest, res) => {
+    async (req: ApiTokenAuthRequest, res) => {
       try {
-        const userId = Number(req.user!.sub);
+        const userId = resolveAuthenticatedUserId(req);
+        if (!userId) {
+          return res.status(401).json({ message: "Token ausente" });
+        }
         if (!req.file) {
           return res.status(400).json({ message: "Arquivo de imagem é obrigatório" });
         }
 
-        const current = await pool.query<{ profile_picture_url: string | null }>(
+        const current = await db.query<{ profile_picture_url: string | null }>(
           `SELECT profile_picture_url FROM "user" WHERE id = $1 LIMIT 1`,
           [userId]
         );
@@ -515,7 +553,7 @@ export function usersRouter(
           extension: safeImage.extension,
         });
 
-        const updated = await pool.query<DbUserRow>(
+        const updated = await db.query<DbUserRow>(
           `UPDATE "user"
            SET profile_picture_url = $1, updated_at = NOW()
            WHERE id = $2
@@ -566,16 +604,20 @@ export function usersRouter(
 
   router.post(
     "/users/me/cover-picture",
-    authGuard(jwtSecret),
+    authOrApiTokenGuard(jwtSecret, db),
+    requireApiTokenScopeIfPresent("usuarios:write"),
     profileUpload.single("file"),
-    async (req: AuthRequest, res) => {
+    async (req: ApiTokenAuthRequest, res) => {
       try {
-        const userId = Number(req.user!.sub);
+        const userId = resolveAuthenticatedUserId(req);
+        if (!userId) {
+          return res.status(401).json({ message: "Token ausente" });
+        }
         if (!req.file) {
           return res.status(400).json({ message: "Arquivo de imagem é obrigatório" });
         }
 
-        const current = await pool.query<{ cover_photo_url: string | null }>(
+        const current = await db.query<{ cover_photo_url: string | null }>(
           `SELECT cover_photo_url FROM "user" WHERE id = $1 LIMIT 1`,
           [userId]
         );
@@ -593,7 +635,7 @@ export function usersRouter(
           extension: safeImage.extension,
         });
 
-        const updated = await pool.query<DbUserRow>(
+        const updated = await db.query<DbUserRow>(
           `UPDATE "user"
            SET cover_photo_url = $1, updated_at = NOW()
            WHERE id = $2
@@ -642,172 +684,183 @@ export function usersRouter(
     }
   );
 
-  router.post("/users", authGuard(jwtSecret), requireRole(["admin"]), async (req: AuthRequest, res) => {
-    const parsed = createUserSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({
-        message: "Dados inválidos",
-        issues: parsed.error.flatten().fieldErrors,
-      });
-    }
-
-    const { usuario, email, nome, senha, adminPassword } = parsed.data;
-    const finalEmail = (email ?? usuario).trim();
-    const role = parsed.data.role ?? "aluno";
-
-    if (role === "admin") {
-      const actorId = Number(req.user?.sub);
-      if (!Number.isInteger(actorId)) {
-        return res.status(401).json({ message: "Sessão inválida" });
+  router.post(
+    "/users",
+    authOrApiTokenGuard(jwtSecret, db),
+    requireRoleOrApiTokenScope(["admin"], "usuarios:write"),
+    async (req: AuthRequest, res) => {
+      const parsed = createUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
       }
 
-      if (!adminPassword) {
-        return res.status(400).json({ message: "Senha do administrador é obrigatória para criar outro admin" });
+      const { usuario, email, nome, senha, adminPassword } = parsed.data;
+      const finalEmail = (email ?? usuario).trim();
+      const role = parsed.data.role ?? "aluno";
+
+      if (role === "admin") {
+        const actorId = Number(req.user?.sub);
+        if (!Number.isInteger(actorId)) {
+          return res.status(401).json({ message: "Sessão inválida" });
+        }
+
+        if (!adminPassword) {
+          return res
+            .status(400)
+            .json({ message: "Senha do administrador é obrigatória para criar outro admin" });
+        }
+
+        const actor = await pool.query<{ password_hash: string }>(
+          `SELECT password_hash FROM "user" WHERE id = $1 LIMIT 1`,
+          [actorId]
+        );
+
+        if (!actor.rowCount) {
+          return res.status(401).json({ message: "Administrador não encontrado" });
+        }
+
+        const valid = await verifyPassword(adminPassword, actor.rows[0].password_hash);
+        if (!valid) {
+          return res.status(403).json({ message: "Senha do administrador inválida" });
+        }
       }
 
-      const actor = await pool.query<{ password_hash: string }>(
-        `SELECT password_hash FROM "user" WHERE id = $1 LIMIT 1`,
-        [actorId]
-      );
+      const senhaHash = await bcrypt.hash(senha, 10);
 
-      if (!actor.rowCount) {
-        return res.status(401).json({ message: "Administrador não encontrado" });
+      try {
+        const created = await pool.query<DbUserRow>(
+          `INSERT INTO "user" (name, email, password_hash, role, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())
+           RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
+          [nome.trim(), finalEmail, senhaHash, toNumericRole(role)]
+        );
+
+        const u = created.rows[0];
+        logActivity({
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+          action: "user_create",
+          entityType: "user",
+          entityId: String(u.id),
+          metadata: { role: toRole(u.role) },
+          req,
+        }).catch((error) => console.error("activity log error:", error));
+
+        return res.status(201).json({
+          message: "Usuário criado com sucesso!",
+          user: {
+            id: String(u.id),
+            usuario: u.email,
+            email: u.email,
+            nome: u.name,
+            bio: u.bio,
+            profilePictureUrl: u.profile_picture_url,
+            coverPictureUrl: u.cover_photo_url,
+            role: toRole(u.role),
+            ativo: true,
+            createdAt: u.created_at,
+          },
+        });
+      } catch (err: any) {
+        if (err?.code === "23505") return res.status(409).json({ message: "Usuário já existe" });
+        console.error(err);
+        return res.status(500).json({ message: "Erro interno" });
       }
-
-      const valid = await verifyPassword(adminPassword, actor.rows[0].password_hash);
-      if (!valid) {
-        return res.status(403).json({ message: "Senha do administrador inválida" });
-      }
-    }
-
-    const senhaHash = await bcrypt.hash(senha, 10);
-
-    try {
-      const created = await pool.query<DbUserRow>(
-        `INSERT INTO "user" (name, email, password_hash, role, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, NOW(), NOW())
-         RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
-        [nome.trim(), finalEmail, senhaHash, toNumericRole(role)]
-      );
-
-      const u = created.rows[0];
-      logActivity({
-        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
-        action: "user_create",
-        entityType: "user",
-        entityId: String(u.id),
-        metadata: { role: toRole(u.role) },
-        req,
-      }).catch((error) => console.error("activity log error:", error));
-
-      return res.status(201).json({
-        message: "Usuário criado com sucesso!",
-        user: {
-          id: String(u.id),
-          usuario: u.email,
-          email: u.email,
-          nome: u.name,
-          bio: u.bio,
-          profilePictureUrl: u.profile_picture_url,
-      coverPictureUrl: u.cover_photo_url,
-          role: toRole(u.role),
-          ativo: true,
-          createdAt: u.created_at,
-        },
-      });
-    } catch (err: any) {
-      if (err?.code === "23505") return res.status(409).json({ message: "Usuário já existe" });
-      console.error(err);
-      return res.status(500).json({ message: "Erro interno" });
-    }
   });
 
-  router.put("/users/:id", authGuard(jwtSecret), requireRole(["admin"]), async (req: AuthRequest, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
+  router.put(
+    "/users/:id",
+    authOrApiTokenGuard(jwtSecret, db),
+    requireRoleOrApiTokenScope(["admin"], "usuarios:write"),
+    async (req: AuthRequest, res) => {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
 
-    const parsed = updateUserSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({
-        message: "Dados inválidos",
-        issues: parsed.error.flatten().fieldErrors,
-      });
+      const parsed = updateUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: "Dados inválidos",
+          issues: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const updates: string[] = [];
+      const params: unknown[] = [];
+      let idx = 1;
+
+      if (parsed.data.nome !== undefined) {
+        updates.push(`name = $${idx++}`);
+        params.push(parsed.data.nome.trim());
+      }
+      const nextEmail = parsed.data.email ?? parsed.data.usuario;
+      if (nextEmail !== undefined) {
+        updates.push(`email = $${idx++}`);
+        params.push(nextEmail.trim());
+      }
+      if (parsed.data.role !== undefined) {
+        updates.push(`role = $${idx++}`);
+        params.push(toNumericRole(parsed.data.role));
+      }
+
+      if (!updates.length) return res.status(400).json({ message: "Nenhum campo para atualizar" });
+
+      updates.push(`updated_at = NOW()`);
+      params.push(id);
+
+      try {
+        const updated = await pool.query<DbUserRow>(
+          `UPDATE "user"
+           SET ${updates.join(", ")}
+           WHERE id = $${idx}
+           RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
+          params
+        );
+
+        if (!updated.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
+
+        const u = updated.rows[0];
+        logActivity({
+          actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+          action: "user_update",
+          entityType: "user",
+          entityId: String(u.id),
+          metadata: {
+            nome: parsed.data.nome !== undefined,
+            email: nextEmail !== undefined,
+            role: parsed.data.role !== undefined,
+          },
+          req,
+        }).catch((error) => console.error("activity log error:", error));
+
+        return res.json({
+          message: "Usuário atualizado com sucesso!",
+          user: {
+            id: String(u.id),
+            usuario: u.email,
+            email: u.email,
+            nome: u.name,
+            bio: u.bio,
+            profilePictureUrl: u.profile_picture_url,
+            coverPictureUrl: u.cover_photo_url,
+            role: toRole(u.role),
+            ativo: true,
+            createdAt: u.created_at,
+          },
+        });
+      } catch (err: any) {
+        if (err?.code === "23505") return res.status(409).json({ message: "Usuário já existe" });
+        console.error(err);
+        return res.status(500).json({ message: "Erro ao atualizar usuário" });
+      }
     }
-
-    const updates: string[] = [];
-    const params: unknown[] = [];
-    let idx = 1;
-
-    if (parsed.data.nome !== undefined) {
-      updates.push(`name = $${idx++}`);
-      params.push(parsed.data.nome.trim());
-    }
-    const nextEmail = parsed.data.email ?? parsed.data.usuario;
-    if (nextEmail !== undefined) {
-      updates.push(`email = $${idx++}`);
-      params.push(nextEmail.trim());
-    }
-    if (parsed.data.role !== undefined) {
-      updates.push(`role = $${idx++}`);
-      params.push(toNumericRole(parsed.data.role));
-    }
-
-    if (!updates.length) return res.status(400).json({ message: "Nenhum campo para atualizar" });
-
-    updates.push(`updated_at = NOW()`);
-    params.push(id);
-
-    try {
-      const updated = await pool.query<DbUserRow>(
-        `UPDATE "user"
-         SET ${updates.join(", ")}
-         WHERE id = $${idx}
-         RETURNING id, name, email, role, bio, profile_picture_url, cover_photo_url, created_at`,
-        params
-      );
-
-      if (!updated.rowCount) return res.status(404).json({ message: "Usuário não encontrado" });
-
-      const u = updated.rows[0];
-      logActivity({
-        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
-        action: "user_update",
-        entityType: "user",
-        entityId: String(u.id),
-        metadata: {
-          nome: parsed.data.nome !== undefined,
-          email: nextEmail !== undefined,
-          role: parsed.data.role !== undefined,
-        },
-        req,
-      }).catch((error) => console.error("activity log error:", error));
-
-      return res.json({
-        message: "Usuário atualizado com sucesso!",
-        user: {
-          id: String(u.id),
-          usuario: u.email,
-          email: u.email,
-          nome: u.name,
-          bio: u.bio,
-          profilePictureUrl: u.profile_picture_url,
-      coverPictureUrl: u.cover_photo_url,
-          role: toRole(u.role),
-          ativo: true,
-          createdAt: u.created_at,
-        },
-      });
-    } catch (err: any) {
-      if (err?.code === "23505") return res.status(409).json({ message: "Usuário já existe" });
-      console.error(err);
-      return res.status(500).json({ message: "Erro ao atualizar usuário" });
-    }
-  });
+  );
 
   router.delete(
     "/users/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    authOrApiTokenGuard(jwtSecret, db),
+    requireRoleOrApiTokenScope(["admin"], "usuarios:write"),
     async (req: AuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
@@ -853,7 +906,3 @@ export function usersRouter(
 
   return router;
 }
-
-
-
-

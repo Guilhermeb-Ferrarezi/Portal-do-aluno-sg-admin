@@ -6,6 +6,9 @@ export const activityLogsOpenApi: OpenApiFragment = {
       get: {
         tags: ["Activity Logs"],
         summary: "Lista logs de atividade administrativa",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo logs:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           { in: "query", name: "limit", schema: { type: "integer" } },
           { in: "query", name: "offset", schema: { type: "integer" } },

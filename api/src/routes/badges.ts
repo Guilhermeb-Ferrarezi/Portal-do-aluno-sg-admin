@@ -2,7 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db";
 import { authGuard } from "../middlewares/auth";
-import { requireRole } from "../middlewares/requireRole";
+import {
+  authOrApiTokenGuard,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+} from "../middlewares/apiTokenAuth";
 import type { AuthRequest } from "../middlewares/auth";
 import { logActivity } from "../utils/activityLog";
 import { uploadToR2, deleteFromR2, isR2ManagedUrl } from "../utils/uploadR2";
@@ -97,8 +101,11 @@ async function resolveBadgeIconUrl(inputIconUrl: string): Promise<string> {
 
 export function badgesRouter(jwtSecret: string) {
   const router = Router();
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("medalhas:read");
+  const requireWrite = requireRoleOrApiTokenScope(["admin"], "medalhas:write");
 
-  router.get("/badges", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/badges", auth, requireRead, async (req: AuthRequest, res) => {
     const limitParam = Number(req.query.limit ?? 10);
     const offsetParam = Number(req.query.offset ?? 0);
     const qParam =
@@ -151,7 +158,7 @@ export function badgesRouter(jwtSecret: string) {
     });
   });
 
-  router.get("/badges/holders", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/badges/holders", auth, requireRead, async (req: AuthRequest, res) => {
     const badgeIdParam = req.query.badgeId;
     const badgeId =
       typeof badgeIdParam === "string" && badgeIdParam.trim() !== ""
@@ -211,8 +218,8 @@ export function badgesRouter(jwtSecret: string) {
 
   router.put(
     "/badges/holders/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const holderId = Number(req.params.id);
       if (!Number.isInteger(holderId) || holderId <= 0) {
@@ -280,8 +287,8 @@ export function badgesRouter(jwtSecret: string) {
 
   router.delete(
     "/badges/holders/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const holderId = Number(req.params.id);
       if (!Number.isInteger(holderId) || holderId <= 0) {
@@ -311,8 +318,8 @@ export function badgesRouter(jwtSecret: string) {
 
   router.post(
     "/badges",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const parsed = createBadgeSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -366,8 +373,8 @@ export function badgesRouter(jwtSecret: string) {
 
   router.put(
     "/badges/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const badgeId = Number(req.params.id);
       if (!Number.isInteger(badgeId) || badgeId <= 0) {
@@ -445,8 +452,8 @@ export function badgesRouter(jwtSecret: string) {
 
   router.delete(
     "/badges/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const badgeId = Number(req.params.id);
       if (!Number.isInteger(badgeId) || badgeId <= 0) {
@@ -506,8 +513,8 @@ export function badgesRouter(jwtSecret: string) {
 
   router.post(
     "/badges/holders",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       const parsed = assignBadgeSchema.safeParse(req.body);
       if (!parsed.success) {

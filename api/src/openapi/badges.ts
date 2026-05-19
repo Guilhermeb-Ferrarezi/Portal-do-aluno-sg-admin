@@ -6,6 +6,9 @@ export const badgesOpenApi: OpenApiFragment = {
       get: {
         tags: ["Badges"],
         summary: "Lista medalhas",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo medalhas:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           { in: "query", name: "limit", schema: { type: "integer" } },
           { in: "query", name: "offset", schema: { type: "integer" } },
@@ -35,6 +38,9 @@ export const badgesOpenApi: OpenApiFragment = {
       post: {
         tags: ["Badges"],
         summary: "Cria uma medalha",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo medalhas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -74,6 +80,9 @@ export const badgesOpenApi: OpenApiFragment = {
       put: {
         tags: ["Badges"],
         summary: "Atualiza uma medalha",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo medalhas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           { in: "path", name: "id", required: true, schema: { type: "string" } },
         ],
@@ -113,6 +122,9 @@ export const badgesOpenApi: OpenApiFragment = {
       delete: {
         tags: ["Badges"],
         summary: "Exclui uma medalha",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo medalhas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           { in: "path", name: "id", required: true, schema: { type: "string" } },
         ],
@@ -132,6 +144,9 @@ export const badgesOpenApi: OpenApiFragment = {
       get: {
         tags: ["Badges"],
         summary: "Lista atribuicoes de medalhas",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo medalhas:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           { in: "query", name: "badgeId", schema: { type: "integer" } },
           { in: "query", name: "limit", schema: { type: "integer" } },
@@ -161,6 +176,9 @@ export const badgesOpenApi: OpenApiFragment = {
       post: {
         tags: ["Badges"],
         summary: "Atribui uma medalha a um usuario",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo medalhas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {

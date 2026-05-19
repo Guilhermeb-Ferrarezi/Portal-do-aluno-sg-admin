@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { pool } from "../db";
-import { authGuard } from "../middlewares/auth";
-import { requireRole } from "../middlewares/requireRole";
-import type { AuthRequest } from "../middlewares/auth";
+import { type AuthRequest } from "../middlewares/auth";
+import {
+  authOrApiTokenGuard,
+  requireApiTokenScopeIfPresent,
+} from "../middlewares/apiTokenAuth";
 
 type ActivityLogRow = {
   id: string;
@@ -278,11 +280,13 @@ function parseMessageMetadata(message: string | null): ParsedMessage {
 
 export function activityLogsRouter(jwtSecret: string) {
   const router = Router();
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("logs:read");
 
   router.get(
     "/activity-logs",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    requireRead,
     async (req: AuthRequest, res) => {
       try {
         const limitRaw = Number(req.query.limit ?? 200);

@@ -6,6 +6,9 @@ export const goalsOpenApi: OpenApiFragment = {
       get: {
         tags: ["Goals"],
         summary: "Lista metas",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo metas:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           { in: "query", name: "limit", schema: { type: "integer" } },
           { in: "query", name: "offset", schema: { type: "integer" } },
@@ -35,6 +38,9 @@ export const goalsOpenApi: OpenApiFragment = {
       post: {
         tags: ["Goals"],
         summary: "Cria uma meta",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo metas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -75,6 +81,9 @@ export const goalsOpenApi: OpenApiFragment = {
       get: {
         tags: ["Goals"],
         summary: "Detalha uma meta",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo metas:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
         responses: {
           "200": {
@@ -100,6 +109,9 @@ export const goalsOpenApi: OpenApiFragment = {
       put: {
         tags: ["Goals"],
         summary: "Atualiza uma meta",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo metas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
         requestBody: {
           required: true,
@@ -138,6 +150,9 @@ export const goalsOpenApi: OpenApiFragment = {
       delete: {
         tags: ["Goals"],
         summary: "Exclui uma meta",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo metas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
         responses: {
           "200": {
@@ -155,6 +170,9 @@ export const goalsOpenApi: OpenApiFragment = {
       get: {
         tags: ["Goals"],
         summary: "Lista recompensas de metas",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo metas:read.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         parameters: [
           { in: "query", name: "goalId", schema: { type: "integer" } },
           { in: "query", name: "courseId", schema: { type: "integer" } },
@@ -185,6 +203,9 @@ export const goalsOpenApi: OpenApiFragment = {
       post: {
         tags: ["Goals"],
         summary: "Cria uma recompensa de meta",
+        description:
+          "Aceita JWT de sessão ou API token. API tokens precisam do escopo metas:write.",
+        security: [{ bearerAuth: [] }, { apiTokenAuth: [] }],
         requestBody: {
           required: true,
           content: {

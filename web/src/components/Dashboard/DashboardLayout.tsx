@@ -15,6 +15,8 @@ import {
 } from "../../services/api";
 import ProfilePopup from "../ProfilePopup";
 import SettingsOverlay from "../SettingsOverlay";
+import CodexDrawer from "../AI/CodexDrawer";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { appRoutes, isExactRoute, isRouteBranch } from "@/router/routes";
 import {
@@ -54,6 +56,7 @@ import {
   Radar,
   Slash,
   ChevronDown,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -69,6 +72,7 @@ type DashboardLayoutProps = {
   title?: string;
   subtitle?: string;
   quickActions?: DashboardQuickAction[];
+  headerActions?: ReactNode;
   children?: ReactNode;
 };
 
@@ -98,7 +102,12 @@ type NavArea = {
 
 const SIDEBAR_OPEN_AREAS_STORAGE_KEY = "dashboard-sidebar-open-areas";
 const DashboardShellContext = React.createContext<{
-  setPageMeta: (meta: { title?: string; subtitle?: string; quickActions?: DashboardQuickAction[] }) => void;
+  setPageMeta: (meta: {
+    title?: string;
+    subtitle?: string;
+    quickActions?: DashboardQuickAction[];
+    headerActions?: ReactNode;
+  }) => void;
 } | null>(null);
 
 function roleLabel(role: string | null) {
@@ -198,13 +207,14 @@ function DashboardPageRegistration({
   title,
   subtitle,
   quickActions,
+  headerActions,
   children,
 }: DashboardLayoutProps) {
   const shellContext = React.useContext(DashboardShellContext);
 
   React.useEffect(() => {
-    shellContext?.setPageMeta({ title, subtitle, quickActions });
-  }, [quickActions, shellContext, subtitle, title]);
+    shellContext?.setPageMeta({ title, subtitle, quickActions, headerActions });
+  }, [headerActions, quickActions, shellContext, subtitle, title]);
 
   return <>{children}</>;
 }
@@ -223,6 +233,7 @@ function DashboardShell({
   const [profilePopupOpen, setProfilePopupOpen] = React.useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = React.useState<string>("");
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [codexDrawerOpen, setCodexDrawerOpen] = React.useState(false);
   const [notificationsDrawerOpen, setNotificationsDrawerOpen] = React.useState(false);
   const [inboxNotifications, setInboxNotifications] = React.useState<UserNotification[]>([]);
   const [historyNotifications, setHistoryNotifications] = React.useState<UserNotification[]>([]);
@@ -249,7 +260,12 @@ function DashboardShell({
       return [];
     }
   });
-  const [pageMeta, setPageMeta] = React.useState<{ title?: string; subtitle?: string; quickActions?: DashboardQuickAction[] }>({});
+  const [pageMeta, setPageMeta] = React.useState<{
+    title?: string;
+    subtitle?: string;
+    quickActions?: DashboardQuickAction[];
+    headerActions?: ReactNode;
+  }>({});
   const shellContextValue = React.useMemo(() => ({ setPageMeta }), []);
   const sbBottomRef = React.useRef<HTMLDivElement>(null);
 
@@ -1014,6 +1030,17 @@ function DashboardShell({
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCodexDrawerOpen(true)}
+                className="rounded-full"
+                aria-label="Abrir IA"
+              >
+                <Sparkles size={14} />
+                Abrir IA
+              </Button>
               {canCreateUser ? (
                 <button
                   className={cn(
@@ -1035,6 +1062,16 @@ function DashboardShell({
             </div>
           </div>
         </header>
+
+        <CodexDrawer
+          open={codexDrawerOpen}
+          onOpenChange={setCodexDrawerOpen}
+          context={{
+            pathname: location.pathname,
+            pageTitle: resolvedTitle,
+            pageSubtitle,
+          }}
+        />
 
         <main className="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
           {dashboardQuickActions.length > 0 ? (

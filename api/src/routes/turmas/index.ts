@@ -1,9 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../../db";
-import { authGuard } from "../../middlewares/auth";
-import { requireRole } from "../../middlewares/requireRole";
 import type { AuthRequest } from "../../middlewares/auth";
+import {
+  authOrApiTokenGuard,
+  resolveAuthenticatedUserId,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+  type ApiTokenAuthRequest,
+} from "../../middlewares/apiTokenAuth";
 import { logActivity } from "../../utils/activityLog";
 
 import type {
@@ -43,6 +48,32 @@ import {
 
 export function turmasRouter(jwtSecret: string) {
   const router = Router();
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("turmas:read");
+  const adminOnly = requireRoleOrApiTokenScope(["admin"], "turmas:write");
+  const adminOrProfessor = requireRoleOrApiTokenScope(["admin", "professor"], "turmas:write");
+
+  router.use(auth, requireRead);
+
+  async function resolveRequesterContext(req: AuthRequest & { apiToken?: { userId: number } }) {
+    const userId = resolveAuthenticatedUserId(req as ApiTokenAuthRequest);
+    if (!userId) {
+      return null;
+    }
+
+    const result = await pool.query<{ role: number }>(
+      `SELECT role FROM "user" WHERE id = $1 LIMIT 1`,
+      [userId]
+    );
+
+    if (!result.rowCount) {
+      return null;
+    }
+
+    const role = result.rows[0].role;
+    const userRole = role === 1 ? "aluno" : role === 2 ? "professor" : "admin";
+    return { userId, userRole };
+  }
 
   const createModuleHandler = async (req: AuthRequest, res: any) => {
     const parsed = createModuleSchema.safeParse(req.body);
@@ -262,7 +293,7 @@ export function turmasRouter(jwtSecret: string) {
   };
 
   // GET /estrutura/stats
-  router.get("/estrutura/stats", authGuard(jwtSecret), async (_req: AuthRequest, res: any) => {
+  router.get("/estrutura/stats", auth, async (_req: AuthRequest, res: any) => {
     try {
       const result = await pool.query<{ cursos: string; modulos: string; fases: string }>(
         `SELECT
@@ -286,7 +317,7 @@ export function turmasRouter(jwtSecret: string) {
   });
 
   // GET /courses
-  router.get("/courses", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/courses", auth, async (req: AuthRequest, res) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const isPaidFilter = parseBooleanQuery(req.query.isPaid);
     const hasPaginationInput =
@@ -420,8 +451,8 @@ export function turmasRouter(jwtSecret: string) {
 
   router.post(
     "/courses",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     async (req: AuthRequest, res) => {
       try {
         const parsed = createCourseSchema.safeParse(req.body);
@@ -521,8 +552,8 @@ export function turmasRouter(jwtSecret: string) {
   // DELETE /courses/:id
   router.delete(
     "/courses/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     async (req: AuthRequest, res) => {
       try {
         const id = Number(req.params.id);
@@ -560,8 +591,8 @@ export function turmasRouter(jwtSecret: string) {
   // DELETE /modules/:id
   router.delete(
     "/modules/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     async (req: AuthRequest, res) => {
       try {
         const id = Number(req.params.id);
@@ -596,8 +627,8 @@ export function turmasRouter(jwtSecret: string) {
   // DELETE /phases/:id
   router.delete(
     "/phases/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     async (req: AuthRequest, res) => {
       try {
         const id = Number(req.params.id);
@@ -630,7 +661,7 @@ export function turmasRouter(jwtSecret: string) {
   );
 
   // GET /courses/:courseId/modules
-  router.get("/courses/:courseId/modules", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/courses/:courseId/modules", auth, async (req: AuthRequest, res) => {
     try {
       const courseId = Number(req.params.courseId);
       if (!Number.isFinite(courseId)) {
@@ -712,39 +743,42 @@ export function turmasRouter(jwtSecret: string) {
   // POST /modules
   router.post(
     "/modules",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     createModuleHandler
   );
 
   // Alias PT-BR para criar m\u00f3dulo
-  router.post("/modulos", authGuard(jwtSecret), requireRole(["admin"]), createModuleHandler);
+  router.post("/modulos", auth, adminOnly, createModuleHandler);
 
   // GET /modules/:moduleId/phases
-  router.get("/modules/:moduleId/phases", authGuard(jwtSecret), listPhasesHandler);
+  router.get("/modules/:moduleId/phases", auth, listPhasesHandler);
 
   // POST /modules/:moduleId/phases
   router.post(
     "/modules/:moduleId/phases",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     createPhaseHandler
   );
 
   // Aliases PT-BR para fases
-  router.get("/modulos/:moduleId/fases", authGuard(jwtSecret), listPhasesHandler);
+  router.get("/modulos/:moduleId/fases", auth, listPhasesHandler);
 
   router.post(
     "/modulos/:moduleId/fases",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     createPhaseHandler
   );
 
   // GET /turmas - Lista turmas (class)
-  router.get("/turmas", authGuard(jwtSecret), async (req: AuthRequest, res) => {
-    const userId = Number(req.user!.sub);
-    const userRole = req.user!.role;
+  router.get("/turmas", auth, async (req: AuthRequest, res) => {
+    const context = await resolveRequesterContext(req);
+    if (!context) {
+      return res.status(401).json({ message: "Token ausente" });
+    }
+    const { userId, userRole } = context;
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined || req.query.q !== undefined;
     const pageRaw = Number(req.query.page ?? 1);
@@ -832,10 +866,13 @@ export function turmasRouter(jwtSecret: string) {
   });
 
   // GET /turmas/meus-responsaveis/count
-  router.get("/turmas/meus-responsaveis/count", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/turmas/meus-responsaveis/count", auth, async (req: AuthRequest, res) => {
     try {
-      const userRole = req.user!.role;
-      const userId = Number(req.user!.sub);
+      const context = await resolveRequesterContext(req);
+      if (!context) {
+        return res.status(401).json({ message: "Token ausente" });
+      }
+      const { userId, userRole } = context;
 
       if (userRole === "aluno") {
         const mine = await pool.query<{ count: string }>(
@@ -854,7 +891,7 @@ export function turmasRouter(jwtSecret: string) {
   });
 
   // GET /turmas/total
-  router.get("/turmas/total", authGuard(jwtSecret), async (_req: AuthRequest, res) => {
+  router.get("/turmas/total", auth, async (_req: AuthRequest, res) => {
     try {
       const result = await pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM class`);
       return res.json({ total: Number(result.rows[0]?.count ?? "0") });
@@ -865,10 +902,13 @@ export function turmasRouter(jwtSecret: string) {
   });
 
   // GET /turmas/alunos/count
-  router.get("/turmas/alunos/count", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/turmas/alunos/count", auth, async (req: AuthRequest, res) => {
     try {
-      const userRole = req.user!.role;
-      const userId = Number(req.user!.sub);
+      const context = await resolveRequesterContext(req);
+      if (!context) {
+        return res.status(401).json({ message: "Token ausente" });
+      }
+      const { userId, userRole } = context;
 
       if (userRole === "aluno") {
         const turmaAtual = await pool.query<{ id: number }>(
@@ -929,10 +969,13 @@ export function turmasRouter(jwtSecret: string) {
   });
 
   // GET /turmas/:id
-  router.get("/turmas/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/turmas/:id", auth, async (req: AuthRequest, res) => {
     const id = Number(req.params.id);
-    const userId = Number(req.user!.sub);
-    const userRole = req.user!.role;
+    const context = await resolveRequesterContext(req);
+    if (!context) {
+      return res.status(401).json({ message: "Token ausente" });
+    }
+    const { userId, userRole } = context;
 
     if (!Number.isFinite(id)) {
       return res.status(400).json({ message: "ID de turma inv\u00e1lido" });
@@ -1041,8 +1084,8 @@ export function turmasRouter(jwtSecret: string) {
   // POST /turmas
   router.post(
     "/turmas",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
+    auth,
+    adminOnly,
     async (req: AuthRequest, res) => {
       const parsed = createTurmaSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -1099,8 +1142,8 @@ export function turmasRouter(jwtSecret: string) {
   // PUT /turmas/:id
   router.put(
     "/turmas/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (req: AuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) {
@@ -1182,8 +1225,8 @@ export function turmasRouter(jwtSecret: string) {
   // DELETE /turmas/:id
   router.delete(
     "/turmas/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (req: AuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) {
@@ -1213,8 +1256,8 @@ export function turmasRouter(jwtSecret: string) {
   // POST /turmas/:id/alunos
   router.post(
     "/turmas/:id/alunos",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (req: AuthRequest, res) => {
       const classId = Number(req.params.id);
       const { aluno_ids } = req.body as { aluno_ids?: Array<string | number> };
@@ -1278,8 +1321,8 @@ export function turmasRouter(jwtSecret: string) {
   // POST /turmas/:id/iniciar-fases
   router.post(
     "/turmas/:id/iniciar-fases",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (req: AuthRequest, res) => {
       const classId = Number(req.params.id);
       const { aluno_ids } = req.body as { aluno_ids?: Array<string | number> };
@@ -1355,8 +1398,8 @@ export function turmasRouter(jwtSecret: string) {
   // DELETE /turmas/:id/alunos/:alunoId
   router.delete(
     "/turmas/:id/alunos/:alunoId",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (req: AuthRequest, res) => {
       const classId = Number(req.params.id);
       const alunoId = Number(req.params.alunoId);
@@ -1379,8 +1422,8 @@ export function turmasRouter(jwtSecret: string) {
   // Endpoints legados sem suporte no novo schema
   router.post(
     "/turmas/:id/exercicios",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (_req: AuthRequest, res) => {
       return res.status(501).json({ message: "Atribui\u00e7\u00e3o de exerc\u00edcios por turma indispon\u00edvel no schema atual" });
     }
@@ -1388,8 +1431,8 @@ export function turmasRouter(jwtSecret: string) {
 
   router.delete(
     "/turmas/:id/exercicios/:exercicioId",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (_req: AuthRequest, res) => {
       return res.status(501).json({ message: "Remo\u00e7\u00e3o de exerc\u00edcios por turma indispon\u00edvel no schema atual" });
     }
@@ -1397,18 +1440,21 @@ export function turmasRouter(jwtSecret: string) {
 
   router.post(
     "/turmas/:id/cronograma",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    adminOrProfessor,
     async (_req: AuthRequest, res) => {
       return res.status(501).json({ message: "Cronograma legado indispon\u00edvel no schema atual" });
     }
   );
 
   // GET /turmas/:id/cronograma - fallback com fases do m\u00f3dulo atual
-  router.get("/turmas/:id/cronograma", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/turmas/:id/cronograma", auth, async (req: AuthRequest, res) => {
     const classId = Number(req.params.id);
-    const userId = Number(req.user!.sub);
-    const userRole = req.user!.role;
+    const context = await resolveRequesterContext(req);
+    if (!context) {
+      return res.status(401).json({ message: "Token ausente" });
+    }
+    const { userId, userRole } = context;
 
     if (!Number.isFinite(classId)) {
       return res.status(400).json({ message: "ID de turma inv\u00e1lido" });
@@ -1471,7 +1517,7 @@ export function turmasRouter(jwtSecret: string) {
   });
 
   // REORDER MODULES
-  router.patch("/modules/:id/reorder", authGuard(jwtSecret), requireRole(["admin", "professor"]), async (req: AuthRequest, res: any) => {
+  router.patch("/modules/:id/reorder", auth, adminOrProfessor, async (req: AuthRequest, res: any) => {
     try {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) return res.status(400).json({ message: "ID inv\u00e1lido" });
@@ -1519,7 +1565,7 @@ export function turmasRouter(jwtSecret: string) {
   });
 
   // REORDER PHASES
-  router.patch("/phases/:id/reorder", authGuard(jwtSecret), requireRole(["admin", "professor"]), async (req: AuthRequest, res: any) => {
+  router.patch("/phases/:id/reorder", auth, adminOrProfessor, async (req: AuthRequest, res: any) => {
     try {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) return res.status(400).json({ message: "ID inv\u00e1lido" });

@@ -2,8 +2,12 @@ import express from "express";
 import { z } from "zod";
 import multer from "multer";
 import { pool } from "../db";
-import { authGuard, type AuthRequest } from "../middlewares/auth";
-import { requireRole } from "../middlewares/requireRole";
+import { type AuthRequest } from "../middlewares/auth";
+import {
+  authOrApiTokenGuard,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+} from "../middlewares/apiTokenAuth";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
 
@@ -200,8 +204,11 @@ function transformVideoaula(row: VideoRow) {
 
 export function videoaulasRouter(jwtSecret: string) {
   const router = express.Router();
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("videos:read");
+  const requireWrite = requireRoleOrApiTokenScope(["admin", "professor"], "videos:write");
 
-  router.get("/modules", authGuard(jwtSecret), async (_req: AuthRequest, res) => {
+  router.get("/modules", auth, requireRead, async (_req: AuthRequest, res) => {
     try {
       const result = await pool.query<ModuleRow>(
         `SELECT id, name, course_id, index_order
@@ -224,7 +231,7 @@ export function videoaulasRouter(jwtSecret: string) {
     }
   });
 
-  router.get("/videoaulas", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/videoaulas", auth, requireRead, async (req: AuthRequest, res) => {
     try {
       const modulo = typeof req.query.modulo === "string" ? req.query.modulo.trim() : "";
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -292,7 +299,7 @@ export function videoaulasRouter(jwtSecret: string) {
     }
   });
 
-  router.get("/videoaulas/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/videoaulas/:id", auth, requireRead, async (req: AuthRequest, res) => {
     try {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
@@ -321,8 +328,8 @@ export function videoaulasRouter(jwtSecret: string) {
 
   router.post(
     "/videoaulas",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     upload.single("file"),
     async (req: AuthRequest, res) => {
       try {
@@ -410,8 +417,8 @@ export function videoaulasRouter(jwtSecret: string) {
 
   router.put(
     "/videoaulas/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     upload.single("file"),
     async (req: AuthRequest, res) => {
       try {
@@ -531,8 +538,8 @@ export function videoaulasRouter(jwtSecret: string) {
 
   router.delete(
     "/videoaulas/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       try {
         const id = Number(req.params.id);
@@ -581,8 +588,8 @@ export function videoaulasRouter(jwtSecret: string) {
   // Mantemos endpoint para compatibilidade sem quebrar frontend legado.
   router.post(
     "/videoaulas/:id/turmas",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     async (_req: AuthRequest, res) => {
       res.json({ message: "Atribuição de turmas indisponível no schema atual" });
     }
@@ -590,8 +597,8 @@ export function videoaulasRouter(jwtSecret: string) {
 
   router.delete(
     "/videoaulas/:id/turmas/:turmaId",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     async (_req: AuthRequest, res) => {
       res.json({ message: "Remoção de turma indisponível no schema atual" });
     }

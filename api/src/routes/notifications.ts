@@ -2,9 +2,14 @@ import { Router } from "express";
 import { existsSync } from "node:fs";
 import { z } from "zod";
 import { pool } from "../db";
-import { authGuard } from "../middlewares/auth";
-import { requireRole } from "../middlewares/requireRole";
-import type { AuthRequest } from "../middlewares/auth";
+import { type AuthRequest } from "../middlewares/auth";
+import {
+  authOrApiTokenGuard,
+  resolveAuthenticatedUserId,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+  type ApiTokenAuthRequest,
+} from "../middlewares/apiTokenAuth";
 
 const templateSchema = z.object({
   nome: z.string().min(1, "Nome interno obrigatorio"),
@@ -162,26 +167,27 @@ function resolveGatewayConfig() {
   };
 }
 
-async function resolveActor(req: AuthRequest) {
-  const userId = Number(req.user?.sub);
-  if (!Number.isInteger(userId) || userId <= 0) {
+async function resolveActor(req: ApiTokenAuthRequest) {
+  const userId = resolveAuthenticatedUserId(req);
+  if (userId === null || !Number.isInteger(userId) || userId <= 0) {
     return {
-      externalId: req.user?.sub ?? null,
+      externalId: req.user?.sub ?? req.apiToken?.publicId ?? null,
       name: null,
       email: req.user?.usuario ?? null,
     };
   }
 
+  const normalizedUserId = userId as number;
   const result = await pool.query<{ id: number; name: string | null; email: string | null }>(
     `SELECT id, name, email
      FROM "user"
      WHERE id = $1
      LIMIT 1`,
-    [userId]
+    [normalizedUserId]
   );
 
   return {
-    externalId: req.user?.sub ?? null,
+    externalId: req.user?.sub ?? req.apiToken?.publicId ?? null,
     name: result.rows[0]?.name ?? null,
     email: result.rows[0]?.email ?? req.user?.usuario ?? null,
   };
@@ -406,12 +412,15 @@ async function filterRecipientsByTemplateContext(
 
 export function notificationsRouter(jwtSecret: string) {
   const router = Router();
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("notificacoes:read");
+  const requireWrite = requireRoleOrApiTokenScope(["admin"], "notificacoes:write");
 
   router.get(
     "/notifications/me",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireRead,
+    async (req: ApiTokenAuthRequest, res) => {
       const parsedQuery = myNotificationsQuerySchema.safeParse(req.query);
       if (!parsedQuery.success) {
         return res.status(400).json({ message: "Parametros invalidos para listagem de notificacoes" });
@@ -486,9 +495,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.patch(
     "/notifications/read-all",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireWrite,
+    async (req: ApiTokenAuthRequest, res) => {
       const userId = Number(req.user?.sub);
 
       if (!Number.isInteger(userId) || userId <= 0) {
@@ -518,9 +527,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.patch(
     "/notifications/:id/read",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireWrite,
+    async (req: ApiTokenAuthRequest, res) => {
       const notificationId = Number(req.params.id);
       const userId = Number(req.user?.sub);
 
@@ -566,9 +575,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.get(
     "/notifications/templates",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (_req: AuthRequest, res) => {
+    auth,
+    requireRead,
+    async (_req: ApiTokenAuthRequest, res) => {
       try {
         const response = await callGateway<GatewayTemplate[]>("/api/Notification/Admin/Templates");
         if (!response.Success) {
@@ -587,9 +596,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.post(
     "/notifications/templates",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireWrite,
+    async (req: ApiTokenAuthRequest, res) => {
       const parsed = templateSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
@@ -627,9 +636,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.put(
     "/notifications/templates/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireWrite,
+    async (req: ApiTokenAuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ message: "ID invalido" });
@@ -672,9 +681,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.delete(
     "/notifications/templates/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireWrite,
+    async (req: ApiTokenAuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ message: "ID invalido" });
@@ -701,9 +710,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.get(
     "/notifications/dispatches",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireRead,
+    async (req: ApiTokenAuthRequest, res) => {
       const parsedQuery = dispatchListQuerySchema.safeParse(req.query);
       if (!parsedQuery.success) {
         return res.status(400).json({ message: "Parametros invalidos para listagem de disparos" });
@@ -745,9 +754,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.delete(
     "/notifications/dispatches/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireWrite,
+    async (req: ApiTokenAuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ message: "ID invalido" });
@@ -774,9 +783,9 @@ export function notificationsRouter(jwtSecret: string) {
 
   router.post(
     "/notifications/templates/:id/dispatch",
-    authGuard(jwtSecret),
-    requireRole(["admin"]),
-    async (req: AuthRequest, res) => {
+    auth,
+    requireWrite,
+    async (req: ApiTokenAuthRequest, res) => {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ message: "ID invalido" });

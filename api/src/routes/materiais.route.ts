@@ -2,8 +2,12 @@ import express from "express";
 import { z } from "zod";
 import multer from "multer";
 import { pool } from "../db";
-import { authGuard, type AuthRequest } from "../middlewares/auth";
-import { requireRole } from "../middlewares/requireRole";
+import { type AuthRequest } from "../middlewares/auth";
+import {
+  authOrApiTokenGuard,
+  requireApiTokenScopeIfPresent,
+  requireRoleOrApiTokenScope,
+} from "../middlewares/apiTokenAuth";
 import { uploadToR2, deleteFromR2 } from "../utils/uploadR2";
 import { logActivity } from "../utils/activityLog";
 import { isSafeHttpUrl, validateSafeImageFile } from "../utils/fileValidation";
@@ -378,8 +382,11 @@ function getMaterialCategoria(material: MaterialResponse) {
 
 export function materiaisRouter(jwtSecret: string) {
   const router = express.Router();
+  const auth = authOrApiTokenGuard(jwtSecret, pool);
+  const requireRead = requireApiTokenScopeIfPresent("materiais:read");
+  const requireWrite = requireRoleOrApiTokenScope(["admin", "professor"], "materiais:write");
 
-  router.get("/materiais", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/materiais", auth, requireRead, async (req: AuthRequest, res) => {
     try {
       const modulo = typeof req.query.modulo === "string" ? req.query.modulo.trim() : "";
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -448,7 +455,7 @@ export function materiaisRouter(jwtSecret: string) {
     }
   });
 
-  router.get("/materiais/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
+  router.get("/materiais/:id", auth, requireRead, async (req: AuthRequest, res) => {
     try {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
@@ -483,8 +490,8 @@ export function materiaisRouter(jwtSecret: string) {
 
   router.post(
     "/materiais",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     upload.single("file"),
     async (req: AuthRequest, res) => {
       try {
@@ -623,8 +630,8 @@ export function materiaisRouter(jwtSecret: string) {
 
   router.put(
     "/materiais/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     upload.single("file"),
     async (req: AuthRequest, res) => {
       try {
@@ -787,8 +794,8 @@ export function materiaisRouter(jwtSecret: string) {
 
   router.delete(
     "/materiais/:id",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     async (req: AuthRequest, res) => {
       try {
         const id = Number(req.params.id);
@@ -836,8 +843,8 @@ export function materiaisRouter(jwtSecret: string) {
   // Compatibilidade com front antigo: no schema atual nao ha vinculo por turma nesta rota.
   router.post(
     "/materiais/:id/turmas",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     async (_req: AuthRequest, res) => {
       res.json({ message: "Atribuição de turmas indisponível no schema atual" });
     }
@@ -845,8 +852,8 @@ export function materiaisRouter(jwtSecret: string) {
 
   router.delete(
     "/materiais/:id/turmas/:turmaId",
-    authGuard(jwtSecret),
-    requireRole(["admin", "professor"]),
+    auth,
+    requireWrite,
     async (_req: AuthRequest, res) => {
       res.json({ message: "Remoção de turma indisponível no schema atual" });
     }
