@@ -494,21 +494,6 @@ app.use(
     passwordResetTtlMinutes: env.PASSWORD_RESET_TTL_MINUTES,
   })
 );
-app.use(usersRouter(env.JWT_SECRET, { sendgridMailer }));
-app.use(exerciciosRouter(env.JWT_SECRET));
-app.use(submissoesRouter(env.JWT_SECRET));
-app.use(turmasRouter(env.JWT_SECRET));
-app.use(materiaisRouter(env.JWT_SECRET));
-app.use(videoaulasRouter(env.JWT_SECRET));
-app.use(activityLogsRouter(env.JWT_SECRET));
-app.use(badgesRouter(env.JWT_SECRET));
-app.use(goalsRouter(env.JWT_SECRET));
-app.use(containersRouter(env.JWT_SECRET));
-app.use(classRoomsRouter(env.JWT_SECRET));
-app.use(notificationsRouter(env.JWT_SECRET));
-app.use(presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
-
-// ===== ROTAS COM /api (pra prod/proxy) =====
 app.use(["/api/auth/login", "/api/auth/password-reset/request"], loginLimiter);
 app.use(["/api/presence/socket-ticket", "/api/presence/heartbeat"], presenceLimiter);
 app.use(
@@ -526,6 +511,21 @@ app.use(
     passwordResetTtlMinutes: env.PASSWORD_RESET_TTL_MINUTES,
   })
 );
+app.use(usersRouter(env.JWT_SECRET, { sendgridMailer }));
+app.use(exerciciosRouter(env.JWT_SECRET));
+app.use(submissoesRouter(env.JWT_SECRET));
+app.use(turmasRouter(env.JWT_SECRET));
+app.use(materiaisRouter(env.JWT_SECRET));
+app.use(videoaulasRouter(env.JWT_SECRET));
+app.use(activityLogsRouter(env.JWT_SECRET));
+app.use(badgesRouter(env.JWT_SECRET));
+app.use(goalsRouter(env.JWT_SECRET));
+app.use(containersRouter(env.JWT_SECRET));
+app.use(classRoomsRouter(env.JWT_SECRET));
+app.use(notificationsRouter(env.JWT_SECRET));
+app.use(presenceRouter(env.JWT_SECRET, env.PRESENCE_PROXY_SECRET));
+
+// ===== ROTAS COM /api (pra prod/proxy) =====
 app.use("/api", usersRouter(env.JWT_SECRET, { sendgridMailer }));
 // (se usersRouter registra /users, vira /api/users)
 app.use("/api", exerciciosRouter(env.JWT_SECRET));
