@@ -17,6 +17,7 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV CODEX_HOME=/root/.codex
+ENV CODEX_DANGEROUSLY_BYPASS_APPROVALS_AND_SANDBOX=1
 
 RUN apk add --no-cache ca-certificates git \
   && npm install -g @openai/codex
