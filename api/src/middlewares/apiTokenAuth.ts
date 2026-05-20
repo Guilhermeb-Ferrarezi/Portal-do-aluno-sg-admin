@@ -9,6 +9,7 @@ import {
   type ApiTokenDetails,
   type ApiTokenRow,
 } from "../services/apiTokens";
+import { authenticateCodexPortalToken } from "../services/codexTokens";
 
 export type ApiTokenContext = ApiTokenDetails & {
   userId: number;
@@ -36,6 +37,7 @@ async function authenticateApiToken(
     `SELECT public_id, user_id, name, description, scopes, expires_at, revoked_at, last_used_at, created_at, token_hash
      FROM api_tokens
      WHERE public_id = $1
+       AND COALESCE(kind, 'integration') <> 'codex'
      LIMIT 1`,
     [parsed.publicId]
   );
@@ -72,6 +74,12 @@ export function authOrApiTokenGuard(jwtSecret: string, db: DbLike = pool) {
     const jwtUser = await authenticateToken(token, jwtSecret);
     if (jwtUser) {
       req.user = jwtUser;
+      return next();
+    }
+
+    const codexUser = await authenticateCodexPortalToken(token, db);
+    if (codexUser) {
+      req.user = codexUser;
       return next();
     }
 

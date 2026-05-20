@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { apiTokensRouter } from "../src/routes/apiTokens";
 import { usersRouter } from "../src/routes/users";
 import { buildApiTokenValue, hashApiTokenSecret } from "../src/services/apiTokens";
+import { buildCodexApiTokenValue } from "../src/services/codexTokens";
 
 type StoredToken = {
   public_id: string;
@@ -11,6 +12,8 @@ type StoredToken = {
   name: string;
   description: string | null;
   scopes: string[];
+  kind: "integration" | "codex";
+  codex_version: number;
   token_hash: string;
   expires_at: string | null;
   revoked_at: string | null;
@@ -67,14 +70,34 @@ class MockDb {
         revoked_at: null,
         last_used_at: null,
         created_at: new Date("2026-05-19T15:00:00.000Z").toISOString(),
+        kind: sql.includes("'codex'") ? "codex" : "integration",
+        codex_version: sql.includes("codex_version") ? Number(params[6]) || 1 : 1,
       };
       this.tokens.set(row.public_id, row);
       return { rowCount: 1, rows: [row] as T[] };
     }
 
-    if (sql.includes("FROM api_tokens") && sql.includes("WHERE user_id = $1")) {
+    if (
+      sql.includes("FROM api_tokens") &&
+      sql.includes("WHERE user_id = $1") &&
+      sql.includes("= 'codex'")
+    ) {
       const userId = Number(params[0]);
-      const rows = Array.from(this.tokens.values()).filter((token) => token.user_id === userId);
+      const rows = Array.from(this.tokens.values()).filter(
+        (token) => token.user_id === userId && token.kind === "codex"
+      );
+      return { rowCount: rows.length, rows: rows as T[] };
+    }
+
+    if (
+      sql.includes("FROM api_tokens") &&
+      sql.includes("WHERE user_id = $1") &&
+      sql.includes("= 'integration'")
+    ) {
+      const userId = Number(params[0]);
+      const rows = Array.from(this.tokens.values()).filter(
+        (token) => token.user_id === userId && token.kind === "integration"
+      );
       return { rowCount: rows.length, rows: rows as T[] };
     }
 
@@ -82,14 +105,14 @@ class MockDb {
       const publicId = String(params[0]);
       const userId = Number(params[1]);
       const token = this.tokens.get(publicId);
-      const rows = token && token.user_id === userId ? [token] : [];
+      const rows = token && token.user_id === userId && token.kind === "integration" ? [token] : [];
       return { rowCount: rows.length, rows: rows as T[] };
     }
 
     if (sql.includes("FROM api_tokens") && sql.includes("WHERE public_id = $1 LIMIT 1")) {
       const publicId = String(params[0]);
       const token = this.tokens.get(publicId);
-      const rows = token ? [token] : [];
+      const rows = token && token.kind === "integration" ? [token] : [];
       return { rowCount: rows.length, rows: rows as T[] };
     }
 
@@ -121,6 +144,13 @@ class MockDb {
       return { rowCount: 1, rows: [token] as T[] };
     }
 
+    if (sql.includes("WHERE public_id = $1") && sql.includes("= 'codex'")) {
+      const publicId = String(params[0]);
+      const token = this.tokens.get(publicId);
+      const rows = token && token.kind === "codex" ? [token] : [];
+      return { rowCount: rows.length, rows: rows as T[] };
+    }
+
     if (sql.includes('FROM "user"') && sql.includes("WHERE id = $1 LIMIT 1")) {
       const userId = Number(params[0]);
       const user = this.users.get(userId);
@@ -130,6 +160,7 @@ class MockDb {
     throw new Error(`Unhandled SQL: ${sql}`);
   }
 }
+
 
 function makeJwt(userId: number, secret: string) {
   return jwt.sign(
@@ -147,6 +178,7 @@ describe("api tokens router", () => {
   let server: ReturnType<typeof import("http").createServer> | null = null;
   let baseUrl = "";
   const jwtSecret = "super-secret-for-tests-12345";
+  process.env.JWT_SECRET = jwtSecret;
   const db = new MockDb();
 
   beforeAll(async () => {
@@ -154,7 +186,11 @@ describe("api tokens router", () => {
     app.use(express.json());
     app.use("/api", apiTokensRouter(jwtSecret, { db }));
     app.use("/api", usersRouter(jwtSecret, { db }));
-    server = app.listen(0);
+    server = app.listen(41111, "127.0.0.1");
+    await new Promise<void>((resolve, reject) => {
+      server?.once("listening", () => resolve());
+      server?.once("error", reject);
+    });
     const address = server.address();
     if (!address || typeof address === "string") {
       throw new Error("Nao foi possivel iniciar o servidor de teste.");
@@ -170,6 +206,7 @@ describe("api tokens router", () => {
   });
 
   it("cria, lista e revoga tokens sem expor o segredo", async () => {
+    db.tokens.clear();
     const authorization = `Bearer ${makeJwt(7, jwtSecret)}`;
     const issued = buildApiTokenValue("aaaa1111-bbbb-2222-cccc-333333333333");
     db.tokens.set(issued.publicId, {
@@ -178,6 +215,8 @@ describe("api tokens router", () => {
       name: "Token existente",
       description: null,
       scopes: ["usuarios:read"],
+      kind: "integration",
+      codex_version: 1,
       token_hash: hashApiTokenSecret(issued.secret),
       expires_at: null,
       revoked_at: null,
@@ -241,5 +280,45 @@ describe("api tokens router", () => {
       headers: { Authorization: `Bearer ${created.secret}` },
     });
     expect(revokedAccess.status).toBe(401);
+  });
+
+  it("oculta o token do Codex da listagem normal e o aceita como autenticação do usuario", async () => {
+    db.tokens.clear();
+    const authorization = `Bearer ${makeJwt(7, jwtSecret)}`;
+    const issued = buildCodexApiTokenValue("cccc1111-dddd-2222-eeee-333333333333", 7, 1);
+
+    db.tokens.set(issued.publicId, {
+      public_id: issued.publicId,
+      user_id: 7,
+      name: "Codex interno",
+      description: "Token interno gerenciado pelo chat de IA.",
+      scopes: [],
+      kind: "codex",
+      codex_version: 1,
+      token_hash: issued.secretHash,
+      expires_at: null,
+      revoked_at: null,
+      last_used_at: null,
+      created_at: new Date("2026-05-19T15:10:00.000Z").toISOString(),
+    });
+
+    const listResponse = await fetch(`${baseUrl}/api/tokens`, {
+      headers: { Authorization: authorization },
+    });
+
+    expect(listResponse.status).toBe(200);
+    const listed = (await listResponse.json()) as {
+      items: Array<{ publicId: string; name: string }>;
+    };
+    expect(listed.items.some((item) => item.publicId === issued.publicId)).toBe(false);
+
+    const meResponse = await fetch(`${baseUrl}/api/users/me`, {
+      headers: { Authorization: `Bearer ${issued.token}` },
+    });
+
+    expect(meResponse.status).toBe(200);
+    const me = (await meResponse.json()) as { id: string; email: string };
+    expect(me.id).toBe("7");
+    expect(me.email).toBe("alice@example.com");
   });
 });

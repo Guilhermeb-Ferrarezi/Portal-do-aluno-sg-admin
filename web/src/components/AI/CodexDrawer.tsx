@@ -28,9 +28,11 @@ import {
   obterAiThread,
   type AiThreadDetail,
   type AiThreadMessage,
+  type AiThreadRun,
   type AiThreadSummary,
   type CodexDeviceAuthChallenge,
 } from "../../services/api";
+import { consumeApiSse } from "../../services/api/sse";
 import type { AiSendMessageContext } from "../../services/api/ai";
 
 const PANEL_WIDTH_STORAGE_KEY = "codex-ai-panel-width-v1";
@@ -193,6 +195,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
   const requestAbortRef = React.useRef<AbortController | null>(null);
   const selectedThreadIdRef = React.useRef<number | null>(null);
   const authPollRef = React.useRef<number | null>(null);
+  const streamAbortRef = React.useRef<AbortController | null>(null);
   const resizingRef = React.useRef<{
     startX: number;
     startWidth: number;
@@ -315,12 +318,130 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
     }
   }, []);
 
+  const closeThreadStream = React.useCallback(() => {
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+  }, []);
+
+  const startThreadStream = React.useCallback((threadId: number) => {
+    closeThreadStream();
+
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
+    void consumeApiSse(
+      `/ai/threads/${threadId}/stream`,
+      {
+        onMessage: ({ event, data }) => {
+          if (selectedThreadIdRef.current !== threadId) {
+            return;
+          }
+
+          if (event === "snapshot") {
+            const detail = JSON.parse(data) as AiThreadDetail;
+            setThreadDetail(detail);
+            setThreads((current) =>
+              current.map((thread) => (thread.id === detail.thread.id ? detail.thread : thread))
+            );
+            return;
+          }
+
+          if (event === "draft") {
+            const parsed = JSON.parse(data) as {
+              message: AiThreadMessage;
+              partial: true;
+            };
+
+            setThreadDetail((current) => {
+              if (!current || current.thread.id !== threadId) {
+                return current;
+              }
+
+              const nextMessages = [...current.messages.filter((message) => message.id !== parsed.message.id), parsed.message]
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id - b.id);
+
+              return {
+                ...current,
+                messages: nextMessages,
+                thread: {
+                  ...current.thread,
+                  status: "running",
+                },
+                latestRun: current.latestRun
+                  ? {
+                      ...current.latestRun,
+                      status: "running",
+                    }
+                  : current.latestRun,
+              };
+            });
+            return;
+          }
+
+          if (event === "done") {
+            const parsed = JSON.parse(data) as {
+              thread: AiThreadSummary;
+              userMessage: AiThreadMessage;
+              assistantMessage: AiThreadMessage | null;
+              run: AiThreadRun;
+              events: Array<{ kind: string; payload: unknown; createdAt: string }>;
+              interrupted: boolean;
+            };
+
+            setThreadDetail((current) => {
+              if (!current || current.thread.id !== threadId) {
+                return current;
+              }
+
+              const messages = [
+                ...current.messages.filter(
+                  (message) => message.id !== parsed.userMessage.id && (!parsed.assistantMessage || message.id !== parsed.assistantMessage.id)
+                ),
+                parsed.userMessage,
+                ...(parsed.assistantMessage ? [parsed.assistantMessage] : []),
+              ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id - b.id);
+
+              return {
+                thread: parsed.thread,
+                messages,
+                runs: [...current.runs.filter((run) => run.id !== parsed.run.id), parsed.run],
+                latestRun: parsed.run,
+                events: parsed.events.map((event, idx) => ({
+                  id: idx + 1,
+                  kind: event.kind,
+                  payload: event.payload,
+                  createdAt: event.createdAt,
+                })),
+              };
+            });
+
+            setThreadInList(parsed.thread);
+            controller.abort();
+            return;
+          }
+
+          if (event === "error") {
+            const parsed = JSON.parse(data) as { message: string; interrupted: boolean };
+            setError(parsed.message);
+            controller.abort();
+          }
+        },
+      },
+      controller.signal
+    ).catch((error) => {
+      if (!isAbortError(error)) {
+        setError(error instanceof Error ? error.message : "Falha ao receber stream do Codex.");
+      }
+    });
+  }, [closeThreadStream]);
+
   React.useEffect(() => {
     if (!open) {
       requestAbortRef.current?.abort();
       requestAbortRef.current = null;
       setSending(false);
       setInterrupting(false);
+      closeThreadStream();
       if (authPollRef.current) {
         window.clearInterval(authPollRef.current);
         authPollRef.current = null;
@@ -329,7 +450,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
     }
 
     void loadThreadsIfAuthed();
-  }, [loadThreadsIfAuthed, open]);
+  }, [closeThreadStream, loadThreadsIfAuthed, open]);
 
   React.useEffect(() => {
     if (!open || codexAuthenticated) {
@@ -395,6 +516,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
     if (!codexAuthenticated) {
       return null;
     }
+    closeThreadStream();
     const response = await criarAiThread({ title: initialTitle?.trim() || "Nova conversa" });
     setThreadInList(response.thread);
     setSelectedThreadId(response.thread.id);
@@ -410,6 +532,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
 
   async function handleSelectThread(threadId: number) {
     if (threadId === selectedThreadId) return;
+    closeThreadStream();
     await loadThreadDetail(threadId);
   }
 
@@ -456,6 +579,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
       }
 
       optimisticThreadId = threadId;
+      startThreadStream(threadId);
       setThreadDetail((current) => {
         if (!current) return current;
         if (current.thread.id !== threadId) return current;
@@ -480,25 +604,6 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
         abortController.signal
       );
 
-      setThreadDetail((current) => {
-        const currentMessages = current?.thread.id === result.thread.id
-          ? current.messages.filter((message) => message.id !== optimisticMessage.id)
-          : [];
-        const currentRuns = current?.thread.id === result.thread.id ? current.runs : [];
-
-        return {
-          thread: result.thread,
-          messages: [...currentMessages, result.userMessage, ...(result.assistantMessage ? [result.assistantMessage] : [])],
-          runs: [...currentRuns, result.run],
-          latestRun: result.run,
-          events: result.events.map((event, idx) => ({
-            id: idx + 1,
-            kind: event.kind,
-            payload: event.payload,
-            createdAt: event.createdAt,
-          })),
-        };
-      });
       setThreadInList(result.thread);
     } catch (sendError) {
       if (!isAbortError(sendError)) {
@@ -528,6 +633,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
 
     setInterrupting(true);
     try {
+      closeThreadStream();
       requestAbortRef.current?.abort();
       await interromperAiThread(selectedThreadId);
       await loadThreadDetail(selectedThreadId);

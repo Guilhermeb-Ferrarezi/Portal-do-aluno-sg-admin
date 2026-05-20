@@ -30,6 +30,17 @@ function resolveUserId(req: AuthRequest) {
   return userId;
 }
 
+function writeSseEvent(
+  res: {
+    write: (chunk: string) => void;
+  },
+  event: string,
+  payload: unknown
+) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
 export function aiRouter(
   jwtSecret: string,
   options?: AiChatServiceOptions & { db?: AiChatServiceOptions["db"]; codexAuth?: CodexAuthService }
@@ -114,6 +125,70 @@ export function aiRouter(
       return res.json(detail);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao carregar conversa.";
+      const status = message.includes("nao encontrada") ? 404 : 400;
+      return res.status(status).json({ message });
+    }
+  });
+
+  router.get("/ai/threads/:threadId/stream", async (req: AuthRequest, res) => {
+    try {
+      const userId = resolveUserId(req);
+      const threadId = Number(req.params.threadId);
+      if (!Number.isFinite(threadId) || threadId <= 0) {
+        return res.status(400).json({ message: "Thread invalida." });
+      }
+
+      const detail = await service.getThread(userId, threadId);
+      const isRunning = detail.latestRun?.status === "running" || detail.thread.status === "running";
+
+      res.status(200);
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+
+      writeSseEvent(res, "snapshot", detail);
+
+      if (!isRunning) {
+        res.end();
+        return;
+      }
+
+      const heartbeat = setInterval(() => {
+        res.write(": ping\n\n");
+      }, 15000);
+
+      const unsubscribe = service.subscribeThreadStream(threadId, (event) => {
+        if (event.type === "draft") {
+          writeSseEvent(res, "draft", event.payload);
+          return;
+        }
+
+        if (event.type === "done") {
+          writeSseEvent(res, "done", event.payload);
+          cleanup();
+          return;
+        }
+
+        if (event.type === "error") {
+          writeSseEvent(res, "error", event.payload);
+          cleanup();
+        }
+      });
+
+      const cleanup = () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+        if (!res.writableEnded) {
+          res.end();
+        }
+      };
+
+      req.on("close", cleanup);
+      req.on("aborted", cleanup);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao abrir stream.";
       const status = message.includes("nao encontrada") ? 404 : 400;
       return res.status(status).json({ message });
     }

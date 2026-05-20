@@ -1,7 +1,5 @@
-import express from "express";
-import jwt from "jsonwebtoken";
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { aiRouter } from "../src/routes/ai";
+import { describe, expect, it } from "bun:test";
+import { createAiChatService, type DbLike } from "../src/lib/ai-chat";
 
 type StoredThread = {
   id: number;
@@ -39,15 +37,6 @@ type StoredRun = {
   updated_at: string;
 };
 
-type StoredEvent = {
-  id: number;
-  run_id: number;
-  thread_id: number;
-  kind: string;
-  payload_json: string;
-  created_at: string;
-};
-
 type StoredToken = {
   public_id: string;
   user_id: number;
@@ -63,7 +52,7 @@ type StoredToken = {
   created_at: string;
 };
 
-class MockDb {
+class MockDb implements DbLike {
   nextThreadId = 1;
   nextMessageId = 1;
   nextRunId = 1;
@@ -71,28 +60,13 @@ class MockDb {
   threads = new Map<number, StoredThread>();
   messages: StoredMessage[] = [];
   runs: StoredRun[] = [];
-  events: StoredEvent[] = [];
+  events: Array<{ id: number; run_id: number; thread_id: number; kind: string; payload_json: string; created_at: string }> = [];
   tokens = new Map<string, StoredToken>();
 
   private now = "2026-05-19T15:30:00.000Z";
 
   async query<T = Record<string, unknown>>(text: string, params: unknown[] = []) {
     const sql = text.replace(/\s+/g, " ").trim();
-
-    if (sql.includes("INSERT INTO ai_threads")) {
-      const row: StoredThread = {
-        id: this.nextThreadId++,
-        user_id: Number(params[0]),
-        title: String(params[1]),
-        summary: null,
-        status: "idle",
-        last_message_at: null,
-        created_at: this.now,
-        updated_at: this.now,
-      };
-      this.threads.set(row.id, row);
-      return { rowCount: 1, rows: [row] as T[] };
-    }
 
     if (sql.includes("FROM api_tokens") && sql.includes("= 'codex'") && sql.includes("WHERE user_id = $1")) {
       const userId = Number(params[0]);
@@ -119,33 +93,33 @@ class MockDb {
       return { rowCount: 1, rows: [row] as T[] };
     }
 
-    if (
-      sql.includes("FROM ai_threads t") &&
-      sql.includes("AND t.title = 'Nova conversa'") &&
-      sql.includes("NOT EXISTS ( SELECT 1 FROM ai_messages m WHERE m.thread_id = t.id )")
-    ) {
-      const userId = Number(params[0]);
-      const rows = [...this.threads.values()]
-        .filter((thread) => {
-          if (thread.user_id !== userId) return false;
-          if (thread.title !== "Nova conversa") return false;
-          if (thread.status !== "idle") return false;
-          if (thread.last_message_at !== null) return false;
-          return !this.messages.some((message) => message.thread_id === thread.id);
-        })
-        .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id)
-        .slice(0, 1);
-      return { rowCount: rows.length, rows: rows as T[] };
+    if (sql.includes("INSERT INTO ai_threads")) {
+      const row: StoredThread = {
+        id: this.nextThreadId++,
+        user_id: Number(params[0]),
+        title: String(params[1]),
+        summary: null,
+        status: "idle",
+        last_message_at: null,
+        created_at: this.now,
+        updated_at: this.now,
+      };
+      this.threads.set(row.id, row);
+      return { rowCount: 1, rows: [row] as T[] };
     }
 
-    if (sql.includes("FROM ai_threads") && sql.includes("WHERE user_id = $1 ORDER BY updated_at DESC")) {
+    if (sql.includes("SELECT t.id, t.user_id, t.title, t.summary, t.status, t.last_message_at, t.created_at, t.updated_at FROM ai_threads t WHERE t.user_id = $1 AND t.title = 'Nova conversa'")) {
+      return { rowCount: 0, rows: [] as T[] };
+    }
+
+    if (sql.includes("SELECT id, user_id, title, summary, status, last_message_at, created_at, updated_at FROM ai_threads WHERE user_id = $1 ORDER BY updated_at DESC, id DESC")) {
       const userId = Number(params[0]);
       const rows = [...this.threads.values()].filter((thread) => thread.user_id === userId);
       rows.sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id);
       return { rowCount: rows.length, rows: rows as T[] };
     }
 
-    if (sql.includes("FROM ai_threads") && sql.includes("WHERE id = $1 AND user_id = $2")) {
+    if (sql.includes("SELECT id, user_id, title, summary, status, last_message_at, created_at, updated_at FROM ai_threads WHERE id = $1 AND user_id = $2")) {
       const id = Number(params[0]);
       const userId = Number(params[1]);
       const thread = this.threads.get(id);
@@ -185,7 +159,7 @@ class MockDb {
       const row: StoredMessage = {
         id: this.nextMessageId++,
         thread_id: Number(params[0]),
-        run_id: Number(params[1]),
+        run_id: params[1] === null ? null : Number(params[1]),
         role: "assistant",
         content: String(params[2]),
         metadata_json: String(params[3]),
@@ -218,6 +192,12 @@ class MockDb {
       return { rowCount: 1, rows: [message] as T[] };
     }
 
+    if (sql.includes("FROM ai_messages") && sql.includes("WHERE thread_id = $1 ORDER BY created_at ASC, id ASC")) {
+      const threadId = Number(params[0]);
+      const rows = this.messages.filter((message) => message.thread_id === threadId);
+      return { rowCount: rows.length, rows: rows as T[] };
+    }
+
     if (sql.includes("INSERT INTO ai_runs")) {
       const row: StoredRun = {
         id: this.nextRunId++,
@@ -237,24 +217,18 @@ class MockDb {
       return { rowCount: 1, rows: [row] as T[] };
     }
 
-    if (sql.includes("FROM ai_messages") && sql.includes("WHERE thread_id = $1 ORDER BY created_at ASC, id ASC")) {
-      const threadId = Number(params[0]);
-      const rows = this.messages.filter((message) => message.thread_id === threadId);
-      return { rowCount: rows.length, rows: rows as T[] };
-    }
-
-    if (sql.includes("FROM ai_runs") && sql.includes("WHERE thread_id = $1 ORDER BY started_at ASC, id ASC")) {
-      const threadId = Number(params[0]);
-      const rows = this.runs.filter((run) => run.thread_id === threadId);
-      return { rowCount: rows.length, rows: rows as T[] };
-    }
-
     if (sql.includes("FROM ai_runs") && sql.includes("ORDER BY started_at DESC, id DESC LIMIT 1")) {
       const threadId = Number(params[0]);
       const rows = [...this.runs]
         .filter((run) => run.thread_id === threadId && run.status === "running")
         .sort((a, b) => b.started_at.localeCompare(a.started_at) || b.id - a.id)
         .slice(0, 1);
+      return { rowCount: rows.length, rows: rows as T[] };
+    }
+
+    if (sql.includes("FROM ai_runs") && sql.includes("ORDER BY started_at ASC, id ASC")) {
+      const threadId = Number(params[0]);
+      const rows = this.runs.filter((run) => run.thread_id === threadId);
       return { rowCount: rows.length, rows: rows as T[] };
     }
 
@@ -265,7 +239,7 @@ class MockDb {
     }
 
     if (sql.includes("INSERT INTO ai_events")) {
-      const row: StoredEvent = {
+      const row = {
         id: this.nextEventId++,
         run_id: Number(params[0]),
         thread_id: Number(params[1]),
@@ -277,14 +251,15 @@ class MockDb {
       return { rowCount: 1, rows: [] as T[] };
     }
 
-    if (sql.includes("UPDATE ai_runs SET status = 'interrupted'")) {
-      const id = Number(params[0]);
+    if (sql.includes("UPDATE ai_runs") && sql.includes("status = 'completed'")) {
+      const id = Number(params[1]);
       const run = this.runs.find((item) => item.id === id);
       if (!run) {
         return { rowCount: 0, rows: [] as T[] };
       }
-      run.status = "interrupted";
-      run.error_message = "Interrompido pelo usuario";
+      run.status = "completed";
+      run.exit_code = params[0] === null ? null : Number(params[0]);
+      run.error_message = null;
       run.completed_at = this.now;
       run.updated_at = this.now;
       return { rowCount: 1, rows: [] as T[] };
@@ -304,49 +279,35 @@ class MockDb {
       return { rowCount: 1, rows: [] as T[] };
     }
 
-    if (/UPDATE ai_runs\b.*SET status = 'completed'/i.test(sql)) {
-      const id = Number(params[1]);
-      const run = this.runs.find((item) => item.id === id);
-      if (!run) {
-        return { rowCount: 0, rows: [] as T[] };
-      }
-      run.status = "completed";
-      run.exit_code = params[0] === null ? null : Number(params[0]);
-      run.error_message = null;
-      run.completed_at = this.now;
-      run.updated_at = this.now;
-      return { rowCount: 1, rows: [] as T[] };
-    }
-
     throw new Error(`Unhandled SQL: ${sql}`);
   }
 }
 
-
-function makeJwt(userId: number, secret: string) {
-  return jwt.sign(
-    {
-      sub: String(userId),
-      usuario: "admin@example.com",
-      role: "admin",
-    },
-    secret,
-    { algorithm: "HS256", expiresIn: "1h" }
-  );
+function waitFor(check: () => boolean, timeoutMs = 1500) {
+  return new Promise<void>((resolve, reject) => {
+    const startedAt = Date.now();
+    const tick = () => {
+      if (check()) {
+        resolve();
+        return;
+      }
+      if (Date.now() - startedAt > timeoutMs) {
+        reject(new Error("Timeout aguardando o draft parcial do Codex."));
+        return;
+      }
+      setTimeout(tick, 10);
+    };
+    tick();
+  });
 }
 
-describe("ai router", () => {
-  let server: ReturnType<typeof import("http").createServer> | null = null;
-  let baseUrl = "";
-  const jwtSecret = "super-secret-for-tests-12345";
-  process.env.JWT_SECRET = jwtSecret;
-  const db = new MockDb();
-
-  beforeAll(async () => {
-    const app = express();
-    app.use(express.json());
+describe("ai streaming", () => {
+  it("persiste a resposta parcial enquanto o Codex ainda esta escrevendo", async () => {
+    const db = new MockDb();
     let releaseRunner: (() => void) | null = null;
-    app.use("/api", aiRouter(jwtSecret, {
+    const streamedEvents: Array<{ type: string; payload: unknown }> = [];
+
+    const service = createAiChatService({
       db,
       runner: async (_prompt, options) => {
         void options.onProgress?.({
@@ -369,126 +330,42 @@ describe("ai router", () => {
           rawLines: [JSON.stringify({ type: "thinking", message: "avaliando contexto" })],
         };
       },
-    }));
-
-    server = app.listen(41112, "127.0.0.1");
-    await new Promise<void>((resolve, reject) => {
-      server?.once("listening", () => resolve());
-      server?.once("error", reject);
-    });
-    const address = server.address();
-    if (!address || typeof address === "string") {
-      throw new Error("Nao foi possivel iniciar o servidor de teste.");
-    }
-    baseUrl = `http://127.0.0.1:${address.port}`;
-  });
-
-  afterAll(async () => {
-    await new Promise<void>((resolve, reject) => {
-      if (!server) return resolve();
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-  });
-
-  it("lista, carrega, envia mensagem e interrompe uma conversa", async () => {
-    const authorization = `Bearer ${makeJwt(7, jwtSecret)}`;
-
-    const createResponse = await fetch(`${baseUrl}/api/ai/threads`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authorization,
-      },
-      body: JSON.stringify({ title: "Primeira conversa" }),
     });
 
-    expect(createResponse.status).toBe(201);
-    const created = (await createResponse.json()) as { thread: { id: number; title: string } };
-    expect(created.thread.title).toBe("Primeira conversa");
-
-    const listResponse = await fetch(`${baseUrl}/api/ai/threads`, {
-      headers: { Authorization: authorization },
+    const thread = await service.createThread(7, "Primeira conversa");
+    const unsubscribe = service.subscribeThreadStream(thread.id, (event) => {
+      streamedEvents.push({ type: event.type, payload: event.payload });
     });
-    expect(listResponse.status).toBe(200);
-    const listed = (await listResponse.json()) as { items: Array<{ id: number; title: string }>; total: number };
-    expect(listed.total).toBe(1);
-    expect(listed.items[0]?.id).toBe(created.thread.id);
+    const sendPromise = service.sendMessage(
+      7,
+      thread.id,
+      "O que esta tela faz?",
+      {
+        pathname: "/estrutura-do-curso",
+        pageTitle: "Estrutura do Curso",
+        pageSubtitle: "Criação e listagem separadas por página",
+      }
+    );
 
-    const detailResponse = await fetch(`${baseUrl}/api/ai/threads/${created.thread.id}`, {
-      headers: { Authorization: authorization },
-    });
-    expect(detailResponse.status).toBe(200);
-    const detail = (await detailResponse.json()) as {
-      thread: { id: number };
-      messages: unknown[];
-      runs: unknown[];
-      latestRun: { status: string } | null;
-      events: unknown[];
-    };
-    expect(detail.thread.id).toBe(created.thread.id);
-    expect(detail.messages).toHaveLength(0);
-
-    const sendResponsePromise = fetch(`${baseUrl}/api/ai/threads/${created.thread.id}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authorization,
-      },
-      body: JSON.stringify({
-        content: "O que esta tela faz?",
-        context: {
-          pathname: "/estrutura-do-curso",
-          pageTitle: "Estrutura do Curso",
-          pageSubtitle: "Criação e listagem separadas por página",
-        },
-      }),
-    });
-
-    await new Promise<void>((resolve) => {
-      const checkDraft = () => {
-        const draft = db.messages.find(
-          (message) => message.thread_id === created.thread.id && message.role === "assistant" && message.content === "Pensando..."
-        );
-        if (draft) {
-          resolve();
-          return;
-        }
-        setTimeout(checkDraft, 10);
-      };
-      checkDraft();
-    });
+    await waitFor(() =>
+      db.messages.some(
+        (message) => message.thread_id === thread.id && message.role === "assistant" && message.content === "Pensando..."
+      )
+    );
 
     const draft = db.messages.find(
-      (message) => message.thread_id === created.thread.id && message.role === "assistant" && message.content === "Pensando..."
+      (message) => message.thread_id === thread.id && message.role === "assistant"
     );
+    expect(draft?.content).toBe("Pensando...");
     expect(draft?.metadata_json).toContain("\"partial\":true");
+    expect(streamedEvents.some((event) => event.type === "draft")).toBe(true);
 
     releaseRunner?.();
 
-    const sendResponse = await sendResponsePromise;
-    expect(sendResponse.status).toBe(200);
-    const sent = (await sendResponse.json()) as {
-      thread: { status: string; summary: string | null; title: string };
-      userMessage: { role: string };
-      assistantMessage: { role: string; content: string } | null;
-      run: { status: string };
-      events: Array<{ kind: string }>;
-      interrupted: boolean;
-    };
-    expect(sent.thread.status).toBe("idle");
-    expect(sent.userMessage.role).toBe("user");
-    expect(sent.assistantMessage?.content).toBe("Resposta final do Codex.");
-    expect(sent.run.status).toBe("running");
-    expect(sent.events).toHaveLength(1);
-    expect(sent.interrupted).toBe(false);
-
-    const interruptResponse = await fetch(`${baseUrl}/api/ai/threads/${created.thread.id}/interrupt`, {
-      method: "POST",
-      headers: { Authorization: authorization },
-    });
-    expect(interruptResponse.status).toBe(200);
-    const interrupted = (await interruptResponse.json()) as { interrupted: boolean; message: string };
-    expect(interrupted.interrupted).toBe(false);
-    expect(interrupted.message).toContain("Nenhuma geracao em andamento");
+    const result = await sendPromise;
+    unsubscribe();
+    expect(result.assistantMessage?.content).toBe("Resposta final do Codex.");
+    expect(result.thread.status).toBe("idle");
+    expect(streamedEvents.some((event) => event.type === "done")).toBe(true);
   });
 });

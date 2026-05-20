@@ -10,6 +10,7 @@ class MinimalDb {
   }
 }
 
+
 function makeJwt(userId: number, secret: string) {
   return jwt.sign(
     {
@@ -57,7 +58,11 @@ describe("ai codex auth endpoints", () => {
       }),
     }));
 
-    server = app.listen(0);
+    server = app.listen(41113, "127.0.0.1");
+    await new Promise<void>((resolve, reject) => {
+      server?.once("listening", () => resolve());
+      server?.once("error", reject);
+    });
     const address = server.address();
     if (!address || typeof address === "string") {
       throw new Error("Nao foi possivel iniciar o servidor de teste.");

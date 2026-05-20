@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { pool } from "../db";
+import { authenticateCodexPortalToken } from "../services/codexTokens";
 
 export type NumericRole = 1 | 2 | 3;
 export type LegacyRole = "aluno" | "professor" | "admin";
@@ -114,7 +116,13 @@ export function authGuard(jwtSecret: string) {
 
     const user = await authenticateToken(token, jwtSecret);
     if (!user) {
-      return res.status(401).json({ message: "Token invalido ou expirado" });
+      const codexUser = await authenticateCodexPortalToken(token, pool);
+      if (!codexUser) {
+        return res.status(401).json({ message: "Token invalido ou expirado" });
+      }
+
+      req.user = codexUser;
+      return next();
     }
 
     req.user = user;

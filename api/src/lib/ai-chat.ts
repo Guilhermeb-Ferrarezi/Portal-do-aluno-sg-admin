@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { buildOpenApiSpec } from "../openapi";
+import { ensureCodexApiToken } from "../services/codexTokens";
 
 export type DbLike = {
   query: <T = Record<string, unknown>>(text: string, params?: unknown[]) => Promise<{
@@ -105,6 +107,38 @@ export type AiSendMessageResult = {
   interrupted: boolean;
 };
 
+export type AiThreadStreamEvent =
+  | {
+      type: "snapshot";
+      threadId: number;
+      payload: AiThreadDetail;
+      createdAt: string;
+    }
+  | {
+      type: "draft";
+      threadId: number;
+      payload: {
+        message: AiThreadMessage;
+        partial: true;
+      };
+      createdAt: string;
+    }
+  | {
+      type: "done";
+      threadId: number;
+      payload: AiSendMessageResult;
+      createdAt: string;
+    }
+  | {
+      type: "error";
+      threadId: number;
+      payload: {
+        message: string;
+        interrupted: boolean;
+      };
+      createdAt: string;
+    };
+
 export type CodexRunnerResult = {
   stdout: string;
   stderr: string;
@@ -118,6 +152,14 @@ export type CodexRunnerOptions = {
   cwd: string;
   signal?: AbortSignal;
   promptLabel?: string;
+  portalApiBaseUrl?: string;
+  portalApiToken?: string;
+  onProgress?: (event: {
+    kind: string;
+    payload: unknown;
+    rawLine: string;
+    text: string;
+  }) => void | Promise<void>;
 };
 
 export type CodexRunner = (prompt: string, options: CodexRunnerOptions) => Promise<CodexRunnerResult>;
@@ -132,6 +174,8 @@ export type AiChatServiceOptions = {
 type RunHandle = {
   controller: AbortController;
 };
+
+type ThreadStreamListener = (event: AiThreadStreamEvent) => void;
 
 const DEFAULT_SYSTEM_PROMPT = [
   "Voce e o assistente interno de IA do painel administrativo do Portal do Aluno.",
@@ -149,6 +193,18 @@ function resolveCodexBin() {
   return process.env.CODEX_BIN?.trim() || "codex";
 }
 
+function resolvePortalApiBaseUrl() {
+  const explicit = process.env.PORTAL_API_BASE_URL?.trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  const port = process.env.PORT?.trim() || "3000";
+  return `http://127.0.0.1:${port}/api`;
+}
+
+const OPENAPI_REFERENCE = JSON.stringify(buildOpenApiSpec());
+
 function shouldBypassSandbox() {
   const raw = process.env.CODEX_DANGEROUSLY_BYPASS_APPROVALS_AND_SANDBOX?.trim();
   if (!raw) {
@@ -165,6 +221,40 @@ function safeJsonParse(value: string | null | undefined) {
   } catch {
     return value;
   }
+}
+
+function extractProgressText(kind: string, payload: unknown, fallback: string) {
+  if (kind === "thinking") {
+    return null;
+  }
+
+  const normalizedKind = kind.toLowerCase();
+  const treatAsText = /delta|output|assistant|response|content|message|stdout/.test(normalizedKind);
+
+  if (typeof payload === "string") {
+    return payload.trim() || null;
+  }
+
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const record = payload as Record<string, unknown>;
+    for (const key of ["delta", "content", "text", "message", "output", "chunk", "value"]) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim()) {
+        return treatAsText || key === "delta" ? value : null;
+      }
+    }
+  }
+
+  const trimmedFallback = fallback.trim();
+  if (!trimmedFallback) {
+    return null;
+  }
+
+  if (trimmedFallback.startsWith("{") || trimmedFallback.startsWith("[")) {
+    return null;
+  }
+
+  return treatAsText ? trimmedFallback : null;
 }
 
 function mapThread(row: AiThreadRow): AiThreadSummary {
@@ -223,7 +313,9 @@ function truncate(value: string, max = 160) {
 
 function buildPrompt(
   messages: Array<Pick<AiThreadMessage, "role" | "content">>,
-  context?: { pathname?: string | null; pageTitle?: string | null; pageSubtitle?: string | null; mode?: "ask" | "edit" }
+  context?: { pathname?: string | null; pageTitle?: string | null; pageSubtitle?: string | null; mode?: "ask" | "edit" },
+  portalApiBaseUrl?: string | null,
+  openApiReference?: string | null
 ) {
   const transcript = messages
     .map((message) => `${message.role.toUpperCase()}: ${message.content.trim()}`)
@@ -240,9 +332,28 @@ function buildPrompt(
     ? "Modo Edit: aja no codigo quando o pedido exigir mudancas. Faca as alteracoes necessarias, valide quando possivel e responda com um resumo objetivo do que mudou."
     : "Modo Ask: apenas responda, explique ou oriente. Nao altere arquivos nem execute acoes de modificacao.";
 
+  const portalAccessInstruction = portalApiBaseUrl
+    ? [
+        "Acesso autenticado ao portal esta disponivel para chamadas HTTP internas.",
+        `Use PORTAL_API_BASE_URL=${portalApiBaseUrl} como base das requests.`,
+        "Use PORTAL_API_TOKEN no header Authorization: Bearer quando precisar ler ou alterar dados do portal.",
+        "Nunca imprima o token e nao tente expor credenciais na resposta.",
+      ].join(" ")
+    : null;
+
+  const openApiInstruction = openApiReference
+    ? [
+        "Referencia oficial da API do portal em OpenAPI 3.0.",
+        "Consulte esta estrutura como fonte de verdade dos endpoints, parametros, bodies e respostas.",
+        `OPENAPI_JSON: ${openApiReference}`,
+      ].join("\n")
+    : null;
+
   return [
     DEFAULT_SYSTEM_PROMPT,
     contextLines.length > 0 ? `Contexto atual:\n${contextLines.join("\n")}` : null,
+    portalAccessInstruction,
+    openApiInstruction,
     transcript.length > 0 ? `Historico da conversa:\n${transcript}` : null,
     modeInstruction,
     "Responda ao ultimo pedido do usuario.",
@@ -281,6 +392,8 @@ async function runCodexCli(
     env: {
       ...process.env,
       CODEX_WORKSPACE_ROOT: options.cwd,
+      ...(options.portalApiBaseUrl ? { PORTAL_API_BASE_URL: options.portalApiBaseUrl } : {}),
+      ...(options.portalApiToken ? { PORTAL_API_TOKEN: options.portalApiToken } : {}),
     },
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -288,6 +401,7 @@ async function runCodexCli(
   let stdout = "";
   let stderr = "";
   const rawLines: string[] = [];
+  let stdoutBuffer = "";
 
   const closeWithAbort = () => {
     if (!child.killed) {
@@ -300,6 +414,60 @@ async function runCodexCli(
     }
   };
 
+  const emitProgress = (line: string) => {
+    if (!options.onProgress) {
+      return;
+    }
+
+    let payload: unknown = line;
+    let kind = "stdout";
+
+    try {
+      payload = JSON.parse(line);
+      if (
+        payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload) &&
+        typeof (payload as { type?: unknown }).type === "string"
+      ) {
+        kind = String((payload as { type: string }).type);
+      }
+    } catch {
+      kind = "stdout";
+    }
+
+    const text = extractProgressText(kind, payload, line);
+    if (!text) {
+      return;
+    }
+
+    void options.onProgress({
+      kind,
+      payload,
+      rawLine: line,
+      text,
+    });
+  };
+
+  function flushStdoutBuffer() {
+    while (true) {
+      const newlineIndex = stdoutBuffer.indexOf("\n");
+      if (newlineIndex < 0) {
+        break;
+      }
+
+      const line = stdoutBuffer.slice(0, newlineIndex).replace(/\r$/, "");
+      stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+
+      rawLines.push(trimmed);
+      emitProgress(trimmed);
+    }
+  }
+
   if (options.signal) {
     if (options.signal.aborted) {
       closeWithAbort();
@@ -311,11 +479,11 @@ async function runCodexCli(
   child.stdout.on("data", (chunk) => {
     const text = chunk.toString();
     stdout += text;
+    stdoutBuffer += text;
+    flushStdoutBuffer();
 
-    for (const line of text.split(/\r?\n/)) {
-      if (line.trim()) {
-        rawLines.push(line.trim());
-      }
+    if (text.endsWith("\n")) {
+      return;
     }
   });
 
@@ -329,6 +497,12 @@ async function runCodexCli(
     child.once("error", reject);
     child.once("close", (code, signal) => resolve({ code, signal }));
   });
+
+  const remainder = stdoutBuffer.trim();
+  if (remainder) {
+    rawLines.push(remainder);
+    emitProgress(remainder);
+  }
 
   const lastMessage = await fs.readFile(outputPath, "utf8").catch(() => "");
 
@@ -366,6 +540,37 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
       bypassSandbox: shouldBypassSandbox(),
     }));
   const activeRuns = new Map<number, RunHandle>();
+  const threadStreamListeners = new Map<number, Set<ThreadStreamListener>>();
+  const portalApiBaseUrl = resolvePortalApiBaseUrl();
+
+  function emitThreadStreamEvent(event: AiThreadStreamEvent) {
+    const listeners = threadStreamListeners.get(event.threadId);
+    if (!listeners || listeners.size === 0) {
+      return;
+    }
+
+    for (const listener of listeners) {
+      listener(event);
+    }
+  }
+
+  function subscribeThreadStream(threadId: number, listener: ThreadStreamListener) {
+    const listeners = threadStreamListeners.get(threadId) ?? new Set<ThreadStreamListener>();
+    listeners.add(listener);
+    threadStreamListeners.set(threadId, listeners);
+
+    return () => {
+      const current = threadStreamListeners.get(threadId);
+      if (!current) {
+        return;
+      }
+
+      current.delete(listener);
+      if (current.size === 0) {
+        threadStreamListeners.delete(threadId);
+      }
+    };
+  }
 
   async function assertThreadBelongsToUser(userId: number, threadId: number) {
     const result = await database.query<AiThreadRow>(
@@ -559,6 +764,71 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
       throw new Error("A conversa ja possui uma geracao em andamento.");
     }
 
+    const codexPortalToken = await ensureCodexApiToken(database, userId);
+    let assistantMessageId: number | null = null;
+    let assistantStreamContent = "";
+    let assistantWriteChain = Promise.resolve();
+
+    async function upsertAssistantDraft(content: string, metadata: Record<string, unknown>) {
+      const trimmedContent = content.trim();
+      if (!trimmedContent) {
+        return;
+      }
+
+      if (!assistantMessageId) {
+        const assistantMessageResult = await database.query<AiMessageRow>(
+          `INSERT INTO ai_messages (thread_id, run_id, role, content, metadata_json, created_at)
+           VALUES ($1, $2, 'assistant', $3, $4::jsonb, NOW())
+           RETURNING id, thread_id, run_id, role, content, metadata_json, created_at`,
+          [threadId, null, trimmedContent, JSON.stringify(metadata)]
+        );
+
+        const assistantMessage = assistantMessageResult.rows[0] as AiMessageRow | undefined;
+        if (!assistantMessage) {
+          throw new Error("Nao foi possivel criar a resposta parcial do Codex.");
+        }
+        assistantMessageId = assistantMessage.id;
+        emitThreadStreamEvent({
+          type: "draft",
+          threadId,
+          payload: {
+            message: mapMessage(assistantMessage),
+            partial: true,
+          },
+          createdAt: assistantMessage.created_at,
+        });
+        return;
+      }
+
+      const updatedAssistantMessageResult = await database.query<AiMessageRow>(
+        `UPDATE ai_messages
+         SET content = $1,
+             metadata_json = $2::jsonb
+         WHERE id = $3
+         RETURNING id, thread_id, run_id, role, content, metadata_json, created_at`,
+        [trimmedContent, JSON.stringify(metadata), assistantMessageId]
+      );
+
+      const updatedAssistantMessage = updatedAssistantMessageResult.rows[0] as AiMessageRow | undefined;
+      if (updatedAssistantMessage) {
+        emitThreadStreamEvent({
+          type: "draft",
+          threadId,
+          payload: {
+            message: mapMessage(updatedAssistantMessage),
+            partial: true,
+          },
+          createdAt: updatedAssistantMessage.created_at,
+        });
+      }
+    }
+
+    function queueAssistantDraft(nextContent: string, metadata: Record<string, unknown>) {
+      assistantStreamContent = nextContent;
+      assistantWriteChain = assistantWriteChain.then(() => upsertAssistantDraft(nextContent, metadata));
+      return assistantWriteChain;
+    }
+
     const userMessageResult = await database.query<AiMessageRow>(
       `INSERT INTO ai_messages (thread_id, run_id, role, content, metadata_json, created_at)
        VALUES ($1, NULL, 'user', $2, $3::jsonb, NOW())
@@ -570,7 +840,9 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
     const messagesBeforeRun = await listMessages(threadId);
     const prompt = buildPrompt(
       messagesBeforeRun.map((message) => ({ role: message.role, content: message.content })),
-      context
+      context,
+      portalApiBaseUrl,
+      OPENAPI_REFERENCE
     );
 
     const runResult = await database.query<AiRunRow>(
@@ -599,11 +871,25 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
     let interrupted = false;
 
     try {
-    const runnerResult = await runner(prompt, {
+      const runnerResult = await runner(prompt, {
         cwd: workspaceRoot,
         signal: combinedController.signal,
         promptLabel: truncate(content, 80),
+        portalApiBaseUrl,
+        portalApiToken: codexPortalToken.token,
+        onProgress: async ({ kind, payload, rawLine, text }) => {
+          const nextText = assistantStreamContent ? `${assistantStreamContent}${text}` : text;
+          await queueAssistantDraft(nextText, {
+            stream: true,
+            kind,
+            partial: true,
+            rawLine: truncate(rawLine, 500),
+            payload,
+          });
+        },
       });
+
+      await assistantWriteChain;
 
       for (const rawLine of runnerResult.rawLines) {
         let payload: unknown = rawLine;
@@ -629,24 +915,48 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
       }
 
       const assistantContent = truncate(runnerResult.lastMessage || runnerResult.stdout || "Resposta vazia", 4000);
-      const assistantMessageResult = await database.query<AiMessageRow>(
-        `INSERT INTO ai_messages (thread_id, run_id, role, content, metadata_json, created_at)
-         VALUES ($1, $2, 'assistant', $3, $4::jsonb, NOW())
-         RETURNING id, thread_id, run_id, role, content, metadata_json, created_at`,
-        [
-          threadId,
-          run.id,
-          assistantContent,
-          JSON.stringify({
-            exitCode: runnerResult.exitCode,
-            signal: runnerResult.signal,
-            stdout: truncate(runnerResult.stdout, 8000),
-            stderr: truncate(runnerResult.stderr, 8000),
-          }),
-        ]
-      );
+      if (!assistantMessageId) {
+        const assistantMessageResult = await database.query<AiMessageRow>(
+          `INSERT INTO ai_messages (thread_id, run_id, role, content, metadata_json, created_at)
+           VALUES ($1, $2, 'assistant', $3, $4::jsonb, NOW())
+           RETURNING id, thread_id, run_id, role, content, metadata_json, created_at`,
+          [
+            threadId,
+            run.id,
+            assistantContent,
+            JSON.stringify({
+              exitCode: runnerResult.exitCode,
+              signal: runnerResult.signal,
+              stdout: truncate(runnerResult.stdout, 8000),
+              stderr: truncate(runnerResult.stderr, 8000),
+            }),
+          ]
+        );
 
-      assistantMessage = mapMessage(assistantMessageResult.rows[0] as AiMessageRow);
+        assistantMessage = mapMessage(assistantMessageResult.rows[0] as AiMessageRow);
+        assistantMessageId = assistantMessage.id;
+      } else {
+        const assistantMessageResult = await database.query<AiMessageRow>(
+          `UPDATE ai_messages
+           SET run_id = $1,
+               content = $2,
+               metadata_json = $3::jsonb
+           WHERE id = $4
+           RETURNING id, thread_id, run_id, role, content, metadata_json, created_at`,
+          [
+            run.id,
+            assistantContent,
+            JSON.stringify({
+              exitCode: runnerResult.exitCode,
+              signal: runnerResult.signal,
+              stdout: truncate(runnerResult.stdout, 8000),
+              stderr: truncate(runnerResult.stderr, 8000),
+            }),
+            assistantMessageId,
+          ]
+        );
+        assistantMessage = mapMessage(assistantMessageResult.rows[0] as AiMessageRow);
+      }
 
       const nextSummary = extractLastAssistantMessage(
         [userMessage, assistantMessage].filter(Boolean) as AiThreadMessage[],
@@ -673,6 +983,20 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
         throw new Error("Nao foi possivel atualizar a conversa.");
       }
 
+      emitThreadStreamEvent({
+        type: "done",
+        threadId,
+        payload: {
+          thread: updatedThread,
+          userMessage,
+          assistantMessage,
+          run,
+          events,
+          interrupted,
+        },
+        createdAt: new Date().toISOString(),
+      });
+
       return {
         thread: updatedThread,
         userMessage,
@@ -682,6 +1006,7 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
         interrupted,
       };
     } catch (error) {
+      await assistantWriteChain.catch(() => undefined);
       interrupted = combinedController.signal.aborted || (error instanceof Error && /aborted/i.test(error.message));
 
       await database.query(
@@ -704,6 +1029,16 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
         summary: interrupted ? thread.summary : truncate(error instanceof Error ? error.message : "Falha na execucao", 160),
         status: "idle",
         last_message_at: new Date().toISOString(),
+      });
+
+      emitThreadStreamEvent({
+        type: "error",
+        threadId,
+        payload: {
+          message: error instanceof Error ? error.message : "Falha na execucao",
+          interrupted,
+        },
+        createdAt: new Date().toISOString(),
       });
 
       throw error;
@@ -754,6 +1089,7 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
     getThread,
     interruptThread,
     listThreads,
+    subscribeThreadStream,
     sendMessage,
   };
 }

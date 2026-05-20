@@ -85,6 +85,7 @@ export function apiTokensRouter(
       `SELECT public_id, user_id, name, description, scopes, expires_at, revoked_at, last_used_at, created_at
        FROM api_tokens
        WHERE user_id = $1
+         AND COALESCE(kind, 'integration') = 'integration'
        ORDER BY created_at DESC`,
       [userId]
     );
@@ -132,8 +133,8 @@ export function apiTokensRouter(
 
     const result = await db.query<ApiTokenRow>(
       `INSERT INTO api_tokens
-         (public_id, user_id, name, description, scopes, token_hash, expires_at, created_at, revoked_at, last_used_at)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, NOW(), NULL, NULL)
+         (public_id, user_id, name, description, scopes, token_hash, expires_at, created_at, revoked_at, last_used_at, kind)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, NOW(), NULL, NULL, 'integration')
        RETURNING public_id, user_id, name, description, scopes, expires_at, revoked_at, last_used_at, created_at`,
       [
         issued.publicId,
@@ -206,6 +207,7 @@ export function apiTokensRouter(
       `SELECT public_id, user_id, name, description, scopes, expires_at, revoked_at, last_used_at, created_at, token_hash
        FROM api_tokens
        WHERE public_id = $1 AND user_id = $2
+         AND COALESCE(kind, 'integration') = 'integration'
        LIMIT 1`,
       [publicId, currentUserId]
     );
@@ -234,6 +236,7 @@ export function apiTokensRouter(
            scopes = $3::jsonb,
            expires_at = $4
        WHERE public_id = $5 AND user_id = $6
+         AND COALESCE(kind, 'integration') = 'integration'
        RETURNING public_id, user_id, name, description, scopes, expires_at, revoked_at, last_used_at, created_at`,
       [
         nextName,
@@ -267,6 +270,7 @@ export function apiTokensRouter(
       `SELECT public_id, user_id, name, description, scopes, expires_at, revoked_at, last_used_at, created_at
        FROM api_tokens
        WHERE public_id = $1 AND user_id = $2
+         AND COALESCE(kind, 'integration') = 'integration'
        LIMIT 1`,
       [publicId, currentUserId]
     );
@@ -280,6 +284,7 @@ export function apiTokensRouter(
       `UPDATE api_tokens
        SET revoked_at = NOW()
        WHERE public_id = $1 AND user_id = $2
+         AND COALESCE(kind, 'integration') = 'integration'
        RETURNING public_id, user_id, name, description, scopes, expires_at, revoked_at, last_used_at, created_at`,
       [publicId, currentUserId]
     );
