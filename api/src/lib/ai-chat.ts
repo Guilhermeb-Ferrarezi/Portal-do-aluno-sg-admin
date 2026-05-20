@@ -223,7 +223,7 @@ function truncate(value: string, max = 160) {
 
 function buildPrompt(
   messages: Array<Pick<AiThreadMessage, "role" | "content">>,
-  context?: { pathname?: string | null; pageTitle?: string | null; pageSubtitle?: string | null }
+  context?: { pathname?: string | null; pageTitle?: string | null; pageSubtitle?: string | null; mode?: "ask" | "edit" }
 ) {
   const transcript = messages
     .map((message) => `${message.role.toUpperCase()}: ${message.content.trim()}`)
@@ -233,13 +233,19 @@ function buildPrompt(
     `Pagina atual: ${context?.pageTitle?.trim() || "Painel admin"}`,
     context?.pathname?.trim() ? `Route: ${context.pathname.trim()}` : null,
     context?.pageSubtitle?.trim() ? `Subtitulo: ${context.pageSubtitle.trim()}` : null,
+    `Modo: ${context?.mode === "edit" ? "Edit" : "Ask"}`,
   ].filter((line): line is string => Boolean(line));
+
+  const modeInstruction = context?.mode === "edit"
+    ? "Modo Edit: aja no codigo quando o pedido exigir mudancas. Faca as alteracoes necessarias, valide quando possivel e responda com um resumo objetivo do que mudou."
+    : "Modo Ask: apenas responda, explique ou oriente. Nao altere arquivos nem execute acoes de modificacao.";
 
   return [
     DEFAULT_SYSTEM_PROMPT,
     contextLines.length > 0 ? `Contexto atual:\n${contextLines.join("\n")}` : null,
     transcript.length > 0 ? `Historico da conversa:\n${transcript}` : null,
-    "Responda ao ultimo pedido do usuario. Se houver necessidade de analise no codigo, descreva o que faria e quais pontos verificar.",
+    modeInstruction,
+    "Responda ao ultimo pedido do usuario.",
   ]
     .filter((part): part is string => Boolean(part))
     .join("\n\n");
@@ -545,7 +551,7 @@ export function createAiChatService(options: AiChatServiceOptions = {}) {
     userId: number,
     threadId: number,
     content: string,
-    context?: { pathname?: string | null; pageTitle?: string | null; pageSubtitle?: string | null },
+    context?: { pathname?: string | null; pageTitle?: string | null; pageSubtitle?: string | null; mode?: "ask" | "edit" },
     signal?: AbortSignal,
   ): Promise<AiSendMessageResult> {
     const thread = await assertThreadBelongsToUser(userId, threadId);

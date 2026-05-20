@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, Loader2, Maximize2, Plus, RefreshCcw, Send, Sparkles, Square, X } from "lucide-react";
+import { ChevronDown, Loader2, Maximize2, MessageCircle, PencilLine, Plus, RefreshCcw, Send, Sparkles, Square, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,6 +35,7 @@ const PANEL_MIN_WIDTH = 380;
 const PANEL_MAX_WIDTH = 760;
 const PANEL_DEFAULT_WIDTH = 520;
 const AUTH_STATUS_POLL_MS = 3000;
+type CodexComposerMode = "ask" | "edit";
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return "agora";
@@ -108,6 +109,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
   const [interrupting, setInterrupting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [composer, setComposer] = React.useState("");
+  const [composerMode, setComposerMode] = React.useState<CodexComposerMode>("ask");
   const [panelWidth, setPanelWidth] = React.useState(() => {
     if (typeof window === "undefined") return PANEL_DEFAULT_WIDTH;
 
@@ -405,7 +407,10 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
         threadId,
         {
           content,
-          context,
+          context: {
+            ...context,
+            mode: composerMode,
+          },
         },
         abortController.signal
       );
@@ -766,7 +771,7 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
                     <div
                       key={message.id}
                       className={cn(
-                        "max-w-[92%] rounded-[24px] border px-4 py-3 shadow-[0_10px_30px_-24px_rgba(0,0,0,0.55)]",
+                        "min-w-0 max-w-[92%] overflow-hidden rounded-[24px] border px-4 py-3 shadow-[0_10px_30px_-24px_rgba(0,0,0,0.55)]",
                         message.role === "user" ? "ml-auto" : "mr-auto",
                         messageTone(message.role)
                       )}
@@ -775,7 +780,9 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
                         <span>{message.role}</span>
                         <span>{formatDateTime(message.createdAt)}</span>
                       </div>
-                      <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6">{message.content}</pre>
+                      <pre className="min-w-0 whitespace-pre-wrap break-words break-all font-sans text-sm leading-6 [overflow-wrap:anywhere]">
+                        {message.content}
+                      </pre>
                     </div>
                   ))}
 
@@ -791,49 +798,86 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
           </ScrollArea>
 
           <div className="border-t border-white/5 px-5 py-4">
-            <div className="rounded-[28px] border border-border/70 bg-background/55 p-3 shadow-[0_14px_40px_-30px_rgba(0,0,0,0.65)]">
-              <textarea
-                ref={textareaRef}
-                value={composer}
-                onChange={(event) => setComposer(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void handleSendMessage();
-                  }
-                }}
-                placeholder="O que voce quer perguntar ao Codex?"
-                className="min-h-28 w-full resize-none rounded-[22px] border border-border/70 bg-[rgba(7,10,18,0.55)] px-4 py-3 text-sm leading-6 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/25 focus:ring-4 focus:ring-primary/10"
-                disabled={sending || !codexAuthenticated}
-              />
+            <div className="rounded-[24px] border border-white/10 bg-[rgba(9,10,12,0.92)] p-3 shadow-[0_14px_40px_-30px_rgba(0,0,0,0.75)] focus-within:border-white/20 focus-within:ring-4 focus-within:ring-white/5">
+              <div className="flex flex-col">
+                <textarea
+                  ref={textareaRef}
+                  value={composer}
+                  onChange={(event) => setComposer(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void handleSendMessage();
+                    }
+                  }}
+                  placeholder="O que voce quer perguntar ao Codex?"
+                  className="max-h-28 min-h-14 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/70"
+                  disabled={sending || !codexAuthenticated}
+                />
 
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="text-xs text-muted-foreground">
-                  {codexAuthenticated ? "Enter envia, Shift+Enter quebra linha." : "Faça login no Codex para enviar mensagens."}
-                </div>
-                <div className="flex items-center gap-2">
-                  {sending && codexAuthenticated ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => void handleInterrupt()}
-                      disabled={interrupting}
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 rounded-full border border-white/10 bg-white/5 px-3 text-xs text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                        disabled={!codexAuthenticated || sending}
+                      >
+                        {composerMode === "edit" ? <PencilLine data-icon="inline-start" /> : <MessageCircle data-icon="inline-start" />}
+                        {composerMode === "edit" ? "Edit" : "Ask"}
+                        <ChevronDown data-icon="inline-end" className="ml-0.5 size-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      container={dropdownContainerRef.current}
+                      className="z-[70] w-48 rounded-[18px] p-1.5"
                     >
-                      {interrupting ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Square data-icon="inline-start" />}
-                      {interrupting ? "Interrompendo..." : "Interromper"}
-                    </Button>
-                  ) : null}
+                      <DropdownMenuItem
+                        className="cursor-pointer rounded-xl px-3 py-2 text-sm"
+                        onClick={() => setComposerMode("ask")}
+                      >
+                        <MessageCircle data-icon="inline-start" />
+                        Ask
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer rounded-xl px-3 py-2 text-sm"
+                        onClick={() => setComposerMode("edit")}
+                      >
+                        <PencilLine data-icon="inline-start" />
+                        Edit
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon-sm"
+                    className="size-8 rounded-full bg-primary text-primary-foreground shadow-[0_10px_28px_-16px_rgba(0,0,0,0.7)] hover:bg-[color-mix(in_srgb,var(--primary)_88%,white_12%)]"
+                    title="Enviar"
                     onClick={() => void handleSendMessage()}
                     disabled={!codexAuthenticated || !composer.trim() || sending}
                   >
                     {sending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Send data-icon="inline-start" />}
-                    {sending ? "Enviando..." : "Enviar"}
                   </Button>
                 </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-end gap-2">
+                {sending && codexAuthenticated ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void handleInterrupt()}
+                    disabled={interrupting}
+                  >
+                    {interrupting ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Square data-icon="inline-start" />}
+                    {interrupting ? "Interrompendo..." : "Interromper"}
+                  </Button>
+                ) : null}
               </div>
             </div>
           </div>

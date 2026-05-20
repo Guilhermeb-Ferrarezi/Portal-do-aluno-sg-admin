@@ -47,6 +47,7 @@ export type AiSendMessageContext = {
   pathname?: string | null;
   pageTitle?: string | null;
   pageSubtitle?: string | null;
+  mode?: "ask" | "edit";
 };
 
 export type CodexDeviceAuthChallenge = {

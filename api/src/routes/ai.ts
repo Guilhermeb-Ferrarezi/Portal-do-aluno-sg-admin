@@ -17,6 +17,7 @@ const sendMessageSchema = z.object({
       pathname: z.string().trim().max(500).nullable().optional(),
       pageTitle: z.string().trim().max(200).nullable().optional(),
       pageSubtitle: z.string().trim().max(300).nullable().optional(),
+      mode: z.enum(["ask", "edit"]).optional(),
     })
     .optional(),
 });
