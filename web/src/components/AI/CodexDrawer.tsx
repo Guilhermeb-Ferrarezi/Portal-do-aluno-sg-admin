@@ -1,5 +1,8 @@
 import React from "react";
 import { ChevronDown, Loader2, Maximize2, MessageCircle, PencilLine, Plus, RefreshCcw, Send, Sparkles, Square, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -86,6 +89,68 @@ function getStatusLabel(status: string | null | undefined) {
   if (status === "interrupted") return "Interrompida";
   if (status === "failed") return "Falha";
   return status;
+}
+
+function CodexMessageContent({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeHighlight]}
+      components={{
+        p: ({ children }) => <p className="m-0 whitespace-pre-wrap">{children}</p>,
+        strong: ({ children }) => <strong className="font-extrabold text-foreground">{children}</strong>,
+        em: ({ children }) => <em className="text-muted-foreground">{children}</em>,
+        pre: ({ children }) => (
+          <pre className="max-w-full overflow-x-auto rounded-2xl border border-white/10 bg-[#080b12] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            {children}
+          </pre>
+        ),
+        code: ({ className, children, ...props }) => (
+          <code
+            className={cn(
+              className,
+              className
+                ? "block min-w-max whitespace-pre bg-transparent font-mono text-[0.82rem] leading-7 text-[#d7e1f5] [tab-size:2]"
+                : "rounded-md border border-white/10 bg-white/[0.08] px-1.5 py-0.5 font-mono text-[0.88em] font-semibold text-[#f4d47c]"
+            )}
+            {...props}
+          >
+            {children}
+          </code>
+        ),
+        table: ({ children }) => (
+          <div className="max-w-full overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full min-w-[26rem] border-collapse text-[0.82rem] [&_tbody_tr:last-child_td]:border-b-0">{children}</table>
+          </div>
+        ),
+        th: ({ children }) => (
+          <th className="border-b border-white/10 bg-white/[0.06] px-3 py-2.5 text-left align-top font-extrabold text-foreground">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="border-b border-white/[0.08] px-3 py-2.5 align-top">
+            {children}
+          </td>
+        ),
+        ul: ({ children }) => <ul className="m-0 list-disc pl-5">{children}</ul>,
+        ol: ({ children }) => <ol className="m-0 list-decimal pl-5">{children}</ol>,
+        li: ({ children }) => <li className="mt-1 first:mt-0">{children}</li>,
+        blockquote: ({ children }) => (
+          <blockquote className="m-0 border-l-4 border-primary/70 pl-3 text-muted-foreground">
+            {children}
+          </blockquote>
+        ),
+        a: ({ children, href }) => (
+          <a href={href} target="_blank" rel="noreferrer" className="font-bold text-primary underline underline-offset-4">
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 export type CodexDrawerProps = {
@@ -780,9 +845,18 @@ export default function CodexDrawer({ open, onOpenChange, context }: CodexDrawer
                         <span>{message.role}</span>
                         <span>{formatDateTime(message.createdAt)}</span>
                       </div>
-                      <pre className="min-w-0 whitespace-pre-wrap break-words break-all font-sans text-sm leading-6 [overflow-wrap:anywhere]">
-                        {message.content}
-                      </pre>
+                      <div
+                        className={cn(
+                          "min-w-0 space-y-3 text-sm leading-6 [overflow-wrap:anywhere]",
+                          "[&_.hljs-attr]:text-[#c3e88d] [&_.hljs-built_in]:text-[#c792ea] [&_.hljs-comment]:text-[#6f7b92] [&_.hljs-comment]:italic",
+                          "[&_.hljs-function]:text-[#82aaff] [&_.hljs-keyword]:text-[#c792ea] [&_.hljs-literal]:text-[#f78c6c]",
+                          "[&_.hljs-meta]:text-[#89ddff] [&_.hljs-number]:text-[#f78c6c] [&_.hljs-operator]:text-[#89ddff]",
+                          "[&_.hljs-punctuation]:text-[#89ddff] [&_.hljs-selector-tag]:text-[#c792ea] [&_.hljs-string]:text-[#c3e88d]",
+                          "[&_.hljs-symbol]:text-[#c3e88d] [&_.hljs-template-variable]:text-[#ffcb6b] [&_.hljs-title]:text-[#82aaff] [&_.hljs-variable]:text-[#ffcb6b]"
+                        )}
+                      >
+                        <CodexMessageContent content={message.content} />
+                      </div>
                     </div>
                   ))}
 
