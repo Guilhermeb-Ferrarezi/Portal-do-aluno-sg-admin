@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  GraduationCap,
   X,
   Home,
   PenLine,
