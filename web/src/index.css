@@ -404,3 +404,128 @@ input:focus, textarea:focus, select:focus {
 :root[data-theme="dark"] .content {
   background: var(--bg);
 }
+
+/* ---------- UX: rolagem suave global ---------- */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- UX: focus-visible rings consistentes ---------- */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--primary, #6e56ff);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline-offset: 3px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-offset: 1px;
+}
+
+/* ---------- UX: scrollbar customizada ---------- */
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(110, 86, 255, 0.35) transparent;
+  }
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(110, 86, 255, 0.25);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(110, 86, 255, 0.5);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+/* ---------- UX: shimmer animation ---------- */
+@keyframes ux-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ux-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: ux-shimmer 1.4s linear infinite;
+}
+
+/* ---------- Print: ocultar chrome navegacional ---------- */
+@media print {
+  aside,
+  header,
+  nav,
+  [role="dialog"],
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #ccc !important;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #555 !important;
+  }
+}
