@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { setAuthUser, type AuthUser, type Role } from "./auth";
-import { API_BASE_URL } from "@/services/api/core";
 import { appRoutes } from "@/router/routes";
 import { connectPresenceSocket } from "@/services/presenceSocket";
 
 const AUTH_ORIGIN = "https://auth.santos-tech.com";
+const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL as string | undefined ?? "https://api.santos-tech.com";
 
 type Status = "checking" | "ok" | "forbidden";
 
@@ -15,7 +15,7 @@ export default function ProtectedRoute({ allowedRoles }: { allowedRoles?: Role[]
 
   useEffect(() => {
     const redirectUrl = window.location.href;
-    fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" })
+    fetch(`${AUTH_API_URL}/auth/me`, { credentials: "include" })
       .then((res) => {
         if (res.status === 401 || res.status === 403) {
           window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(redirectUrl)}`);
