@@ -1156,6 +1156,22 @@ export function authRouter(
     }
   });
 
+  router.get("/me", authGuard(), (req, res) => {
+    const user = (req as AuthRequest).user!;
+    return res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username ?? null,
+        name: user.name,
+        role: user.role,
+        avatarUrl: user.avatarUrl ?? null,
+        suspendedAt: user.suspendedAt ?? null,
+        permissions: user.permissions ?? null,
+      },
+    });
+  });
+
   return router;
 }
 
