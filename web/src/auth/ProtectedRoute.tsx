@@ -56,13 +56,8 @@ export default function ProtectedRoute({ allowedRoles }: { allowedRoles?: Role[]
   }
 
   if (allowedRoles && user) {
-    const roleNames: Role[] = [];
-    if (user.role === 3 || user.role === 4) roleNames.push("admin");
-    if (user.role === 2) roleNames.push("professor");
-    if (user.role === 1) roleNames.push("aluno");
-
     const hasAllowed = allowedRoles.some((r) => {
-      if (r === "admin") return user.role === 3 || user.role === 4;
+      if (r === "admin") return user.role === 3;
       if (r === "professor") return user.role === 2;
       return false;
     });
