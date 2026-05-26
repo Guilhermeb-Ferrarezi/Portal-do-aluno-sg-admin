@@ -1,131 +1,142 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { pool } from "../db";
-import { authenticateCodexPortalToken } from "../services/codexTokens";
+import { Redis } from "ioredis";
 
-export type NumericRole = 1 | 2 | 3;
-export type LegacyRole = "aluno" | "professor" | "admin";
-export type Role = NumericRole | LegacyRole;
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-export type JwtPayload = {
-  sub?: string;
-  usuario?: string;
-  role?: NumericRole | LegacyRole | string | number;
-  iat?: number;
-  exp?: number;
-} & Record<string, unknown>;
+export type SantosUser = {
+  id: string;
+  email: string;
+  username: string | null;
+  name: string;
+  role: 1 | 2 | 3 | 4;
+  customRoleId: string | null;
+  avatarUrl: string | null;
+  suspendedAt: string | null;
+  permissions?: Record<string, string[]>;
+};
 
-export type AuthUser = {
-  sub: string;
-  usuario: string;
-  role: LegacyRole;
-  roleId: NumericRole;
+// Compat aliases para rotas legadas que leem req.user.roleId / req.user.usuario
+export type AuthUser = SantosUser & {
+  sub: string;          // = id
+  usuario: string;      // = email
+  roleId: 1 | 2 | 3;   // clamped — role 4 (Custom) retorna role efetivo via permissions
   iat: number;
   exp: number;
 };
 
 export type AuthRequest = Request & { user?: AuthUser };
 
-const NAME_IDENTIFIER_CLAIMS = [
-  "sub",
-  "nameid",
-  "nameidentifier",
-  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
-];
+// ─── Redis ────────────────────────────────────────────────────────────────────
 
-const EMAIL_CLAIMS = [
-  "usuario",
-  "email",
-  "unique_name",
-  "upn",
-  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
-];
+const CACHE_TTL_SECONDS = 30;
+const cacheKey = (userId: string) => `auth:session:${userId}`;
 
-const ROLE_CLAIMS = [
-  "role",
-  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-];
-
-function pickFirstString(payload: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
+let _redis: Redis | null = null;
+function getRedis(): Redis {
+  if (!_redis) {
+    const url = process.env.REDIS_URL;
+    if (!url) throw new Error("REDIS_URL não configurado");
+    _redis = new Redis(url, { lazyConnect: false, enableOfflineQueue: false });
   }
-
-  return null;
+  return _redis;
 }
 
-function parseNumericRole(value: unknown): NumericRole | null {
-  if (value === 1 || value === 2 || value === 3) return value;
-  if (value === "1") return 1;
-  if (value === "2") return 2;
-  if (value === "3") return 3;
-  if (value === "aluno") return 1;
-  if (value === "professor") return 2;
-  if (value === "admin") return 3;
-  return null;
-}
-
-function toLegacyRole(role: NumericRole): LegacyRole {
-  if (role === 1) return "aluno";
-  if (role === 2) return "professor";
-  return "admin";
-}
-
-export async function authenticateToken(token: string, jwtSecret: string): Promise<AuthUser | null> {
+async function getCached(userId: string): Promise<SantosUser | null> {
   try {
-    const rawPayload = jwt.verify(token, jwtSecret, {
-      algorithms: ["HS256"],
-    }) as JwtPayload;
-    if (!rawPayload || typeof rawPayload !== "object") {
-      return null;
-    }
-
-    const subFromToken = pickFirstString(rawPayload, NAME_IDENTIFIER_CLAIMS);
-    const usuarioFromToken = pickFirstString(rawPayload, EMAIL_CLAIMS);
-    const roleFromToken = ROLE_CLAIMS
-      .map((claimKey) => parseNumericRole(rawPayload[claimKey]))
-      .find((roleId): roleId is NumericRole => roleId !== null) ?? null;
-
-    if (!roleFromToken || !subFromToken || !usuarioFromToken) {
-      return null;
-    }
-
-    return {
-      sub: String(subFromToken),
-      usuario: String(usuarioFromToken),
-      role: toLegacyRole(roleFromToken),
-      roleId: roleFromToken,
-      iat: Number(rawPayload.iat ?? 0),
-      exp: Number(rawPayload.exp ?? 0),
-    };
+    const raw = await getRedis().get(cacheKey(userId));
+    return raw ? (JSON.parse(raw) as SantosUser) : null;
   } catch {
     return null;
   }
 }
 
-export function authGuard(jwtSecret: string) {
+async function setCache(user: SantosUser): Promise<void> {
+  try {
+    await getRedis().set(cacheKey(user.id), JSON.stringify(user), "EX", CACHE_TTL_SECONDS);
+  } catch {}
+}
+
+// ─── Auth service fetch ───────────────────────────────────────────────────────
+
+async function fetchFromAuthService(cookieToken: string): Promise<SantosUser | null> {
+  const apiUrl = process.env.SANTOS_TECH_API_URL;
+  if (!apiUrl) return null;
+  try {
+    const res = await fetch(`${apiUrl}/auth/me`, {
+      headers: { Cookie: `access_token=${cookieToken}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { user: SantosUser };
+    return data.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── JWT local validation ─────────────────────────────────────────────────────
+
+function extractUserId(token: string, secret: string): { sub: string; iat: number; exp: number } | null {
+  try {
+    const payload = jwt.verify(token, secret, { algorithms: ["HS256"] }) as jwt.JwtPayload;
+    if (!payload.sub) return null;
+    return { sub: payload.sub, iat: Number(payload.iat ?? 0), exp: Number(payload.exp ?? 0) };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Map to legacy shape ──────────────────────────────────────────────────────
+
+function toAuthUser(user: SantosUser, iat: number, exp: number): AuthUser {
+  return {
+    ...user,
+    sub: user.id,
+    usuario: user.email,
+    roleId: (Math.min(user.role, 3) as 1 | 2 | 3),
+    iat,
+    exp,
+  };
+}
+
+// ─── Middleware ────────────────────────────────────────────────────────────────
+
+export function authGuard(_legacySecret?: string) {
+  const secret = process.env.SANTOS_TECH_JWT_SECRET ?? process.env.JWT_SECRET ?? "";
+
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const header = req.headers.authorization;
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+    const cookieToken = (req.cookies?.access_token as string | undefined);
+    const bearerToken = req.headers.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.slice(7)
+      : null;
 
-    if (!token) return res.status(401).json({ message: "Token ausente" });
+    const token = cookieToken ?? bearerToken;
+    if (!token) return res.status(401).json({ code: "UNAUTHORIZED", message: "Não autenticado" });
 
-    const user = await authenticateToken(token, jwtSecret);
+    // 1. Valida JWT localmente — rápido, sem I/O
+    const jwtData = extractUserId(token, secret);
+    if (!jwtData) return res.status(401).json({ code: "UNAUTHORIZED", message: "Token inválido ou expirado" });
+
+    // 2. Tenta cache Redis
+    let user = await getCached(jwtData.sub);
+
+    // 3. Cache miss → busca no auth service e popula cache
     if (!user) {
-      const codexUser = await authenticateCodexPortalToken(token, pool);
-      if (!codexUser) {
-        return res.status(401).json({ message: "Token invalido ou expirado" });
+      if (!cookieToken) {
+        return res.status(401).json({ code: "UNAUTHORIZED", message: "Token inválido ou expirado" });
       }
-
-      req.user = codexUser;
-      return next();
+      user = await fetchFromAuthService(cookieToken);
+      if (!user) return res.status(401).json({ code: "UNAUTHORIZED", message: "Sessão inválida" });
+      await setCache(user);
     }
 
-    req.user = user;
+    // 4. Conta suspensa
+    if (user.suspendedAt) {
+      return res.status(403).json({ code: "ACCOUNT_SUSPENDED", message: "Conta suspensa" });
+    }
+
+    req.user = toAuthUser(user, jwtData.iat, jwtData.exp);
     return next();
   };
 }

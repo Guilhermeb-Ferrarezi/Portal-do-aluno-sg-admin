@@ -1,22 +1,52 @@
 import type { NextFunction, Response } from "express";
-import type { AuthRequest, LegacyRole, NumericRole, Role } from "./auth";
+import type { AuthRequest } from "./auth";
 
-function normalizeRole(value: Role): NumericRole {
-  if (value === 1 || value === "aluno") return 1;
-  if (value === 2 || value === "professor") return 2;
-  return 3;
+export type LegacyRole = "aluno" | "professor" | "admin";
+export type Role = LegacyRole | 1 | 2 | 3 | 4;
+
+function toNumeric(role: Role): 1 | 2 | 3 | 4 {
+  if (role === "aluno") return 1;
+  if (role === "professor") return 2;
+  if (role === "admin") return 3;
+  return role as 1 | 2 | 3 | 4;
 }
 
-export function requireRole(allowed: Array<Role | LegacyRole>) {
-  const allowedNumeric = allowed.map(normalizeRole);
+export function requireRole(allowed: Array<Role>) {
+  const allowedNumeric = allowed.map(toNumeric);
 
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    const roleId = req.user?.roleId;
+    const user = req.user;
+    if (!user) return res.status(401).json({ code: "UNAUTHORIZED", message: "Não autenticado" });
 
-    if (!roleId || !allowedNumeric.includes(roleId)) {
-      return res.status(403).json({ message: "Sem permissao" });
+    // Admin (3) passa qualquer verificação
+    if (user.role === 3) return next();
+
+    if (!allowedNumeric.includes(user.role as 1 | 2 | 3 | 4)) {
+      return res.status(403).json({ code: "FORBIDDEN", message: "Sem permissão" });
     }
 
+    return next();
+  };
+}
+
+export function requireScope(resource: string, action: string) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) return res.status(401).json({ code: "UNAUTHORIZED", message: "Não autenticado" });
+
+    // Admin tem tudo
+    if (user.role === 3) return next();
+
+    // Custom role: verifica permissions JSONB
+    if (user.role === 4) {
+      const allowed = user.permissions?.[resource] ?? [];
+      if (!allowed.includes(action)) {
+        return res.status(403).json({ code: "FORBIDDEN", message: "Escopo insuficiente" });
+      }
+      return next();
+    }
+
+    // Roles fixos: controle via requireRole
     return next();
   };
 }
