@@ -52,7 +52,7 @@ export function exerciciosRouter(jwtSecret: string) {
   // GET /exercicios - Listar todos os exercícios públicos
   router.get("/exercicios", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
-    const isAluno = req.user?.role === "aluno";
+    const isAluno = req.user?.role === 1;
     const userId = req.user?.sub;
 
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -305,7 +305,7 @@ export function exerciciosRouter(jwtSecret: string) {
 // GET /exercicios/daily-tasks - Lista somente tarefas diárias do banco
   router.get("/exercicios/daily-tasks", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
-    const isAluno = req.user?.role === "aluno";
+    const isAluno = req.user?.role === 1;
     const userId = req.user?.sub;
 
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -574,7 +574,7 @@ export function exerciciosRouter(jwtSecret: string) {
 // GET /exercicios/:id - Pegar detalhes de um exercício específico
   router.get("/exercicios/:id", authGuard(jwtSecret), async (req: AuthRequest, res) => {
     const schema = await getExerciseSchemaInfo();
-    const isAluno = req.user?.role === "aluno";
+    const isAluno = req.user?.role === 1;
     const { id } = req.params;
 
     if (!schema.hasExercicios) {

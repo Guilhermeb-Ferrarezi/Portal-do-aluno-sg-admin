@@ -477,7 +477,7 @@ export function submissoesRouter(jwtSecret: string) {
           FROM exercicios e
           WHERE e.id = $1 AND e.publicado = true AND (e.published_at IS NULL OR e.published_at <= NOW())`;
 
-        if (userRole === "aluno") {
+        if (userRole === 1) {
           const alunoParam = `$${params.length + 1}`;
           params.push(alunoId);
           query += ` AND (

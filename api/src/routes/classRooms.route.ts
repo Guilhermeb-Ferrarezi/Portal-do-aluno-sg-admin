@@ -125,7 +125,7 @@ async function canReadClass(classId: number, req: AuthRequest) {
   const user = req.user;
   if (!user) return false;
 
-  if (user.role !== "aluno") {
+  if (user.role !== 1) {
     return true;
   }
 
@@ -368,7 +368,7 @@ export function classRoomsRouter(jwtSecret: string) {
     }
 
     try {
-      const isAluno = req.user?.role === "aluno";
+      const isAluno = req.user?.role === 1;
       const result = await pool.query<DbRoomExerciseListRow>(
         `SELECT cr.id AS room_id,
                 cr.class_id AS room_class_id,

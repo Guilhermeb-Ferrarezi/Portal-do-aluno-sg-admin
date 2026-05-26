@@ -31,7 +31,7 @@ export type HttpRequestLogDocument = {
   user: {
     id: string | null;
     email: string | null;
-    role: string | null;
+    role: number | string | null;
   } | null;
   requestBody: unknown;
   responseBody: unknown;

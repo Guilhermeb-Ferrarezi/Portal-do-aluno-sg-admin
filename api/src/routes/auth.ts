@@ -994,7 +994,7 @@ export function authRouter(
 
         void trackAuthActivity({
           req,
-          actor: { id: String(currentUser.id), role: req.user.role },
+          actor: { id: String(currentUser.id), role: String(req.user.role) },
           action: "student_view_sso_start",
           metadata: authObservabilityMetadata(req, {
             source: "auth.student-view.start",
@@ -1013,7 +1013,7 @@ export function authRouter(
       } catch (error) {
         void trackAuthActivity({
           req,
-          actor: { id: req.user?.sub ?? null, role: req.user?.role },
+          actor: { id: req.user?.sub ?? null, role: req.user?.role != null ? String(req.user.role) : null },
           action: "student_view_sso_start_failed",
           metadata: authObservabilityMetadata(req, {
             source: "auth.student-view.start",

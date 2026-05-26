@@ -40,20 +40,22 @@ function resolveTokenSeed() {
   return seed;
 }
 
-function toLegacyRole(role: number): AuthUser["role"] {
-  if (role === 1) return "aluno";
-  if (role === 2) return "professor";
-  return "admin";
-}
-
 function toAuthUser(row: UserRow): AuthUser {
   const issuedAt = Math.floor(Date.now() / 1000);
+  const role = (Math.min(row.role, 4) as 1 | 2 | 3 | 4);
 
   return {
+    id: String(row.id),
+    email: row.email,
+    username: null,
+    name: row.name,
+    role,
+    customRoleId: null,
+    avatarUrl: null,
+    suspendedAt: null,
     sub: String(row.id),
     usuario: row.email,
-    role: toLegacyRole(row.role),
-    roleId: row.role as AuthUser["roleId"],
+    roleId: (Math.min(row.role, 3) as 1 | 2 | 3),
     iat: issuedAt,
     exp: issuedAt + 60 * 60 * 24,
   };

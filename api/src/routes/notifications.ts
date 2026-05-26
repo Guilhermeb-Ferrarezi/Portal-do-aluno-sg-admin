@@ -169,7 +169,7 @@ function resolveGatewayConfig() {
 
 async function resolveActor(req: ApiTokenAuthRequest) {
   const userId = resolveAuthenticatedUserId(req);
-  if (userId === null || !Number.isInteger(userId) || userId <= 0) {
+  if (userId === null || typeof userId !== 'number' || userId <= 0 || !Number.isInteger(userId)) {
     return {
       externalId: req.user?.sub ?? req.apiToken?.publicId ?? null,
       name: null,
