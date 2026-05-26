@@ -1,46 +1,29 @@
 export type Role = "admin" | "professor" | "aluno";
-type NumericRole = 1 | 2 | 3;
 
-type TokenPayload = {
-  sub?: string;
-  usuario?: string;
-  role?: Role | NumericRole | string | number;
-  iat?: number;
-  exp?: number;
+export type AuthUser = {
+  id: string;
+  email: string;
+  username: string | null;
+  name: string;
+  role: number;
+  avatarUrl: string | null;
+  suspendedAt: string | null;
+  permissions?: Record<string, string[]>;
 };
+
+// Module-level session state set after /auth/me check
+let _user: AuthUser | null = null;
 
 const AUTH_CHANGED_EVENT = "auth-changed";
 
-export function getToken(): string | null {
-  return localStorage.getItem("token");
+export function setAuthUser(user: AuthUser | null) {
+  _user = user;
+  if (user) localStorage.setItem("nome", user.name);
+  else localStorage.removeItem("nome");
 }
 
-export function setToken(token: string) {
-  localStorage.setItem("token", token);
-}
-
-export function getRefreshToken(): string | null {
-  return localStorage.getItem("refreshToken");
-}
-
-export function setRefreshToken(token: string) {
-  localStorage.setItem("refreshToken", token);
-}
-
-function decodeBase64Url(input: string): string {
-  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-  return atob(padded);
-}
-
-function parseTokenPayload(token: string): TokenPayload | null {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-    return JSON.parse(decodeBase64Url(payload));
-  } catch {
-    return null;
-  }
+export function getAuthUser(): AuthUser | null {
+  return _user;
 }
 
 export function normalizeRole(input: unknown): Role | null {
@@ -50,17 +33,27 @@ export function normalizeRole(input: unknown): Role | null {
   return null;
 }
 
-export function getTokenExpiryMs(token: string | null = getToken()): number | null {
-  if (!token) return null;
-  const payload = parseTokenPayload(token);
-  if (!payload || typeof payload.exp !== "number") return null;
-  return payload.exp * 1000;
+export function getRole(): Role | null {
+  return _user ? normalizeRole(_user.role) : null;
 }
 
-export function isTokenExpired(token: string | null = getToken(), now = Date.now()): boolean {
-  const exp = getTokenExpiryMs(token);
-  if (!exp) return false;
-  return exp <= now;
+export function getName(): string | null {
+  if (_user) return _user.name;
+  const n = localStorage.getItem("nome");
+  return n && n.trim().length > 0 ? n : null;
+}
+
+export function getUserId(): string | null {
+  return _user?.id ?? null;
+}
+
+export function isLoggedIn(): boolean {
+  return _user !== null;
+}
+
+export function hasRole(allowed: Role[]): boolean {
+  const role = getRole();
+  return !!role && allowed.includes(role);
 }
 
 export function onAuthChanged(handler: () => void) {
@@ -81,42 +74,7 @@ export function notifyAuthChanged() {
   }
 }
 
-export function getUserId(): string | null {
-  const token = getToken();
-  if (!token) return null;
-
-  const decoded = parseTokenPayload(token);
-  return typeof decoded?.sub === "string" ? decoded.sub : null;
-}
-
-export function getRole(): Role | null {
-  const token = getToken();
-  if (!token) return null;
-
-  const decoded = parseTokenPayload(token);
-  return normalizeRole(decoded?.role);
-}
-
-export function getName(): string | null {
-  const n = localStorage.getItem("nome");
-  return n && n.trim().length > 0 ? n : null;
-}
-
-export function isLoggedIn(): boolean {
-  const token = getToken();
-  if (token && token.length > 10 && !isTokenExpired(token)) return true;
-  return !!getRefreshToken();
-}
-
-export function hasRole(allowed: Role[]): boolean {
-  const role = getRole();
-  return !!role && allowed.includes(role);
-}
-
 export function logout() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("nome");
-  localStorage.removeItem("role");
+  setAuthUser(null);
   notifyAuthChanged();
 }

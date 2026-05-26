@@ -1,13 +1,5 @@
-import {
-  getToken,
-  isTokenExpired,
-  logout,
-  getRefreshToken,
-  setToken,
-  setRefreshToken,
-} from "../../auth/auth";
+import { logout } from "../../auth/auth";
 import { env } from "@/env";
-import { appRoutes } from "@/router/routes";
 
 export type UserRef = {
   id: string;
@@ -18,51 +10,13 @@ export type UserRef = {
 
 export const API_BASE_URL = env.apiUrl;
 
-let refreshInFlight: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  if (refreshInFlight) return refreshInFlight;
-
-  refreshInFlight = (async () => {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return null;
-
-    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!res.ok) return null;
-
-    const data = (await res.json()) as {
-      token?: string;
-      refreshToken?: string;
-    };
-
-    if (data.token) setToken(data.token);
-    if (data.refreshToken) setRefreshToken(data.refreshToken);
-
-    return data.token ?? null;
-  })().finally(() => {
-    refreshInFlight = null;
-  });
-
-  return refreshInFlight;
-}
-
-async function ensureAccessToken(): Promise<string | null> {
-  const token = getToken();
-  if (token && !isTokenExpired(token)) return token;
-
-  const refreshed = await refreshAccessToken();
-  return refreshed ?? null;
-}
+const AUTH_ORIGIN = "https://auth.santos-tech.com";
 
 export function handleUnauthorized(message: string): never {
   logout();
-  if (typeof window !== "undefined" && window.location.pathname !== appRoutes.login) {
-    window.location.assign(appRoutes.login);
+  if (typeof window !== "undefined") {
+    const redirectUrl = window.location.href;
+    window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(redirectUrl)}`);
   }
   throw new Error(message);
 }
@@ -72,16 +26,11 @@ export async function buildJsonHeaders(base?: HeadersInit) {
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const token = await ensureAccessToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   return headers;
 }
 
 export async function buildAuthHeaders(base?: HeadersInit) {
-  const headers = new Headers(base);
-  const token = await ensureAccessToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  return headers;
+  return new Headers(base);
 }
 
 export type UploadProgress = {
@@ -105,6 +54,7 @@ export async function uploadFormData<T>(path: string, body: FormData, options: U
     new Promise<T>((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open(method, `${API_BASE_URL}${path}`);
+      request.withCredentials = true;
 
       headers.forEach((value, key) => {
         request.setRequestHeader(key, value);
@@ -172,18 +122,10 @@ export async function uploadFormData<T>(path: string, body: FormData, options: U
     if (!(error instanceof Error) || error.name === "AbortError") {
       throw error;
     }
-
-    const shouldRetryUnauthorized = /401/.test(error.message);
-    if (!shouldRetryUnauthorized || path.startsWith("/auth/refresh")) {
-      throw error;
-    }
-
-    const refreshed = await refreshAccessToken();
-    if (!refreshed) {
+    if (error.name === "UnauthorizedUploadError") {
       handleUnauthorized(error.message);
     }
-
-    return executeRequest();
+    throw error;
   }
 }
 
@@ -197,22 +139,12 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
+    credentials: "include",
   });
 
   if (!res.ok) {
     const message = await parseError(res);
     if (res.status === 401) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed && !path.startsWith("/auth/refresh")) {
-        const retryHeaders = await buildJsonHeaders(options.headers);
-        const retry = await fetch(`${API_BASE_URL}${path}`, {
-          ...options,
-          headers: retryHeaders,
-        });
-        if (retry.ok) {
-          return (await retry.json()) as T;
-        }
-      }
       handleUnauthorized(message);
     }
     throw new Error(message);

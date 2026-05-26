@@ -1,19 +1,73 @@
+import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { getRole, hasRole, isLoggedIn } from "./auth";
-import type { Role } from "./auth";
+import { setAuthUser, type AuthUser, type Role } from "./auth";
+import { API_BASE_URL } from "@/services/api/core";
 import { appRoutes } from "@/router/routes";
+import { connectPresenceSocket } from "@/services/presenceSocket";
+
+const AUTH_ORIGIN = "https://auth.santos-tech.com";
+
+type Status = "checking" | "ok" | "forbidden";
 
 export default function ProtectedRoute({ allowedRoles }: { allowedRoles?: Role[] }) {
-  if (!isLoggedIn()) {
-    return <Navigate to={appRoutes.login} replace />;
+  const [status, setStatus] = useState<Status>("checking");
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    const redirectUrl = window.location.href;
+    fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(redirectUrl)}`);
+          return null;
+        }
+        if (!res.ok) throw new Error("auth_check_failed");
+        return res.json() as Promise<{ user: AuthUser }>;
+      })
+      .then((data) => {
+        if (!data) return;
+        setAuthUser(data.user);
+        setUser(data.user);
+        connectPresenceSocket();
+        setStatus("ok");
+      })
+      .catch(() => {
+        window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(redirectUrl)}`);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (status === "checking") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    );
   }
 
-  if (getRole() === "aluno") {
-    return <Navigate to={`${appRoutes.login}?access=admin-only`} replace />;
-  }
-
-  if (allowedRoles && !hasRole(allowedRoles)) {
+  if (status === "forbidden") {
     return <Navigate to={appRoutes.dashboard} replace />;
+  }
+
+  // Block student role from admin portal
+  if (user && user.role === 1) {
+    window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(window.location.origin)}`);
+    return null;
+  }
+
+  if (allowedRoles && user) {
+    const roleNames: Role[] = [];
+    if (user.role === 3 || user.role === 4) roleNames.push("admin");
+    if (user.role === 2) roleNames.push("professor");
+    if (user.role === 1) roleNames.push("aluno");
+
+    const hasAllowed = allowedRoles.some((r) => {
+      if (r === "admin") return user.role === 3 || user.role === 4;
+      if (r === "professor") return user.role === 2;
+      return false;
+    });
+
+    if (!hasAllowed) return <Navigate to={appRoutes.dashboard} replace />;
   }
 
   return <Outlet />;

@@ -2,10 +2,8 @@ import React from "react";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute";
-import Login from "./components/Login/Login";
 import { ToastContainer } from "./components/ToastContainer";
 import { ToastProvider } from "./contexts/ToastContext";
-import { useAuthSession } from "./hooks/useAuthSession";
 import { useTheme } from "./hooks/useTheme";
 import { usePrefersReducedMotion } from "./hooks/use-prefers-reduced-motion";
 import { appRoutes } from "./router/routes";
@@ -26,8 +24,6 @@ const NotificationsPage = React.lazy(() => import("./pages/Notifications"));
 const RankingNotasPage = React.lazy(() => import("./pages/RankingNotas"));
 const RankingPontosPage = React.lazy(() => import("./pages/RankingPontos"));
 const RankingEventosPage = React.lazy(() => import("./pages/RankingEventos"));
-const PasswordRecoveryPage = React.lazy(() => import("./pages/PasswordRecovery"));
-const SsoCallback = React.lazy(() => import("./pages/SsoCallback"));
 const TurmaDetail = React.lazy(() => import("./pages/TurmaDetail"));
 const TurmasPage = React.lazy(() => import("./pages/Turmas"));
 const VideoaulaBonusPage = React.lazy(() => import("./pages/VideoaulaBonus"));
@@ -66,10 +62,6 @@ function AnimatedRoutes() {
         className="min-h-screen"
       >
         <Routes location={location}>
-          <Route path={appRoutes.login} element={<Login />} />
-          <Route path={appRoutes.passwordRecovery} element={<PasswordRecoveryPage />} />
-          <Route path={appRoutes.authSso} element={<SsoCallback />} />
-
           <Route element={<ProtectedRoute />}>
             <Route element={<DashboardLayout />}>
               <Route path={appRoutes.dashboard} element={<Dashboard />} />
@@ -110,7 +102,6 @@ function AnimatedRoutes() {
 
 function AppContent() {
   useTheme();
-  useAuthSession();
 
   return (
     <React.Suspense fallback={<RouteFallback />}>
