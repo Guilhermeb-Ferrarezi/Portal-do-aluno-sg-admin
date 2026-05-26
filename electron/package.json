@@ -39,7 +39,7 @@
     "rcedit": "^4.0.1",
     "tsx": "^4.20.0",
     "typescript": "~5.9.3",
-    "wait-on": "^8.0.0"
+    "wait-on": "^9.0.10"
   },
   "build": {
     "appId": "com.santostech.painelportalsantostech.desktop",
