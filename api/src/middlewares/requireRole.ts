@@ -13,7 +13,6 @@ function toNumeric(role: Role): 1 | 2 | 3 | 4 {
 
 export function requireRole(allowed: Array<Role>) {
   const allowedNumeric = allowed.map(toNumeric);
-  const adminAllowed = allowedNumeric.includes(3);
 
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     const user = req.user;
@@ -22,8 +21,10 @@ export function requireRole(allowed: Array<Role>) {
     // Admin (3) passa qualquer verificação
     if (user.role === 3) return next();
 
-    // Custom role (4) tem acesso admin quando "admin" está na lista permitida
-    if (user.role === 4 && adminAllowed) return next();
+    // Custom role (4): acesso controlado exclusivamente via requireScope — não passa requireRole
+    if (user.role === 4) {
+      return res.status(403).json({ code: "FORBIDDEN", message: "Sem permissão" });
+    }
 
     if (!allowedNumeric.includes(user.role as 1 | 2 | 3 | 4)) {
       return res.status(403).json({ code: "FORBIDDEN", message: "Sem permissão" });
