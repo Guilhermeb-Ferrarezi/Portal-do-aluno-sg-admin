@@ -1,11 +1,9 @@
 import { Router } from "express";
 import crypto from "crypto";
 import {
-  authenticateToken,
+  authGuard,
   type AuthRequest,
   type AuthUser,
-  type LegacyRole,
-  type NumericRole,
 } from "../middlewares/auth";
 import { getRequestId } from "../observability/requestObservability";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
@@ -13,6 +11,9 @@ import { extractPresenceClientFingerprint } from "../realtime/presenceClientFing
 import { broadcastPresenceUpdate } from "../realtime/presence";
 import { issuePresenceSocketTicket } from "../realtime/presenceTickets";
 import { logActivity } from "../utils/activityLog";
+
+type NumericRole = 1 | 2 | 3
+type LegacyRole = "aluno" | "professor" | "admin"
 
 function pickNonEmptyString(value: unknown) {
   if (typeof value !== "string") {
@@ -99,39 +100,39 @@ function resolveTrustedProxyUser(
   const usuario = pickNonEmptyString(body.usuario ?? body.email);
   const roleId = parseRoleId(body.roleId ?? body.role) ?? 1;
 
-  if (!userId || !/^\d+$/.test(userId) || !usuario) {
+  if (!userId || !usuario) {
     return null;
   }
 
   const issuedAt = Math.floor(Date.now() / 1000);
 
   return {
+    id: userId,
+    email: usuario,
+    username: null,
+    name: usuario,
+    role: roleId as 1 | 2 | 3,
+    customRoleId: null,
+    avatarUrl: null,
+    suspendedAt: null,
     sub: userId,
     usuario,
     roleId,
-    role: toLegacyRole(roleId),
     iat: issuedAt,
     exp: issuedAt + 60,
   };
 }
 
-async function resolvePresenceUser(
+function resolvePresenceUser(
   req: AuthRequest,
-  jwtSecret: string,
   presenceProxySecret?: string
-) {
+): AuthUser | null {
   const trustedProxyUser = resolveTrustedProxyUser(req, presenceProxySecret);
   if (trustedProxyUser) {
     return trustedProxyUser;
   }
 
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return null;
-  }
-
-  return authenticateToken(token, jwtSecret);
+  return req.user ?? null;
 }
 
 function resolvePresenceRoute(req: AuthRequest) {
@@ -174,9 +175,10 @@ function trackPresenceActivity(params: {
 
 export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) {
   const router = Router();
+  const cookieAuth = authGuard(jwtSecret);
 
-  router.post("/presence/socket-ticket", async (req: AuthRequest, res) => {
-    const user = await resolvePresenceUser(req, jwtSecret, presenceProxySecret);
+  router.post("/presence/socket-ticket", cookieAuth, async (req: AuthRequest, res) => {
+    const user = resolvePresenceUser(req, presenceProxySecret);
     if (!user) {
       void trackPresenceActivity({
         req,
@@ -209,9 +211,9 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
     });
   });
 
-  router.post("/presence/heartbeat", async (req: AuthRequest, res) => {
+  router.post("/presence/heartbeat", cookieAuth, async (req: AuthRequest, res) => {
     try {
-      const user = await resolvePresenceUser(req, jwtSecret, presenceProxySecret);
+      const user = resolvePresenceUser(req, presenceProxySecret);
       if (!user) {
         void trackPresenceActivity({
           req,
@@ -240,7 +242,7 @@ export function presenceRouter(jwtSecret: string, presenceProxySecret?: string) 
       console.error("presence http heartbeat error:", error);
       void trackPresenceActivity({
         req,
-        actor: { id: req.user?.sub ?? null, role: req.user?.role ?? null },
+        actor: { id: req.user?.sub ?? null, role: req.user?.role != null ? String(req.user.role) : null },
         action: "presence_heartbeat_failed",
         metadata: presenceMetadata(req, "presence.heartbeat", "server_error", 500, {
           errorType: error instanceof Error ? error.name : "PresenceHeartbeatError",

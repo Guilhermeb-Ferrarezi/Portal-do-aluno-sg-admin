@@ -1,6 +1,7 @@
 import type { NextFunction, Response } from "express";
 import { pool } from "../db";
-import { authenticateToken, type AuthRequest, type LegacyRole } from "./auth";
+import { authGuard, type AuthRequest, type SantosUser } from "./auth";
+type LegacyRole = "aluno" | "professor" | "admin";
 import {
   hashApiTokenSecret,
   isApiTokenExpired,
@@ -62,50 +63,47 @@ async function authenticateApiToken(
   };
 }
 
+const LEGACY_ROLE_MAP: Record<LegacyRole, number> = { aluno: 1, professor: 2, admin: 3 };
+
 export function authOrApiTokenGuard(jwtSecret: string, db: DbLike = pool) {
+  const santosGuard = authGuard(jwtSecret);
+
   return async (req: ApiTokenAuthRequest, res: Response, next: NextFunction) => {
+    // 1. Cookie de sessão (novo auth centralizado) — takes priority
+    if (req.cookies?.access_token) {
+      return santosGuard(req, res, next);
+    }
+
     const header = req.headers.authorization;
     const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
 
-    if (!token) {
-      return res.status(401).json({ message: "Token ausente" });
-    }
+    if (!token) return res.status(401).json({ code: "UNAUTHORIZED", message: "Não autenticado" });
 
-    const jwtUser = await authenticateToken(token, jwtSecret);
-    if (jwtUser) {
-      req.user = jwtUser;
+    // 2. API token — check format first (O(1), no DB hit for non-matching tokens)
+    const parsed = parseApiTokenValue(token);
+    if (parsed) {
+      const apiToken = await authenticateApiToken(token, db);
+      if (!apiToken) return res.status(401).json({ code: "UNAUTHORIZED", message: "Token inválido ou expirado" });
+      req.apiToken = apiToken;
       return next();
     }
 
-    const codexUser = await authenticateCodexPortalToken(token, db);
-    if (codexUser) {
-      req.user = codexUser;
-      return next();
-    }
-
-    const apiToken = await authenticateApiToken(token, db);
-    if (!apiToken) {
-      return res.status(401).json({ message: "Token invalido ou expirado" });
-    }
-
-    req.apiToken = apiToken;
-    return next();
+    // 3. Bearer JWT do Santos auth (mobile / SSR) — falls through to santosGuard
+    return santosGuard(req, res, next);
   };
 }
 
 export function resolveAuthenticatedUserId(req: ApiTokenAuthRequest) {
   if (req.apiToken) return req.apiToken.userId;
   if (!req.user) return null;
-  const userId = Number(req.user.sub);
-  return Number.isInteger(userId) && userId > 0 ? userId : null;
+  return req.user.id; // UUID do novo auth
 }
 
 export function requireApiTokenScopeIfPresent(scope: string) {
   return async (req: ApiTokenAuthRequest, res: Response, next: NextFunction) => {
     if (req.apiToken && !req.apiToken.scopes.includes(scope)) {
-      return res.status(403).json({ message: "Escopo insuficiente." });
+      return res.status(403).json({ code: "FORBIDDEN", message: "Escopo insuficiente" });
     }
-
     return next();
   };
 }
@@ -114,13 +112,19 @@ export function requireRoleOrApiTokenScope(roles: LegacyRole[], scope: string) {
   return async (req: ApiTokenAuthRequest, res: Response, next: NextFunction) => {
     if (req.apiToken) {
       if (!req.apiToken.scopes.includes(scope)) {
-        return res.status(403).json({ message: "Escopo insuficiente." });
+        return res.status(403).json({ code: "FORBIDDEN", message: "Escopo insuficiente" });
       }
       return next();
     }
 
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Sem permissao" });
+    if (!req.user) return res.status(401).json({ code: "UNAUTHORIZED", message: "Não autenticado" });
+
+    // Admin passa tudo
+    if (req.user.role === 3) return next();
+
+    const allowedNums = roles.map((r) => LEGACY_ROLE_MAP[r]);
+    if (!allowedNums.includes(req.user.role)) {
+      return res.status(403).json({ code: "FORBIDDEN", message: "Sem permissão" });
     }
 
     return next();

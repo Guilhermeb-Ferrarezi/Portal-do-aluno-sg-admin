@@ -1,6 +1,6 @@
 import type { IncomingMessage, Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
-import { authenticateToken, type AuthUser } from "../middlewares/auth";
+import type { AuthUser } from "../middlewares/auth";
 import { getKnownLastSeenAt, persistUserLastSeen } from "../presence/presenceStore";
 import { extractPresenceClientFingerprint } from "./presenceClientFingerprint";
 import { consumePresenceSocketTicket } from "./presenceTickets";
@@ -228,13 +228,7 @@ async function authenticatePresenceRequest(request: IncomingMessage, jwtSecret: 
   if (ticket) {
     return consumePresenceSocketTicket(ticket, extractPresenceClientFingerprint(request));
   }
-
-  const token = extractBearerToken(request);
-  if (!token) {
-    return null;
-  }
-
-  return authenticateToken(token, jwtSecret);
+  return null;
 }
 
 export function setupPresenceWebSocketServer(
