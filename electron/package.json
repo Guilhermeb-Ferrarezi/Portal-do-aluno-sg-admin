@@ -38,7 +38,7 @@
     "electron-builder": "^26.0.0",
     "rcedit": "^4.0.1",
     "tsx": "^4.22.3",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.3",
     "wait-on": "^9.0.10"
   },
   "build": {
