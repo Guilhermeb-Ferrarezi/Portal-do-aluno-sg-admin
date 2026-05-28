@@ -14,7 +14,6 @@ import {
   Globe,
   Trash2,
   Clock,
-  Youtube,
   FolderUp,
   Play,
   Check,
@@ -856,7 +855,7 @@ export default function VideoaulaBonusPage() {
                       }))
                     }
                   >
-                    {iconLabel(<Youtube size={16} />, "YouTube")}
+                    {iconLabel(<Play size={16} />, "YouTube")}
                   </button>
                   <button
                     type="button"
