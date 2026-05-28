@@ -5,6 +5,7 @@ import { appRoutes } from "@/router/routes";
 import { connectPresenceSocket } from "@/services/presenceSocket";
 
 const AUTH_ORIGIN = "https://auth.santos-tech.com";
+const STUDENT_PORTAL = "https://portal.santos-tech.com";
 const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL as string | undefined ?? "https://api.santos-tech.com";
 
 type Status = "checking" | "ok" | "forbidden";
@@ -14,11 +15,10 @@ export default function ProtectedRoute({ allowedRoles }: { allowedRoles?: Role[]
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    const redirectUrl = window.location.href;
     fetch(`${AUTH_API_URL}/auth/me`, { credentials: "include" })
       .then((res) => {
         if (res.status === 401 || res.status === 403) {
-          window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(redirectUrl)}`);
+          window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(window.location.href)}`);
           return null;
         }
         if (!res.ok) throw new Error("auth_check_failed");
@@ -32,7 +32,7 @@ export default function ProtectedRoute({ allowedRoles }: { allowedRoles?: Role[]
         setStatus("ok");
       })
       .catch(() => {
-        window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(redirectUrl)}`);
+        window.location.replace(AUTH_ORIGIN);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -49,9 +49,9 @@ export default function ProtectedRoute({ allowedRoles }: { allowedRoles?: Role[]
     return <Navigate to={appRoutes.dashboard} replace />;
   }
 
-  // Block student role from admin portal
+  // Block student role from admin portal — vai direto para o portal do aluno
   if (user && user.role === 1) {
-    window.location.replace(`${AUTH_ORIGIN}?redirect=${encodeURIComponent(window.location.origin)}`);
+    window.location.replace(STUDENT_PORTAL);
     return null;
   }
 
