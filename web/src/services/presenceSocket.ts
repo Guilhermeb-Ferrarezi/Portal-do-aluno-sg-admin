@@ -1,6 +1,6 @@
 import { getUserId, isLoggedIn } from "../auth/auth";
 import { env } from "../env";
-import { API_BASE_URL, createPresenceSocketTicket } from "./api";
+import { API_BASE_URL } from "./api";
 
 type PresenceSocketMessage =
   | { type: "presence:hello"; userId: string; isOnline: boolean; lastSeenAt: string }
@@ -244,7 +244,15 @@ async function openPresenceSocketInternal() {
   }
 
   try {
-    const { ticket } = await createPresenceSocketTicket();
+    const ticketRes = await fetch(`${API_BASE_URL}/presence/socket-ticket`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!ticketRes.ok) {
+      scheduleReconnect();
+      return;
+    }
+    const { ticket } = (await ticketRes.json()) as { ok: boolean; ticket: string; expiresAt: string };
     if (!shouldRun || !isLoggedIn() || attemptId !== connectionAttemptId) {
       return;
     }
