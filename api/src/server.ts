@@ -1,6 +1,7 @@
 import "./load-env";
 import { createServer } from "http";
 import express from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -372,6 +373,7 @@ app.use(
   })
 );
 
+app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 
 if (observabilityEnabled) {
