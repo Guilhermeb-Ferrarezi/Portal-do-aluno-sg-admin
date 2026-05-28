@@ -3,10 +3,11 @@ import { Navigate, Outlet } from "react-router-dom";
 import { setAuthUser, type AuthUser, type Role } from "./auth";
 import { appRoutes } from "@/router/routes";
 import { connectPresenceSocket } from "@/services/presenceSocket";
+import { env } from "@/env";
 
 const AUTH_ORIGIN = "https://auth.santos-tech.com";
 const STUDENT_PORTAL = "https://portal.santos-tech.com";
-const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL as string | undefined ?? "https://api.santos-tech.com";
+const AUTH_API_URL = env.apiUrl;
 
 type Status = "checking" | "ok" | "forbidden";
 
