@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Redis } from "ioredis";
+import { pool } from "../db";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ export type SantosUser = {
 
 // Compat aliases para rotas legadas que leem req.user.roleId / req.user.usuario
 export type AuthUser = SantosUser & {
-  sub: string;          // = id
+  sub: string;          // ID local inteiro (string) ou UUID se usuário não encontrado localmente
   usuario: string;      // = email
   roleId: 1 | 2 | 3;   // clamped — role 4 (Custom) retorna role efetivo via permissions
   iat: number;
@@ -31,6 +32,7 @@ export type AuthRequest = Request & { user?: AuthUser };
 
 const CACHE_TTL_SECONDS = 30;
 const cacheKey = (userId: string) => `auth:session:${userId}`;
+const localIdCacheKey = (email: string) => `auth:local_id:${email}`;
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
@@ -55,6 +57,31 @@ async function setCache(user: SantosUser): Promise<void> {
   try {
     await getRedis().set(cacheKey(user.id), JSON.stringify(user), "EX", CACHE_TTL_SECONDS);
   } catch {}
+}
+
+// ─── Local integer ID resolution ─────────────────────────────────────────────
+// Resolve the integer primary key from the local "user" table by email.
+// This bridges the UUID-based central auth with the legacy integer-keyed local DB.
+
+async function resolveLocalIntId(email: string): Promise<number | null> {
+  try {
+    const cached = await getRedis().get(localIdCacheKey(email));
+    if (cached !== null) return Number(cached);
+  } catch {}
+
+  try {
+    const r = await pool.query<{ id: number }>(
+      `SELECT id FROM "user" WHERE email = $1 LIMIT 1`,
+      [email]
+    );
+    const localId = r.rows[0]?.id ?? null;
+    if (localId !== null) {
+      getRedis().set(localIdCacheKey(email), String(localId), "EX", CACHE_TTL_SECONDS).catch(() => {});
+    }
+    return localId;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Auth service fetch ───────────────────────────────────────────────────────
@@ -89,10 +116,12 @@ function extractUserId(token: string, secret: string): { sub: string; iat: numbe
 
 // ─── Map to legacy shape ──────────────────────────────────────────────────────
 
-function toAuthUser(user: SantosUser, iat: number, exp: number): AuthUser {
+function toAuthUser(user: SantosUser, iat: number, exp: number, localId: number | null): AuthUser {
+  const resolvedId = localId !== null ? String(localId) : user.id;
   return {
     ...user,
-    sub: user.id,
+    id: resolvedId,
+    sub: resolvedId,
     usuario: user.email,
     roleId: (Math.min(user.role, 3) as 1 | 2 | 3),
     iat,
@@ -136,7 +165,10 @@ export function authGuard(_legacySecret?: string) {
       return res.status(403).json({ code: "ACCOUNT_SUSPENDED", message: "Conta suspensa" });
     }
 
-    req.user = toAuthUser(user, jwtData.iat, jwtData.exp);
+    // 5. Resolve ID inteiro local para compat com rotas que esperam integer em req.user.sub
+    const localId = await resolveLocalIntId(user.email);
+
+    req.user = toAuthUser(user, jwtData.iat, jwtData.exp, localId);
     return next();
   };
 }
